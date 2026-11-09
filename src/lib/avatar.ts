@@ -19,14 +19,14 @@ export async function makeCutout(env: Env, photoKey: string): Promise<ArrayBuffe
 // Two-step: vision model describes the object → flux draws a flat emoji-style icon of it.
 export async function describeItem(env: Env, photo: ArrayBuffer, name: string): Promise<string> {
   const r: any = await env.AI!.run('@cf/llava-hf/llava-1.5-7b-hf' as any, {
-    prompt: `The listing is called "${name}". In 8-14 words, describe only the main object for an icon artist: type, color, material, distinctive shape. No background, no room, no people. Output just the phrase.`,
+    prompt: `USER: The listing is called "${name}". Describe only this object for an icon artist in 12-20 words: exact type, color(s), material, base/legs/handles, and its most distinctive shape detail. No background, room, or people. Output just the phrase.\nASSISTANT:`,
     image: [...new Uint8Array(photo)], max_tokens: 60,
   } as any);
   return String(r?.response || r?.description || '').trim().replace(/^["']|["'.]$/g, '') || name;
 }
 export async function drawIcon(env: Env, desc: string): Promise<ArrayBuffer | null> {
   const r: any = await env.AI!.run('@cf/black-forest-labs/flux-1-schnell' as any, {
-    prompt: `${desc}. A single flat emoji icon in the style of Apple iOS emoji: simple rounded shapes, soft gradients, subtle shading, slight 3D glossy look, thick clean silhouette, centered, isolated on a pure solid white background, no text, no shadow on ground.`,
+    prompt: `${desc}. Rendered as a single Apple iOS emoji-style icon: faithful to the described shape and proportions, simple rounded forms, soft gradients, subtle shading, slight glossy 3D look, clean silhouette, centered, isolated on a pure solid white background, no text, no ground shadow.`,
     steps: 6,
   } as any);
   if (r?.image) return Uint8Array.from(atob(r.image), ch => ch.charCodeAt(0)).buffer;
