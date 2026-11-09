@@ -131,7 +131,7 @@ html.mappage .hdr{flex-shrink:0;position:relative}
 .pcard-strip{margin:-12px -12px 12px;height:32px;padding:0 44px 0 14px;border-radius:16px 16px 0 0;background:var(--ink);color:#fff;display:flex;align-items:center;font-size:14px;font-weight:900;letter-spacing:1.2px}
 .pcard-x{position:absolute;right:-4px;top:-14px;width:32px;height:32px;border-radius:16px;border:2px solid #fff;background:var(--ink);display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 2px 6px rgba(30,58,43,.3);z-index:2}
 .pcard-body{display:flex;align-items:flex-start;gap:12px;text-decoration:none;color:var(--ink)}
-.pcard-img{position:relative;flex-shrink:0;width:100px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.pcard-img{position:relative;flex-shrink:0;width:100px;display:flex;flex-direction:column;align-items:center;gap:10px}
 .pcard-img img{width:100px;height:100px;border-radius:14px;background:#F4F1EA;display:block}
 .pcard-img img.photo{object-fit:cover}
 .pcard-img img.cut{object-fit:contain;padding:6px;box-sizing:border-box;filter:drop-shadow(0 3px 3px rgba(30,58,43,.18))}
