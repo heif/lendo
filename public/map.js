@@ -41,7 +41,7 @@
     var z = Math.round(map.getZoom() * 4) / 4, key = z + '|' + arr.map(function (it) { return it.id; }).join(',');
     if (key === spreadKey) return; spreadKey = key; spreadPos = {};
     var pts = arr.filter(function (it) { return it.lat != null; }).map(function (it) { var p = map.project([it.lng, it.lat]); return { id: it.id, x: p.x, y: p.y, ox: p.x, oy: p.y }; });
-    var R = 96, moved = false;
+    var R = 104, moved = false;
     for (var iter = 0; iter < 60; iter++) {
       moved = false;
       for (var i = 0; i < pts.length; i++) for (var j = i + 1; j < pts.length; j++) {
@@ -78,7 +78,7 @@
   // Prototype pin: the item icon (transparent sticker) with a white outline + soft glow, orange price tag below.
   // Listings without a transparent icon get the round photo sticker.
   function drawSticker(it, img, transparent) {
-    var W = 84, H = SZ + 34, iconH = SZ + 6;
+    var W = 104, H = SZ + 30, iconH = SZ + 6;
     var cv = document.createElement('canvas'); cv.width = W * DPR; cv.height = H * DPR;
     var g = cv.getContext('2d'); g.scale(DPR, DPR);
     var cx = W / 2, cy = iconH / 2 + 2;
@@ -106,15 +106,15 @@
     }
     // price tag
     var label = fmt(it.price_cents), sub = '/day';
-    g.font = '700 12.5px "Helvetica Neue",Helvetica,Arial,sans-serif'; var lw = g.measureText(label).width;
-    g.font = '700 8.5px "Helvetica Neue",Helvetica,Arial,sans-serif'; var sw = g.measureText(sub).width;
-    var tw = lw + sw + 12, th = 18, tx = cx - tw / 2, ty = iconH - 4;
+    g.font = '800 17px "Helvetica Neue",Helvetica,Arial,sans-serif'; var lw = g.measureText(label).width;
+    g.font = '700 10px "Helvetica Neue",Helvetica,Arial,sans-serif'; var sw = g.measureText(sub).width;
+    var tw = lw + sw + 14, th = 24, tx = cx - tw / 2, ty = iconH - 14; // tag overlaps the bottom of the item
     g.save(); g.shadowColor = 'rgba(30,58,43,0.25)'; g.shadowBlur = 3; g.shadowOffsetY = 1;
-    g.beginPath(); g.roundRect(tx, ty, tw, th, 5); g.fillStyle = S.sticker.tagBg; g.fill(); g.restore();
-    g.beginPath(); g.roundRect(tx, ty, tw, th, 5); g.lineWidth = 1.5; g.strokeStyle = S.sticker.tagInk; g.stroke();
+    g.beginPath(); g.roundRect(tx, ty, tw, th, 6); g.fillStyle = S.sticker.tagBg; g.fill(); g.restore();
+    g.beginPath(); g.roundRect(tx, ty, tw, th, 6); g.lineWidth = 1.5; g.strokeStyle = S.sticker.tagInk; g.stroke();
     g.fillStyle = S.sticker.tagText; g.textBaseline = 'middle'; g.textAlign = 'left';
-    g.font = '700 12.5px "Helvetica Neue",Helvetica,Arial,sans-serif'; g.fillText(label, tx + 6, ty + th / 2 + 0.5);
-    g.font = '700 8.5px "Helvetica Neue",Helvetica,Arial,sans-serif'; g.fillText(sub, tx + 6 + lw, ty + th / 2 + 1);
+    g.font = '800 17px "Helvetica Neue",Helvetica,Arial,sans-serif'; g.fillText(label, tx + 7, ty + th / 2 + 0.5);
+    g.font = '700 10px "Helvetica Neue",Helvetica,Arial,sans-serif'; g.fillText(sub, tx + 7 + lw, ty + th / 2 + 1.5);
     return g.getImageData(0, 0, W * DPR, H * DPR);
   }
   function addIcon(id, imgData) { if (!map.hasImage(id)) map.addImage(id, imgData, { pixelRatio: DPR }); }
