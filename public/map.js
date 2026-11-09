@@ -66,8 +66,8 @@
     $('shLink').href = '/i/' + it.id;
     var im = $('shImg'); im.src = it.avatar_key ? '/p/' + it.avatar_key : it.photo ? '/p/' + it.photo : ''; im.className = it.avatar_key ? 'cut' : 'photo';
     $('shPr').innerHTML = fmt(it.price_cents) + '<small>/day</small>';
-    $('shNm').textContent = it.name;
     var own = (it.owner_name || 'Neighbor').split(' ')[0];
+    $('shNm').textContent = own + (/s$/i.test(own) ? '’ ' : '’s ') + it.name.charAt(0).toLowerCase() + it.name.slice(1);
     $('shOwner').innerHTML = '<span class="av">' + esc(own.charAt(0)) + '</span>' + esc(own) + (it.owner_rating ? ' <span class="pill">★ ' + it.owner_rating + '</span>' : ' <span class="pill new">new</span>') + (it.rentals ? ' <span class="n">' + it.rentals + ' rental' + (it.rentals === 1 ? '' : 's') + '</span>' : '');
     $('shWhere').textContent = (it.hood || 'near you') + (it.owner_xs ? ' · ' + it.owner_xs : '');
   }
