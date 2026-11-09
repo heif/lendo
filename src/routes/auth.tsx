@@ -15,12 +15,11 @@ auth.get('/login', (c) => {
   return c.html(
     <Layout title="Log in" user={null}>
       <form method="post" action="/login" style="padding:20px 16px">
-        <h2 style="margin:0 0 6px;font-size:24px;font-weight:900;letter-spacing:-.02em">Your phone number</h2>
-        <p class="hint" style="margin:0 0 10px">We text you a code (iMessage, or SMS if you're not on an iPhone). That same thread is where your rentals happen.</p>
+        <h2 style="margin:0 0 10px;font-size:24px;font-weight:900;letter-spacing:-.02em">Your phone number</h2>
         <input type="hidden" name="next" value={next} />
         <label class="field"><span>Phone</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(646) 555-0199" required autofocus /></label>
         <button class="btn pri full" type="submit">Text me a code</button>
-        <p class="hint" style="margin-top:14px">By continuing you agree to get texts from Lendo about your rentals. Reply STOP anytime.</p>
+        <p class="hint" style="margin-top:14px">We'll text you. Reply STOP anytime.</p>
       </form>
     </Layout>
   );
@@ -64,7 +63,7 @@ auth.get('/welcome', async (c) => {
   return c.html(
     <Layout title="Welcome" user={u} back={null}>
       <form method="post" action="/welcome" style="padding:20px 16px">
-        <div class="flash" style="margin:0 0 14px">📱 Save <b>{c.env.LENDO_NUMBER}</b> as "Lendo" and reply <b>OK</b> to the code text — otherwise iPhones file rental texts as spam.</div>
+        <div class="flash" style="margin:0 0 14px">📱 Save <b>{c.env.LENDO_NUMBER}</b> as "Lendo" · reply <b>OK</b> to the text.</div>
         <h2 style="margin:0 0 6px;font-size:24px;font-weight:900;letter-spacing:-.02em">What should neighbors call you?</h2>
         <input type="hidden" name="next" value={next} />
         <label class="field"><span>First name + last initial</span><input name="name" placeholder="Fiona S." required maxlength={40} autofocus /></label>

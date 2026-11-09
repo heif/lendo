@@ -57,7 +57,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
   const spots = owner.pickup_spots ? (JSON.parse(owner.pickup_spots) as string[]) : [];
   const fmtT = (t: number) => new Date(t).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
   return c.html(
-    <Layout title={isOwner ? 'Rental of your ' + it.name : 'Your rental'} user={u} back="/rentals" flash={c.req.query('paid') ? (r.status === 'held' ? `Card held, not charged. We texted ${firstName(owner.name)} — they reply YES to confirm.` : null) : null}>
+    <Layout title={isOwner ? 'Rental of your ' + it.name : 'Your rental'} user={u} back="/rentals" flash={c.req.query('paid') ? (r.status === 'held' ? `Card held. Waiting for ${firstName(owner.name)}.` : null) : null}>
       <div style="padding:12px 12px 90px;display:flex;flex-direction:column;gap:10px">
         <a class="card row" href={'/i/' + it.id} style="text-decoration:none;align-items:center">
           {photos[0] ? <img src={'/p/' + photos[0].r2_key} alt="" style="width:64px;height:64px;border-radius:12px;object-fit:cover;background:var(--cream)" /> : <div style="width:64px;height:64px;border-radius:12px;background:var(--cream)"></div>}
@@ -79,7 +79,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
               <form method="post" action={'/r/' + r.id + '/accept'} style="flex:1"><button class="btn pri full" type="submit">YES — accept</button></form>
               <form method="post" action={'/r/' + r.id + '/decline'}><button class="btn" type="submit">No</button></form>
             </div>
-            <div class="hint" style="margin-top:8px">Or just reply YES / NO to the text. Expires {r.expires_at ? fmtT(r.expires_at) : 'in 24h'}.</div>
+            <div class="hint" style="margin-top:8px">or reply YES / NO by text · expires {r.expires_at ? fmtT(r.expires_at) : 'in 24h'}</div>
           </div>
         ) : null}
 
@@ -100,13 +100,13 @@ rentals.get('/r/:id', requireUser, async (c) => {
         {/* pickup / return photo (owner's phone) */}
         {isOwner && !dead && stage === 1 ? (
           <form method="post" action={'/r/' + r.id + '/pickup'} enctype="multipart/form-data" class="card" style="background:var(--orange);color:#fff;border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink)">
-            <label style="display:flex;align-items:center;gap:12px;cursor:pointer"><span style="font-size:26px">📷</span><span><b style="display:block">Take a photo of {firstName(other.name)} with it</b><span style="font-size:12.5px">At pickup. Time-stamped. This replaces a deposit.</span></span><input type="file" name="photo" accept="image/*" capture="environment" style="display:none" onchange="this.form.submit()" /></label>
+            <label style="display:flex;align-items:center;gap:12px;cursor:pointer"><span style="font-size:26px">📷</span><span><b style="display:block">Photo of {firstName(other.name)} with it</b></span><input type="file" name="photo" accept="image/*" capture="environment" style="display:none" onchange="this.form.submit()" /></label>
             <button class="btn sm" type="submit" style="margin-top:8px;background:#fff">Mark picked up without photo</button>
           </form>
         ) : null}
         {isOwner && !dead && stage === 2 ? (
           <form method="post" action={'/r/' + r.id + '/return'} enctype="multipart/form-data" class="card" style="border:2px solid var(--ink)">
-            <label style="display:flex;align-items:center;gap:12px;cursor:pointer"><span style="font-size:26px">📷</span><span><b style="display:block">Got it back? Snap it again</b><span class="hint">Confirms the return and asks you both to rate.</span></span><input type="file" name="photo" accept="image/*" capture="environment" style="display:none" onchange="this.form.submit()" /></label>
+            <label style="display:flex;align-items:center;gap:12px;cursor:pointer"><span style="font-size:26px">📷</span><span><b style="display:block">Got it back? Snap it</b></span><input type="file" name="photo" accept="image/*" capture="environment" style="display:none" onchange="this.form.submit()" /></label>
             <button class="btn sm" type="submit" style="margin-top:8px">Mark returned without photo</button>
           </form>
         ) : null}
@@ -123,7 +123,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
           </form>
         ) : myRating ? <div class="hint">You rated {'★'.repeat(myRating)}</div> : null}
 
-        <div class="m" style="font-size:8px;color:var(--mute);margin:6px 2px 0">history · texts land here too</div>
+        <div class="m" style="font-size:8px;color:var(--mute);margin:6px 2px 0">history</div>
         <div class="msgs">
           {msgs.results.map(m => {
             const me = m.sender_id === u.id, sys = !m.sender_id;
@@ -226,7 +226,7 @@ rentals.get('/inbox', requireUser, async (c) => {
   const fmtT = (t: number) => new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
   return c.html(
     <Layout title="Inbox" user={u}>
-      <div style="padding:12px 16px 4px" class="hint">What we text you — rentals and money always come through. Reply to any of them by text.</div>
+      <div style="padding:12px 16px 4px" class="hint">What we text you</div>
       <div class="msgs" style="padding:8px 12px 40px">
         {texts.results.length ? texts.results.map(t => (
           <div class="msg">
@@ -252,8 +252,7 @@ rentals.get('/payout', requireUser, async (c) => {
   return c.html(
     <Layout title="Get paid" user={u}>
       <section class="sec" style="border-bottom:0">
-        <h2 style="margin:0 0 6px;font-size:24px;font-weight:900;letter-spacing:-.02em">Where should your rent go?</h2>
-        <p class="hint" style="margin:0 0 12px">Owners get 100% of the rent. Renters pay the Lendo fee. Payouts go to your debit card or bank through Stripe.</p>
+        <h2 style="margin:0 0 12px;font-size:24px;font-weight:900;letter-spacing:-.02em">Where should your money go?</h2>
         {pending?.s ? <div class="flash" style="margin:0 0 12px">{money(pending.s)} waiting to be paid out.</div> : null}
         {!s ? <div class="flash err" style="margin:0 0 12px">Stripe isn't configured on this server yet.</div> : connected ? <div class="flash" style="margin:0 0 12px">✓ Connected. {detail}</div> : (
           <form method="post" action="/payout"><button class="btn pri full" type="submit">{u.stripe_account_id ? 'Finish setup' : 'Add a debit card or bank'}</button>{detail ? <p class="hint">{detail}</p> : null}</form>

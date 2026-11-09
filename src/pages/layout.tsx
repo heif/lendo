@@ -58,14 +58,14 @@ export const Layout: FC<LayoutProps> = (p) => {
                     <a href={'/u/' + u.id}>Profile</a>
                     <a href="/payout">Get paid</a>
                     <a href="/about">Why Lendo</a>
-                    <a class="list" href="/list">List your stuff</a>
+                    <a class="list" href="/list">Rent out your stuff</a>
                     <a href="/logout" style="color:#8A857B;font-weight:600">Log out</a>
                   </>
                 ) : (
                   <>
-                    <a href="/login">Log in · text code</a>
+                    <a href="/login">Log in</a>
                     <a href="/about">Why Lendo</a>
-                    <a class="list" href="/list">List your stuff</a>
+                    <a class="list" href="/list">Rent out your stuff</a>
                   </>
                 )}
               </nav>

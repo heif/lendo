@@ -116,7 +116,7 @@ browse.get('/i/:id', async (c) => {
                 return <button type="button" class={b ? 'busy' : ''} data-day={d} disabled={b} aria-label={fmtDay(d) + (b ? ' booked' : '')}>{dt.toLocaleDateString('en-US', { weekday: 'narrow', timeZone: 'UTC' })} {dt.getUTCDate()}</button>;
               })}
             </div>
-            <div class="hint" style="margin-top:6px">grey = booked · pick a start and end day</div>
+            
             <input type="hidden" name="start" id="start" /><input type="hidden" name="end" id="end" />
           </form>
         ) : null}
@@ -138,13 +138,7 @@ browse.get('/i/:id', async (c) => {
         {review ? <p style="margin:12px 0 0;font-size:13px;font-style:italic">“{review.rv}” — {firstName(review.nm)}</p> : null}
       </section>
       <section class="sec" style="border-bottom:0;padding-bottom:110px">
-        <div class="m" style="font-size:11px;color:var(--mute)">how it works</div>
-        <ol style="margin:8px 0 0;padding-left:18px;font-size:13px;line-height:1.55">
-          <li>Pick your days. Your card is held, not charged, until {firstName(owner.name)} says yes (by text).</li>
-          <li>You pay the rent plus a {feePct}% Lendo fee. {firstName(owner.name)} gets the full rent.</li>
-          <li>Meet at the pickup spot. {firstName(owner.name)} snaps a photo of you with it — that's the deposit.</li>
-          <li>Return it. Both of you rate each other.</li>
-        </ol>
+        <div class="hint">Card held until {firstName(owner.name)} says yes · {feePct}% fee · photo at pickup instead of a deposit</div>
       </section>
       {!isOwner && it.status === 'live' ? (
         <div class="rentbar">
@@ -248,13 +242,13 @@ browse.get('/profile/edit', async (c) => {
       <form method="post" action="/profile/edit" style="padding:12px 16px 40px">
         <label class="field"><span>Your name (first name + last initial)</span><input name="name" value={u.name || ''} placeholder="Fiona S." required maxlength={40} /></label>
         <label class="field" style="position:relative"><span>Pickup address (private — renters only see cross streets)</span><input name="address" id="addr" value={u.address || ''} placeholder="Street address" maxlength={160} autocomplete="off" /><div id="addrSug" class="card" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:50;padding:4px;margin-top:4px"></div></label>
-        <label class="field"><span>Cross streets (renters see this, never your address)</span><input name="cross_streets" value={u.cross_streets || ''} placeholder="W 22nd & 9th Ave" maxlength={80} /></label>
+        <label class="field"><span>Cross streets (public)</span><input name="cross_streets" value={u.cross_streets || ''} placeholder="W 22nd & 9th Ave" maxlength={80} /></label>
         <label class="field"><span>Meetup spots (comma separated)</span><input name="pickup_spots" value={spots} placeholder="Lobby, Joe Coffee on 9th" maxlength={200} /></label>
         <label class="field"><span>Neighborhood</span><input name="hood" value={u.hood || ''} placeholder="Chelsea" maxlength={60} /></label>
         <input type="hidden" name="lat" id="lat" value={u.lat ?? ''} /><input type="hidden" name="lng" id="lng" value={u.lng ?? ''} />
         <button type="button" class="btn sm" onclick="navigator.geolocation.getCurrentPosition(function(p){lat.value=p.coords.latitude;lng.value=p.coords.longitude;toast('Location set')})">📍 Use my location as home base</button>
         <div style="margin-top:16px"><button class="btn pri full" type="submit">Save</button></div>
-        <p class="hint" style="margin-top:14px">Texts: {u.texts ? 'on' : 'off'} · listing nudges: {u.nudges ? 'on' : 'off'}. Reply STOP NUDGES or STOP to any Lendo text to change.</p>
+        
       </form>
       {c.env.MAPBOX_PUBLIC_TOKEN ? raw(`<script>
 (function(){var tok=${JSON.stringify(c.env.MAPBOX_PUBLIC_TOKEN)},sess=(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)),inp=document.getElementById('addr'),box=document.getElementById('addrSug'),t;
@@ -300,17 +294,14 @@ browse.post('/profile/edit', async (c) => {
 // ---------- About ----------
 browse.get('/about', (c) => {
   const u = c.get('user');
+  const G = ['Tife ranezu so raplemo ne grine ne grirami ke romira mifera. Zu pa sopa za kenemi pleta bano quane ple zadu ta rasen.', 'Midudu soquata nonene talo neraba paromi. Palo senso no zaqua ta mo tiba fe tane no zuvi. Zuvi grisosen keti za ke kebota zavipa.', 'Gri soquami tilo quarosen ranosen fefefe. Ta feramo mo zalu quara bo tizulu quabo mo.', 'Tiro soqua talu ta tata neti ba bavi loza bomople. Lo boplepa nelovi sozaso zu pleduro qua ke. Bake ple soba bo tavi lo sonoba sone lu ta du ta.'];
   return c.html(
     <Layout title="Why Lendo" user={u}>
       <section class="sec" style="border-bottom:0;font-size:15px;line-height:1.5">
-        <h2 style="font-size:26px;font-weight:900;letter-spacing:-.02em;margin:0 0 10px">Rent the stuff near you.</h2>
-        <p>Everyone's closet has a drill, a tent, a projector, a stand mixer that gets used twice a year. Lendo puts it on a map so the neighbor who needs it for a weekend can rent it.</p>
-        <p><b>{c.env.FEE_PCT}% fee (will stay low).</b> Renters pay a {c.env.FEE_PCT}% fee on top of the rent. Owners get the full rent. That's it.</p>
-        <p><b>Text first.</b> Rentals happen over text: a request, a YES, a pickup time. The site is the map and the record.</p>
-        <p><b>Trust is two-way.</b> Everyone's rated as an owner and as a renter. A photo at pickup stands in for a deposit.</p>
-        <p><b>We</b> means the neighbors. Lendo is the plumbing.</p>
-        <a class="btn pri full" href="/list" style="margin-top:12px">List your stuff</a>
-        <p class="hint" style="margin-top:20px">Agents welcome: <code>GET /api/listings?bbox=w,s,e,n&amp;q=</code> · <code>GET /api/listings/:id</code></p>
+        <h2 style="font-size:26px;font-weight:900;letter-spacing:-.02em;margin:0 0 10px">Zu mi zusen.</h2>
+        {G.map(t => <p>{t}</p>)}
+        <p><b>{c.env.FEE_PCT}% fee (will stay low).</b></p>
+        <a class="btn pri full" href="/list" style="margin-top:12px">Rent out your stuff</a>
       </section>
     </Layout>
   );
