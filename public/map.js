@@ -41,7 +41,7 @@
     var z = Math.round(map.getZoom() * 4) / 4, key = z + '|' + arr.map(function (it) { return it.id; }).join(',');
     if (key === spreadKey) return; spreadKey = key; spreadPos = {};
     var pts = arr.filter(function (it) { return it.lat != null; }).map(function (it) { var p = map.project([it.lng, it.lat]); return { id: it.id, x: p.x, y: p.y, ox: p.x, oy: p.y }; });
-    var R = 46, moved = false;
+    var R = 96, moved = false;
     for (var iter = 0; iter < 60; iter++) {
       moved = false;
       for (var i = 0; i < pts.length; i++) for (var j = i + 1; j < pts.length; j++) {
@@ -152,7 +152,7 @@
   function load() {
     var b = map.getBounds(), qq = q.value.trim();
     fetch('/api/listings?bbox=' + [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(',') + (qq ? '&q=' + encodeURIComponent(qq) : ''))
-      .then(function (r) { return r.json(); }).then(function (j) { items = j.listings; refreshSource(); renderGrid(items); setKpi(j); loadVisibleIcons(); });
+      .then(function (r) { return r.json(); }).then(function (j) { items = j.listings; refreshSource(); renderGrid(items); setKpi(j); loadVisibleIcons(); if (window.__placeWanted) window.__placeWanted(); });
   }
   map.on('zoomend', refreshSource);
   var moveT; map.on('moveend', function () { clearTimeout(moveT); moveT = setTimeout(function () { load(); updateHood(); }, 300); });
@@ -252,7 +252,7 @@
         for (var x = x0; x <= x1 && n < MAX; x++) for (var y = y0; y <= y1 && n < MAX; y++) {
           var h = h32(x, y); if (h % MOD !== 0) continue;
           var lng = (x + 0.15 + (h >>> 8 & 255) / 365) * CELL, lat = (y + 0.15 + (h >>> 16 & 255) / 365) * CELL;
-          if (near(lng, lat, PROMO ? 46 : 40)) continue;
+          if (near(lng, lat, 130)) continue;
           var k = zb + ':' + x + ',' + y, w = want[h % want.length]; keep[k] = 1; n++;
           if (marks[k]) continue;
           var el = document.createElement('a'); el.href = '/list?want=' + encodeURIComponent(w.label);
@@ -264,7 +264,7 @@
       }
       Object.keys(marks).forEach(function (k) { if (!keep[k]) { marks[k].remove(); delete marks[k]; } });
     }
-    map.on('moveend', place); map.on('load', place); loadPlaces(place); setTimeout(place, 1500);
+    window.__placeWanted = place; map.on('moveend', place); map.on('load', place); loadPlaces(place); setTimeout(place, 1500);
   }
 
   // ---- §2 walkers (prototype details): tiny 12×19 figures, singles/pairs/trios walking out along a short straight
