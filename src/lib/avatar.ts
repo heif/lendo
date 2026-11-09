@@ -72,6 +72,22 @@ export async function buildAvatars(env: Env, listingId: string, photoKey: string
 // Auto pipeline for new listings (runs in waitUntil): draw the emoji-style icon from the first photo, then try to make it a
 // transparent sticker via Cloudflare Images background removal. The map pin switches to the icon ONLY when the transparent
 // version exists (until Images is enabled on the zone, pins keep the round photo sticker).
+// Retry listings whose sticker never landed (cutout failed at listing time, or icon never drawn). A few per cron tick.
+export async function backfillAvatars(env: Env, limit = 3): Promise<number> {
+  const rows = (await env.DB.prepare(`SELECT l.id, l.name, l.description, (SELECT r2_key FROM photos p WHERE p.listing_id = l.id ORDER BY pos LIMIT 1) k FROM listings l WHERE l.status = 'live' AND l.avatar_key IS NULL ORDER BY l.created_at DESC LIMIT ?`).bind(limit).all<{ id: string; name: string; description: string | null; k: string | null }>()).results;
+  let n = 0;
+  for (const r of rows) {
+    try {
+      const aiKey = `${r.id}/avatar-ai.png`;
+      if (await env.PHOTOS.head(aiKey)) {
+        const cut = await makeCutout(env, aiKey);
+        if (cut) { await env.PHOTOS.put(`${r.id}/avatar.png`, cut, { httpMetadata: { contentType: 'image/png' } }); await env.DB.prepare('UPDATE listings SET avatar_key = ?, avatar_style = ? WHERE id = ? AND avatar_key IS NULL').bind(`${r.id}/avatar.png`, 'ai', r.id).run(); n++; }
+      } else if (r.k) { await autoIcon(env, r.id, r.k, r.name, r.description); n++; }
+    } catch (e) { console.warn('backfillAvatars', r.id, e); }
+  }
+  return n;
+}
+
 export async function autoIcon(env: Env, listingId: string, photoKey: string, name: string, description?: string | null): Promise<void> {
   try {
     const obj = await env.PHOTOS.get(photoKey);

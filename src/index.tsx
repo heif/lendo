@@ -1,4 +1,5 @@
 import { iconsDone, makeWantedIcon } from './lib/wanted-icons';
+import { backfillAvatars } from './lib/avatar';
 import { WANTED_ALL } from './lib/places';
 import { Hono } from 'hono';
 import type { Env, Vars } from './lib/env';
@@ -44,6 +45,7 @@ export default {
   async scheduled(_ev: ScheduledEvent, env: Env) {
     const n = await expireHolds(env);
     if (n) console.log(`expired ${n} held requests`);
+    try { const a = await backfillAvatars(env, 3); if (a) console.log(`avatars backfilled ${a}`); } catch (e) { console.warn('avatar backfill', e); }
     // backfill custom icons for the wanted catalog, a few per tick (Flux + cutout each)
     try {
       const done = await iconsDone(env);
