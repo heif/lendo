@@ -5,6 +5,7 @@ import { firstPhotos, listingById, photosFor, reputation, userById } from '../li
 import { emojiFor } from '../lib/emoji';
 import { loadHoods, hoodAt } from '../lib/hoods';
 import { CITIES, WANTED_ALL } from '../lib/places';
+import { iconsDone } from '../lib/wanted-icons';
 
 export const api = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -97,12 +98,13 @@ api.get('/api/places', async (c) => {
   const pts = (await c.env.DB.prepare(`SELECT lat, lng FROM listings WHERE status = 'live' AND lat IS NOT NULL`).all<{ lat: number; lng: number }>()).results;
   const offRow = await c.env.DB.prepare(`SELECT value FROM settings WHERE key = 'wanted_off'`).first<{ value: string }>();
   const off = new Set<string>(offRow ? JSON.parse(offRow.value) : []);
+  const icons = await iconsDone(c.env);
   const cities = CITIES.map(ct => {
     const inCity = pts.filter(p => p.lng >= ct.bbox[0] && p.lng <= ct.bbox[2] && p.lat >= ct.bbox[1] && p.lat <= ct.bbox[3]);
     const hoods = ct.hoods.map(h => ({ ...h, n: inCity.filter(p => Math.hypot((p.lat - h.lat) * 111, (p.lng - h.lng) * 111 * Math.cos(h.lat * Math.PI / 180)) < 0.9).length }));
     return { id: ct.id, name: ct.name, lat: ct.lat, lng: ct.lng, zoom: ct.zoom, n: inCity.length, live: inCity.length > 0, hoods };
   });
-  const res = new Response(JSON.stringify({ cities, total: pts.length, wanted: WANTED_ALL.filter(w => !off.has(w.key)) }), { headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=120' } });
+  const res = new Response(JSON.stringify({ cities, total: pts.length, wanted: WANTED_ALL.filter(w => !off.has(w.key)).map(w => ({ ...w, icon: icons.has(w.key) ? `/p/wanted/${w.key}.png` : null })) }), { headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=120' } });
   c.executionCtx.waitUntil(caches.default.put(cacheKey, res.clone()));
   return res;
 });

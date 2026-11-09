@@ -263,3 +263,4 @@ button,.btn,.pm,.idea,.days button,.stars button{touch-action:manipulation}
 .meet-ask label{display:block;font-size:10px;font-weight:900;letter-spacing:.8px;color:#6F6A60}
 .meet-ask input{flex:1 1 0;min-width:0;height:42px;border-radius:10px;border:1.5px solid #DCD7CC;padding:0 10px;font-family:inherit;font-size:16px;font-weight:700;color:var(--ink);background:#fff}
 .meet-ask button{flex-shrink:0;height:42px;padding:0 12px;border-radius:10px;border:0;background:var(--ink);color:#fff;font-family:inherit;font-size:14px;font-weight:900}
+.ghost.img img{width:1em;height:1em;object-fit:contain;display:block}
