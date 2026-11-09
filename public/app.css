@@ -135,8 +135,8 @@ html.mappage .hdr{flex-shrink:0;position:relative}
 .pcard-img img{width:100px;height:100px;border-radius:14px;background:#F4F1EA;display:block}
 .pcard-img img.photo{object-fit:cover}
 .pcard-img img.cut{object-fit:contain;padding:6px;box-sizing:border-box;filter:drop-shadow(0 3px 3px rgba(30,58,43,.18))}
-.pcard-price{font-size:15px;font-weight:800;letter-spacing:-.3px;color:#fff;background:var(--orange);border:1.5px solid var(--ink);padding:1px 6px;border-radius:5px;white-space:nowrap}
-.pcard-price small{font-size:10px;font-weight:700}
+.pcard-price{font-size:21px;font-weight:900;letter-spacing:-.5px;color:#fff;background:var(--orange);border:1.5px solid var(--ink);padding:1px 6px;border-radius:5px;white-space:nowrap}
+.pcard-price small{font-size:13px;font-weight:700}
 .pcard-price .wk{font-size:10px;font-weight:700;opacity:.9;margin-left:2px}
 .pcard-txt{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:5px;padding-top:2px}
 .pcard-name{font-size:20px;font-weight:800;line-height:1.2;letter-spacing:-.3px}
