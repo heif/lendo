@@ -120,7 +120,7 @@ browse.get('/i/:id', async (c) => {
   return c.html(
     <Layout title="Item" user={u} flash={c.req.query('canceled') ? 'Checkout canceled — nothing was charged.' : null}>
       <div class="hero">
-        {photos[0] ? <img id="heroImg" src={cutoutUrl(c.env, photos[0].r2_key)} alt={it.name} onerror={`this.onerror=null;this.src='/p/${photos[0].r2_key}'`} /> : <div class="hint">no photo yet</div>}
+        {photos[0] ? <img id="heroImg" src={cutoutUrl(c.env, photos[0].r2_key)} alt={it.name} onerror={`this.onerror=null;this.src='/p/${photos[0].r2_key}'`} /> : it.avatar_key ? <img id="heroImg" src={'/p/' + it.avatar_key} alt={it.name} style="padding:40px;box-sizing:border-box" /> : <div class="hint">no photo yet</div>}
         <div class="pr"><b class="price">{money(it.price_cents)}</b><span style="font-size:15px">/day</span>
         </div>
       </div>
@@ -178,10 +178,11 @@ browse.get('/i/:id', async (c) => {
       <section class="sec" style="border-bottom:0;padding-bottom:110px">
         <div class="hint">Card held until {firstName(owner.name)} says yes · {feePct}% fee · photo at pickup instead of a deposit</div>
       </section>
+      {it.demo ? <div class="flash" id="demoNote" hidden style="margin:0 16px 90px">This one’s a demo — Iowa City is a preview of what a Lendo neighborhood looks like full. Nothing gets charged. <a href="/list">List your real stuff →</a></div> : null}
       {!isOwner && it.status === 'live' ? (
         <div class="rentbar">
           {u ? <form method="post" action={'/i/' + it.id + '/save'}><button class="btn" type="submit" aria-label={saved ? 'Unsave' : 'Save'}>{saved ? '♥' : '♡'}</button></form> : null}
-          <button class="btn pri" style="flex:1" id="rentBtn" disabled form="rentForm" type="submit">PICK DAYS TO RENT</button>
+          {it.demo ? <button class="btn pri" style="flex:1" id="rentBtn" type="button" onclick="document.getElementById('demoNote').hidden=false;this.textContent='DEMO LISTING'">RENT IT</button> : <button class="btn pri" style="flex:1" id="rentBtn" disabled form="rentForm" type="submit">PICK DAYS TO RENT</button>}
         </div>
       ) : isOwner ? <div class="rentbar"><a class="btn full" href="/listings">This is yours — manage it</a></div> : null}
       {raw(`<script>

@@ -18,6 +18,7 @@ rentals.post('/i/:id/rent', async (c) => {
   const start = String(f.start || ''), end = String(f.end || '');
   if (!u) return c.redirect('/login?next=' + encodeURIComponent(`/i/${lid}`));
   const it = await listingById(c.env.DB, lid);
+  if ((it as any)?.demo) return c.redirect('/i/' + c.req.param('id'));
   if (!it || it.status !== 'live') return c.notFound();
   if (it.owner_id === u.id) return c.text("That's your own listing.", 400);
   const today = dayStr(new Date());
