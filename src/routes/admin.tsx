@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import type { Env, Vars } from '../lib/env';
 import { Layout } from '../pages/layout';
 import { requireUser } from '../lib/auth';
-import { identifyItem, loadPricing, suggestPrice } from '../lib/identify';
+import { identifyItem, loadPricing, suggestPrice, lastRaw } from '../lib/identify';
 import { money } from '../lib/util';
 
 export const admin = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -21,7 +21,7 @@ admin.post('/api/identify', async (c) => {
   const id = await identifyItem(c.env, await p.arrayBuffer(), hint);
   const { rules, settings } = await loadPricing(c.env);
   const pr = suggestPrice(rules, settings, id.category, id.retail_usd);
-  return c.json({ ...id, price_cents: pr.day_cents, week_cents: pr.week_cents, basis: pr.basis, category_label: pr.rule.label });
+  return c.json({ ...id, price_cents: pr.day_cents, week_cents: pr.week_cents, basis: pr.basis, category_label: pr.rule.label, ...(c.req.query('raw') && c.get('user')!.admin ? { raw: lastRaw } : {}) });
 });
 
 admin.get('/admin', (c) => c.redirect('/admin/pricing'));

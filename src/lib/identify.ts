@@ -27,6 +27,7 @@ export function suggestPrice(rules: PriceRule[], settings: Record<string, string
 
 const CATS = ['power_tools', 'hand_tools', 'ladders', 'cleaning', 'camping', 'sports', 'bikes', 'water', 'winter', 'av', 'cameras', 'gaming', 'music', 'kitchen', 'party', 'furniture', 'baby', 'luggage', 'fashion', 'pets', 'garden', 'electronics', 'mobility', 'other'];
 
+export let lastRaw = '';
 export async function identifyItem(env: Env, photo: ArrayBuffer, hint?: string | null): Promise<Ident> {
   const { settings } = await loadPricing(env);
   const model = settings.vision_model || '@cf/llava-hf/llava-1.5-7b-hf';
@@ -36,11 +37,12 @@ ASSISTANT:`;
   let text = '';
   try {
     const r: any = await env.AI!.run(model as any, { prompt, image: [...new Uint8Array(photo)], max_tokens: 160 } as any);
-    text = String(r?.response || r?.description || '');
-  } catch (e) { console.warn('identify failed', e); }
-  const m = text.match(/\{[\s\S]*\}/);
+    text = String(r?.response || r?.description || JSON.stringify(r));
+    lastRaw = text;
+  } catch (e: any) { console.warn('identify failed', e); lastRaw = 'ERR ' + (e?.message || e); }
+  const m = text.replace(/\\_/g, '_').replace(/[“”]/g, '"').match(/\{[\s\S]*?\}/);
   let j: any = {};
-  if (m) { try { j = JSON.parse(m[0].replace(/,\s*\}/, '}')); } catch {} }
+  if (m) { try { j = JSON.parse(m[0].replace(/,\s*\}/, '}')); } catch (e) { console.warn('identify json', m[0].slice(0, 200)); } }
   const cat = CATS.includes(String(j.category || '').trim()) ? String(j.category).trim() : guessCategory(String(j.name || hint || ''));
   const retail = typeof j.retail_usd === 'number' ? j.retail_usd : parseFloat(String(j.retail_usd || '').replace(/[^0-9.]/g, '')) || null;
   return {
