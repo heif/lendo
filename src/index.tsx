@@ -1,3 +1,5 @@
+import { iconsDone, makeWantedIcon } from './lib/wanted-icons';
+import { WANTED_ALL } from './lib/places';
 import { Hono } from 'hono';
 import type { Env, Vars } from './lib/env';
 import { loadUser } from './lib/auth';
@@ -42,5 +44,8 @@ export default {
   async scheduled(_ev: ScheduledEvent, env: Env) {
     const n = await expireHolds(env);
     if (n) console.log(`expired ${n} held requests`);
+    // backfill custom icons for the wanted catalog, a few per tick (Flux + cutout each)
+    const done = await iconsDone(env);
+    for (const w of WANTED_ALL.filter(w => !done.has(w.key)).slice(0, 6)) { try { await makeWantedIcon(env, w.key); } catch (e) { console.warn('wanted icon', w.key, e); } }
   },
 };
