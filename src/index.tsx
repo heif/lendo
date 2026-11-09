@@ -7,6 +7,7 @@ import { listings } from './routes/listings';
 import { rentals } from './routes/rentals';
 import { webhooks } from './routes/webhooks';
 import { api } from './routes/api';
+import { meetup } from './routes/meetup';
 import { expireHolds } from './lib/rentals';
 import { Layout } from './pages/layout';
 
@@ -29,6 +30,7 @@ app.route('/', auth);
 app.route('/', browse);
 app.route('/', listings);
 app.route('/', rentals);
+app.route('/', meetup);
 
 app.notFound((c) => c.html(<Layout title="Not found" user={c.get('user') ?? null}><div style="padding:24px 16px"><b>Nothing here.</b> <a href="/">Back to the map</a>.</div></Layout>, 404));
 app.onError((err, c) => { console.error(err); return c.html(<Layout title="Error" user={null}><div style="padding:24px 16px"><b>Something broke.</b> It's logged. <a href="/">Back to the map</a>.</div></Layout>, 500); });
