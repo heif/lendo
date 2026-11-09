@@ -39,6 +39,7 @@ browse.get('/', async (c) => {
   const cfg = JSON.stringify({ token: c.env.MAPBOX_PUBLIC_TOKEN || '', style: c.env.MAPBOX_STYLE_URL || 'mapbox://styles/mapbox/light-v11', center, zoom: 14.5, hasHome: !!(u?.lat) || cq.length === 2 && cq.every(n => !isNaN(n)) });
   return c.html(
     <Layout title={u?.hood || 'Near you'} user={u} back={null} badge={badge} htmlClass="mappage"
+      top={<div class="ticker" aria-hidden="true"><div class="tk">{[0, 1].map(() => TICKER.map(t => <span>{t}<i>•</i></span>))}</div></div>}
       headerCenter={
         <div class="scope" role="group" aria-label="Where you're looking">
           <button class="scope-hood" id="scHood" type="button"><b id="scHoodN">{u?.hood || 'Near you'}</b><small><span id="scHoodC">{k.hood || k.global}</span> to rent</small><svg width="12" height="8" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1.5L6 6.5L11 1.5" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
@@ -47,7 +48,6 @@ browse.get('/', async (c) => {
         </div>
       }
       head={mapbox ? <><link rel="stylesheet" href={MAPBOX_CSS} /><script src={MAPBOX_JS}></script></> : <><link rel="stylesheet" href={LEAFLET_CSS} /><script src={LEAFLET_JS}></script></>}>
-      <div class="ticker" aria-hidden="true"><div class="tk">{[0, 1].map(() => TICKER.map(t => <span>{t}<i>•</i></span>))}</div></div>
       <div class="mapwrap">
         <div id="map" role="application" aria-label="Map of things to rent"></div>
         <div class="mapctl">

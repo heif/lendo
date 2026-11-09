@@ -9,6 +9,7 @@ export type LayoutProps = {
   badge?: number;             // red count on the account button
   head?: Child;               // extra <head> content
   wide?: boolean;
+  top?: Child;             // rendered above the header (e.g. the map page ticker)
   htmlClass?: string;      // e.g. 'mappage' locks the page to the viewport
   headerCenter?: Child;    // replaces the title (map page: hood/city pills)
   flash?: string | null;
@@ -32,6 +33,7 @@ export const Layout: FC<LayoutProps> = (p) => {
       </head>
       <body>
         <div class="wrap" style={p.wide ? 'max-width:none' : ''}>
+          {p.top}
           <header class="hdr">
             {p.back === null ? null : (
               <a class="back" href={p.back || '/'} aria-label="Back">
