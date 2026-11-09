@@ -172,7 +172,7 @@
     PL.cities.forEach(function (ct) {
       var b = document.createElement('button'); b.type = 'button'; b.className = (ct.id === plCity ? 'on ' : '') + (ct.live ? '' : 'soon');
       b.innerHTML = ct.name + ' <small>' + (ct.live ? ct.n.toLocaleString() : 'soon') + '</small>';
-      b.addEventListener('click', function () { plCity = ct.id; renderPlaces(); }); cs.appendChild(b);
+      b.addEventListener('click', function () { if (ct.id === plCity) { renderPlaces(); return; } plCity = ct.id; closePlaces(); map.easeTo({ center: [ct.lng, ct.lat], zoom: ct.live ? 13.6 : ct.zoom, duration: 900 }); }); cs.appendChild(b);
     });
     var ct = PL.cities.filter(function (c) { return c.id === plCity; })[0]; if (!ct) return;
     $('plTitle').textContent = ct.name + (plSort === 'own' ? ' leaderboard · top owners' : plSort === 'rank' ? ' leaderboard · most things to rent' : ' neighborhoods');
