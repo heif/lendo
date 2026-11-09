@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import type { Env, Vars } from '../lib/env';
 import { WANTED_ALL } from '../lib/places';
 import { iconsDone, makeWantedIcon } from '../lib/wanted-icons';
+import { fixDemoLand } from '../lib/demo-land';
 import { Layout } from '../pages/layout';
 import { requireUser } from '../lib/auth';
 import { identifyItem, loadPricing, suggestPrice, lastRaw } from '../lib/identify';
@@ -37,7 +38,7 @@ admin.get('/admin/wanted', async (c) => {
   return c.html(
     <Layout title="Admin · wanted items" user={u} back="/admin/pricing">
       <form method="post" action="/admin/wanted" style="padding:12px 16px 40px">
-        <div class="row" style="justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap"><span class="hint">{WANTED_ALL.length - off.size} of {WANTED_ALL.length} on the map · {icons.size} custom icons{missing ? ` (${missing} missing)` : ''}</span><span class="row" style="gap:6px">{missing ? <button class="btn sm" type="submit" formaction="/admin/wanted/icons" formmethod="post">Make 12 icons</button> : null}<button class="btn pri sm" type="submit">Save</button></span></div>
+        <div class="row" style="justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap"><span class="hint">{WANTED_ALL.length - off.size} of {WANTED_ALL.length} on the map · {icons.size} custom icons{missing ? ` (${missing} missing)` : ''}</span><span class="row" style="gap:6px">{missing ? <button class="btn sm" type="submit" formaction="/admin/wanted/icons" formmethod="post">Make 12 icons</button> : null}<button class="btn sm" type="submit" formaction="/admin/demo/fixland" formmethod="post" title="Move demo items off parks/water (120 per tap)">Demo: off parks</button><button class="btn pri sm" type="submit">Save</button></span></div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px">
           {WANTED_ALL.map(w => <label class="card" style={'display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer' + (off.has(w.key) ? ';opacity:.45' : '')}><input type="checkbox" name="on" value={w.key} checked={!off.has(w.key)} />{icons.has(w.key) ? <img src={`/p/wanted/${w.key}.png?v=${Date.now()}`} alt="" style="width:40px;height:40px;object-fit:contain" /> : <span style="font-size:24px">{w.emoji}</span>}<span style="font-size:13px;font-weight:700;flex:1">{w.label}</span><button type="submit" formaction={`/admin/wanted/icons/${w.key}`} formmethod="post" class="btn sm" title="Regenerate icon" style="padding:0 8px;height:28px">↻</button></label>)}
         </div>
@@ -53,6 +54,7 @@ admin.post('/admin/wanted/icons', async (c) => {
   c.executionCtx.waitUntil((async () => { for (const w of todo) { try { await makeWantedIcon(c.env, w.key); } catch (e) { console.warn('wanted icon', w.key, e); } } })());
   return c.redirect('/admin/wanted');
 });
+admin.post('/admin/demo/fixland', async (c) => { const r = await fixDemoLand(c.env, 120); return c.text(`checked ${r.checked}, moved ${r.moved}${r.done ? ' · done' : ' · tap again'}`); });
 admin.post('/admin/wanted/icons/:key', async (c) => {
   const key = c.req.param('key');
   c.executionCtx.waitUntil(makeWantedIcon(c.env, key).catch(e => console.warn('wanted icon', key, e)));

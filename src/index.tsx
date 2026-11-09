@@ -1,5 +1,6 @@
 import { iconsDone, makeWantedIcon } from './lib/wanted-icons';
 import { backfillAvatars } from './lib/avatar';
+import { fixDemoLand } from './lib/demo-land';
 import { WANTED_ALL } from './lib/places';
 import { Hono } from 'hono';
 import type { Env, Vars } from './lib/env';
@@ -38,7 +39,7 @@ app.route('/', meetup);
 app.route('/', admin);
 
 app.notFound((c) => c.html(<Layout title="Not found" user={c.get('user') ?? null}><div style="padding:24px 16px"><b>Nothing here.</b> <a href="/">Back to the map</a>.</div></Layout>, 404));
-app.onError((err, c) => { console.error(err); return c.html(<Layout title="Error" user={null}><div style="padding:24px 16px"><b>Something broke.</b> It's logged. <a href="/">Back to the map</a>.</div></Layout>, 500); });
+app.onError((err, c) => { console.error(err); if (c.req.path.startsWith('/api/')) return c.json({ error: String(err?.message || err) }, 500); return c.html(<Layout title="Error" user={null}><div style="padding:24px 16px"><b>Something broke.</b> It's logged. <a href="/">Back to the map</a>.</div></Layout>, 500); });
 
 export default {
   fetch: app.fetch,
@@ -46,6 +47,7 @@ export default {
     const n = await expireHolds(env);
     if (n) console.log(`expired ${n} held requests`);
     try { const a = await backfillAvatars(env, 3); if (a) console.log(`avatars backfilled ${a}`); } catch (e) { console.warn('avatar backfill', e); }
+    try { const f = await fixDemoLand(env, 150); if (f.checked) console.log(`demo land: checked ${f.checked}, moved ${f.moved}`); } catch (e) { console.warn('demo land', e); }
     // backfill custom icons for the wanted catalog, a few per tick (Flux + cutout each)
     try {
       const done = await iconsDone(env);

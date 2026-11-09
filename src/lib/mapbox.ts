@@ -56,3 +56,17 @@ export async function placeDetails(env: Env, mapboxId: string): Promise<any | nu
   const j = (await r.json()) as any;
   return j.features?.[0]?.properties || null;
 }
+
+// Tilequery: is this point on a park / water / other non-residential land? (demo seeding sanity; ~1 call per point)
+export async function landAt(env: Env, lng: number, lat: number): Promise<{ park: boolean; water: boolean; building: boolean } | null> {
+  const tok = env.MAPBOX_SECRET_TOKEN || env.MAPBOX_PUBLIC_TOKEN; if (!tok) return null;
+  const r = await fetch(`https://api.mapbox.com/v4/mapbox.mapbox-streets-v8/tilequery/${lng},${lat}.json?radius=0&layers=landuse,water,building,landuse_overlay&limit=10&access_token=${encodeURIComponent(tok)}`);
+  if (!r.ok) return null;
+  const j: any = await r.json();
+  const feats: any[] = j.features || [];
+  const cls = (f: any) => String(f.properties?.class || '');
+  const park = feats.some(f => (f.properties?.tilequery?.layer === 'landuse' || f.properties?.tilequery?.layer === 'landuse_overlay') && /park|cemetery|pitch|grass|wood|national_park|golf|scrub|agriculture|airport|glacier|rock|sand|wetland/.test(cls(f)));
+  const water = feats.some(f => f.properties?.tilequery?.layer === 'water');
+  const building = feats.some(f => f.properties?.tilequery?.layer === 'building');
+  return { park, water, building };
+}
