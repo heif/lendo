@@ -198,6 +198,7 @@ html.mappage .hdr{flex-shrink:0;position:relative}
 button,.btn,.pm,.idea,.days button,.stars button{touch-action:manipulation}
 
 /* places picker (hoods + cities) */
+[hidden]{display:none!important}
 .places{position:absolute;left:10px;right:10px;top:62px;bottom:16px;margin:0 auto;max-width:440px;z-index:650;background:#fff;border:2px solid var(--ink);border-radius:18px;box-shadow:0 8px 24px rgba(35,33,29,.18);display:flex;flex-direction:column;overflow:hidden;animation:rise .2s ease-out both}
 .places-h{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 8px;font-size:18px;font-weight:900;letter-spacing:-.3px}
 .places-h .pcard-x{position:static}
