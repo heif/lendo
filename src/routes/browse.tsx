@@ -36,16 +36,23 @@ browse.get('/', async (c) => {
   const cfg = JSON.stringify({ token: c.env.MAPBOX_PUBLIC_TOKEN || '', style: c.env.MAPBOX_STYLE_URL || 'mapbox://styles/mapbox/light-v11', center, zoom: 14.5, hasHome: !!(u?.lat) || cq.length === 2 && cq.every(n => !isNaN(n)) });
   return c.html(
     <Layout title={u?.hood || 'Near you'} user={u} back={null} badge={badge} htmlClass="mappage"
+      headerCenter={
+        <div class="scope" role="group" aria-label="Where you're looking">
+          <button class="scope-hood" id="scHood" type="button"><b id="scHoodN">{u?.hood || 'Near you'}</b><small><span id="scHoodC">{k.hood || k.global}</span> to rent</small><svg width="12" height="8" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1.5L6 6.5L11 1.5" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
+          <button class="scope-city" id="scCity" type="button"><b>NYC</b><small id="scCityC">{k.global}</small></button>
+          <button class="scope-globe" id="scGlobe" type="button" aria-label="Everywhere"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E3A2B" stroke-width="2"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18" /></svg></button>
+        </div>
+      }
       head={mapbox ? <><link rel="stylesheet" href={MAPBOX_CSS} /><script src={MAPBOX_JS}></script></> : <><link rel="stylesheet" href={LEAFLET_CSS} /><script src={LEAFLET_JS}></script></>}>
       <div class="mapwrap">
         <div id="map" role="application" aria-label="Map of things to rent"></div>
         <div class="mapctl">
-          <input id="q" type="search" placeholder="Search near you — drill, tent, projector…" aria-label="Search" />
+          <button class="btn sm listtoggle" id="toggle" type="button"><svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 1.5h1M4 1.5h9M1 6h1M4 6h9M1 10.5h1M4 10.5h9" stroke="#1E3A2B" stroke-width="2" stroke-linecap="round" /></svg> List</button>
+          <input id="q" type="search" placeholder="Rent a…" aria-label="Search" />
           <button class="btn sm" id="locate" aria-label="Use my location">📍</button>
         </div>
-        <button class="btn sm listtoggle" id="toggle">List</button>
-        <div class="kpi"><b id="kpiN">{k.global}</b><span id="kpiL">things to rent</span></div>
-        <a class="btn pri listfab" href="/list">+ List your stuff</a>
+        <a class="rent-out" href="/list">RENT OUT YOUR STUFF</a>
+        <div class="kpi" id="kpi" hidden><b id="kpiN">{k.global}</b><span id="kpiL">things to rent</span></div>
         <div class="pcard" id="sheet" role="dialog" aria-label="Selected item">
           <div class="pcard-strip">FOR RENT</div>
           <button class="pcard-x" id="shClose" aria-label="Close"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" stroke-width="2.2" stroke-linecap="round" /></svg></button>
@@ -59,7 +66,7 @@ browse.get('/', async (c) => {
             <svg class="pcard-chev" width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2L8 8L2 14" fill="none" stroke="#1E3A2B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
           </a>
         </div>
-        <div id="grid" class="itemgrid" style="display:none;position:absolute;inset:0;overflow:auto;background:var(--cream);z-index:450;align-content:start"></div>
+        <div id="grid" class="itemgrid" style="display:none;position:absolute;inset:0;overflow:auto;background:var(--cream);z-index:450;align-content:start;padding-top:64px"></div>
       </div>
       {raw(`<script>window.LENDO_MAP=${cfg};</script>`)}
       {mapbox ? <><script src="/map-style.js"></script><script src="/map.js"></script></> : <script src="/map-leaflet.js"></script>}

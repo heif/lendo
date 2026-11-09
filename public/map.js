@@ -18,7 +18,15 @@
         '<div class="b"><div class="pr">' + fmt(it.price_cents) + '<span style="font-size:11px;font-weight:700">/day</span></div><div class="nm">' + esc(it.name) + '</div></div></a>';
     }).join('') || '<div style="padding:24px;grid-column:1/-1" class="hint">Nothing here yet. Be the first — list something.</div>';
   }
-  function setKpi(j) { $('kpiN').textContent = j.counts.view; $('kpiL').textContent = (j.counts.view === 1 ? 'thing' : 'things') + ' to rent here · ' + j.counts.global + ' total'; }
+  function setKpi(j) { $('scCityC').textContent = j.counts.global.toLocaleString(); }
+  var hoodT, lastHood = '';
+  function updateHood() {
+    var cc = map.getCenter();
+    fetch('/api/hood?lat=' + cc.lat.toFixed(4) + '&lng=' + cc.lng.toFixed(4)).then(function (r) { return r.json(); }).then(function (j) {
+      var name = j.hood || 'Near you'; $('scHoodN').textContent = name; $('scHoodC').textContent = (j.hood ? j.hood_n : items.length).toLocaleString(); $('scCityC').textContent = j.city_n.toLocaleString();
+      if (name !== lastHood) { lastHood = name; $('scHoodN').animate([{ opacity: 0.3 }, { opacity: 1 }], 300); }
+    }).catch(function () {});
+  }
 
   mapboxgl.accessToken = CFG.token;
   var map = new mapboxgl.Map({ container: 'map', style: CFG.style, center: CFG.center, zoom: CFG.zoom || 14.5, attributionControl: true, logoPosition: 'bottom-right', cooperativeGestures: false });
@@ -28,7 +36,7 @@
   var toGeo = function (arr) {
     return { type: 'FeatureCollection', features: arr.filter(function (it) { return it.lat != null; }).map(function (it) {
       return { type: 'Feature', id: it.id, geometry: { type: 'Point', coordinates: [it.lng, it.lat] },
-        properties: { id: it.id, sel: sel === it.id, name: it.name, price: fmt(it.price_cents), price_cents: it.price_cents, week_cents: it.week_cents || 0, photo: it.photo || '', avatar: it.avatar_key || '', emoji: it.emoji || '📦', hood: it.hood || '', icon: iconCache[it.id] ? 'l_' + it.id : 'pin-default' } };
+        properties: { id: it.id, sel: sel === it.id, rot: wiggleRot(it.id), name: it.name, price: fmt(it.price_cents), price_cents: it.price_cents, week_cents: it.week_cents || 0, photo: it.photo || '', avatar: it.avatar_key || '', emoji: it.emoji || '📦', hood: it.hood || '', icon: iconCache[it.id] ? 'l_' + it.id : 'pin-default' } };
     }) };
   };
 
@@ -111,11 +119,12 @@
     map.addLayer({ id: 'cluster-count', type: 'symbol', source: 'listings', filter: ['has', 'point_count'],
       layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 14, 'text-font': ['DIN Pro Bold', 'Arial Unicode MS Bold'] }, paint: { 'text-color': S.cluster.text } });
     map.addLayer({ id: 'pins', type: 'symbol', source: 'listings', filter: ['!', ['has', 'point_count']],
-      layout: { 'icon-image': ['get', 'icon'], 'icon-size': ['case', ['get', 'sel'], 1.15, 1], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'symbol-sort-key': ['case', ['get', 'sel'], 0, 1] },
+      layout: { 'icon-image': ['get', 'icon'], 'icon-rotate': ['get', 'rot'], 'icon-size': ['case', ['get', 'sel'], 1.15, 1], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'symbol-sort-key': ['case', ['get', 'sel'], 0, 1] },
       paint: { 'icon-opacity': 1 } });
     if (HOOD_LAYER) addHoods();
-    load();
+    load(); updateHood();
     if (WALKERS) startWalkers();
+    startWiggle();
   });
 
   function load() {
@@ -123,7 +132,11 @@
     fetch('/api/listings?bbox=' + [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(',') + (qq ? '&q=' + encodeURIComponent(qq) : ''))
       .then(function (r) { return r.json(); }).then(function (j) { items = j.listings; refreshSource(); renderGrid(items); setKpi(j); loadVisibleIcons(); });
   }
-  var moveT; map.on('moveend', function () { clearTimeout(moveT); moveT = setTimeout(load, 300); });
+  var moveT; map.on('moveend', function () { clearTimeout(moveT); moveT = setTimeout(function () { load(); updateHood(); }, 300); });
+  // scope pills: hood → back to home/center zoom; NYC → city view; globe → everywhere
+  $('scHood').addEventListener('click', function () { map.easeTo({ center: CFG.center, zoom: 14.5 }); });
+  $('scCity').addEventListener('click', function () { map.easeTo({ center: [-73.95, 40.73], zoom: 10.6 }); });
+  $('scGlobe').addEventListener('click', function () { map.easeTo({ center: [-40, 30], zoom: 1.6 }); });
 
   // selection + sheet
   map.on('click', 'pins', function (e) {
@@ -149,6 +162,14 @@
     map.addLayer({ id: 'hoods-fill', type: 'fill', source: 'hoods', minzoom: 10, maxzoom: 15,
       paint: { 'fill-color': ['case', ['==', ['get', 'n'], 0], S.hoods.emptyColor, S.hoods.fill], 'fill-opacity': ['case', ['==', ['get', 'n'], 0], S.hoods.emptyFillOpacity, S.hoods.fillOpacity] } }, 'clusters');
     map.addLayer({ id: 'hoods-line', type: 'line', source: 'hoods', minzoom: 10, paint: { 'line-color': S.hoods.line, 'line-opacity': S.hoods.lineOpacity, 'line-width': 1, 'line-dasharray': [2, 2] } }, 'clusters');
+  }
+
+  // ---- idle wiggle (prototype 'sway'): each item rocks ±1.6° on its own phase; paused while the map moves or the tab is hidden
+  var wigT0 = performance.now(), wigPhase = {};
+  function wiggleRot(id) { if (!(id in wigPhase)) wigPhase[id] = Math.random() * 6.283; var t = (performance.now() - wigT0) / 1000; return Math.sin(t * 1.3 + wigPhase[id]) * 1.6; }
+  function startWiggle() {
+    var busy = false; map.on('movestart', function () { busy = true; }); map.on('moveend', function () { busy = false; });
+    setInterval(function () { if (busy || document.hidden || !items.length || items.length > 150) return; var src = map.getSource('listings'); if (src) src.setData(toGeo(items)); }, 125);
   }
 
   // ---- §2 walkers (prototype details): tiny 12×19 figures, singles/pairs/trios walking out along a short straight

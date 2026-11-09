@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import type { Env, Listing, Vars } from '../lib/env';
 import { firstPhotos, listingById, photosFor, reputation, userById } from '../lib/db';
 import { emojiFor } from '../lib/emoji';
-import { loadHoods } from '../lib/hoods';
+import { loadHoods, hoodAt } from '../lib/hoods';
 
 export const api = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -71,6 +71,20 @@ api.get('/api/map-loads', async (c) => {
   const rows = await c.env.DB.prepare('SELECT day, n FROM map_loads_daily ORDER BY day DESC LIMIT 60').all<{ day: string; n: number }>();
   const month = rows.results.filter(r => r.day.startsWith(new Date().toISOString().slice(0, 7))).reduce((a, r) => a + r.n, 0);
   return c.json({ this_month: month, free_tier: 50000, days: rows.results });
+});
+
+// Which neighborhood is the map centered on, and how many live listings it has. Falls back to nearest listing hood name.
+api.get('/api/hood', async (c) => {
+  const lat = parseFloat(c.req.query('lat') || ''), lng = parseFloat(c.req.query('lng') || '');
+  if (isNaN(lat) || isNaN(lng)) return c.json({ error: 'lat,lng required' }, 400);
+  let name: string | null = null, n = 0;
+  try { const h = await hoodAt(c.env, lat, lng); if (h) { name = h.name; n = (await c.env.DB.prepare(`SELECT COUNT(*) n FROM listings WHERE status = 'live' AND hood_id = ?`).bind(h.id).first<{ n: number }>())?.n ?? 0; } } catch {}
+  if (!name) {
+    const near = await c.env.DB.prepare(`SELECT hood, COUNT(*) n FROM listings WHERE status = 'live' AND hood IS NOT NULL AND lat BETWEEN ? AND ? AND lng BETWEEN ? AND ? GROUP BY hood ORDER BY n DESC LIMIT 1`).bind(lat - 0.008, lat + 0.008, lng - 0.01, lng + 0.01).first<{ hood: string; n: number }>();
+    if (near) { name = near.hood; n = near.n; }
+  }
+  const g = await c.env.DB.prepare(`SELECT COUNT(*) n FROM listings WHERE status = 'live'`).first<{ n: number }>();
+  return c.json({ hood: name, hood_n: n, city: 'NYC', city_n: g?.n ?? 0, global_n: g?.n ?? 0 });
 });
 
 api.get('/api/health', (c) => c.json({ ok: true, ts: Date.now() }));

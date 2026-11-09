@@ -30,6 +30,17 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .acct nav .n{min-width:20px;height:20px;border-radius:10px;color:#fff;background:var(--orange);border:1.5px solid var(--ink);font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 5px}
 .acct nav .list{background:var(--ink);color:#fff}
 
+/* header scope pills (map page) */
+.scope{display:flex;align-items:center;gap:4px;min-width:0}
+.scope button{font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;line-height:1.05;border:0;padding:0 10px;height:40px;border-radius:12px}
+.scope button b{font-size:15px;font-weight:900;letter-spacing:-.2px;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+.scope button small{font-size:10.5px;font-weight:700;white-space:nowrap}
+.scope-hood{background:var(--ink);color:#fff;position:relative;padding-right:30px!important;min-width:112px}
+.scope-hood svg{position:absolute;right:11px;top:50%;margin-top:-3px}
+.scope-hood::after{content:'';position:absolute;right:28px;top:8px;bottom:8px;width:1px;background:rgba(255,255,255,.3)}
+.scope-city{background:#fff;color:var(--ink);border:1.5px solid #DCD7CC!important;align-items:center!important}
+.scope-globe{background:#fff;color:var(--ink);border:1.5px solid #DCD7CC!important;width:40px;padding:0!important;align-items:center!important}
+.hdr .logo{font-size:34px}
 /* bits */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:48px;padding:0 18px;border-radius:12px;border:2px solid var(--ink);background:#fff;color:var(--ink);font-size:15px;font-weight:800;text-decoration:none}
 .btn.pri{background:var(--orange);color:#fff;box-shadow:3px 3px 0 var(--ink)}
@@ -92,8 +103,14 @@ html.mappage .hdr{flex-shrink:0;position:relative}
 .pin::after{content:'';position:absolute;left:50%;bottom:-6px;width:8px;height:8px;background:var(--orange);border-right:1.5px solid var(--ink);border-bottom:1.5px solid var(--ink);transform:translateX(-50%) rotate(45deg)}
 .pin.sel{background:var(--ink);color:#fff}
 .pin.sel::after{background:var(--ink)}
-.mapctl{position:absolute;left:10px;right:10px;top:10px;z-index:500;display:flex;gap:6px;align-items:center}
-.mapctl input{flex:1 1 0;height:42px;border-radius:21px;border:1.5px solid var(--ink);padding:0 14px;background:#fff;box-shadow:2px 2px 0 var(--ink)}
+.mapctl{position:absolute;left:10px;right:10px;top:10px;z-index:500;display:flex;gap:8px;align-items:center}
+.mapctl input{flex:1 1 0;min-width:0;height:44px;border-radius:22px;border:2px solid #CFC9BC;padding:0 16px 0 38px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%238A857B' stroke-width='2.6'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-4-4'/%3E%3C/svg%3E") 12px 50% no-repeat;font-weight:700;font-size:17px}
+.mapctl input::placeholder{color:#8A857B;font-weight:700}
+.mapctl .listtoggle{position:static;height:44px;border-radius:22px;border:2px solid var(--ink);padding:0 14px;font-size:17px;font-weight:800;gap:6px;background:#fff}
+.mapctl #locate{height:44px;width:44px;padding:0;border-radius:22px;border:2px solid #CFC9BC}
+.rent-out{position:absolute;right:10px;top:66px;z-index:500;display:inline-flex;align-items:center;height:48px;padding:0 16px;border-radius:10px;border:2px solid var(--ink);background:#FFFDF8;color:var(--ink);font-size:16px;font-weight:900;letter-spacing:.3px;text-decoration:none;box-shadow:4px 4px 0 var(--ink)}
+.rent-out:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
+.listfab{display:none}
 .kpi{position:absolute;left:10px;bottom:16px;z-index:500;background:var(--ink);color:#fff;border:1.5px solid var(--ink);border-radius:12px;padding:8px 12px;box-shadow:2px 2px 0 rgba(30,58,43,.25)}
 .kpi span{font-family:ui-monospace,'SF Mono',Menlo,monospace;text-transform:uppercase;letter-spacing:.06em;font-size:9px;opacity:.85}
 .kpi b{display:block;font-size:26px;letter-spacing:-.04em;line-height:1}
@@ -121,7 +138,6 @@ html.mappage .hdr{flex-shrink:0;position:relative}
 .pcard-owner .n{font-size:11px;font-weight:600;color:var(--ink2)}
 .pcard-where{display:flex;align-items:center;gap:4px;font-size:11px;line-height:1.25;color:var(--ink2)}
 .pcard-chev{flex-shrink:0;align-self:center}
-.listtoggle{position:absolute;right:10px;top:60px;z-index:500}
 .itemgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px}
 .itemcard{display:block;text-decoration:none;background:#fff;border:1.5px solid var(--line);border-radius:14px;overflow:hidden}
 .itemcard img{width:100%;aspect-ratio:1;object-fit:cover;background:var(--cream);display:block}

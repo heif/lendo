@@ -18,7 +18,7 @@
     });
     renderGrid(items);
   }
-  function load() { var b = map.getBounds(), q = $('q').value.trim(); fetch('/api/listings?bbox=' + [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(',') + (q ? '&q=' + encodeURIComponent(q) : '')).then(function (r) { return r.json(); }).then(function (j) { items = j.listings; render(); $('kpiN').textContent = j.counts.view; $('kpiL').textContent = (j.counts.view === 1 ? 'thing' : 'things') + ' to rent here · ' + j.counts.global + ' total'; }); }
+  function load() { var b = map.getBounds(), q = $('q').value.trim(); fetch('/api/listings?bbox=' + [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(',') + (q ? '&q=' + encodeURIComponent(q) : '')).then(function (r) { return r.json(); }).then(function (j) { items = j.listings; render(); $('scCityC').textContent = j.counts.global; $('scHoodC').textContent = j.counts.view; }); }
   map.on('moveend', load); map.on('click', function () { sel = null; sheet.classList.remove('on'); render(); });
   $('shClose').addEventListener('click', function () { sel = null; sheet.classList.remove('on'); render(); });
   $('q').addEventListener('input', function () { clearTimeout(t); t = setTimeout(load, 300); });

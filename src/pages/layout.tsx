@@ -10,6 +10,7 @@ export type LayoutProps = {
   head?: Child;               // extra <head> content
   wide?: boolean;
   htmlClass?: string;      // e.g. 'mappage' locks the page to the viewport
+  headerCenter?: Child;    // replaces the title (map page: hood/city pills)
   flash?: string | null;
   flashErr?: string | null;
   children?: Child;
@@ -38,8 +39,8 @@ export const Layout: FC<LayoutProps> = (p) => {
               </a>
             )}
             <a class="logo" href="/" aria-label="Lendo home (map)"><span class="wave" aria-hidden="true">👋</span>Lendo</a>
-            <span class="sep" aria-hidden="true"></span>
-            <h1>{p.title}</h1>
+            {p.headerCenter ? <span class="sp"></span> : <span class="sep" aria-hidden="true"></span>}
+            {p.headerCenter ? p.headerCenter : <h1>{p.title}</h1>}
             <span class="sp"></span>
             <details class={'acct' + (u ? ' in' : '')}>
               <summary aria-label="Menu">
