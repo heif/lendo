@@ -151,39 +151,57 @@
     map.addLayer({ id: 'hoods-line', type: 'line', source: 'hoods', minzoom: 10, paint: { 'line-color': S.hoods.line, 'line-opacity': S.hoods.lineOpacity, 'line-width': 1, 'line-dasharray': [2, 2] } }, 'clusters');
   }
 
-  // ---- §2 walkers: a few DOM markers strolling short random paths near listings; paused while moving the map ----
+  // ---- §2 walkers (prototype details): tiny 12×19 figures, singles/pairs/trios walking out along a short straight
+  // path and back (facing flips at the turn), each with its own bob/leg phase; palette from the prototype.
   function startWalkers() {
+    var SHIRT = ['#E8745A', '#4F8BDA', '#4FB384', '#EC6FA2', '#F2C14E', '#7A6FD6'], SKIN = ['#F1CBA8', '#D9A77E', '#E8B894', '#B98460', '#8D5524'], HAIR = ['#3A2A1E', '#1E1A17', '#7A4B2A', '#9C9791', '#C8A24A'], LEG = ['#3E4A5C', '#5B4A3E', '#2F3A33'];
+    var pick = function (a) { return a[Math.floor(Math.random() * a.length)]; };
+    function person(dx, dur, delay) {
+      var d = dur.toFixed(2) + 's', dl = delay.toFixed(2) + 's', leg = pick(LEG);
+      return '<g transform="translate(' + dx + ' 0)"><g style="animation:wbob ' + d + ' ease-in-out ' + dl + ' infinite">' +
+        '<line x1="5" y1="12" x2="5" y2="17" stroke="' + leg + '" stroke-width="1.7" stroke-linecap="round" style="transform-origin:5px 12px;animation:legA ' + d + ' ease-in-out ' + dl + ' infinite"/>' +
+        '<line x1="7" y1="12" x2="7" y2="17" stroke="' + leg + '" stroke-width="1.7" stroke-linecap="round" style="transform-origin:7px 12px;animation:legB ' + d + ' ease-in-out ' + dl + ' infinite"/>' +
+        '<rect x="3.5" y="6.5" width="5" height="6" rx="2.2" fill="' + pick(SHIRT) + '" stroke="#4A463F" stroke-width="0.6"/>' +
+        '<circle cx="6" cy="3.8" r="2.6" fill="' + pick(SKIN) + '" stroke="#4A463F" stroke-width="0.6"/>' +
+        '<path d="M3.4 3.4Q3.8 0.9 6 1Q8.2 0.9 8.6 3.4Q7.4 2.3 6 2.4Q4.6 2.3 3.4 3.4Z" fill="' + pick(HAIR) + '"/>' +
+        '<circle cx="7.3" cy="4" r="0.45" fill="#1E3A2B"/></g></g>';
+    }
     var walkers = [], moving = false, hidden = document.hidden;
     map.on('movestart', function () { moving = true; }); map.on('moveend', function () { moving = false; });
     document.addEventListener('visibilitychange', function () { hidden = document.hidden; });
     function spawn() {
       var pts = items.filter(function (i) { return i.lat != null; }); if (!pts.length) return;
       var base = pts[Math.floor(Math.random() * pts.length)];
-      var el = document.createElement('div'); el.className = 'walker';
-      var shirt = ['#E8745A', '#5B8DEF', '#F2C14E', '#7FB77E', '#B07CC6', '#1E3A2B'][Math.floor(Math.random() * 6)], skin = ['#F1CBA8', '#C68642', '#8D5524', '#E0AC69'][Math.floor(Math.random() * 4)];
-      el.innerHTML = '<span><svg width="14" height="22" viewBox="0 0 14 22" style="overflow:visible"><line class="lg a" x1="5.5" y1="14" x2="5.5" y2="21" stroke="#3E4A5C" stroke-width="1.9" stroke-linecap="round"/><line class="lg b" x1="8.5" y1="14" x2="8.5" y2="21" stroke="#3E4A5C" stroke-width="1.9" stroke-linecap="round"/><rect x="3.8" y="7.5" width="6.4" height="7.5" rx="2.6" fill="' + shirt + '" stroke="#4A463F" stroke-width="0.7"/><circle cx="7" cy="4.2" r="3.1" fill="' + skin + '" stroke="#4A463F" stroke-width="0.7"/><path d="M3.9 3.8Q4.4 0.8 7 1Q9.6 0.8 10.1 3.8Q8.7 2.5 7 2.6Q5.3 2.5 3.9 3.8Z" fill="#3A2A1E"/></svg></span>';
-      var ang = Math.random() * Math.PI * 2, dist = 0.0012 + Math.random() * 0.002; // ~150–350 m
-      var a = [base.lng + Math.cos(ang) * dist, base.lat + Math.sin(ang) * dist * 0.75], b = [base.lng, base.lat];
-      if (Math.random() < 0.5) { var tmp = a; a = b; b = tmp; }
-      // street-ish: go along lng first, then lat (an L), each leg at walking pace
-      var mid = [b[0], a[1]];
-      var w = { el: el, m: new mapboxgl.Marker({ element: el, anchor: 'bottom' }).setLngLat(a).addTo(map), legs: [[a, mid], [mid, b]], leg: 0, t: 0, speed: 0.00022 + Math.random() * 0.0001 };
-      el.style.transform += ' scaleX(' + (b[0] < a[0] ? -1 : 1) + ')';
-      walkers.push(w);
+      var n = Math.random() < 0.55 ? 1 : Math.random() < 0.75 ? 2 : 3, w = 12 + (n - 1) * 9;
+      var el = document.createElement('div'); el.className = 'walker'; el.style.width = w + 'px';
+      var inner = '';
+      for (var k = 0; k < n; k++) inner += person(k * 9, 0.7 + Math.random() * 0.2, -Math.random());
+      el.innerHTML = '<div class="wf"><svg width="' + w + '" height="19" viewBox="0 0 ' + w + ' 19" style="overflow:visible">' + inner + '</svg></div>';
+      // straight path near the listing, mostly along the street grid (Manhattan ≈ 29° off north)
+      var ang = (Math.random() < 0.5 ? 29 : 119) * Math.PI / 180 + (Math.random() - 0.5) * 0.2, len = 0.0008 + Math.random() * 0.0012;
+      var ox = (Math.random() - 0.5) * 0.001, oy = (Math.random() - 0.5) * 0.0008;
+      var a = [base.lng + ox, base.lat + oy], b = [a[0] + Math.sin(ang) * len, a[1] + Math.cos(ang) * len * 0.76];
+      var wlk = { el: el, face: el.firstChild, a: a, b: b, t: Math.random(), dir: 1, speed: 0.000045 + Math.random() * 0.00002, m: new mapboxgl.Marker({ element: el, anchor: 'bottom' }).setLngLat(a).addTo(map), born: Date.now(), life: 40000 + Math.random() * 50000 };
+      wlk.face.style.transform = 'scaleX(' + (b[0] >= a[0] ? 1 : -1) + ')';
+      walkers.push(wlk);
     }
-    function tick() {
+    var last = performance.now();
+    function tick(now) {
+      var dt = Math.min(50, now - last); last = now;
       if (!hidden && !moving) {
-        var z = map.getZoom();
-        walkers.forEach(function (w) {
-          var L = w.legs[w.leg], d = Math.hypot(L[1][0] - L[0][0], L[1][1] - L[0][1]) || 1e-9;
-          w.t += (w.speed / 60) / d * Math.max(0.6, Math.min(1.6, (z - 12) / 2));
-          if (w.t >= 1) { w.t = 0; w.leg++; if (w.leg >= w.legs.length) { w.done = true; return; } w.el.querySelector('span').style.transform = 'scaleX(' + (w.legs[w.leg][1][0] < w.legs[w.leg][0][0] ? -1 : 1) + ')'; }
-          var P = w.legs[w.leg]; w.m.setLngLat([P[0][0] + (P[1][0] - P[0][0]) * w.t, P[0][1] + (P[1][1] - P[0][1]) * w.t]);
+        var z = map.getZoom(), hide = z < 13.5;
+        map.getContainer().classList.toggle('walkers-hidden', hide);
+        if (!hide) walkers.forEach(function (w) {
+          var L = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]) || 1e-9;
+          w.t += w.dir * (w.speed * dt / 1000) / L;
+          if (w.t >= 1) { w.t = 1; w.dir = -1; w.face.style.transform = 'scaleX(' + (w.b[0] >= w.a[0] ? -1 : 1) + ')'; }
+          if (w.t <= 0) { w.t = 0; w.dir = 1; w.face.style.transform = 'scaleX(' + (w.b[0] >= w.a[0] ? 1 : -1) + ')'; }
+          w.m.setLngLat([w.a[0] + (w.b[0] - w.a[0]) * w.t, w.a[1] + (w.b[1] - w.a[1]) * w.t]);
+          if (Date.now() - w.born > w.life) w.done = true;
         });
         walkers = walkers.filter(function (w) { if (w.done) w.m.remove(); return !w.done; });
-        var want = Math.min(MAX_WALKERS, Math.max(0, Math.round(items.length * 0.6)));
-        if (walkers.length < want && Math.random() < 0.08) spawn();
-        map.getContainer().classList.toggle('walkers-hidden', z < 13.5);
+        var want = Math.min(MAX_WALKERS, Math.max(0, Math.round(items.length * 0.6) + 2));
+        if (walkers.length < want && Math.random() < 0.06) spawn();
       }
       requestAnimationFrame(tick);
     }

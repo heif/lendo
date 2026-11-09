@@ -73,14 +73,12 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .mapboxgl-ctrl-logo{opacity:.7}
 .mapboxgl-ctrl-attrib{font-size:10px;background:rgba(245,243,238,.8)!important}
 .mapboxgl-canvas{outline:none}
-.walker{line-height:0;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.2));transition:opacity .3s}
-.walker span{display:inline-block;animation:wbob .72s ease-in-out infinite alternate}
-.walker .lg{transform-origin:50% 14px}
-.walker .lg.a{animation:legA .72s ease-in-out infinite}
-.walker .lg.b{animation:legB .72s ease-in-out infinite}
-@keyframes wbob{from{transform:translateY(0)}to{transform:translateY(-1.2px)}}
-@keyframes legA{0%,100%{transform:rotate(-22deg)}50%{transform:rotate(22deg)}}
-@keyframes legB{0%,100%{transform:rotate(22deg)}50%{transform:rotate(-22deg)}}
+.walker{line-height:0;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.18));transition:opacity .3s;height:19px}
+.walker .wf{transform-origin:50% 50%}
+.walker svg{display:block}
+@keyframes wbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-0.8px)}}
+@keyframes legA{0%,100%{transform:rotate(24deg)}50%{transform:rotate(-24deg)}}
+@keyframes legB{0%,100%{transform:rotate(-24deg)}50%{transform:rotate(24deg)}}
 .walkers-hidden .walker{opacity:0}
 /* map page */
 .mapwrap{position:relative;flex:1 1 auto;min-height:0}
