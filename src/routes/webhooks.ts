@@ -42,9 +42,17 @@ webhooks.post('/webhooks/stripe', async (c) => {
 webhooks.post('/webhooks/blooio', async (c) => {
   const raw = await c.req.text();
   if (c.env.BLOOIO_WEBHOOK_SECRET) {
-    const sig = (c.req.header('x-blooio-signature') || '').replace(/^sha256=/, '');
-    const want = await hmacHex(c.env.BLOOIO_WEBHOOK_SECRET, raw);
-    if (!sig || !timingSafeEq(sig, want)) return c.text('bad signature', 401);
+    // v4: X-Blooio-Signature: t=<unix>,v1=<hex hmac-sha256 of "<t>.<raw body>">; also accept a bare hex (older docs)
+    const hdr = c.req.header('x-blooio-signature') || '';
+    const parts = Object.fromEntries(hdr.split(',').map(kv => kv.split('=').map(s => s.trim())).filter(a => a.length === 2));
+    let ok = false;
+    if (parts.t && parts.v1) {
+      const want = await hmacHex(c.env.BLOOIO_WEBHOOK_SECRET, `${parts.t}.${raw}`);
+      ok = timingSafeEq(parts.v1, want) && Math.abs(Date.now() / 1000 - parseInt(parts.t, 10) / (parts.t.length > 10 ? 1000 : 1)) < 600;
+    } else if (hdr) {
+      ok = timingSafeEq(hdr.replace(/^sha256=/, ''), await hmacHex(c.env.BLOOIO_WEBHOOK_SECRET, raw));
+    }
+    if (!ok) return c.text('bad signature', 401);
   }
   let j: any; try { j = JSON.parse(raw); } catch { return c.text('bad json', 400); }
   const ev = (c.req.header('x-blooio-event') || j.event || j.type || '').toString();

@@ -42,7 +42,8 @@ export function parseInbound(j: any): { event: string; from: string; text: strin
   if (!j) return null;
   const event = j.event || j.type || j.data?.type || '';
   const d = j.data || j;
-  const from = d.external_id || d.from || d.sender || d.handle || '';
+  if (d.direction && d.direction !== 'inbound') return null;
+  const from = d.sender || d.external_id || d.from || d.contact?.identifier || d.handle || '';
   const text = d.text || d.body || '';
   if (!from) return null;
   return { event, from: String(from), text: String(text || ''), messageId: d.message_id || j.message_id };
