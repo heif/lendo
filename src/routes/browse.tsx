@@ -45,7 +45,7 @@ browse.get('/', async (c) => {
   const cfg = JSON.stringify({ away, visitorCity: away ? (cf.city || '') : '', wantedPromo: c.env.WANTED_PROMO === 'true', token: c.env.MAPBOX_PUBLIC_TOKEN || '', style: c.env.MAPBOX_STYLE_URL || 'mapbox://styles/mapbox/light-v11', center, zoom: 14.5, hasHome: !!(u?.lat) || cq.length === 2 && cq.every(n => !isNaN(n)) });
   return c.html(
     <Layout title={u?.hood || 'Near you'} user={u} back={null} badge={badge} htmlClass="mappage"
-      top={<a class="ticker" href="/about" aria-label="Why Lendo"><div class="tk">{[0, 1].map(() => TICKER.map(t => <span>{t}<i>•</i></span>))}</div></a>}
+      top={<a class="ticker" href="/about" aria-label="Why Lendo"><div class="tk" aria-hidden="true">{[0, 1].map(() => TICKER.map(t => <span>{t}<i>•</i></span>))}</div></a>}
       headerCenter={
         <div class="scope" role="group" aria-label="Where you're looking">
           <button class="scope-hood" id="scHood" type="button"><b id="scHoodN">{u?.hood || 'Near you'}</b><small><span id="scHoodC">{k.hood || k.global}</span> to rent</small><svg width="12" height="8" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1.5L6 6.5L11 1.5" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
@@ -338,9 +338,12 @@ browse.get('/about', (c) => {
   return c.html(
     <Layout title="Why Lendo" user={u}>
       <section class="sec" style="border-bottom:0;font-size:15px;line-height:1.5">
-        <div id="flywheel" class="flywheel"></div>
-        <script src="/flywheel.js" defer></script>
         <h2 style="font-size:26px;font-weight:900;letter-spacing:-.02em;margin:0 0 10px">Zu mi zusen.</h2>
+      </section>
+      <figure class="flywheel" id="flywheel">
+        <img src="/flywheel.svg" width="532" height="418" alt="The Lendo flywheel: more items listed, more convenient, more rentals, then more money saved and earned, more ratings and trust, more fun, and more neighbors met, which bring more people to try, which brings more items listed. At the center: more local connection and affordability." />
+      </figure>
+      <section class="sec" style="border-bottom:0;font-size:15px;line-height:1.5;padding-top:0">
         {G.map(t => <p>{t}</p>)}
         <p><b>{c.env.FEE_PCT}% fee (will stay low).</b></p>
         <a class="btn pri full" href="/list" style="margin-top:12px">Rent out your stuff</a>

@@ -115,6 +115,9 @@ html.mappage .hdr{flex-shrink:0;position:relative}
 @media (prefers-reduced-motion:reduce){.rent-out{animation:none}.tk{animation:none}}
 /* ticker strip under the header */
 .ticker{flex-shrink:0;height:22px;overflow:hidden;background:var(--ink);color:var(--cream);display:flex;align-items:center;position:relative;z-index:900}
+/* flywheel on /about: full page width (breaks out of the 560px column), capped on big screens */
+.flywheel{margin:0 0 12px calc(50% - 50vw);width:100vw;display:flex;justify-content:center}
+.flywheel img{display:block;width:100%;max-width:960px;height:auto;padding:0 4px;box-sizing:border-box}
 .tk{display:flex;white-space:nowrap;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:10px;font-weight:700;letter-spacing:1.6px;animation:tick 48s linear infinite;will-change:transform}
 .tk span{display:inline-flex;align-items:center}.tk i{font-style:normal;color:var(--orange);padding:0 14px}
 @keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
@@ -272,5 +275,3 @@ button,.btn,.pm,.idea,.days button,.stars button{touch-action:manipulation}
 .citytip::before{content:'';position:absolute;left:50%;top:-6px;margin-left:-6px;border:6px solid transparent;border-top:0;border-bottom-color:var(--ink)}
 .ticker{text-decoration:none;color:var(--cream);cursor:pointer}
 .ticker:hover .tk{animation-play-state:paused}
-.flywheel{margin:-16px -16px 14px;background:#fff;border-bottom:1.5px solid var(--ink);padding:6px 0 2px}
-.flywheel svg{display:block;width:100%;height:auto}
