@@ -58,10 +58,10 @@ browse.get('/', async (c) => {
         </div>
         <a class="rent-out" href="/list">RENT OUT YOUR STUFF</a>
         <div class="kpi" id="kpi" hidden><b id="kpiN">{k.global}</b><span id="kpiL">things to rent</span></div>
-        {!u && !getCookie(c, 'lendo_p') ? <form class="promo pu" id="promo" autocomplete="on" aria-label="Get $5 off">
-          <label for="promoPhone" class="sr">Phone number</label>
-          <input id="promoPhone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Phone #" maxlength={14} />
-          <button type="submit" id="promoBtn" disabled>$5 OFF</button>
+        {!u && !getCookie(c, 'lendo_p') ? <form class="promo pu" id="promo" data-promo autocomplete="on" aria-label="Get $5 off">
+          <label class="sr">Phone number</label>
+          <input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Phone #" maxlength={14} />
+          <button type="submit" disabled>$5 OFF</button>
         </form> : null}
         <div class="optin" id="optin" hidden role="dialog" aria-label="Text message opt-in">
           <div class="optin-box">
@@ -94,6 +94,11 @@ browse.get('/', async (c) => {
             </span>
             <svg class="pcard-chev" width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2L8 8L2 14" fill="none" stroke="#1E3A2B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
           </a>
+          {!u && !getCookie(c, 'lendo_p') ? <form class="promo incard" data-promo autocomplete="on" aria-label="Get $5 off this rental">
+            <label class="sr">Phone number</label>
+            <input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Phone # for $5 off this" maxlength={14} />
+            <button type="submit" disabled>$5 OFF</button>
+          </form> : null}
         </div>
         <div id="grid" class="itemgrid" style="display:none;position:absolute;inset:0;overflow:auto;background:var(--cream);z-index:450;align-content:start;padding-top:64px"></div>
       </div>
