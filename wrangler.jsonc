@@ -6,12 +6,12 @@
   "compatibility_flags": ["nodejs_compat"],
   "assets": { "directory": "./public", "binding": "ASSETS" },
   "d1_databases": [
-    { "binding": "DB", "database_name": "lendo", "database_id": "REPLACE_WITH_D1_ID", "migrations_dir": "migrations" }
+    { "binding": "DB", "database_name": "lendo", "database_id": "2cdee7e8-c29d-49ad-94e9-92caf327bc34", "migrations_dir": "migrations" }
   ],
   "r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "lendo-photos" }],
   "triggers": { "crons": ["*/15 * * * *"] },
   "vars": {
-    "APP_URL": "http://localhost:8787",
+    "APP_URL": "https://lendo.heif.workers.dev",
     "FEE_PCT": "15",
     "MIN_PRICE_CENTS": "800",
     "BLOOIO_API_BASE": "https://api.blooio.com/v2/api"
