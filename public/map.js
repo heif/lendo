@@ -33,9 +33,31 @@
   try { navigator.sendBeacon && navigator.sendBeacon('/api/map-load', ''); } catch (e) {}   // §6 cost guard
 
   var items = [], sel = null, listMode = false, t, iconCache = {}, loading = {};
+  // Spread: items at (nearly) the same spot are pushed apart on screen so each shows as its own pin (no "2" bubbles).
+  // Offsets are computed per zoom level and cached so pins don't jitter while the wiggle re-renders.
+  var spreadKey = '', spreadPos = {};
+  function spread(arr) {
+    if (!map || !map.loaded || !map.getZoom) return;
+    var z = Math.round(map.getZoom() * 4) / 4, key = z + '|' + arr.map(function (it) { return it.id; }).join(',');
+    if (key === spreadKey) return; spreadKey = key; spreadPos = {};
+    var pts = arr.filter(function (it) { return it.lat != null; }).map(function (it) { var p = map.project([it.lng, it.lat]); return { id: it.id, x: p.x, y: p.y, ox: p.x, oy: p.y }; });
+    var R = 46, moved = false;
+    for (var iter = 0; iter < 60; iter++) {
+      moved = false;
+      for (var i = 0; i < pts.length; i++) for (var j = i + 1; j < pts.length; j++) {
+        var a = pts[i], b = pts[j], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
+        if (d >= R) continue; moved = true;
+        if (d < 0.01) { var ang = ((i * 7 + j * 13) % 12) * 0.5236; dx = Math.cos(ang); dy = Math.sin(ang) * 0.6; d = 1; }
+        var push = (R - d) / 2 / d; a.x -= dx * push; a.y -= dy * push; b.x += dx * push; b.y += dy * push;
+      }
+      if (!moved) break;
+    }
+    pts.forEach(function (p) { if (Math.abs(p.x - p.ox) > 0.5 || Math.abs(p.y - p.oy) > 0.5) { var ll = map.unproject([p.x, p.y]); spreadPos[p.id] = [ll.lng, ll.lat]; } });
+  }
   var toGeo = function (arr) {
+    try { spread(arr); } catch (e) {}
     return { type: 'FeatureCollection', features: arr.filter(function (it) { return it.lat != null; }).map(function (it) {
-      return { type: 'Feature', id: it.id, geometry: { type: 'Point', coordinates: [it.lng, it.lat] },
+      return { type: 'Feature', id: it.id, geometry: { type: 'Point', coordinates: spreadPos[it.id] || [it.lng, it.lat] },
         properties: { id: it.id, sel: sel === it.id, rot: wiggleRot(it.id), name: it.name, price: fmt(it.price_cents), price_cents: it.price_cents, week_cents: it.week_cents || 0, photo: it.photo || '', avatar: it.avatar_key || '', emoji: it.emoji || '📦', hood: it.hood || '', icon: iconCache[it.id] ? 'l_' + it.id : 'pin-default' } };
     }) };
   };
@@ -113,11 +135,11 @@
   map.on('load', function () {
     window.applyLendoStyle && window.applyLendoStyle(map);
     addIcon('pin-default', drawSticker({ price_cents: 0, emoji: '📦' }, null, false));
-    map.addSource('listings', { type: 'geojson', data: toGeo([]), cluster: true, clusterRadius: 44, clusterMaxZoom: 16, promoteId: 'id' });
+    map.addSource('listings', { type: 'geojson', data: toGeo([]), cluster: true, clusterRadius: 36, clusterMaxZoom: 12, promoteId: 'id' });
     map.addLayer({ id: 'clusters', type: 'circle', source: 'listings', filter: ['has', 'point_count'],
-      paint: { 'circle-color': S.cluster.fill, 'circle-stroke-color': S.cluster.stroke, 'circle-stroke-width': 2.5, 'circle-radius': ['step', ['get', 'point_count'], 18, 10, 24, 50, 30] } });
-    map.addLayer({ id: 'cluster-count', type: 'symbol', source: 'listings', filter: ['has', 'point_count'],
-      layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 14, 'text-font': ['DIN Pro Bold', 'Arial Unicode MS Bold'] }, paint: { 'text-color': S.cluster.text } });
+      paint: { 'circle-color': S.cluster.fill, 'circle-stroke-color': S.cluster.stroke, 'circle-stroke-width': 2.5, 'circle-radius': ['step', ['get', 'point_count'], 9, 5, 12, 20, 15, 80, 19] } });
+    // zoomed-out clusters are plain orange dots sized by count (no number); zoomed in, every item is its own pin
+    map.addLayer({ id: 'cluster-count', type: 'symbol', source: 'listings', filter: ['==', 1, 2], layout: { 'text-field': '' } });
     map.addLayer({ id: 'pins', type: 'symbol', source: 'listings', filter: ['!', ['has', 'point_count']],
       layout: { 'icon-image': ['get', 'icon'], 'icon-rotate': ['get', 'rot'], 'icon-size': ['case', ['get', 'sel'], 1.15, 1], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'symbol-sort-key': ['case', ['get', 'sel'], 0, 1] },
       paint: { 'icon-opacity': 1 } });
@@ -132,6 +154,7 @@
     fetch('/api/listings?bbox=' + [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(',') + (qq ? '&q=' + encodeURIComponent(qq) : ''))
       .then(function (r) { return r.json(); }).then(function (j) { items = j.listings; refreshSource(); renderGrid(items); setKpi(j); loadVisibleIcons(); });
   }
+  map.on('zoomend', refreshSource);
   var moveT; map.on('moveend', function () { clearTimeout(moveT); moveT = setTimeout(function () { load(); updateHood(); }, 300); });
   // scope pills: hood ▾ → places picker; city → that city's view; globe → everywhere
   var PL = null, plCity = 'nyc', curCity = null;

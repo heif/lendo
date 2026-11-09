@@ -11,7 +11,7 @@ window.LENDO_MAP_STYLE = {
     'admin-', 'aeroway', 'ferry', 'golf', 'path-pedestrian-label', 'road-label-simple', 'place-label-sm', 'settlement-minor-label', 'state-label', 'country-label', 'continent', 'landuse-overlay', 'wetland', 'pitch-outline'],
   keep: ['road-label', 'settlement-subdivision-label', 'settlement-major-label', 'water-line-label', 'water-point-label', 'waterway-label', 'park-label', 'national-park', 'landuse'],
   // Lendo layers
-  cluster: { fill: '#1E3A2B', stroke: '#F5F3EE', text: '#FFFFFF' },
+  cluster: { fill: '#FF4F00', stroke: '#1E3A2B', text: '#FFFFFF' },
   hoods: { line: '#1E3A2B', lineOpacity: 0.3, fill: '#1E3A2B', fillOpacity: 0.03, emptyFillOpacity: 0.1, emptyColor: '#8A857B' },
   sticker: { size: 56, border: 3, tagBg: '#FF4F00', tagInk: '#1E3A2B', tagText: '#FFFFFF' },
 };
