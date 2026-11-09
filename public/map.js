@@ -133,9 +133,34 @@
       .then(function (r) { return r.json(); }).then(function (j) { items = j.listings; refreshSource(); renderGrid(items); setKpi(j); loadVisibleIcons(); });
   }
   var moveT; map.on('moveend', function () { clearTimeout(moveT); moveT = setTimeout(function () { load(); updateHood(); }, 300); });
-  // scope pills: hood → back to home/center zoom; NYC → city view; globe → everywhere
-  $('scHood').addEventListener('click', function () { map.easeTo({ center: CFG.center, zoom: 14.5 }); });
-  $('scCity').addEventListener('click', function () { map.easeTo({ center: [-73.95, 40.73], zoom: 10.6 }); });
+  // scope pills: hood ▾ → places picker; city → that city's view; globe → everywhere
+  var PL = null, plCity = 'nyc', curCity = null;
+  function loadPlaces(cb) { if (PL) return cb(PL); fetch('/api/places').then(function (r) { return r.json(); }).then(function (j) { PL = j; cb(j); }).catch(function () {}); }
+  function cityOf(lng, lat) { if (!PL) return null; for (var i = 0; i < PL.cities.length; i++) { var ct = PL.cities[i]; if (Math.abs(lng - ct.lng) < 0.45 && Math.abs(lat - ct.lat) < 0.3) return ct; } return null; }
+  function renderPlaces() {
+    var cs = $('plCities'), hs = $('plHoods'); cs.innerHTML = ''; hs.innerHTML = '';
+    PL.cities.forEach(function (ct) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = (ct.id === plCity ? 'on ' : '') + (ct.live ? '' : 'soon');
+      b.innerHTML = ct.name + ' <small>' + (ct.live ? ct.n.toLocaleString() : 'soon') + '</small>';
+      b.addEventListener('click', function () { plCity = ct.id; renderPlaces(); }); cs.appendChild(b);
+    });
+    var ct = PL.cities.filter(function (c) { return c.id === plCity; })[0]; if (!ct) return;
+    if (!ct.live) { var m = document.createElement('div'); m.className = 'soonmsg'; m.textContent = ct.name + ' isn’t open yet. List something there to start it.'; hs.appendChild(m); }
+    var hoods = ct.hoods.slice().sort(function (a, b) { return b.n - a.n || a.name.localeCompare(b.name); });
+    hoods.forEach(function (h) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = (h.n ? '' : 'zero') + (h.name === lastHood ? ' on' : '');
+      b.innerHTML = h.name + ' <small>' + (h.n ? h.n + ' to rent' : '—') + '</small>';
+      b.addEventListener('click', function () { closePlaces(); if (ct.live && h.lat !== ct.lat) map.easeTo({ center: [h.lng, h.lat], zoom: 14.5 }); else map.easeTo({ center: [ct.lng, ct.lat], zoom: ct.zoom }); });
+      hs.appendChild(b);
+    });
+  }
+  function openPlaces() { loadPlaces(function () { var c = map.getCenter(), ct = cityOf(c.lng, c.lat); if (ct) plCity = ct.id; renderPlaces(); $('places').hidden = false; }); }
+  function closePlaces() { $('places').hidden = true; }
+  $('scHood').addEventListener('click', openPlaces); $('plClose').addEventListener('click', closePlaces);
+  $('scCity').addEventListener('click', function () { var ct = curCity || (PL && PL.cities[0]); if (ct) map.easeTo({ center: [ct.lng, ct.lat], zoom: ct.zoom }); else map.easeTo({ center: [-73.95, 40.73], zoom: 10.6 }); });
+  loadPlaces(function () { updateCityPill(); }); map.on('moveend', updateCityPill);
+  function updateCityPill() { if (!PL) return; var c = map.getCenter(), ct = cityOf(c.lng, c.lat); if (ct && ct !== curCity) { curCity = ct; $('scCity').querySelector('b').textContent = ct.name; $('scCityC').textContent = ct.n.toLocaleString(); } }
+  startWanted();
   $('scGlobe').addEventListener('click', function () { map.easeTo({ center: [-40, 30], zoom: 1.6 }); });
 
   // selection + sheet
@@ -170,6 +195,31 @@
   function startWiggle() {
     var busy = false; map.on('movestart', function () { busy = true; }); map.on('moveend', function () { busy = false; });
     setInterval(function () { if (busy || document.hidden || !items.length || items.length > 150) return; var src = map.getSource('listings'); if (src) src.setData(toGeo(items)); }, 80);
+  }
+
+  // ---- WANTED posters (prototype ghosts): deterministic per grid cell so they stay put while panning; never on a pin
+  function startWanted() {
+    var marks = {}, CELL = 0.0045;
+    function h32(a, b) { var h = (a * 374761393 + b * 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return (h ^ (h >>> 16)) >>> 0; }
+    function near(lng, lat, px) { var p = map.project([lng, lat]); for (var i = 0; i < items.length; i++) { var it = items[i]; if (it.lat == null) continue; var q = map.project([it.lng, it.lat]); if (Math.abs(q.x - p.x) < px && Math.abs(q.y - p.y) < px) return true; } return false; }
+    function place() {
+      var z = map.getZoom(), want = (PL && PL.wanted) || []; var keep = {};
+      if (z >= 13.2 && want.length) {
+        var b = map.getBounds(), x0 = Math.floor(b.getWest() / CELL), x1 = Math.ceil(b.getEast() / CELL), y0 = Math.floor(b.getSouth() / CELL), y1 = Math.ceil(b.getNorth() / CELL), n = 0;
+        for (var x = x0; x <= x1 && n < 9; x++) for (var y = y0; y <= y1 && n < 9; y++) {
+          var h = h32(x, y); if (h % 5 !== 0) continue;
+          var lng = (x + 0.2 + (h >>> 8 & 255) / 425) * CELL, lat = (y + 0.2 + (h >>> 16 & 255) / 425) * CELL;
+          if (near(lng, lat, 46)) continue;
+          var k = x + ',' + y, w = want[h % want.length]; keep[k] = 1; n++;
+          if (marks[k]) continue;
+          var el = document.createElement('a'); el.className = 'wanted'; el.href = '/list?want=' + encodeURIComponent(w.label); el.setAttribute('aria-label', 'Wanted: ' + w.label + '. Reward for listing.');
+          el.innerHTML = '<b>WANTED</b><i>' + w.emoji + '</i><em>' + w.label + '</em><strong>REWARD</strong><small>for listing</small>';
+          marks[k] = new mapboxgl.Marker({ element: el, anchor: 'center', className: 'wanted-m', rotationAlignment: 'viewport' }).setLngLat([lng, lat]).addTo(map);
+        }
+      }
+      Object.keys(marks).forEach(function (k) { if (!keep[k]) { marks[k].remove(); delete marks[k]; } });
+    }
+    map.on('moveend', place); map.on('load', place); loadPlaces(place); setTimeout(place, 1500);
   }
 
   // ---- §2 walkers (prototype details): tiny 12×19 figures, singles/pairs/trios walking out along a short straight

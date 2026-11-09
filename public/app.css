@@ -196,3 +196,30 @@ html.mappage .hdr{flex-shrink:0;position:relative}
 @media (max-width:420px){.scope-globe{display:none}.hdr .logo{font-size:30px}.scope button b{max-width:96px}.scope-hood{min-width:100px}}
 /* no double-tap zoom on controls (iOS) */
 button,.btn,.pm,.idea,.days button,.stars button{touch-action:manipulation}
+
+/* places picker (hoods + cities) */
+.places{position:absolute;left:10px;right:10px;top:62px;bottom:16px;margin:0 auto;max-width:440px;z-index:650;background:#fff;border:2px solid var(--ink);border-radius:18px;box-shadow:0 8px 24px rgba(35,33,29,.18);display:flex;flex-direction:column;overflow:hidden;animation:rise .2s ease-out both}
+.places-h{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 8px;font-size:18px;font-weight:900;letter-spacing:-.3px}
+.places-h .pcard-x{position:static}
+.places-cities{display:flex;gap:6px;overflow-x:auto;padding:4px 12px 10px;border-bottom:1.5px solid var(--line2);scrollbar-width:none}
+.places-cities::-webkit-scrollbar{display:none}
+.places-cities button{flex-shrink:0;font-family:inherit;height:34px;padding:0 12px;border-radius:17px;border:1.5px solid var(--ink);background:#fff;color:var(--ink);font-size:13px;font-weight:900;display:flex;align-items:center;gap:6px}
+.places-cities button.on{background:var(--ink);color:#fff}
+.places-cities button.soon{border-color:#DCD7CC;color:#9B968C;background:#F7F5F0}
+.places-cities button small{font-size:10px;font-weight:700;opacity:.75}
+.places-cities button.soon small{font-style:italic}
+.places-hoods{flex:1;overflow-y:auto;padding:6px 6px 10px;display:grid;grid-template-columns:1fr 1fr;gap:2px 6px;align-content:start}
+.places-hoods button{font-family:inherit;display:flex;align-items:center;justify-content:space-between;gap:8px;height:40px;padding:0 10px;border:0;border-radius:10px;background:none;color:var(--ink);font-size:14px;font-weight:800;text-align:left}
+.places-hoods button small{font-size:11px;font-weight:700;color:#6F6A60;white-space:nowrap}
+.places-hoods button.zero{color:#9B968C}.places-hoods button.zero small{color:#B5B0A6}
+.places-hoods button.on{background:var(--cream)}
+.places-hoods .soonmsg{grid-column:1/-1;padding:14px 10px;font-size:13px;font-weight:700;color:#6F6A60}
+/* WANTED posters on the map (prototype ghosts) */
+.wanted{display:block;width:62px;padding:5px 4px 6px;background:#F6EBC8;border:1.5px solid var(--ink);box-shadow:1.5px 2px 0 rgba(30,58,43,.35);text-align:center;text-decoration:none;color:var(--ink);transform:rotate(-4deg);cursor:pointer;transition:transform .15s}
+.wanted:hover{transform:rotate(-2deg) scale(1.06)}
+.wanted b{display:block;font-family:Rockwell,'Roboto Slab',Georgia,serif;font-size:10.5px;letter-spacing:1px;line-height:1}
+.wanted i{display:block;font-style:normal;font-size:26px;line-height:1.15;filter:sepia(.6) saturate(.7);font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif}
+.wanted em{display:block;font-style:normal;font-size:8.5px;font-weight:800;line-height:1.1;color:#6F6A60;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wanted strong{display:block;font-size:9px;font-weight:900;color:#B42318;letter-spacing:.5px;line-height:1.1;margin-top:2px}
+.wanted small{display:block;font-size:8.5px;font-weight:700;color:var(--ink);line-height:1}
+.wanted-m{z-index:0}

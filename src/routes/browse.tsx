@@ -57,6 +57,11 @@ browse.get('/', async (c) => {
         </div>
         <a class="rent-out" href="/list">RENT OUT YOUR STUFF</a>
         <div class="kpi" id="kpi" hidden><b id="kpiN">{k.global}</b><span id="kpiL">things to rent</span></div>
+        <div class="places" id="places" role="dialog" aria-label="Neighborhoods and cities" hidden>
+          <div class="places-h"><b>Where?</b><button type="button" class="pcard-x" id="plClose" aria-label="Close"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" stroke-width="2.2" stroke-linecap="round" /></svg></button></div>
+          <div class="places-cities" id="plCities"></div>
+          <div class="places-hoods" id="plHoods"></div>
+        </div>
         <div class="pcard" id="sheet" role="dialog" aria-label="Selected item">
           <div class="pcard-strip">FOR RENT</div>
           <button class="pcard-x" id="shClose" aria-label="Close"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" stroke-width="2.2" stroke-linecap="round" /></svg></button>

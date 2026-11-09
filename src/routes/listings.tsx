@@ -64,7 +64,7 @@ listings.get('/list', async (c) => {
         <div class="lf-scroll">
           <div class="tray" id="tray"></div>
           <div class="dn-head" id="dnHead"></div>
-          <div class="dn-sub">They’re listed.</div>
+          <div class="dn-sub" id="dnSub">They’re listed.</div>
           <div class="share">
             <div class="share-h">Share it. Post it.</div>
             <div class="flyer"><div class="flyer-h">FOR RENT ON MY BLOCK</div><div class="flyer-tray" id="shTray"></div><div class="flyer-l" id="shLine"></div><div class="flyer-u">lendo.co/u/{u.id.slice(0, 8)}…</div></div>
