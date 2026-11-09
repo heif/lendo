@@ -14,12 +14,13 @@
     layer.clearLayers();
     items.forEach(function (it) { if (it.lat == null) return;
       var ic = L.divIcon({ className: '', html: '<div class="epin' + (sel === it.id ? ' sel' : '') + '"><span class="glow"></span>' + (it.avatar_key ? '<img class="emo av" src="/p/' + it.avatar_key + '" alt="">' : '<span class="emo">' + (it.emoji || '📦') + '</span>') + '<span class="tag">' + fmt(it.price_cents) + '<small>/day</small></span></div>', iconSize: [0, 0] });
-      L.marker([it.lat, it.lng], { icon: ic }).addTo(layer).on('click', function () { sel = it.id; render(); sheet.href = '/i/' + it.id; $('shImg').src = it.photo ? '/p/' + it.photo : ''; $('shPr').textContent = fmt(it.price_cents) + '/day'; $('shNm').textContent = it.name; $('shSub').textContent = (it.hood || '') + (it.week_cents ? ' · ' + fmt(it.week_cents) + '/week' : ''); sheet.classList.add('on'); });
+      L.marker([it.lat, it.lng], { icon: ic }).addTo(layer).on('click', function () { sel = it.id; render(); $('shLink').href = '/i/' + it.id; $('shImg').src = it.avatar_key ? '/p/' + it.avatar_key : it.photo ? '/p/' + it.photo : ''; $('shImg').className = it.avatar_key ? 'cut' : 'photo'; $('shPr').innerHTML = fmt(it.price_cents) + '<small>/day</small>'; $('shNm').textContent = it.name; $('shOwner').textContent = (it.owner_name || 'Neighbor').split(' ')[0]; $('shWhere').textContent = (it.hood || ''); sheet.classList.add('on'); });
     });
     renderGrid(items);
   }
   function load() { var b = map.getBounds(), q = $('q').value.trim(); fetch('/api/listings?bbox=' + [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(',') + (q ? '&q=' + encodeURIComponent(q) : '')).then(function (r) { return r.json(); }).then(function (j) { items = j.listings; render(); $('kpiN').textContent = j.counts.view; $('kpiL').textContent = (j.counts.view === 1 ? 'thing' : 'things') + ' to rent here · ' + j.counts.global + ' total'; }); }
   map.on('moveend', load); map.on('click', function () { sel = null; sheet.classList.remove('on'); render(); });
+  $('shClose').addEventListener('click', function () { sel = null; sheet.classList.remove('on'); render(); });
   $('q').addEventListener('input', function () { clearTimeout(t); t = setTimeout(load, 300); });
   $('toggle').addEventListener('click', function () { listMode = !listMode; grid.style.display = listMode ? 'grid' : 'none'; this.textContent = listMode ? 'Map' : 'List'; });
   $('locate').addEventListener('click', function () { navigator.geolocation && navigator.geolocation.getCurrentPosition(function (p) { map.setView([p.coords.latitude, p.coords.longitude], 15); }); });

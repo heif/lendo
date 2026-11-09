@@ -32,33 +32,56 @@
     }) };
   };
 
+  function fillCard(it) {
+    $('shLink').href = '/i/' + it.id;
+    var im = $('shImg'); im.src = it.avatar_key ? '/p/' + it.avatar_key : it.photo ? '/p/' + it.photo : ''; im.className = it.avatar_key ? 'cut' : 'photo';
+    $('shPr').innerHTML = fmt(it.price_cents) + '<small>/day</small>' + (it.week_cents ? ' <span class="wk">' + fmt(it.week_cents) + '/wk</span>' : '');
+    $('shNm').textContent = it.name;
+    var own = (it.owner_name || 'Neighbor').split(' ')[0];
+    $('shOwner').innerHTML = '<span class="av">' + esc(own.charAt(0)) + '</span>' + esc(own) + (it.owner_rating ? ' <span class="pill">★ ' + it.owner_rating + '</span>' : ' <span class="pill new">new</span>') + (it.rentals ? ' <span class="n">' + it.rentals + ' rental' + (it.rentals === 1 ? '' : 's') + '</span>' : '');
+    $('shWhere').textContent = (it.hood || 'near you') + (it.owner_xs ? ' · ' + it.owner_xs : '');
+  }
+  $('shClose').addEventListener('click', function () { sel = null; refreshSource(); sheet.classList.remove('on'); });
+
   // ---- sticker icons: round photo + price tag, drawn on canvas, added on demand per visible listing ----
   var SZ = S.sticker.size, DPR = Math.min(2, window.devicePixelRatio || 1);
-  function drawSticker(it, img) {
-    var W = SZ + 8, H = SZ + 26; // room for tag below
+  // Prototype pin: the item icon (transparent sticker) with a white outline + soft glow, orange price tag below.
+  // Listings without a transparent icon get the round photo sticker.
+  function drawSticker(it, img, transparent) {
+    var W = 84, H = SZ + 34, iconH = SZ + 6;
     var cv = document.createElement('canvas'); cv.width = W * DPR; cv.height = H * DPR;
     var g = cv.getContext('2d'); g.scale(DPR, DPR);
-    var cx = W / 2, cy = SZ / 2 + 2, r = SZ / 2;
-    // shadow + white ring
-    g.save(); g.shadowColor = 'rgba(30,58,43,0.35)'; g.shadowBlur = 6; g.shadowOffsetY = 3;
-    g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fillStyle = '#FFFFFF'; g.fill(); g.restore();
-    // image (or emoji) clipped to circle
-    g.save(); g.beginPath(); g.arc(cx, cy, r - S.sticker.border, 0, Math.PI * 2); g.clip();
-    if (img) {
-      var s = Math.max((2 * r) / img.width, (2 * r) / img.height), iw = img.width * s, ih = img.height * s;
-      g.drawImage(img, cx - iw / 2, cy - ih / 2, iw, ih);
+    var cx = W / 2, cy = iconH / 2 + 2;
+    // glow
+    var rg = g.createRadialGradient(cx, cy + 4, 4, cx, cy + 4, 36); rg.addColorStop(0, 'rgba(255,255,255,0.95)'); rg.addColorStop(0.55, 'rgba(255,255,255,0.55)'); rg.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = rg; g.fillRect(0, 0, W, iconH + 10);
+    if (img && transparent) {
+      var s0 = Math.min(iconH / img.width, iconH / img.height), iw = img.width * s0, ih = img.height * s0, ix = cx - iw / 2, iy = cy - ih / 2;
+      // white outline: draw the icon offset in 8 directions, then the real one
+      g.save(); g.globalCompositeOperation = 'source-over';
+      var tmp = document.createElement('canvas'); tmp.width = Math.ceil(iw) + 8; tmp.height = Math.ceil(ih) + 8; var tg = tmp.getContext('2d');
+      tg.drawImage(img, 4, 4, iw, ih); tg.globalCompositeOperation = 'source-in'; tg.fillStyle = '#FFFFFF'; tg.fillRect(0, 0, tmp.width, tmp.height);
+      [[2, 0], [-2, 0], [0, 2], [0, -2], [1.5, 1.5], [-1.5, 1.5], [1.5, -1.5], [-1.5, -1.5]].forEach(function (d) { g.drawImage(tmp, ix - 4 + d[0], iy - 4 + d[1]); });
+      g.shadowColor = 'rgba(30,58,43,0.35)'; g.shadowBlur = 3; g.shadowOffsetY = 3; g.drawImage(tmp, ix - 4, iy - 4); g.shadowColor = 'transparent';
+      g.drawImage(img, ix, iy, iw, ih); g.restore();
     } else {
-      g.fillStyle = '#F5F3EE'; g.fillRect(0, 0, W, H);
-      g.font = (SZ * 0.55) + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(it.emoji || '📦', cx, cy + 2);
+      var r = SZ / 2;
+      g.save(); g.shadowColor = 'rgba(30,58,43,0.35)'; g.shadowBlur = 6; g.shadowOffsetY = 3;
+      g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fillStyle = '#FFFFFF'; g.fill(); g.restore();
+      g.save(); g.beginPath(); g.arc(cx, cy, r - S.sticker.border, 0, Math.PI * 2); g.clip();
+      if (img) { var s1 = Math.max((2 * r) / img.width, (2 * r) / img.height), w1 = img.width * s1, h1 = img.height * s1; g.drawImage(img, cx - w1 / 2, cy - h1 / 2, w1, h1); }
+      else { g.fillStyle = '#F5F3EE'; g.fillRect(0, 0, W, H); g.font = (SZ * 0.55) + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(it.emoji || '📦', cx, cy + 2); }
+      g.restore();
+      g.beginPath(); g.arc(cx, cy, r - S.sticker.border / 2, 0, Math.PI * 2); g.lineWidth = 1.5; g.strokeStyle = S.sticker.tagInk; g.stroke();
     }
-    g.restore();
-    g.beginPath(); g.arc(cx, cy, r - S.sticker.border / 2, 0, Math.PI * 2); g.lineWidth = 1.5; g.strokeStyle = S.sticker.tagInk; g.stroke();
     // price tag
     var label = fmt(it.price_cents), sub = '/day';
     g.font = '700 12.5px "Helvetica Neue",Helvetica,Arial,sans-serif'; var lw = g.measureText(label).width;
     g.font = '700 8.5px "Helvetica Neue",Helvetica,Arial,sans-serif'; var sw = g.measureText(sub).width;
-    var tw = lw + sw + 12, th = 18, tx = cx - tw / 2, ty = SZ - 2;
-    g.beginPath(); g.roundRect(tx, ty, tw, th, 5); g.fillStyle = S.sticker.tagBg; g.fill(); g.lineWidth = 1.5; g.strokeStyle = S.sticker.tagInk; g.stroke();
+    var tw = lw + sw + 12, th = 18, tx = cx - tw / 2, ty = iconH - 4;
+    g.save(); g.shadowColor = 'rgba(30,58,43,0.25)'; g.shadowBlur = 3; g.shadowOffsetY = 1;
+    g.beginPath(); g.roundRect(tx, ty, tw, th, 5); g.fillStyle = S.sticker.tagBg; g.fill(); g.restore();
+    g.beginPath(); g.roundRect(tx, ty, tw, th, 5); g.lineWidth = 1.5; g.strokeStyle = S.sticker.tagInk; g.stroke();
     g.fillStyle = S.sticker.tagText; g.textBaseline = 'middle'; g.textAlign = 'left';
     g.font = '700 12.5px "Helvetica Neue",Helvetica,Arial,sans-serif'; g.fillText(label, tx + 6, ty + th / 2 + 0.5);
     g.font = '700 8.5px "Helvetica Neue",Helvetica,Arial,sans-serif'; g.fillText(sub, tx + 6 + lw, ty + th / 2 + 1);
@@ -69,7 +92,7 @@
     if (iconCache[it.id] || loading[it.id]) return;
     loading[it.id] = true;
     var src = it.avatar_key ? '/p/' + it.avatar_key : it.photo ? '/p/' + it.photo : null;
-    var done = function (img) { try { addIcon('l_' + it.id, drawSticker(it, img)); iconCache[it.id] = true; } catch (e) { console.warn('icon', e); } loading[it.id] = false; refreshSource(); };
+    var done = function (img) { try { addIcon('l_' + it.id, drawSticker(it, img, !!it.avatar_key)); iconCache[it.id] = true; } catch (e) { console.warn('icon', e); } loading[it.id] = false; refreshSource(); };
     if (!src) return done(null);
     var img = new Image(); img.onload = function () { done(img); }; img.onerror = function () { done(null); }; img.src = src;
   }
@@ -81,7 +104,7 @@
 
   map.on('load', function () {
     window.applyLendoStyle && window.applyLendoStyle(map);
-    addIcon('pin-default', drawSticker({ price_cents: 0, emoji: '📦' }, null));
+    addIcon('pin-default', drawSticker({ price_cents: 0, emoji: '📦' }, null, false));
     map.addSource('listings', { type: 'geojson', data: toGeo([]), cluster: true, clusterRadius: 44, clusterMaxZoom: 16, promoteId: 'id' });
     map.addLayer({ id: 'clusters', type: 'circle', source: 'listings', filter: ['has', 'point_count'],
       paint: { 'circle-color': S.cluster.fill, 'circle-stroke-color': S.cluster.stroke, 'circle-stroke-width': 2.5, 'circle-radius': ['step', ['get', 'point_count'], 18, 10, 24, 50, 30] } });
@@ -106,8 +129,7 @@
   map.on('click', 'pins', function (e) {
     var f = e.features[0], p = f.properties; var it = items.filter(function (x) { return x.id === p.id; })[0] || p;
     sel = p.id; refreshSource();
-    sheet.href = '/i/' + p.id; $('shImg').src = it.photo ? '/p/' + it.photo : ''; $('shPr').textContent = fmt(it.price_cents) + '/day'; $('shNm').textContent = it.name;
-    $('shSub').textContent = (it.hood || '') + (it.week_cents ? ' · ' + fmt(it.week_cents) + '/week' : ''); sheet.classList.add('on');
+    fillCard(it); sheet.classList.add('on');
   });
   map.on('click', 'clusters', function (e) {
     var f = map.queryRenderedFeatures(e.point, { layers: ['clusters'] })[0];

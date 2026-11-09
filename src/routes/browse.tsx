@@ -45,7 +45,19 @@ browse.get('/', async (c) => {
         <button class="btn sm listtoggle" id="toggle">List</button>
         <div class="kpi"><b id="kpiN">{k.global}</b><span id="kpiL">things to rent</span></div>
         <a class="btn pri listfab" href="/list">+ List your stuff</a>
-        <a class="sheet" id="sheet" href="#"><img id="shImg" alt="" /><div><div class="pr" id="shPr"></div><div class="nm" id="shNm"></div><div class="hint" id="shSub"></div></div></a>
+        <div class="pcard" id="sheet" role="dialog" aria-label="Selected item">
+          <div class="pcard-strip">FOR RENT</div>
+          <button class="pcard-x" id="shClose" aria-label="Close"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" stroke-width="2.2" stroke-linecap="round" /></svg></button>
+          <a class="pcard-body" id="shLink" href="#">
+            <span class="pcard-img"><img id="shImg" alt="" /><span class="pcard-price" id="shPr"></span></span>
+            <span class="pcard-txt">
+              <span class="pcard-name" id="shNm"></span>
+              <span class="pcard-owner" id="shOwner"></span>
+              <span class="pcard-where" id="shSub"><svg width="10" height="12" viewBox="0 0 24 26" aria-hidden="true"><path d="M12 25C12 25 3 16 3 10A9 9 0 0 1 21 10C21 16 12 25 12 25Z" fill="#1E3A2B" /><circle cx="12" cy="10" r="3.4" fill="#F5F3EE" /></svg><span id="shWhere"></span></span>
+            </span>
+            <svg class="pcard-chev" width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2L8 8L2 14" fill="none" stroke="#1E3A2B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          </a>
+        </div>
         <div id="grid" class="itemgrid" style="display:none;position:absolute;inset:0;overflow:auto;background:var(--cream);z-index:450;align-content:start"></div>
       </div>
       {raw(`<script>window.LENDO_MAP=${cfg};</script>`)}

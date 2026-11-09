@@ -97,11 +97,28 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .kpi b{display:block;font-size:26px;letter-spacing:-.04em;line-height:1}
 .kpi span{font-size:11px;font-weight:700}
 .listfab{position:absolute;right:10px;bottom:16px;z-index:500}
-.sheet{position:absolute;left:8px;right:8px;bottom:70px;z-index:600;background:#fff;border:2px solid var(--ink);border-radius:16px;padding:10px;display:none;gap:12px;box-shadow:4px 4px 0 var(--ink);text-decoration:none;animation:rise .2s ease-out both}
-.sheet.on{display:flex}
-.sheet img{width:84px;height:84px;object-fit:cover;border-radius:10px;background:var(--cream);flex-shrink:0}
-.sheet .nm{font-weight:800;font-size:16px}
-.sheet .pr{font-size:28px;font-weight:900;letter-spacing:-.04em;line-height:1}
+/* selected item card (prototype) */
+.pcard{position:absolute;left:10px;right:10px;margin:0 auto;max-width:440px;bottom:84px;z-index:600;display:none;background:#fff;border:2px solid var(--ink);border-radius:18px;padding:12px;box-shadow:0 8px 24px rgba(35,33,29,.18);animation:rise .2s ease-out both}
+.pcard.on{display:block}
+.pcard-strip{margin:-12px -12px 12px;height:32px;padding:0 44px 0 14px;border-radius:16px 16px 0 0;background:var(--ink);color:#fff;display:flex;align-items:center;font-size:14px;font-weight:900;letter-spacing:1.2px}
+.pcard-x{position:absolute;right:-4px;top:-14px;width:32px;height:32px;border-radius:16px;border:2px solid #fff;background:var(--ink);display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 2px 6px rgba(30,58,43,.3);z-index:2}
+.pcard-body{display:flex;align-items:flex-start;gap:12px;text-decoration:none;color:var(--ink)}
+.pcard-img{position:relative;flex-shrink:0;width:100px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.pcard-img img{width:100px;height:100px;border-radius:14px;background:#F4F1EA;display:block}
+.pcard-img img.photo{object-fit:cover}
+.pcard-img img.cut{object-fit:contain;padding:6px;box-sizing:border-box;filter:drop-shadow(0 3px 3px rgba(30,58,43,.18))}
+.pcard-price{font-size:15px;font-weight:800;letter-spacing:-.3px;color:#fff;background:var(--orange);border:1.5px solid var(--ink);padding:1px 6px;border-radius:5px;white-space:nowrap}
+.pcard-price small{font-size:10px;font-weight:700}
+.pcard-price .wk{font-size:10px;font-weight:700;opacity:.9;margin-left:2px}
+.pcard-txt{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:5px;padding-top:2px}
+.pcard-name{font-size:20px;font-weight:800;line-height:1.2;letter-spacing:-.3px}
+.pcard-owner{display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;white-space:nowrap;overflow:hidden}
+.pcard-owner .av{width:16px;height:16px;border-radius:8px;background:var(--ink);color:#fff;font-size:9px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;border:1.5px solid #fff;box-shadow:0 0 0 1px var(--ink)}
+.pcard-owner .pill{padding:0 5px;border-radius:999px;border:1.2px solid var(--ink);background:var(--mint);font-size:10px;font-weight:900}
+.pcard-owner .pill.new{background:#fff;color:var(--mute);border-color:var(--line)}
+.pcard-owner .n{font-size:11px;font-weight:600;color:var(--ink2)}
+.pcard-where{display:flex;align-items:center;gap:4px;font-size:11px;line-height:1.25;color:var(--ink2)}
+.pcard-chev{flex-shrink:0;align-self:center}
 .listtoggle{position:absolute;right:10px;top:60px;z-index:500}
 .itemgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px}
 .itemcard{display:block;text-decoration:none;background:#fff;border:1.5px solid var(--line);border-radius:14px;overflow:hidden}
