@@ -205,7 +205,7 @@
   startWanted();
   $('wsClose').addEventListener('click', function () { $('wsheet').hidden = true; }); map.on('click', function () { $('wsheet').hidden = true; });
 
-  $('scGlobe').addEventListener('click', function () { map.easeTo({ center: [-40, 30], zoom: 1.6 }); });
+  $('scGlobe').addEventListener('click', function () { openPlaces(); });
 
   // selection + sheet
   map.on('click', 'pins', function (e) {
