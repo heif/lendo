@@ -2,13 +2,14 @@ import { Hono } from 'hono';
 import { raw } from 'hono/html';
 import type { Env, Listing, Vars } from '../lib/env';
 import { Layout } from '../pages/layout';
+import { cutoutUrl } from '../lib/cutout';
 import { counts, firstPhotos, listingById, photosFor, reputation, userById, busyDays } from '../lib/db';
 import { money, fmtDay, dayStr, addDays, firstName, fuzz } from '../lib/util';
 import { feeFor } from '../lib/stripe';
 import { geocodePlace } from '../lib/geo';
 import { assignHood, loadHoods } from '../lib/hoods';
 
-const TICKER = ['MAKE MONEY', 'SAVE MONEY', 'SAVE SPACE', 'MEET NEIGHBORS', 'BUY LESS', 'WASTE LESS', 'TRY BEFORE YOU BUY', 'YOUR STUFF PAYS RENT', 'TRUST YOUR BLOCK', 'OWN LESS, DO MORE'];
+const TICKER = ['MAKE MONEY', 'SAVE MONEY', 'SAVE SPACE', 'MEET NEIGHBORS', 'BUY LESS', 'WASTE LESS', 'TRY BEFORE YOU BUY'];
 
 export const browse = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -96,11 +97,11 @@ browse.get('/i/:id', async (c) => {
   return c.html(
     <Layout title="Item" user={u} flash={c.req.query('canceled') ? 'Checkout canceled — nothing was charged.' : null}>
       <div class="hero">
-        {photos[0] ? <img id="heroImg" src={'/p/' + photos[0].r2_key} alt={it.name} /> : <div class="hint">no photo yet</div>}
+        {photos[0] ? <img id="heroImg" src={cutoutUrl(c.env, photos[0].r2_key)} alt={it.name} onerror={`this.onerror=null;this.src='/p/${photos[0].r2_key}'`} /> : <div class="hint">no photo yet</div>}
         <div class="pr"><b class="price">{money(it.price_cents)}</b><span style="font-size:15px">/day</span>
           {it.week_cents ? <div style="font-size:13px;margin-top:4px">{money(it.week_cents)}/week</div> : null}</div>
       </div>
-      {photos.length > 1 ? <div class="thumbs">{photos.map(p => <img src={'/p/' + p.r2_key} alt="" onclick={`document.getElementById('heroImg').src=this.src`} />)}</div> : null}
+      {photos.length > 1 ? <div class="thumbs">{photos.map(p => <img src={cutoutUrl(c.env, p.r2_key, 160, 160)} alt="" data-full={cutoutUrl(c.env, p.r2_key)} onclick={`document.getElementById('heroImg').src=this.dataset.full`} />)}</div> : null}
       <section class="sec">
         <div class="row" style="justify-content:space-between;align-items:flex-start">
           <h2 style="margin:0;font-size:19px;font-weight:800;line-height:1.3">{it.name}</h2>

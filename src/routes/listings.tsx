@@ -3,6 +3,7 @@ import { raw } from 'hono/html';
 import type { Env, Listing, Vars } from '../lib/env';
 import { Layout } from '../pages/layout';
 import { requireUser } from '../lib/auth';
+import { avatarUrl } from '../lib/cutout';
 import { firstPhotos, listingById, photosFor, busyDays } from '../lib/db';
 import { id, money, now, fuzz, weekDefault, dayStr, addDays, fmtDay } from '../lib/util';
 import { hoodFor, geocodePlace } from '../lib/geo';
@@ -114,6 +115,52 @@ listings.post('/api/list', async (c) => {
   }
   return c.json({ listed: out, count: out.length });
 });
+listings.get('/listings', requireUser, async (c) => {
+  const u = c.get('user')!;
+  const rows = await c.env.DB.prepare(`SELECT * FROM listings WHERE owner_id = ? AND status != 'removed' ORDER BY created_at DESC`).bind(u.id).all<Listing>();
+  const ph = await firstPhotos(c.env.DB, rows.results.map(r => r.id));
+  const earned = await c.env.DB.prepare(`SELECT COALESCE(SUM(rent_cents),0) s, COUNT(*) n FROM rentals WHERE owner_id = ? AND status IN ('confirmed','picked_up','returned','closed')`).bind(u.id).first<{ s: number; n: number }>();
+  const just = c.req.query('just');
+  const live = rows.results.filter(r => r.status === 'live').length;
+  const shareUrl = `${c.env.APP_URL}/u/${u.id}`;
+  return c.html(
+    <Layout title="Your listings" user={u} flash={just ? "It's live. Anyone nearby can rent it now." : null}>
+      <div style="padding:12px 16px 0" class="row">
+        <div><div class="price" style="font-size:30px;line-height:1">{money(earned?.s || 0)}</div><div class="hint">earned · {earned?.n || 0} rentals</div></div>
+        <span class="sp" style="flex:1"></span>
+        <div style="text-align:right"><div class="price" style="font-size:30px;line-height:1">{live}</div><div class="hint">live</div></div>
+      </div>
+      <div style="padding:10px 16px" class="row">
+        <a class="btn pri" href="/list">📷 List more</a>
+        <button class="btn" type="button" onclick={`navigator.share?navigator.share({text:'My stuff for rent on Lendo',url:'${shareUrl}'}):(navigator.clipboard.writeText('${shareUrl}'),toast('Link copied'))`}>Share it ↗</button>
+      </div>
+      {rows.results.map(it => (
+        <div class="card" style={'margin:0 12px 10px' + (it.id === just ? ';border:2px solid var(--ink)' : '')}>
+          <div class="row" style="align-items:flex-start">
+            <a href={'/i/' + it.id}>{avatarUrl(c.env, it.avatar_key, ph[it.id] || null) ? <img src={avatarUrl(c.env, it.avatar_key, ph[it.id] || null)!} alt="" style="width:72px;height:72px;object-fit:contain;border-radius:10px;background:#fff;border:1.5px solid var(--line)" /> : <div class="ph" style="width:72px;height:72px;border-radius:10px;background:var(--cream)"></div>}</a>
+            <div style="flex:1;min-width:0">
+              <div class="row" style="justify-content:space-between"><a href={'/i/' + it.id} style="font-weight:800;text-decoration:none">{it.name}</a><span class="pill" style={it.status === 'live' ? 'background:var(--mint)' : ''}>{it.status}</span></div>
+              {it.lat == null ? <a href="/profile/edit" class="hint" style="color:var(--red);font-weight:700">⚠ Not on the map yet — set your home base</a> : null}
+              <form method="post" action={'/listings/' + it.id + '/price'} class="row" style="margin-top:6px;gap:6px">
+                <button class="btn sm" name="delta" value="-100" type="submit" aria-label="Lower price $1">−</button>
+                <span class="price" style="font-size:22px">{money(it.price_cents)}<span style="font-size:11px;font-weight:700">/day</span></span>
+                <button class="btn sm" name="delta" value="100" type="submit" aria-label="Raise price $1">+</button>
+                <span class="hint">{it.week_cents ? money(it.week_cents) + '/wk' : ''}</span>
+              </form>
+            </div>
+          </div>
+          <div class="row" style="margin-top:10px;gap:6px;flex-wrap:wrap">
+            <a class="btn sm" href={'/listings/' + it.id + '/edit'}>Edit</a>
+            <form method="post" action={'/listings/' + it.id + '/toggle'}><button class="btn sm" type="submit">{it.status === 'live' ? 'Pause' : 'Go live'}</button></form>
+            <form method="post" action={'/listings/' + it.id + '/remove'} onsubmit="return confirm('Remove this listing?')"><button class="btn sm" type="submit" style="color:var(--red)">Remove</button></form>
+          </div>
+        </div>
+      ))}
+      {!rows.results.length ? <div class="hint" style="padding:24px 16px">Nothing listed yet.</div> : null}
+    </Layout>
+  );
+});
+
 listings.post('/listings/:id/price', requireUser, async (c) => {
   const u = c.get('user')!;
   const d = parseInt(String((await c.req.parseBody()).delta || '0'), 10) || 0;
