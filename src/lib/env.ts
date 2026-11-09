@@ -6,6 +6,7 @@ export type Env = {
   FEE_PCT: string;
   MIN_PRICE_CENTS: string;
   BLOOIO_API_BASE: string;
+  LENDO_NUMBER: string; // the Blooio number, for "save this contact" prompts
   SESSION_SECRET: string;
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
@@ -16,7 +17,7 @@ export type Env = {
 export type User = {
   id: string; phone: string; name: string | null; hood: string | null; cross_streets: string | null;
   lat: number | null; lng: number | null; pickup_spots: string | null; stripe_account_id: string | null;
-  stripe_customer_id: string | null; nudges: number; texts: number; created_at: number;
+  stripe_customer_id: string | null; nudges: number; texts: number; replied: number; created_at: number;
 };
 
 export type Listing = {

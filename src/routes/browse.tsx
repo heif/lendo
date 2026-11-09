@@ -3,7 +3,7 @@ import { raw } from 'hono/html';
 import type { Env, Listing, Vars } from '../lib/env';
 import { Layout } from '../pages/layout';
 import { counts, firstPhotos, listingById, photosFor, reputation, userById, busyDays } from '../lib/db';
-import { money, fmtDay, dayStr, addDays, firstName, esc } from '../lib/util';
+import { money, fmtDay, dayStr, addDays, firstName, fuzz } from '../lib/util';
 import { feeFor } from '../lib/stripe';
 
 export const browse = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -248,6 +248,11 @@ browse.post('/profile/edit', async (c) => {
   await c.env.DB.prepare('UPDATE users SET name = ?, cross_streets = ?, pickup_spots = ?, hood = ?, lat = COALESCE(?, lat), lng = COALESCE(?, lng) WHERE id = ?')
     .bind(String(f.name || '').trim().slice(0, 40) || null, String(f.cross_streets || '').trim().slice(0, 80) || null, spots.length ? JSON.stringify(spots) : null,
       String(f.hood || '').trim().slice(0, 60) || null, isNaN(lat) ? null : lat, isNaN(lng) ? null : lng, u.id).run();
+  const me = (await userById(c.env.DB, u.id))!;
+  if (me.lat != null && me.lng != null) {
+    const orphans = await c.env.DB.prepare('SELECT id FROM listings WHERE owner_id = ? AND lat IS NULL').bind(u.id).all<{ id: string }>();
+    for (const o of orphans.results) { const [fl, fg] = fuzz(me.lat, me.lng); await c.env.DB.prepare('UPDATE listings SET lat = ?, lng = ?, hood = COALESCE(hood, ?) WHERE id = ?').bind(fl, fg, me.hood, o.id).run(); }
+  }
   return c.redirect('/u/' + u.id);
 });
 

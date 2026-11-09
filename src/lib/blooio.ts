@@ -23,15 +23,20 @@ export async function sendRaw(env: Env, phone: string, text: string, attachments
     console.error('blooio send failed', res.status, t);
     return { ok: false, error: `${res.status} ${t}` };
   }
-  const j = (await res.json().catch(() => ({}))) as { message_id?: string };
-  return { ok: true, message_id: j.message_id };
+  const j = (await res.json().catch(() => ({}))) as any;
+  return { ok: true, message_id: j.message_id || j.id || j.data?.message_id || j.data?.id || (j.messages?.[0]?.id) || undefined };
 }
 
 // Text a user and log it so the Inbox page shows "what we text you".
 export async function textUser(env: Env, user: User, text: string, category: TextCategory, rentalId?: string) {
+  // eslint-disable-next-line no-param-reassign
   if (category === 'nudge' && !user.nudges) return;
   if (!user.texts && category !== 'login') return;
+  // Until they've texted us once, iOS tends to spam-filter messages with links from an unknown number,
+  // and Blooio allows only 3 outbound on a new conversation. So: no links, and ask for a reply.
+  if (!user.replied) text = text.replace(/https?:\/\/\S+/g, '').replace(/\s{2,}/g, ' ').trim() + ' (Reply OK to get links + updates here.)';
   const r = await sendRaw(env, user.phone, text);
+  if (!r.ok) console.warn('text not sent', user.id, category, r.error);
   await env.DB.prepare('INSERT INTO outbound_texts (id, user_id, body, category, rental_id, provider_id, created_at) VALUES (?,?,?,?,?,?,?)')
     .bind(id('t'), user.id, text, category, rentalId ?? null, r.message_id ?? null, now()).run();
   return r;

@@ -14,7 +14,8 @@
     "APP_URL": "https://lendo.heif.workers.dev",
     "FEE_PCT": "15",
     "MIN_PRICE_CENTS": "800",
-    "BLOOIO_API_BASE": "https://api.blooio.com/v2/api"
+    "BLOOIO_API_BASE": "https://api.blooio.com/v2/api",
+    "LENDO_NUMBER": "(907) 535-3342"
   }
   // Secrets (set with `wrangler secret put NAME`):
   //   SESSION_SECRET, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,

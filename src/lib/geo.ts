@@ -15,6 +15,18 @@ export async function hoodFor(lat: number, lng: number): Promise<{ hood: string 
   }
 }
 
+// Forward geocode a neighborhood name (fallback when the lister denied location). Biased to NYC for v1.
+export async function geocodeHood(hood: string, city = 'New York'): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const u = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(hood + ', ' + city)}`;
+    const r = await fetch(u, { headers: { 'User-Agent': 'Lendo/0.1 (neighborhood lookup)' } });
+    if (!r.ok) return null;
+    const j = (await r.json()) as any[];
+    if (!j.length) return null;
+    return { lat: parseFloat(j[0].lat), lng: parseFloat(j[0].lon) };
+  } catch { return null; }
+}
+
 export function haversineMi(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 3958.8, toR = (d: number) => d * Math.PI / 180;
   const dLat = toR(lat2 - lat1), dLon = toR(lon2 - lon1);

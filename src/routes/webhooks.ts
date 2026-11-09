@@ -67,6 +67,11 @@ webhooks.post('/webhooks/blooio', async (c) => {
     // unknown number: invite them in
     return c.json({ ok: true, unknown: true });
   }
+  if (!user.replied) { await c.env.DB.prepare('UPDATE users SET replied = 1 WHERE id = ?').bind(user.id).run(); user.replied = 1; }
+  if (kw === 'OK' || kw === 'OKAY' || kw === 'K') {
+    const r0 = await activeRentalFor(c.env, user.id);
+    if (!r0) { await textUser(c.env, user, `You're set. Rentals: ${c.env.APP_URL}/rentals · Map: ${c.env.APP_URL}/`, 'rental'); return c.json({ ok: true }); }
+  }
   if (kw === 'STOP' || kw === 'UNSUBSCRIBE' || kw === 'CANCEL') {
     await c.env.DB.prepare('UPDATE users SET texts = 0, nudges = 0 WHERE id = ?').bind(user.id).run();
     return c.json({ ok: true });

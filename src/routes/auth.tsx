@@ -64,6 +64,7 @@ auth.get('/welcome', async (c) => {
   return c.html(
     <Layout title="Welcome" user={u} back={null}>
       <form method="post" action="/welcome" style="padding:20px 16px">
+        <div class="flash" style="margin:0 0 14px">📱 Save <b>{c.env.LENDO_NUMBER}</b> as "Lendo" and reply <b>OK</b> to the code text — otherwise iPhones file rental texts as spam.</div>
         <h2 style="margin:0 0 6px;font-size:24px;font-weight:900;letter-spacing:-.02em">What should neighbors call you?</h2>
         <input type="hidden" name="next" value={next} />
         <label class="field"><span>First name + last initial</span><input name="name" placeholder="Fiona S." required maxlength={40} autofocus /></label>

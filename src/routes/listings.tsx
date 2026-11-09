@@ -5,7 +5,7 @@ import { Layout } from '../pages/layout';
 import { requireUser } from '../lib/auth';
 import { firstPhotos, listingById, photosFor, busyDays } from '../lib/db';
 import { id, money, now, fuzz, weekDefault, dayStr, addDays, fmtDay } from '../lib/util';
-import { hoodFor } from '../lib/geo';
+import { hoodFor, geocodeHood } from '../lib/geo';
 
 export const listings = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -63,8 +63,10 @@ listings.post('/list', async (c) => {
   const week = !isNaN(weekIn) && weekIn > 0 ? Math.round(weekIn * 100) : weekDefault(price);
   let lat = parseFloat(String(f.lat || '')), lng = parseFloat(String(f.lng || ''));
   let hood = u.hood;
-  if (isNaN(lat) || isNaN(lng)) { lat = u.lat ?? NaN; lng = u.lng ?? NaN; }
-  if (!isNaN(lat) && !isNaN(lng)) {
+  let fromGps = !isNaN(lat) && !isNaN(lng);
+  if (!fromGps) { lat = u.lat ?? NaN; lng = u.lng ?? NaN; }
+  if (isNaN(lat) && u.hood) { const g = await geocodeHood(u.hood); if (g) { lat = g.lat; lng = g.lng; } }
+  if (fromGps) {
     const g = await hoodFor(lat, lng);
     if (g.hood) hood = g.hood;
     if (!u.lat) await c.env.DB.prepare('UPDATE users SET lat = ?, lng = ?, hood = COALESCE(hood, ?) WHERE id = ?').bind(lat, lng, g.hood, u.id).run();
@@ -109,6 +111,7 @@ listings.get('/listings', requireUser, async (c) => {
             <a href={'/i/' + it.id}>{ph[it.id] ? <img src={'/p/' + ph[it.id]} alt="" style="width:72px;height:72px;object-fit:cover;border-radius:10px;background:var(--cream)" /> : <div class="ph" style="width:72px;height:72px;border-radius:10px;background:var(--cream)"></div>}</a>
             <div style="flex:1;min-width:0">
               <div class="row" style="justify-content:space-between"><a href={'/i/' + it.id} style="font-weight:800;text-decoration:none">{it.name}</a><span class="pill" style={it.status === 'live' ? 'background:var(--mint)' : ''}>{it.status}</span></div>
+              {it.lat == null ? <a href="/profile/edit" class="hint" style="color:var(--red);font-weight:700">⚠ Not on the map yet — set your home base</a> : null}
               <form method="post" action={'/listings/' + it.id + '/price'} class="row" style="margin-top:6px;gap:6px">
                 <button class="btn sm" name="delta" value="-100" type="submit" aria-label="Lower price $1">−</button>
                 <span class="price" style="font-size:22px">{money(it.price_cents)}<span style="font-size:11px;font-weight:700">/day</span></span>
