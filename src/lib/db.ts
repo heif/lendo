@@ -26,10 +26,14 @@ export async function photosFor(db: D1Database, lid: string) {
 }
 export async function firstPhotos(db: D1Database, ids: string[]): Promise<Record<string, string>> {
   if (!ids.length) return {};
-  const q = `SELECT listing_id, r2_key FROM photos WHERE listing_id IN (${ids.map(() => '?').join(',')}) ORDER BY pos`;
-  const r = await db.prepare(q).bind(...ids).all<{ listing_id: string; r2_key: string }>();
   const out: Record<string, string> = {};
-  for (const p of r.results) if (!out[p.listing_id]) out[p.listing_id] = p.r2_key;
+  // D1 allows 100 bound parameters per statement → chunk
+  for (let i = 0; i < ids.length; i += 90) {
+    const part = ids.slice(i, i + 90);
+    const q = `SELECT listing_id, r2_key FROM photos WHERE listing_id IN (${part.map(() => '?').join(',')}) ORDER BY pos`;
+    const r = await db.prepare(q).bind(...part).all<{ listing_id: string; r2_key: string }>();
+    for (const p of r.results) if (!out[p.listing_id]) out[p.listing_id] = p.r2_key;
+  }
   return out;
 }
 
