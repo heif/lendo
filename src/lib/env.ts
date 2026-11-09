@@ -22,12 +22,12 @@ export type Env = {
 export type User = {
   id: string; phone: string; name: string | null; hood: string | null; cross_streets: string | null;
   lat: number | null; lng: number | null; pickup_spots: string | null; stripe_account_id: string | null;
-  stripe_customer_id: string | null; nudges: number; texts: number; replied: number; address: string | null; mapbox_id: string | null; geocoded_at: number | null; created_at: number;
+  stripe_customer_id: string | null; nudges: number; texts: number; replied: number; address: string | null; mapbox_id: string | null; geocoded_at: number | null; hood_id: string | null; created_at: number;
 };
 
 export type Listing = {
   id: string; owner_id: string; name: string; description: string | null; price_cents: number; week_cents: number | null;
-  deposit_cents: number; status: 'live' | 'paused' | 'removed'; hood: string | null; lat: number | null; lng: number | null; emoji: string | null; avatar_key: string | null; avatar_style: string | null; created_at: number;
+  deposit_cents: number; status: 'live' | 'paused' | 'removed'; hood: string | null; hood_id: string | null; lat: number | null; lng: number | null; emoji: string | null; avatar_key: string | null; avatar_style: string | null; created_at: number;
 };
 
 export type Rental = {

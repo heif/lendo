@@ -5,7 +5,7 @@
   var S = window.LENDO_MAP_STYLE;
   var WALKERS = true;          // §2 animated walkers (toggle)
   var MAX_WALKERS = 20;
-  var HOOD_LAYER = false;      // §4 faint neighborhood outlines (enabled when hoods are seeded)
+  var HOOD_LAYER = true;       // §4 faint neighborhood outlines (empty collection until hoods are seeded)
 
   var $ = function (id) { return document.getElementById(id); };
   var grid = $('grid'), sheet = $('sheet'), q = $('q');

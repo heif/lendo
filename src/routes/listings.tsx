@@ -8,6 +8,7 @@ import { id, money, now, fuzz, weekDefault, dayStr, addDays, fmtDay } from '../l
 import { hoodFor, geocodePlace } from '../lib/geo';
 import { emojiFor } from '../lib/emoji';
 import { buildAvatars } from '../lib/avatar';
+import { assignHood } from '../lib/hoods';
 
 export const listings = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -83,6 +84,7 @@ listings.post('/list', async (c) => {
   const desc = String(f.description || '').trim().slice(0, 600) || null;
   await c.env.DB.prepare('INSERT INTO listings (id, owner_id, name, description, price_cents, week_cents, status, hood, lat, lng, emoji, mapbox_id, geocoded_at, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
     .bind(lid, u.id, name, desc, price, week, 'live', hood, flat, flng, emojiFor(name, desc), mbId, geoAt, now()).run();
+  if (flat != null) { try { await assignHood(c.env, 'listings', lid, lat, lng); if (!u.hood_id) await assignHood(c.env, 'users', u.id, lat, lng); } catch (e) { console.warn('hood assign', e); } }
   const photos = ([] as unknown[]).concat(f.photo || []).filter((p): p is File => p instanceof File);
   let pos = 0;
   for (const p of photos.slice(0, 6)) {

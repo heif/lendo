@@ -5,7 +5,8 @@ import { Layout } from '../pages/layout';
 import { counts, firstPhotos, listingById, photosFor, reputation, userById, busyDays } from '../lib/db';
 import { money, fmtDay, dayStr, addDays, firstName, fuzz } from '../lib/util';
 import { feeFor } from '../lib/stripe';
-import { geocodeHood, geocodePlace } from '../lib/geo';
+import { geocodePlace } from '../lib/geo';
+import { assignHood, loadHoods } from '../lib/hoods';
 
 export const browse = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -267,8 +268,9 @@ browse.post('/profile/edit', async (c) => {
       hoodOut ? hoodOut.slice(0, 60) : null, isNaN(lat) ? null : lat, isNaN(lng) ? null : lng, addr || null, mapboxId, geocodedAt, u.id).run();
   const me = (await userById(c.env.DB, u.id))!;
   if (me.lat != null && me.lng != null) {
+    try { await assignHood(c.env, 'users', u.id, me.lat, me.lng); } catch (e) { console.warn('hood assign', e); }
     const orphans = await c.env.DB.prepare('SELECT id FROM listings WHERE owner_id = ? AND lat IS NULL').bind(u.id).all<{ id: string }>();
-    for (const o of orphans.results) { const [fl, fg] = fuzz(me.lat, me.lng); await c.env.DB.prepare('UPDATE listings SET lat = ?, lng = ?, hood = COALESCE(hood, ?) WHERE id = ?').bind(fl, fg, me.hood, o.id).run(); }
+    for (const o of orphans.results) { const [fl, fg] = fuzz(me.lat, me.lng); await c.env.DB.prepare('UPDATE listings SET lat = ?, lng = ?, hood = COALESCE(hood, ?) WHERE id = ?').bind(fl, fg, me.hood, o.id).run(); try { await assignHood(c.env, 'listings', o.id, fl, fg); } catch {} }
   }
   return c.redirect('/u/' + u.id);
 });

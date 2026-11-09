@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import type { Env, Listing, Vars } from '../lib/env';
 import { firstPhotos, listingById, photosFor, reputation, userById } from '../lib/db';
 import { emojiFor } from '../lib/emoji';
+import { loadHoods } from '../lib/hoods';
 
 export const api = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -40,6 +41,20 @@ api.get('/api/listings/:id', async (c) => {
     owner: { id: owner.id, name: owner.name, hood: owner.hood, cross_streets: owner.cross_streets, since: owner.created_at, rating_as_owner: rep.as_owner_avg, ratings_as_owner: rep.as_owner_n, items_listed: rep.listed },
     fee_pct: parseFloat(c.env.FEE_PCT),
   });
+});
+
+// Neighborhood outlines + live listing counts (for the faint hood layer). Cached 10 min at the edge.
+api.get('/api/hoods.geojson', async (c) => {
+  const cacheKey = new Request(new URL('/api/hoods.geojson', c.env.APP_URL).toString());
+  const hit = await caches.default.match(cacheKey);
+  if (hit) return hit;
+  const hoods = await loadHoods(c.env);
+  const counts = await c.env.DB.prepare(`SELECT hood_id, COUNT(*) n FROM listings WHERE status = 'live' AND hood_id IS NOT NULL GROUP BY hood_id`).all<{ hood_id: string; n: number }>();
+  const n: Record<string, number> = {}; for (const r of counts.results) n[r.hood_id] = r.n;
+  const fc = { type: 'FeatureCollection', features: hoods.map(h => ({ type: 'Feature', id: h.id, properties: { id: h.id, name: h.name, borough: h.borough, n: n[h.id] || 0 }, geometry: h.geometry })) };
+  const res = new Response(JSON.stringify(fc), { headers: { 'content-type': 'application/geo+json', 'cache-control': 'public, max-age=600', 'access-control-allow-origin': '*' } });
+  c.executionCtx.waitUntil(caches.default.put(cacheKey, res.clone()));
+  return res;
 });
 
 api.get('/api/health', (c) => c.json({ ok: true, ts: Date.now() }));
