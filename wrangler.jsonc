@@ -17,7 +17,7 @@
     "MIN_PRICE_CENTS": "800",
     "BLOOIO_API_BASE": "https://api.blooio.com/v2/api",
     "LENDO_NUMBER": "(907) 535-3342",
-    // Mapbox. Public token (pk.) is URL-restricted to lendo.co in the Mapbox dashboard; blank = Leaflet/OSM fallback (dev, no keys).
+    // Mapbox. MAPBOX_PUBLIC_TOKEN (pk., URL-restricted) is set as a *secret* in prod (GitHub push protection rejects it in git); blank = Leaflet/OSM fallback.
     "MAPBOX_PUBLIC_TOKEN": "",
     "MAPBOX_STYLE_URL": "mapbox://styles/mapbox/light-v11",
     "MEETUP_SPOTS": "false"
