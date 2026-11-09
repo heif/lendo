@@ -16,10 +16,14 @@
     "FEE_PCT": "15",
     "MIN_PRICE_CENTS": "800",
     "BLOOIO_API_BASE": "https://api.blooio.com/v2/api",
-    "LENDO_NUMBER": "(907) 535-3342"
+    "LENDO_NUMBER": "(907) 535-3342",
+    // Mapbox. Public token (pk.) is URL-restricted to lendo.co in the Mapbox dashboard; blank = Leaflet/OSM fallback (dev, no keys).
+    "MAPBOX_PUBLIC_TOKEN": "",
+    "MAPBOX_STYLE_URL": "mapbox://styles/mapbox/light-v11",
+    "MEETUP_SPOTS": "false"
   }
   // Secrets (set with `wrangler secret put NAME`):
   //   SESSION_SECRET, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
-  //   BLOOIO_API_KEY, BLOOIO_WEBHOOK_SECRET
+  //   BLOOIO_API_KEY, BLOOIO_WEBHOOK_SECRET, MAPBOX_SECRET_TOKEN (sk., server-side geocoding only)
   // For local dev put them in .dev.vars (see .dev.vars.example).
 }

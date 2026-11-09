@@ -6,3 +6,6 @@ BLOOIO_WEBHOOK_SECRET=
 # Stripe test keys. Leave blank locally to use "fake pay" (rental is marked held without Stripe).
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
+# Mapbox. Leave MAPBOX_PUBLIC_TOKEN blank to use the Leaflet/OSM fallback map locally (no keys needed).
+MAPBOX_PUBLIC_TOKEN=
+MAPBOX_SECRET_TOKEN=

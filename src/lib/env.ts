@@ -8,11 +8,15 @@ export type Env = {
   MIN_PRICE_CENTS: string;
   BLOOIO_API_BASE: string;
   LENDO_NUMBER: string; // the Blooio number, for "save this contact" prompts
+  MAPBOX_PUBLIC_TOKEN: string;   // pk., URL-restricted; blank → Leaflet fallback
+  MAPBOX_STYLE_URL: string;      // mapbox://styles/... (light-v11 until a Studio style exists)
+  MEETUP_SPOTS: string;          // "true" enables /api/meetup
   SESSION_SECRET: string;
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
   BLOOIO_API_KEY?: string;
   BLOOIO_WEBHOOK_SECRET?: string;
+  MAPBOX_SECRET_TOKEN?: string;  // sk., never sent to the client
 };
 
 export type User = {
