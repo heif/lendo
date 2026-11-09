@@ -43,9 +43,9 @@ browse.get('/', async (c) => {
       top={<div class="ticker" aria-hidden="true"><div class="tk">{[0, 1].map(() => TICKER.map(t => <span>{t}<i>•</i></span>))}</div></div>}
       headerCenter={
         <div class="scope" role="group" aria-label="Where you're looking">
-          <button class="scope-hood" id="scHood" type="button"><b id="scHoodN">{u?.hood || 'Near you'}</b><small><span id="scHoodC">{k.hood || k.global}</span> to rent</small><svg width="12" height="8" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1.5L6 6.5L11 1.5" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
+          <button class="scope-hood" id="scHood" type="button"><b id="scHoodN">{u?.hood || 'Near you'}</b><small><span id="scHoodC">{k.hood || k.global}</span> to rent</small><svg width="12" height="8" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1.5L6 6.5L11 1.5" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
           <button class="scope-city" id="scCity" type="button"><b>NYC</b><small id="scCityC">{k.global}</small></button>
-          <button class="scope-globe" id="scGlobe" type="button" aria-label="Everywhere"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E3A2B" stroke-width="2"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18" /></svg></button>
+          <button class="scope-globe" id="scGlobe" type="button" aria-label="Everywhere"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6F6A60" stroke-width="2"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18" /></svg></button>
         </div>
       }
       head={mapbox ? <><link rel="stylesheet" href={MAPBOX_CSS} /><script src={MAPBOX_JS}></script></> : <><link rel="stylesheet" href={LEAFLET_CSS} /><script src={LEAFLET_JS}></script></>}>

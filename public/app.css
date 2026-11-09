@@ -32,15 +32,17 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 
 /* header scope pills (map page) */
 .scope{display:flex;align-items:center;gap:4px;min-width:0}
-.scope button{font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;line-height:1.05;border:0;padding:0 10px;height:40px;border-radius:12px}
-.scope button b{font-size:15px;font-weight:900;letter-spacing:-.2px;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}
-.scope button small{font-size:10.5px;font-weight:700;white-space:nowrap}
-.scope-hood{background:var(--ink);color:#fff;position:relative;padding-right:30px!important;min-width:112px}
-.scope-hood svg{position:absolute;right:11px;top:50%;margin-top:-3px}
-.scope-hood::after{content:'';position:absolute;right:28px;top:8px;bottom:8px;width:1px;background:rgba(255,255,255,.3)}
-.scope-city{background:#fff;color:var(--ink);border:1.5px solid #DCD7CC!important;align-items:center!important}
-.scope-globe{background:#fff;color:var(--ink);border:1.5px solid #DCD7CC!important;width:40px;padding:0!important;align-items:center!important}
-.hdr .logo{font-size:34px}
+.scope button{font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;line-height:1.05;border:0;padding:0 10px;height:34px;border-radius:10px}
+.scope button b{font-size:13px;font-weight:900;letter-spacing:-.2px;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+.scope button small{font-size:9.5px;font-weight:700;white-space:nowrap}
+.scope-hood{background:#fff;color:var(--ink);border:1.5px solid var(--ink)!important;position:relative;padding-right:28px!important;min-width:104px}
+.scope-hood svg{position:absolute;right:9px;top:50%;margin-top:-3px}
+.scope-hood svg path{stroke:var(--ink)}
+.scope-hood::after{content:'';position:absolute;right:25px;top:7px;bottom:7px;width:1px;background:#DCD7CC}
+.scope-city{background:#fff;color:#6F6A60;border:1.5px solid #E6E2DA!important;align-items:center!important}
+.scope-globe{background:#fff;color:#6F6A60;border:1.5px solid #E6E2DA!important;width:34px;padding:0!important;align-items:center!important}
+.hdr .logo{font-size:40px;font-weight:900;letter-spacing:-2px}
+.hdr .logo .wave{font-size:27px}
 /* bits */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:48px;padding:0 18px;border-radius:12px;border:2px solid var(--ink);background:#fff;color:var(--ink);font-size:15px;font-weight:800;text-decoration:none}
 .btn.pri{background:var(--orange);color:#fff;box-shadow:3px 3px 0 var(--ink)}
