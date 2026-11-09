@@ -65,7 +65,10 @@ listings.post('/list', async (c) => {
   let hood = u.hood;
   let fromGps = !isNaN(lat) && !isNaN(lng);
   if (!fromGps) { lat = u.lat ?? NaN; lng = u.lng ?? NaN; }
-  if (isNaN(lat) && u.hood) { const g = await geocodeHood(u.hood); if (g) { lat = g.lat; lng = g.lng; } }
+  if (isNaN(lat) && (u.cross_streets || u.hood)) {
+    const g = (u.cross_streets ? await geocodeHood(u.cross_streets + (u.hood ? ', ' + u.hood : '')) : null) || (u.hood ? await geocodeHood(u.hood) : null);
+    if (g) { lat = g.lat; lng = g.lng; await c.env.DB.prepare('UPDATE users SET lat = COALESCE(lat, ?), lng = COALESCE(lng, ?) WHERE id = ?').bind(g.lat, g.lng, u.id).run(); }
+  }
   if (fromGps) {
     const g = await hoodFor(lat, lng);
     if (g.hood) hood = g.hood;

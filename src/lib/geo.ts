@@ -16,9 +16,9 @@ export async function hoodFor(lat: number, lng: number): Promise<{ hood: string 
 }
 
 // Forward geocode a neighborhood name (fallback when the lister denied location). Biased to NYC for v1.
-export async function geocodeHood(hood: string, city = 'New York'): Promise<{ lat: number; lng: number } | null> {
+export async function geocodeHood(place: string, city = 'New York'): Promise<{ lat: number; lng: number } | null> {
   try {
-    const u = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(hood + ', ' + city)}`;
+    const u = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(place + ', ' + city)}`;
     const r = await fetch(u, { headers: { 'User-Agent': 'Lendo/0.1 (neighborhood lookup)' } });
     if (!r.ok) return null;
     const j = (await r.json()) as any[];

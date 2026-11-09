@@ -5,6 +5,7 @@ import { Layout } from '../pages/layout';
 import { counts, firstPhotos, listingById, photosFor, reputation, userById, busyDays } from '../lib/db';
 import { money, fmtDay, dayStr, addDays, firstName, fuzz } from '../lib/util';
 import { feeFor } from '../lib/stripe';
+import { geocodeHood } from '../lib/geo';
 
 export const browse = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -244,7 +245,13 @@ browse.post('/profile/edit', async (c) => {
   if (!u) return c.redirect('/login');
   const f = await c.req.parseBody();
   const spots = String(f.pickup_spots || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 6);
-  const lat = parseFloat(String(f.lat || '')), lng = parseFloat(String(f.lng || ''));
+  let lat = parseFloat(String(f.lat || '')), lng = parseFloat(String(f.lng || ''));
+  const xs = String(f.cross_streets || '').trim(), hd = String(f.hood || '').trim();
+  if (isNaN(lat) && (xs !== (u.cross_streets || '') || u.lat == null) && (xs || hd)) {
+    // no GPS: place the home base from cross streets (+ hood), else the hood alone
+    const g = (xs ? await geocodeHood(xs + (hd ? ', ' + hd : '')) : null) || (hd ? await geocodeHood(hd) : null);
+    if (g) { lat = g.lat; lng = g.lng; }
+  }
   await c.env.DB.prepare('UPDATE users SET name = ?, cross_streets = ?, pickup_spots = ?, hood = ?, lat = COALESCE(?, lat), lng = COALESCE(?, lng) WHERE id = ?')
     .bind(String(f.name || '').trim().slice(0, 40) || null, String(f.cross_streets || '').trim().slice(0, 80) || null, spots.length ? JSON.stringify(spots) : null,
       String(f.hood || '').trim().slice(0, 60) || null, isNaN(lat) ? null : lat, isNaN(lng) ? null : lng, u.id).run();
