@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "lendo",
+  "main": "src/index.tsx",
+  "compatibility_date": "2024-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": { "directory": "./public", "binding": "ASSETS" },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "lendo", "database_id": "REPLACE_WITH_D1_ID", "migrations_dir": "migrations" }
+  ],
+  "r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "lendo-photos" }],
+  "triggers": { "crons": ["*/15 * * * *"] },
+  "vars": {
+    "APP_URL": "http://localhost:8787",
+    "FEE_PCT": "15",
+    "MIN_PRICE_CENTS": "800",
+    "BLOOIO_API_BASE": "https://api.blooio.com/v2/api"
+  }
+  // Secrets (set with `wrangler secret put NAME`):
+  //   SESSION_SECRET, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
+  //   BLOOIO_API_KEY, BLOOIO_WEBHOOK_SECRET
+  // For local dev put them in .dev.vars (see .dev.vars.example).
+}

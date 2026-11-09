@@ -1,0 +1,282 @@
+import { Hono } from 'hono';
+import { raw } from 'hono/html';
+import type { Env, Listing, Vars } from '../lib/env';
+import { Layout } from '../pages/layout';
+import { counts, firstPhotos, listingById, photosFor, reputation, userById, busyDays } from '../lib/db';
+import { money, fmtDay, dayStr, addDays, firstName, esc } from '../lib/util';
+import { feeFor } from '../lib/stripe';
+
+export const browse = new Hono<{ Bindings: Env; Variables: Vars }>();
+
+const LEAFLET_CSS = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+const LEAFLET_JS = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+
+// ---------- Map (home) ----------
+browse.get('/', async (c) => {
+  const u = c.get('user');
+  const k = await counts(c.env.DB, u?.hood ?? null);
+  const center = u?.lat && u?.lng ? [u.lat, u.lng] : [40.7465, -73.997]; // Chelsea default
+  const badge = u ? ((await c.env.DB.prepare(`SELECT COUNT(*) n FROM rentals WHERE owner_id = ? AND status = 'held'`).bind(u.id).first<{ n: number }>())?.n ?? 0) : 0;
+  return c.html(
+    <Layout title={u?.hood || 'Near you'} user={u} back={null} badge={badge}
+      head={<><link rel="stylesheet" href={LEAFLET_CSS} /><script src={LEAFLET_JS}></script></>}>
+      <div class="mapwrap">
+        <div id="map" role="application" aria-label="Map of things to rent"></div>
+        <div class="mapctl">
+          <input id="q" type="search" placeholder="Search near you — drill, tent, projector…" aria-label="Search" />
+          <button class="btn sm" id="locate" aria-label="Use my location">📍</button>
+        </div>
+        <button class="btn sm listtoggle" id="toggle">List</button>
+        <div class="kpi"><b id="kpiN">{k.global}</b><span id="kpiL">things to rent</span></div>
+        <a class="btn pri listfab" href="/list">+ List your stuff</a>
+        <a class="sheet" id="sheet" href="#"><img id="shImg" alt="" /><div><div class="pr" id="shPr"></div><div class="nm" id="shNm"></div><div class="hint" id="shSub"></div></div></a>
+        <div id="grid" class="itemgrid" style="display:none;position:absolute;inset:0;overflow:auto;background:var(--cream);z-index:450;align-content:start"></div>
+      </div>
+      {raw(`<script>
+(function(){
+if(typeof L==='undefined'){document.getElementById('grid').style.display='grid';document.getElementById('toggle').style.display='none';fetch('/api/listings').then(function(r){return r.json()}).then(function(j){document.getElementById('grid').innerHTML=j.listings.map(function(it){return '<a class="itemcard" href="/i/'+it.id+'">'+(it.photo?'<img src="/p/'+it.photo+'" alt="">':'<div class="ph">no photo</div>')+'<div class="b"><div class="pr">$'+(it.price_cents/100)+'<span style="font-size:11px;font-weight:700">/day</span></div><div class="nm">'+it.name.replace(/[<>&]/g,'')+'</div></div></a>'}).join('')});return}
+var map=L.map('map',{zoomControl:false,attributionControl:true}).setView([${center[0]},${center[1]}],15);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap &copy; CARTO'}).addTo(map);
+var layer=L.layerGroup().addTo(map),items=[],sel=null,listMode=false,t;
+var sheet=document.getElementById('sheet');
+function fmt(c){var d=c/100;return '$'+(Number.isInteger(d)?d:d.toFixed(2))}
+function render(){layer.clearLayers();items.forEach(function(it){if(it.lat==null)return;var ic=L.divIcon({className:'',html:'<div class="pin'+(sel===it.id?' sel':'')+'">'+fmt(it.price_cents)+'</div>',iconSize:[0,0]});var m=L.marker([it.lat,it.lng],{icon:ic}).addTo(layer);m.on('click',function(){sel=it.id;render();sheet.href='/i/'+it.id;document.getElementById('shImg').src=it.photo?'/p/'+it.photo:'';document.getElementById('shPr').textContent=fmt(it.price_cents)+'/day';document.getElementById('shNm').textContent=it.name;document.getElementById('shSub').textContent=(it.hood||'')+(it.week_cents?' · '+fmt(it.week_cents)+'/week':'');sheet.classList.add('on')})});
+var g=document.getElementById('grid');g.innerHTML=items.map(function(it){return '<a class="itemcard" href="/i/'+it.id+'">'+(it.photo?'<img src="/p/'+it.photo+'" alt="">':'<div class="ph">no photo</div>')+'<div class="b"><div class="pr">'+fmt(it.price_cents)+'<span style="font-size:11px;font-weight:700">/day</span></div><div class="nm">'+it.name.replace(/[<>&]/g,'')+'</div></div></a>'}).join('')||'<div style="padding:24px;grid-column:1/-1" class="hint">Nothing here yet. Be the first — list something.</div>';}
+function load(){var b=map.getBounds(),q=document.getElementById('q').value.trim();fetch('/api/listings?bbox='+[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()].join(',')+(q?'&q='+encodeURIComponent(q):'')).then(function(r){return r.json()}).then(function(j){items=j.listings;render();document.getElementById('kpiN').textContent=j.counts.view;document.getElementById('kpiL').textContent=(j.counts.view===1?'thing':'things')+' to rent here · '+j.counts.global+' total'})}
+map.on('moveend',load);map.on('click',function(){sel=null;sheet.classList.remove('on');render()});
+document.getElementById('q').addEventListener('input',function(){clearTimeout(t);t=setTimeout(load,250)});
+document.getElementById('toggle').addEventListener('click',function(){listMode=!listMode;g.style.display=listMode?'grid':'none';this.textContent=listMode?'Map':'List'});
+document.getElementById('locate').addEventListener('click',function(){navigator.geolocation&&navigator.geolocation.getCurrentPosition(function(p){map.setView([p.coords.latitude,p.coords.longitude],15)})});
+${u?.lat ? '' : "navigator.geolocation&&navigator.geolocation.getCurrentPosition(function(p){map.setView([p.coords.latitude,p.coords.longitude],15)},function(){},{timeout:4000});"}
+load();
+})();
+</script>`)}
+    </Layout>
+  );
+});
+
+// ---------- Item ----------
+browse.get('/i/:id', async (c) => {
+  const u = c.get('user');
+  const it = await listingById(c.env.DB, c.req.param('id'));
+  if (!it || it.status === 'removed') return c.notFound();
+  const owner = (await userById(c.env.DB, it.owner_id))!;
+  const photos = await photosFor(c.env.DB, it.id);
+  const rep = await reputation(c.env.DB, owner.id);
+  const today = dayStr(new Date());
+  const to = addDays(today, 13);
+  const busy = await busyDays(c.env.DB, it.id, today, to);
+  const days = Array.from({ length: 14 }, (_, i) => addDays(today, i));
+  const isOwner = u?.id === it.owner_id;
+  const feePct = c.env.FEE_PCT;
+  const review = await c.env.DB.prepare(`SELECT r.renter_review rv, u.name nm FROM rentals r JOIN users u ON u.id = r.renter_id WHERE r.owner_id = ? AND r.renter_review IS NOT NULL ORDER BY r.updated_at DESC LIMIT 1`).bind(owner.id).first<{ rv: string; nm: string }>();
+  const saved = u ? !!(await c.env.DB.prepare('SELECT 1 FROM saved WHERE user_id = ? AND listing_id = ?').bind(u.id, it.id).first()) : false;
+  return c.html(
+    <Layout title="Item" user={u} flash={c.req.query('canceled') ? 'Checkout canceled — nothing was charged.' : null}>
+      <div class="hero">
+        {photos[0] ? <img id="heroImg" src={'/p/' + photos[0].r2_key} alt={it.name} /> : <div class="hint">no photo yet</div>}
+        <div class="pr"><b class="price">{money(it.price_cents)}</b><span style="font-size:15px">/day</span>
+          {it.week_cents ? <div style="font-size:13px;margin-top:4px">{money(it.week_cents)}/week</div> : null}</div>
+      </div>
+      {photos.length > 1 ? <div class="thumbs">{photos.map(p => <img src={'/p/' + p.r2_key} alt="" onclick={`document.getElementById('heroImg').src=this.src`} />)}</div> : null}
+      <section class="sec">
+        <div class="row" style="justify-content:space-between;align-items:flex-start">
+          <h2 style="margin:0;font-size:19px;font-weight:800;line-height:1.3">{it.name}</h2>
+          {it.status === 'paused' ? <span class="pill">paused</span> : null}
+        </div>
+        {it.description ? <p style="margin:8px 0 0;font-size:14px;color:var(--ink2);white-space:pre-wrap">{it.description}</p> : null}
+        <div class="hint" style="margin-top:8px">{it.hood || 'near you'}{owner.cross_streets ? ' · ' + owner.cross_streets : ''}{owner.pickup_spots ? ' · meet: ' + JSON.parse(owner.pickup_spots).join(', ') : ''}</div>
+        {!isOwner && it.status === 'live' ? (
+          <form method="post" action={'/i/' + it.id + '/rent'} id="rentForm">
+            <div class="m" style="font-size:11px;color:var(--mute);margin-top:14px">next 14 days — tap to pick</div>
+            <div class="days" id="days">
+              {days.map(d => {
+                const b = busy.has(d);
+                const dt = new Date(d + 'T12:00:00Z');
+                return <button type="button" class={b ? 'busy' : ''} data-day={d} disabled={b} aria-label={fmtDay(d) + (b ? ' booked' : '')}>{dt.toLocaleDateString('en-US', { weekday: 'narrow', timeZone: 'UTC' })} {dt.getUTCDate()}</button>;
+              })}
+            </div>
+            <div class="hint" style="margin-top:6px">grey = booked · pick a start and end day</div>
+            <input type="hidden" name="start" id="start" /><input type="hidden" name="end" id="end" />
+          </form>
+        ) : null}
+      </section>
+      <section class="sec">
+        <div class="m" style="font-size:11px;color:var(--mute)">owner</div>
+        <div class="row" style="justify-content:space-between;align-items:flex-start;margin-top:6px">
+          <div>
+            <a href={'/u/' + owner.id} style="font-size:17px;font-weight:700">{owner.name || 'Neighbor'}</a>
+            {owner.hood ? <div style="margin-top:6px"><span class="tag">★ {owner.hood}</span></div> : null}
+            <div class="hint" style="margin-top:8px">on Lendo since {new Date(owner.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</div>
+          </div>
+          <div style="text-align:right"><div class="price" style="font-size:48px;line-height:.9">{rep.listed}</div><div style="font-size:11px">items listed</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;margin-top:14px;border:1.5px solid var(--ink);border-radius:10px;overflow:hidden">
+          <div style="padding:10px;border-right:1.5px solid var(--ink)"><div class="price" style="font-size:26px;line-height:1">{rep.as_owner_avg ? '★' + rep.as_owner_avg.toFixed(1) : 'new'}</div><div style="font-size:11px;margin-top:4px">as owner · {rep.as_owner_n} ratings</div></div>
+          <div style="padding:10px"><div class="price" style="font-size:26px;line-height:1">{rep.as_renter_avg ? '★' + rep.as_renter_avg.toFixed(1) : 'new'}</div><div style="font-size:11px;margin-top:4px">as renter · {rep.as_renter_n}</div></div>
+        </div>
+        {review ? <p style="margin:12px 0 0;font-size:13px;font-style:italic">“{review.rv}” — {firstName(review.nm)}</p> : null}
+      </section>
+      <section class="sec" style="border-bottom:0;padding-bottom:110px">
+        <div class="m" style="font-size:11px;color:var(--mute)">how it works</div>
+        <ol style="margin:8px 0 0;padding-left:18px;font-size:13px;line-height:1.55">
+          <li>Pick your days. Your card is held, not charged, until {firstName(owner.name)} says yes (by text).</li>
+          <li>You pay the rent plus a {feePct}% Lendo fee. {firstName(owner.name)} gets the full rent.</li>
+          <li>Meet at the pickup spot. {firstName(owner.name)} snaps a photo of you with it — that's the deposit.</li>
+          <li>Return it. Both of you rate each other.</li>
+        </ol>
+      </section>
+      {!isOwner && it.status === 'live' ? (
+        <div class="rentbar">
+          {u ? <form method="post" action={'/i/' + it.id + '/save'}><button class="btn" type="submit" aria-label={saved ? 'Unsave' : 'Save'}>{saved ? '♥' : '♡'}</button></form> : null}
+          <button class="btn pri" style="flex:1" id="rentBtn" disabled form="rentForm" type="submit">PICK DAYS TO RENT</button>
+        </div>
+      ) : isOwner ? <div class="rentbar"><a class="btn full" href="/listings">This is yours — manage it</a></div> : null}
+      {raw(`<script>
+(function(){var P=${it.price_cents},W=${it.week_cents || 0},F=${parseFloat(feePct)};var s=null,e=null;var bs=[].slice.call(document.querySelectorAll('#days button'));
+function price(n){if(!W)return n*P;var r=Math.floor(n/7)*W+(n%7)*P;return Math.min(r,Math.ceil(n/7)*W)}
+function fmt(c){var d=c/100;return '$'+(Number.isInteger(d)?d:d.toFixed(2))}
+function paint(){bs.forEach(function(b){var d=b.dataset.day;b.classList.toggle('on',!!s&&!!e&&d>=s&&d<=e||d===s)});var btn=document.getElementById('rentBtn');if(s&&e){var n=Math.round((Date.parse(e)-Date.parse(s))/864e5)+1;var r=price(n);btn.disabled=false;btn.textContent='RENT '+n+(n===1?' DAY':' DAYS')+' · '+fmt(Math.round(r*(1+F/100)));document.getElementById('start').value=s;document.getElementById('end').value=e}else{btn.disabled=true;btn.textContent='PICK DAYS TO RENT'}}
+var pend=false;
+bs.forEach(function(b){b.addEventListener('click',function(){var d=b.dataset.day;if(b.disabled)return;if(!pend){s=d;e=d;pend=true}else{if(d<s){s=d;e=d;pend=true}else{var ok=true;bs.forEach(function(x){if(x.disabled&&x.dataset.day>s&&x.dataset.day<d)ok=false});if(!ok){s=d;e=d;pend=true}else{e=d;pend=false}}}paint()})});
+})();
+</script>`)}
+    </Layout>
+  );
+});
+
+browse.post('/i/:id/save', async (c) => {
+  const u = c.get('user');
+  if (!u) return c.redirect('/login?next=' + encodeURIComponent('/i/' + c.req.param('id')));
+  const lid = c.req.param('id');
+  const ex = await c.env.DB.prepare('SELECT 1 FROM saved WHERE user_id = ? AND listing_id = ?').bind(u.id, lid).first();
+  if (ex) await c.env.DB.prepare('DELETE FROM saved WHERE user_id = ? AND listing_id = ?').bind(u.id, lid).run();
+  else await c.env.DB.prepare('INSERT INTO saved (user_id, listing_id, created_at) VALUES (?,?,?)').bind(u.id, lid, Date.now()).run();
+  return c.redirect('/i/' + lid);
+});
+
+browse.get('/saved', async (c) => {
+  const u = c.get('user');
+  if (!u) return c.redirect('/login?next=/saved');
+  const rows = await c.env.DB.prepare(`SELECT l.* FROM saved s JOIN listings l ON l.id = s.listing_id WHERE s.user_id = ? AND l.status != 'removed' ORDER BY s.created_at DESC`).bind(u.id).all<Listing>();
+  const ph = await firstPhotos(c.env.DB, rows.results.map(r => r.id));
+  return c.html(
+    <Layout title="Saved" user={u}>
+      <div class="itemgrid">
+        {rows.results.length ? rows.results.map(it => (
+          <a class="itemcard" href={'/i/' + it.id}>{ph[it.id] ? <img src={'/p/' + ph[it.id]} alt="" /> : <div class="ph">no photo</div>}<div class="b"><div class="pr">{money(it.price_cents)}<span style="font-size:11px;font-weight:700">/day</span></div><div class="nm">{it.name}</div></div></a>
+        )) : <div class="hint" style="grid-column:1/-1;padding:24px">Nothing saved yet. Tap ♡ on an item.</div>}
+      </div>
+    </Layout>
+  );
+});
+
+// ---------- Profile ----------
+browse.get('/u/:id', async (c) => {
+  const u = c.get('user');
+  const who = await userById(c.env.DB, c.req.param('id'));
+  if (!who) return c.notFound();
+  const me = u?.id === who.id;
+  const rep = await reputation(c.env.DB, who.id);
+  const items = await c.env.DB.prepare(`SELECT * FROM listings WHERE owner_id = ? AND status = 'live' ORDER BY created_at DESC`).bind(who.id).all<Listing>();
+  const ph = await firstPhotos(c.env.DB, items.results.map(r => r.id));
+  const reviews = await c.env.DB.prepare(`SELECT r.renter_rating st, r.renter_review rv, r.updated_at at, u.name nm, l.name item, 'as owner' tag FROM rentals r JOIN users u ON u.id = r.renter_id JOIN listings l ON l.id = r.listing_id WHERE r.owner_id = ? AND r.renter_rating IS NOT NULL
+    UNION ALL SELECT r.owner_rating, r.owner_review, r.updated_at, u.name, l.name, 'as renter' FROM rentals r JOIN users u ON u.id = r.owner_id JOIN listings l ON l.id = r.listing_id WHERE r.renter_id = ? AND r.owner_rating IS NOT NULL ORDER BY at DESC LIMIT 20`).bind(who.id, who.id).all<{ st: number; rv: string | null; at: number; nm: string | null; item: string; tag: string }>();
+  const avgAll = (() => { const n = rep.as_owner_n + rep.as_renter_n; if (!n) return null; return ((rep.as_owner_avg || 0) * rep.as_owner_n + (rep.as_renter_avg || 0) * rep.as_renter_n) / n; })();
+  return c.html(
+    <Layout title={me ? 'Profile' : (who.name || 'Neighbor')} user={u}>
+      <section class="sec">
+        <div class="row" style="justify-content:space-between;align-items:flex-start">
+          <div>
+            <div style="font-size:24px;font-weight:900;letter-spacing:-.02em">{who.name || 'Neighbor'}</div>
+            <div class="hint" style="margin-top:4px">📍 {who.hood || 'NYC'} · since {new Date(who.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} · ✓ phone</div>
+          </div>
+          {me ? <a class="btn sm" href="/profile/edit">Edit</a> : null}
+        </div>
+        <div style="margin-top:14px;display:flex;gap:18px;align-items:baseline">
+          <div><div class="price" style="font-size:44px;line-height:1">{avgAll ? '★ ' + avgAll.toFixed(1) : 'new'}</div><div class="hint">{rep.rentals} rentals · renting and renting out</div></div>
+          <div><div class="price" style="font-size:44px;line-height:1">{rep.listed}</div><div class="hint">things listed</div></div>
+        </div>
+        {me ? <a class="btn pri full" style="margin-top:14px" href="/list">LIST MORE STUFF</a> : null}
+      </section>
+      <section class="sec">
+        <div class="m" style="font-size:11px;color:var(--mute)">things ({items.results.length})</div>
+        <div class="itemgrid" style="padding:10px 0 0">
+          {items.results.map(it => <a class="itemcard" href={'/i/' + it.id}>{ph[it.id] ? <img src={'/p/' + ph[it.id]} alt="" /> : <div class="ph">no photo</div>}<div class="b"><div class="pr">{money(it.price_cents)}<span style="font-size:11px;font-weight:700">/day</span></div><div class="nm">{it.name}</div></div></a>)}
+        </div>
+      </section>
+      <section class="sec" style="border-bottom:0">
+        <div class="m" style="font-size:11px;color:var(--mute)">reviews ({reviews.results.length})</div>
+        {reviews.results.length ? reviews.results.map(r => (
+          <div class="card" style="margin-top:8px">
+            <div class="row" style="justify-content:space-between"><b>{firstName(r.nm)}</b><span class="hint">{r.tag} · {r.item}</span></div>
+            <div style="color:var(--orange);font-weight:900">{'★'.repeat(r.st)}</div>
+            {r.rv ? <div style="font-size:14px;margin-top:4px">{r.rv}</div> : null}
+          </div>
+        )) : <div class="hint" style="margin-top:8px">No reviews yet.</div>}
+      </section>
+    </Layout>
+  );
+});
+
+browse.get('/profile/edit', async (c) => {
+  const u = c.get('user');
+  if (!u) return c.redirect('/login?next=/profile/edit');
+  const spots = u.pickup_spots ? (JSON.parse(u.pickup_spots) as string[]).join(', ') : '';
+  return c.html(
+    <Layout title="Edit profile" user={u} back={'/u/' + u.id}>
+      <form method="post" action="/profile/edit" style="padding:12px 16px 40px">
+        <label class="field"><span>Your name (first name + last initial)</span><input name="name" value={u.name || ''} placeholder="Fiona S." required maxlength={40} /></label>
+        <label class="field"><span>Cross streets (renters see this, never your address)</span><input name="cross_streets" value={u.cross_streets || ''} placeholder="W 22nd & 9th Ave" maxlength={80} /></label>
+        <label class="field"><span>Meetup spots (comma separated)</span><input name="pickup_spots" value={spots} placeholder="Lobby, Joe Coffee on 9th" maxlength={200} /></label>
+        <label class="field"><span>Neighborhood</span><input name="hood" value={u.hood || ''} placeholder="Chelsea" maxlength={60} /></label>
+        <input type="hidden" name="lat" id="lat" value={u.lat ?? ''} /><input type="hidden" name="lng" id="lng" value={u.lng ?? ''} />
+        <button type="button" class="btn sm" onclick="navigator.geolocation.getCurrentPosition(function(p){lat.value=p.coords.latitude;lng.value=p.coords.longitude;toast('Location set')})">📍 Use my location as home base</button>
+        <div style="margin-top:16px"><button class="btn pri full" type="submit">Save</button></div>
+        <p class="hint" style="margin-top:14px">Texts: {u.texts ? 'on' : 'off'} · listing nudges: {u.nudges ? 'on' : 'off'}. Reply STOP NUDGES or STOP to any Lendo text to change.</p>
+      </form>
+    </Layout>
+  );
+});
+
+browse.post('/profile/edit', async (c) => {
+  const u = c.get('user');
+  if (!u) return c.redirect('/login');
+  const f = await c.req.parseBody();
+  const spots = String(f.pickup_spots || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 6);
+  const lat = parseFloat(String(f.lat || '')), lng = parseFloat(String(f.lng || ''));
+  await c.env.DB.prepare('UPDATE users SET name = ?, cross_streets = ?, pickup_spots = ?, hood = ?, lat = COALESCE(?, lat), lng = COALESCE(?, lng) WHERE id = ?')
+    .bind(String(f.name || '').trim().slice(0, 40) || null, String(f.cross_streets || '').trim().slice(0, 80) || null, spots.length ? JSON.stringify(spots) : null,
+      String(f.hood || '').trim().slice(0, 60) || null, isNaN(lat) ? null : lat, isNaN(lng) ? null : lng, u.id).run();
+  return c.redirect('/u/' + u.id);
+});
+
+// ---------- About ----------
+browse.get('/about', (c) => {
+  const u = c.get('user');
+  return c.html(
+    <Layout title="Why Lendo" user={u}>
+      <section class="sec" style="border-bottom:0;font-size:15px;line-height:1.5">
+        <h2 style="font-size:26px;font-weight:900;letter-spacing:-.02em;margin:0 0 10px">Rent the stuff near you.</h2>
+        <p>Everyone's closet has a drill, a tent, a projector, a stand mixer that gets used twice a year. Lendo puts it on a map so the neighbor who needs it for a weekend can rent it.</p>
+        <p><b>{c.env.FEE_PCT}% fee (will stay low).</b> Renters pay a {c.env.FEE_PCT}% fee on top of the rent. Owners get the full rent. That's it.</p>
+        <p><b>Text first.</b> Rentals happen over text: a request, a YES, a pickup time. The site is the map and the record.</p>
+        <p><b>Trust is two-way.</b> Everyone's rated as an owner and as a renter. A photo at pickup stands in for a deposit.</p>
+        <p><b>We</b> means the neighbors. Lendo is the plumbing.</p>
+        <a class="btn pri full" href="/list" style="margin-top:12px">List your stuff</a>
+        <p class="hint" style="margin-top:20px">Agents welcome: <code>GET /api/listings?bbox=w,s,e,n&amp;q=</code> · <code>GET /api/listings/:id</code></p>
+      </section>
+    </Layout>
+  );
+});
+
+// ---------- Photos (R2) ----------
+browse.get('/p/:key{.+}', async (c) => {
+  const obj = await c.env.PHOTOS.get(c.req.param('key'));
+  if (!obj) return c.notFound();
+  const h = new Headers();
+  obj.writeHttpMetadata(h);
+  h.set('etag', obj.httpEtag);
+  h.set('cache-control', 'public, max-age=31536000, immutable');
+  return new Response(obj.body, { headers: h });
+});

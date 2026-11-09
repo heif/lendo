@@ -1,0 +1,79 @@
+import type { Env, Listing, Rental, User } from './env';
+import { id, now } from './util';
+
+export type PhotoRow = { id: string; listing_id: string; r2_key: string; pos: number };
+
+export async function userByPhone(db: D1Database, phone: string) {
+  return db.prepare('SELECT * FROM users WHERE phone = ?').bind(phone).first<User>();
+}
+export async function userById(db: D1Database, uid: string) {
+  return db.prepare('SELECT * FROM users WHERE id = ?').bind(uid).first<User>();
+}
+export async function ensureUser(db: D1Database, phone: string): Promise<User> {
+  const u = await userByPhone(db, phone);
+  if (u) return u;
+  const uid = id('u');
+  await db.prepare('INSERT INTO users (id, phone, created_at) VALUES (?, ?, ?)').bind(uid, phone, now()).run();
+  return (await userById(db, uid))!;
+}
+
+export async function listingById(db: D1Database, lid: string) {
+  return db.prepare('SELECT * FROM listings WHERE id = ?').bind(lid).first<Listing>();
+}
+export async function photosFor(db: D1Database, lid: string) {
+  const r = await db.prepare('SELECT * FROM photos WHERE listing_id = ? ORDER BY pos').bind(lid).all<PhotoRow>();
+  return r.results;
+}
+export async function firstPhotos(db: D1Database, ids: string[]): Promise<Record<string, string>> {
+  if (!ids.length) return {};
+  const q = `SELECT listing_id, r2_key FROM photos WHERE listing_id IN (${ids.map(() => '?').join(',')}) ORDER BY pos`;
+  const r = await db.prepare(q).bind(...ids).all<{ listing_id: string; r2_key: string }>();
+  const out: Record<string, string> = {};
+  for (const p of r.results) if (!out[p.listing_id]) out[p.listing_id] = p.r2_key;
+  return out;
+}
+
+export async function rentalById(db: D1Database, rid: string) {
+  return db.prepare('SELECT * FROM rentals WHERE id = ?').bind(rid).first<Rental>();
+}
+
+// days a listing is unavailable in [from, to]
+export async function busyDays(db: D1Database, lid: string, from: string, to: string): Promise<Set<string>> {
+  const out = new Set<string>();
+  const b = await db.prepare('SELECT day FROM blocked_days WHERE listing_id = ? AND day BETWEEN ? AND ?').bind(lid, from, to).all<{ day: string }>();
+  for (const r of b.results) out.add(r.day);
+  const rs = await db.prepare(`SELECT start_day, end_day FROM rentals WHERE listing_id = ? AND status IN ('held','confirmed','picked_up') AND end_day >= ? AND start_day <= ?`)
+    .bind(lid, from, to).all<{ start_day: string; end_day: string }>();
+  for (const r of rs.results) {
+    let d = new Date(r.start_day + 'T00:00:00Z');
+    const e = new Date(r.end_day + 'T00:00:00Z');
+    while (d <= e) { out.add(d.toISOString().slice(0, 10)); d.setUTCDate(d.getUTCDate() + 1); }
+  }
+  return out;
+}
+
+export type Rep = { as_owner_avg: number | null; as_owner_n: number; as_renter_avg: number | null; as_renter_n: number; listed: number; rentals: number };
+export async function reputation(db: D1Database, uid: string): Promise<Rep> {
+  const o = await db.prepare(`SELECT AVG(renter_rating) a, COUNT(renter_rating) n FROM rentals WHERE owner_id = ? AND renter_rating IS NOT NULL`).bind(uid).first<{ a: number | null; n: number }>();
+  const r = await db.prepare(`SELECT AVG(owner_rating) a, COUNT(owner_rating) n FROM rentals WHERE renter_id = ? AND owner_rating IS NOT NULL`).bind(uid).first<{ a: number | null; n: number }>();
+  const l = await db.prepare(`SELECT COUNT(*) n FROM listings WHERE owner_id = ? AND status != 'removed'`).bind(uid).first<{ n: number }>();
+  const t = await db.prepare(`SELECT COUNT(*) n FROM rentals WHERE (owner_id = ? OR renter_id = ?) AND status IN ('confirmed','picked_up','returned','closed')`).bind(uid, uid).first<{ n: number }>();
+  return { as_owner_avg: o?.a ?? null, as_owner_n: o?.n ?? 0, as_renter_avg: r?.a ?? null, as_renter_n: r?.n ?? 0, listed: l?.n ?? 0, rentals: t?.n ?? 0 };
+}
+
+export async function counts(db: D1Database, hood: string | null) {
+  const g = await db.prepare(`SELECT COUNT(*) n FROM listings WHERE status = 'live'`).first<{ n: number }>();
+  const h = hood ? await db.prepare(`SELECT COUNT(*) n FROM listings WHERE status = 'live' AND hood = ?`).bind(hood).first<{ n: number }>() : null;
+  return { global: g?.n ?? 0, hood: h?.n ?? 0 };
+}
+
+export async function addMessage(env: Env, rentalId: string, senderId: string | null, body: string, via: 'web' | 'text' | 'system') {
+  await env.DB.prepare('INSERT INTO messages (id, rental_id, sender_id, body, via, created_at) VALUES (?,?,?,?,?,?)')
+    .bind(id('m'), rentalId, senderId, body, via, now()).run();
+}
+
+export async function setRentalStatus(db: D1Database, rid: string, status: Rental['status'], extra: Record<string, string | number | null> = {}) {
+  const keys = Object.keys(extra);
+  const sets = ['status = ?', 'updated_at = ?', ...keys.map(k => `${k} = ?`)].join(', ');
+  await db.prepare(`UPDATE rentals SET ${sets} WHERE id = ?`).bind(status, now(), ...keys.map(k => extra[k]), rid).run();
+}

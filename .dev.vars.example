@@ -1,0 +1,8 @@
+# copy to .dev.vars for local dev (never commit .dev.vars)
+SESSION_SECRET=change-me-to-a-long-random-string
+# Leave Blooio blank locally: login codes print in the wrangler dev console instead of texting.
+BLOOIO_API_KEY=
+BLOOIO_WEBHOOK_SECRET=
+# Stripe test keys. Leave blank locally to use "fake pay" (rental is marked held without Stripe).
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
