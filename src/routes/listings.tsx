@@ -7,7 +7,7 @@ import { firstPhotos, listingById, photosFor, busyDays } from '../lib/db';
 import { id, money, now, fuzz, weekDefault, dayStr, addDays, fmtDay } from '../lib/util';
 import { hoodFor, geocodePlace } from '../lib/geo';
 import { emojiFor } from '../lib/emoji';
-import { buildAvatars } from '../lib/avatar';
+import { buildAvatars, autoIcon } from '../lib/avatar';
 import { assignHood } from '../lib/hoods';
 
 export const listings = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -92,6 +92,8 @@ listings.post('/list', async (c) => {
     await c.env.PHOTOS.put(key, await p.arrayBuffer(), { httpMetadata: { contentType: p.type || 'image/jpeg' } });
     await c.env.DB.prepare('INSERT INTO photos (id, listing_id, r2_key, pos) VALUES (?,?,?,?)').bind(id('ph'), lid, key, pos++).run();
   }
+  const first = await c.env.DB.prepare('SELECT r2_key FROM photos WHERE listing_id = ? ORDER BY pos LIMIT 1').bind(lid).first<{ r2_key: string }>();
+  if (first) c.executionCtx.waitUntil(autoIcon(c.env, lid, first.r2_key, name, desc));
   return c.redirect('/listings?just=' + lid);
 });
 
@@ -270,4 +272,11 @@ listings.post('/dev/avatar/:id/use', requireUser, async (c) => {
   if (style === 'emoji') await c.env.DB.prepare('UPDATE listings SET avatar_key = NULL, avatar_style = NULL WHERE id = ?').bind(it.id).run();
   else if (style === 'cutout' || style === 'ai') await c.env.DB.prepare('UPDATE listings SET avatar_key = ?, avatar_style = ? WHERE id = ?').bind(`${it.id}/avatar-${style}.png`, style, it.id).run();
   return c.redirect('/');
+});
+
+listings.post('/dev/avatar/backfill', requireUser, async (c) => {
+  const u = c.get('user')!;
+  const rows = await c.env.DB.prepare(`SELECT l.id, l.name, l.description, (SELECT r2_key FROM photos p WHERE p.listing_id = l.id ORDER BY pos LIMIT 1) k FROM listings l WHERE l.owner_id = ? AND l.status != 'removed'`).bind(u.id).all<{ id: string; name: string; description: string | null; k: string | null }>();
+  for (const r of rows.results) if (r.k) c.executionCtx.waitUntil(autoIcon(c.env, r.id, r.k, r.name, r.description));
+  return c.text(`queued ${rows.results.length} icon jobs`);
 });

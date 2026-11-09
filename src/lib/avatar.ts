@@ -12,6 +12,7 @@ export async function makeCutout(env: Env, photoKey: string): Promise<ArrayBuffe
   const u = `${env.APP_URL}/cdn-cgi/image/segment=foreground,fit=contain,width=320,height=320,trim=auto,format=png/${src}`;
   const r = await fetch(u);
   if (!r.ok) throw new Error(`cutout ${r.status}: ${(await r.text().catch(() => '')).slice(0, 200)}`);
+  if (!(r.headers.get('content-type') || '').includes('png')) throw new Error('cutout: not a png (transformations off?)');
   return r.arrayBuffer();
 }
 
@@ -66,4 +67,24 @@ export async function buildAvatars(env: Env, listingId: string, photoKey: string
     out[s] = key;
   }
   return out;
+}
+
+// Auto pipeline for new listings (runs in waitUntil): draw the emoji-style icon from the first photo, then try to make it a
+// transparent sticker via Cloudflare Images background removal. The map pin switches to the icon ONLY when the transparent
+// version exists (until Images is enabled on the zone, pins keep the round photo sticker).
+export async function autoIcon(env: Env, listingId: string, photoKey: string, name: string, description?: string | null): Promise<void> {
+  try {
+    const obj = await env.PHOTOS.get(photoKey);
+    if (!obj || !env.AI) return;
+    const photo = await obj.arrayBuffer();
+    const desc = await describeItem(env, photo, name + (description ? ' — ' + description.slice(0, 120) : ''));
+    const icon = await drawIcon(env, desc);
+    if (!icon) return;
+    const aiKey = `${listingId}/avatar-ai.png`;
+    await env.PHOTOS.put(aiKey, icon, { httpMetadata: { contentType: 'image/png' }, customMetadata: { desc } });
+    // transparent sticker (needs Images transformations on the zone)
+    let stickerKey: string | null = null;
+    try { const cut = await makeCutout(env, aiKey); if (cut) { stickerKey = `${listingId}/avatar.png`; await env.PHOTOS.put(stickerKey, cut, { httpMetadata: { contentType: 'image/png' } }); } } catch (e) { console.warn('cutout unavailable', (e as any)?.message); }
+    if (stickerKey) await env.DB.prepare('UPDATE listings SET avatar_key = ?, avatar_style = ? WHERE id = ? AND avatar_key IS NULL').bind(stickerKey, 'ai', listingId).run();
+  } catch (e) { console.warn('autoIcon failed', e); }
 }
