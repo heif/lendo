@@ -36,7 +36,7 @@ browse.get('/', async (c) => {
 (function(){
 if(typeof L==='undefined'){document.getElementById('grid').style.display='grid';document.getElementById('toggle').style.display='none';fetch('/api/listings').then(function(r){return r.json()}).then(function(j){document.getElementById('grid').innerHTML=j.listings.map(function(it){return '<a class="itemcard" href="/i/'+it.id+'">'+(it.photo?'<img src="/p/'+it.photo+'" alt="">':'<div class="ph">no photo</div>')+'<div class="b"><div class="pr">$'+(it.price_cents/100)+'<span style="font-size:11px;font-weight:700">/day</span></div><div class="nm">'+it.name.replace(/[<>&]/g,'')+'</div></div></a>'}).join('')});return}
 var map=L.map('map',{zoomControl:false,attributionControl:true}).setView([${center[0]},${center[1]}],15);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap &copy; CARTO'}).addTo(map);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
 var layer=L.layerGroup().addTo(map),items=[],sel=null,listMode=false,t;
 var sheet=document.getElementById('sheet');
 function fmt(c){var d=c/100;return '$'+(Number.isInteger(d)?d:d.toFixed(2))}

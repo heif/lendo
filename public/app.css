@@ -12,7 +12,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 @keyframes rise{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:none}}
 
 /* header */
-.hdr{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:8px;padding:6px 12px 4px 8px;background:var(--cream);border-bottom:1px solid var(--line2)}
+.hdr{position:sticky;top:0;z-index:1000;display:flex;align-items:center;gap:8px;padding:6px 12px 4px 8px;background:var(--cream);border-bottom:1px solid var(--line2)}
 .hdr .back{flex-shrink:0;width:36px;height:36px;margin-left:2px;border-radius:18px;border:1px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:center;text-decoration:none}
 .logo{display:flex;align-items:center;flex-shrink:0;font-size:31px;font-weight:800;letter-spacing:-1.5px;line-height:1;text-decoration:none;color:var(--ink)}
 .logo .wave{display:block;font-size:21.6px;line-height:1;margin:0 2px 0 -2px;transform:rotate(28deg);animation:lwave 1.2s ease-in-out infinite;transform-origin:70% 85%;font-weight:400;letter-spacing:0}
