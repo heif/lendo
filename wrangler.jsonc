@@ -20,6 +20,7 @@
     // Mapbox. MAPBOX_PUBLIC_TOKEN (pk., URL-restricted) is a Worker *secret* in prod (push protection rejects it in git) or a .dev.vars entry locally; unset = Leaflet/OSM fallback.
     "MAPBOX_STYLE_URL": "mapbox://styles/mapbox/light-v11",
     "MEETUP_SPOTS": "false",
+    "WANTED_PROMO": "false",
     "ADMIN_PHONES": "+19176784343"
   }
   // Secrets (set with `wrangler secret put NAME`):

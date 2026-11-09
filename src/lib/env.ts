@@ -11,6 +11,7 @@ export type Env = {
   MAPBOX_PUBLIC_TOKEN?: string;  // pk., URL-restricted (secret in prod, .dev.vars locally); unset → Leaflet fallback
   MAPBOX_STYLE_URL: string;      // mapbox://styles/... (light-v11 until a Studio style exists)
   MEETUP_SPOTS: string;          // "true" enables /api/meetup
+  WANTED_PROMO: string;          // "true" → WANTED posters carry "REWARD for listing"; else plain greyed ghost items
   ADMIN_PHONES: string;          // comma-separated E.164 numbers allowed into /admin
   SESSION_SECRET: string;
   STRIPE_SECRET_KEY?: string;
