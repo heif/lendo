@@ -239,18 +239,21 @@
 
   // ---- WANTED posters (prototype ghosts): deterministic per grid cell so they stay put while panning; never on a pin
   function startWanted() {
-    var marks = {}, PROMO = !!CFG.wantedPromo, CELL = PROMO ? 0.0045 : 0.0017, MOD = PROMO ? 5 : 1, MAX = PROMO ? 9 : 160;
+    var marks = {}, PROMO = !!CFG.wantedPromo, MOD = PROMO ? 5 : 1, MAX = PROMO ? 9 : 400;
+    // cell size scales with zoom (≈ 80px on screen) so density looks the same at any zoom; quantized per zoom band so
+    // ghosts hold still while panning
+    function cellDeg() { var zb = Math.round(map.getZoom()); return (PROMO ? 0.0045 : 0.0030) * Math.pow(2, 14.5 - zb); }
     function h32(a, b) { var h = (a * 374761393 + b * 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return (h ^ (h >>> 16)) >>> 0; }
     function near(lng, lat, px) { var p = map.project([lng, lat]); for (var i = 0; i < items.length; i++) { var it = items[i]; if (it.lat == null) continue; var q = map.project([it.lng, it.lat]); if (Math.abs(q.x - p.x) < px && Math.abs(q.y - p.y) < px) return true; } return false; }
     function place() {
-      var z = map.getZoom(), want = (PL && PL.wanted) || []; var keep = {};
+      var z = map.getZoom(), want = (PL && PL.wanted) || []; var keep = {}, CELL = cellDeg(), zb = Math.round(z);
       if (z >= (PROMO ? 13.2 : 12.8) && want.length) {
         var b = map.getBounds(), x0 = Math.floor(b.getWest() / CELL), x1 = Math.ceil(b.getEast() / CELL), y0 = Math.floor(b.getSouth() / CELL), y1 = Math.ceil(b.getNorth() / CELL), n = 0;
         for (var x = x0; x <= x1 && n < MAX; x++) for (var y = y0; y <= y1 && n < MAX; y++) {
           var h = h32(x, y); if (h % MOD !== 0) continue;
-          var lng = (x + 0.2 + (h >>> 8 & 255) / 425) * CELL, lat = (y + 0.2 + (h >>> 16 & 255) / 425) * CELL;
+          var lng = (x + 0.15 + (h >>> 8 & 255) / 365) * CELL, lat = (y + 0.15 + (h >>> 16 & 255) / 365) * CELL;
           if (near(lng, lat, PROMO ? 46 : 40)) continue;
-          var k = x + ',' + y, w = want[h % want.length]; keep[k] = 1; n++;
+          var k = zb + ':' + x + ',' + y, w = want[h % want.length]; keep[k] = 1; n++;
           if (marks[k]) continue;
           var el = document.createElement('a'); el.href = '/list?want=' + encodeURIComponent(w.label);
           el.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); $('wsEm').textContent = w.emoji; $('wsName').textContent = w.label; $('wsGo').href = el.href; $('wsheet').hidden = false; });
