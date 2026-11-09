@@ -74,8 +74,9 @@ html.camdark body,html.camdark .wrap{background:#1E3A2B}
 .tray div{position:relative;flex-shrink:0}
 .tray img{width:72px;height:72px;object-fit:cover;border-radius:12px;display:block;border:2px solid var(--ink)}
 .tray span{position:absolute;left:-4px;bottom:-6px;font-size:11px;font-weight:800;color:#fff;background:var(--orange);border:1.2px solid var(--ink);border-radius:4px;padding:1px 5px}
-.dn-head{font-size:34px;font-weight:900;letter-spacing:-1.2px;line-height:1.05}
-.dn-sub{font-size:16px;font-weight:600;margin:4px 0 14px}
+.dn-head{font-size:52px;font-weight:900;letter-spacing:-2px;line-height:1;margin-top:6px;animation:dnin .5s cubic-bezier(.2,.9,.3,1.2) both}
+.dn-sub{font-size:16px;font-weight:600;color:var(--ink2);margin:6px 0 16px}
+@keyframes dnin{from{opacity:0;transform:translateY(10px) scale(.96)}to{opacity:1;transform:none}}
 .share{border-radius:16px;background:#fff;border:2px solid var(--ink);padding:14px}
 .share-h{font-size:19px;font-weight:900;letter-spacing:-.4px;margin-bottom:10px}
 .flyer{background:#FFFEF8;border:1px solid #CFC6B0;box-shadow:2px 3px 6px rgba(0,0,0,.15);padding:12px;transform:rotate(-1.2deg);margin:4px 8px 14px}

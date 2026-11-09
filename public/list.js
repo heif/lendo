@@ -107,7 +107,7 @@
   function renderDone(j) {
     clearInterval(clockT);
     $('tray').innerHTML = shots.map(function (s) { return '<div><img src="' + s.url + '" alt=""><span>$' + s.price + '</span></div>'; }).join('');
-    $('dnHead').textContent = shots.length + (shots.length === 1 ? ' thing. ' : ' things. ') + clock() + '.'; $('dnSub').textContent = shots.length === 1 ? 'It’s listed.' : 'They’re listed.';
+    $('dnSub').textContent = shots.length === 1 ? 'Neighbors can rent it now. Tell them.' : 'Neighbors can rent them now. Tell them.';
     $('shTray').innerHTML = shots.slice(0, 4).map(function (s) { return '<img src="' + s.url + '" alt="">'; }).join('');
     $('shLine').textContent = shots.length + (shots.length === 1 ? ' thing' : ' things') + ' from $' + Math.min.apply(null, shots.map(function (s) { return s.price; })) + '/day' + (CFG.hood ? ' · ' + CFG.hood : '');
     var text = 'Renting out ' + (shots.length === 1 ? 'my ' + shots[0].name.trim() : shots.length + ' things') + ' on my block, from $' + Math.min.apply(null, shots.map(function (s) { return s.price; })) + '/day', url = CFG.shareUrl, full = text + ' ' + url, enc = encodeURIComponent(full);
