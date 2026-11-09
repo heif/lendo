@@ -232,7 +232,7 @@ button,.btn,.pm,.idea,.days button,.stars button{touch-action:manipulation}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .promo{position:absolute;right:10px;bottom:24px;z-index:620;display:flex;align-items:stretch;height:48px;border-radius:14px;border:2px solid var(--ink);border-bottom-width:4px;background:#fff;box-shadow:0 3px 8px rgba(0,0,0,.2);overflow:hidden;max-width:calc(100% - 20px);animation:rise .25s ease-out both}
 .promo input{width:132px;min-width:0;border:0;padding:0 10px;font-family:inherit;font-size:16px;font-weight:800;letter-spacing:.3px;background:transparent;color:var(--ink);outline:none}
-.promo button{height:100%;padding:0 14px;border:0;font-family:inherit;font-size:16px;font-weight:900;background:rgba(255,79,0,.45);color:#fff;transition:background .15s,color .15s}
+.promo button{height:100%;padding:0 14px;border:0;font-family:inherit;font-size:16px;font-weight:900;background:var(--orange);color:#fff;opacity:1;transition:background .15s,color .15s}
 .promo button:not(:disabled){background:var(--orange);color:#fff;cursor:pointer}
 .promo.done{padding:0 14px;align-items:center;font-size:14px;font-weight:900;color:var(--ink);background:var(--mint,#DFF3E6)}
 .optin{position:absolute;inset:0;z-index:900;background:rgba(30,58,43,.45);display:flex;align-items:center;justify-content:center;padding:24px}
@@ -241,14 +241,11 @@ button,.btn,.pm,.idea,.days button,.stars button{touch-action:manipulation}
 .ghost{display:block;font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;font-size:30px;line-height:1;text-decoration:none;filter:grayscale(1) contrast(1.15) brightness(.78) opacity(.62);transform:rotate(var(--r,0deg));transition:filter .2s,transform .2s;cursor:pointer}
 .ghost:hover{filter:grayscale(.3) opacity(.9);transform:rotate(0) scale(1.15)}
 /* wanted-item poster (tapped ghost) */
-.wsheet{position:absolute;left:50%;bottom:90px;width:230px;margin-left:-115px;z-index:640;background:#F6EBC8;border:2px solid var(--ink);box-shadow:4px 5px 0 rgba(30,58,43,.45);padding:16px 14px 14px;text-align:center;transform:rotate(-3deg);animation:rise .2s ease-out both;background-image:radial-gradient(rgba(30,58,43,.06) 1px,transparent 1px);background-size:6px 6px}
-.wsheet::before,.wsheet::after{content:'';position:absolute;top:-8px;width:36px;height:14px;background:rgba(255,255,255,.55);border:1px solid rgba(30,58,43,.25);transform:rotate(-6deg)}
-.wsheet::before{left:14px}.wsheet::after{right:14px;transform:rotate(5deg)}
+.wsheet{position:absolute;left:50%;bottom:90px;width:210px;margin-left:-105px;z-index:640;background:#F6EBC8;border:2px solid var(--ink);box-shadow:4px 5px 0 rgba(30,58,43,.45);padding:14px 14px 14px;text-align:center;transform:rotate(-3deg);animation:rise .2s ease-out both}
 .wsheet .pcard-x{right:-14px;top:-14px}
 .wsheet-head{font-family:Rockwell,'Roboto Slab',Georgia,serif;font-size:26px;letter-spacing:4px;line-height:1;border-bottom:2px solid var(--ink);padding-bottom:6px;margin:0 6px}
-.wsheet-em{font-size:84px;line-height:1.1;margin:10px 0 4px;filter:sepia(.6) saturate(.7);font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif}
-.wsheet-name{font-family:Rockwell,'Roboto Slab',Georgia,serif;font-size:18px;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
-.wsheet-sub{font-size:11.5px;font-weight:600;color:#6F6A60;margin:4px 0 12px}
+.wsheet-em{font-size:76px;line-height:1.1;margin:8px 0 2px;filter:sepia(.6) saturate(.7);font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif}
+.wsheet-name{font-family:Rockwell,'Roboto Slab',Georgia,serif;font-size:17px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:12px}
 .wsheet-go{display:block;background:#B42318;color:#fff;font-size:14px;font-weight:900;letter-spacing:.3px;padding:10px;border:2px solid var(--ink);text-decoration:none;box-shadow:2px 2px 0 var(--ink)}
 .wsheet-go:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)}
 .promo.incard{position:static;margin:10px 0 0;width:100%;max-width:none;height:48px;box-shadow:none;border-bottom-width:3px;animation:none;display:flex}
