@@ -10,7 +10,7 @@
   ],
   "r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "lendo-photos" }],
   "ai": { "binding": "AI" },
-  "triggers": { "crons": ["*/15 * * * *"] },
+  "triggers": { "crons": ["* * * * *"] },
   "vars": {
     "APP_URL": "https://lendo.co",
     "FEE_PCT": "15",

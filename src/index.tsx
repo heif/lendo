@@ -45,7 +45,12 @@ export default {
     const n = await expireHolds(env);
     if (n) console.log(`expired ${n} held requests`);
     // backfill custom icons for the wanted catalog, a few per tick (Flux + cutout each)
-    const done = await iconsDone(env);
-    for (const w of WANTED_ALL.filter(w => !done.has(w.key)).slice(0, 6)) { try { await makeWantedIcon(env, w.key); } catch (e) { console.warn('wanted icon', w.key, e); } }
+    try {
+      const done = await iconsDone(env);
+      for (const w of WANTED_ALL.filter(w => !done.has(w.key)).slice(0, 5)) {
+        try { await makeWantedIcon(env, w.key); }
+        catch (e: any) { await env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('wanted_icons_err', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(`${w.key}: ${e?.message || e}`.slice(0, 500)).run(); }
+      }
+    } catch (e: any) { await env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('wanted_icons_err', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(`outer: ${e?.message || e}`.slice(0, 500)).run().catch(() => {}); }
   },
 };
