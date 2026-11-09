@@ -15,7 +15,18 @@ export async function hoodFor(lat: number, lng: number): Promise<{ hood: string 
   }
 }
 
-// Forward geocode a neighborhood name (fallback when the lister denied location). Biased to NYC for v1.
+import type { Env } from './env';
+import { geocodeAddress } from './mapbox';
+
+// Forward geocode free text (address, cross streets, or a hood name). Mapbox permanent geocoding when configured; Nominatim in dev.
+export async function geocodePlace(env: Env, place: string, city = 'New York'): Promise<{ lat: number; lng: number; mapbox_id: string | null; full_address: string | null; hood_hint: string | null } | null> {
+  const g = await geocodeAddress(env, /new york|ny\b|brooklyn|queens|bronx/i.test(place) ? place : `${place}, ${city}`);
+  if (g) return g;
+  const n = await geocodeHood(place, city);
+  return n ? { ...n, mapbox_id: null, full_address: null, hood_hint: null } : null;
+}
+
+// Nominatim fallback (dev only; low volume).
 export async function geocodeHood(place: string, city = 'New York'): Promise<{ lat: number; lng: number } | null> {
   try {
     const u = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(place + ', ' + city)}`;

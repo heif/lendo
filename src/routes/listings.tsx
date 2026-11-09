@@ -5,7 +5,7 @@ import { Layout } from '../pages/layout';
 import { requireUser } from '../lib/auth';
 import { firstPhotos, listingById, photosFor, busyDays } from '../lib/db';
 import { id, money, now, fuzz, weekDefault, dayStr, addDays, fmtDay } from '../lib/util';
-import { hoodFor, geocodeHood } from '../lib/geo';
+import { hoodFor, geocodePlace } from '../lib/geo';
 import { emojiFor } from '../lib/emoji';
 import { buildAvatars } from '../lib/avatar';
 
@@ -67,9 +67,11 @@ listings.post('/list', async (c) => {
   let hood = u.hood;
   let fromGps = !isNaN(lat) && !isNaN(lng);
   if (!fromGps) { lat = u.lat ?? NaN; lng = u.lng ?? NaN; }
-  if (isNaN(lat) && (u.cross_streets || u.hood)) {
-    const g = (u.cross_streets ? await geocodeHood(u.cross_streets + (u.hood ? ', ' + u.hood : '')) : null) || (u.hood ? await geocodeHood(u.hood) : null);
-    if (g) { lat = g.lat; lng = g.lng; await c.env.DB.prepare('UPDATE users SET lat = COALESCE(lat, ?), lng = COALESCE(lng, ?) WHERE id = ?').bind(g.lat, g.lng, u.id).run(); }
+  let mbId: string | null = fromGps ? null : u.mapbox_id, geoAt: number | null = fromGps ? null : u.geocoded_at;
+  if (isNaN(lat) && (u.address || u.cross_streets || u.hood)) {
+    const q0 = u.address || (u.cross_streets ? u.cross_streets + (u.hood ? ', ' + u.hood : '') : u.hood!);
+    const g = await geocodePlace(c.env, q0);
+    if (g) { lat = g.lat; lng = g.lng; mbId = g.mapbox_id; geoAt = g.mapbox_id ? Date.now() : null; await c.env.DB.prepare('UPDATE users SET lat = COALESCE(lat, ?), lng = COALESCE(lng, ?), mapbox_id = COALESCE(mapbox_id, ?), geocoded_at = COALESCE(geocoded_at, ?) WHERE id = ?').bind(g.lat, g.lng, mbId, geoAt, u.id).run(); }
   }
   if (fromGps) {
     const g = await hoodFor(lat, lng);
@@ -79,8 +81,8 @@ listings.post('/list', async (c) => {
   const lid = id('l');
   const [flat, flng] = !isNaN(lat) ? fuzz(lat, lng) : [null, null];
   const desc = String(f.description || '').trim().slice(0, 600) || null;
-  await c.env.DB.prepare('INSERT INTO listings (id, owner_id, name, description, price_cents, week_cents, status, hood, lat, lng, emoji, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
-    .bind(lid, u.id, name, desc, price, week, 'live', hood, flat, flng, emojiFor(name, desc), now()).run();
+  await c.env.DB.prepare('INSERT INTO listings (id, owner_id, name, description, price_cents, week_cents, status, hood, lat, lng, emoji, mapbox_id, geocoded_at, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+    .bind(lid, u.id, name, desc, price, week, 'live', hood, flat, flng, emojiFor(name, desc), mbId, geoAt, now()).run();
   const photos = ([] as unknown[]).concat(f.photo || []).filter((p): p is File => p instanceof File);
   let pos = 0;
   for (const p of photos.slice(0, 6)) {
