@@ -24,6 +24,8 @@ html.camdark body,html.camdark .wrap{background:#1E3A2B}
 .hint-big{background:var(--orange);color:#fff;border:2px solid var(--ink);font-size:15px;font-weight:900;letter-spacing:.2px;padding:7px 13px;border-radius:12px}
 .hint-sm{background:rgba(30,58,43,.6);color:#fff;font-size:12.5px;font-weight:700;padding:4px 10px;border-radius:12px}
 .hint-sm:empty{display:none}
+.hint-sm.solo{background:rgba(30,58,43,.72);font-size:14px;font-weight:800;padding:8px 14px;border-radius:14px;backdrop-filter:blur(6px)}
+.cam-hints [hidden]{display:none}
 .cam-br{position:absolute;left:14%;right:14%;top:28%;bottom:34%;z-index:2;pointer-events:none}
 .cam-br i{position:absolute;width:26px;height:26px;border:3px solid var(--orange)}
 .cam-br i:nth-child(1){left:0;top:0;border-right:0;border-bottom:0;border-radius:8px 0 0 0}
@@ -63,7 +65,7 @@ html.camdark body,html.camdark .wrap{background:#1E3A2B}
 .pricerow .pm{width:36px;height:36px;border-radius:18px;border:1.5px solid #CFC9BC;background:#fff;font-size:22px;font-weight:700;color:var(--ink);line-height:1}
 .pricerow .badge{font-size:16px;font-weight:800;color:#fff;background:var(--orange);border:1.5px solid var(--ink);border-radius:6px;padding:2px 7px;white-space:nowrap}
 .pricerow .badge small{font-size:11px;font-weight:700}
-.row-item .note{width:100%;border:0;border-radius:8px;background:var(--cream);font-size:13px!important;padding:7px 9px;height:auto}
+.row-item .note{display:block;width:100%;border:0;border-radius:8px;background:var(--cream);font:inherit;font-size:13px!important;line-height:1.35;padding:7px 9px;height:auto;min-height:40px;max-height:160px;resize:none;overflow:hidden;field-sizing:content}
 .row-item .del{border:0;background:transparent;color:#9B968C;font-size:16px;padding:0 2px;flex-shrink:0}
 /* done */
 .tray{display:flex;gap:10px;padding:6px 0 12px;overflow-x:auto}

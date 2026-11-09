@@ -4,6 +4,7 @@ import type { Env, Listing, Vars } from '../lib/env';
 import { firstPhotos, listingById, photosFor, reputation, userById } from '../lib/db';
 import { emojiFor } from '../lib/emoji';
 import { loadHoods, hoodAt } from '../lib/hoods';
+import { CITIES, WANTED, WANTED_EMOJI } from '../lib/places';
 
 export const api = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -85,6 +86,21 @@ api.get('/api/hood', async (c) => {
   }
   const g = await c.env.DB.prepare(`SELECT COUNT(*) n FROM listings WHERE status = 'live'`).first<{ n: number }>();
   return c.json({ hood: name, hood_n: n, city: 'NYC', city_n: g?.n ?? 0, global_n: g?.n ?? 0 });
+});
+
+// Directory for the hood/city picker: live counts per city (bbox) and per hood (~0.9 km radius around the center).
+api.get('/api/places', async (c) => {
+  const cacheKey = new Request(new URL('/api/places', c.env.APP_URL).toString());
+  const hit = await caches.default.match(cacheKey); if (hit) return hit;
+  const pts = (await c.env.DB.prepare(`SELECT lat, lng FROM listings WHERE status = 'live' AND lat IS NOT NULL`).all<{ lat: number; lng: number }>()).results;
+  const cities = CITIES.map(ct => {
+    const inCity = pts.filter(p => p.lng >= ct.bbox[0] && p.lng <= ct.bbox[2] && p.lat >= ct.bbox[1] && p.lat <= ct.bbox[3]);
+    const hoods = ct.hoods.map(h => ({ ...h, n: inCity.filter(p => Math.hypot((p.lat - h.lat) * 111, (p.lng - h.lng) * 111 * Math.cos(h.lat * Math.PI / 180)) < 0.9).length }));
+    return { id: ct.id, name: ct.name, lat: ct.lat, lng: ct.lng, zoom: ct.zoom, n: inCity.length, live: inCity.length > 0, hoods };
+  });
+  const res = new Response(JSON.stringify({ cities, total: pts.length, wanted: WANTED.map(w => ({ key: w[0], label: w[1], emoji: WANTED_EMOJI[w[0]] || '📦' })) }), { headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=120' } });
+  c.executionCtx.waitUntil(caches.default.put(cacheKey, res.clone()));
+  return res;
 });
 
 api.get('/api/health', (c) => c.json({ ok: true, ts: Date.now() }));

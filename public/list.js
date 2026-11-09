@@ -32,7 +32,7 @@
   }
   function stopCam() { if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; video.srcObject = null; } }
   function nextName() { if (retakeIdx != null) return shots[retakeIdx].name; var named = shots.map(function (s) { return s.name; }); for (var i = 0; i < picked.length; i++) if (named.indexOf(picked[i]) < 0) return picked[i]; return ''; }
-  function updateHint() { var n = nextName(); $('hintBig').textContent = retakeIdx != null ? 'Retake: ' + n : n || 'Anything'; $('hint').textContent = retakeIdx != null ? '' : picked.length ? (picked.length - shots.filter(function (s) { return picked.indexOf(s.name) > -1; }).length) + ' left on your list' : 'one thing per photo'; $('count').textContent = shots.length; $('thumbWrap').hidden = !shots.length; $('doneBtn').hidden = !shots.length; $('tapHint').hidden = !!shots.length; if (shots.length) $('thumb').src = shots[shots.length - 1].url; renderMiniList(); }
+  function updateHint() { var n = nextName(); var big = retakeIdx != null ? 'Retake: ' + n : n; $('hintBig').textContent = big || ''; $('hintBig').hidden = !big; $('hint').textContent = retakeIdx != null ? '' : picked.length ? (picked.length - shots.filter(function (s) { return picked.indexOf(s.name) > -1; }).length) + ' left on your list' : 'One thing per photo'; $('hint').classList.toggle('solo', !big); $('count').textContent = shots.length; $('thumbWrap').hidden = !shots.length; $('doneBtn').hidden = !shots.length; $('tapHint').hidden = !!shots.length; if (shots.length) $('thumb').src = shots[shots.length - 1].url; renderMiniList(); }
   function renderMiniList() { var el = $('miniList'); if (!picked.length) { el.hidden = true; return; } el.hidden = false; el.innerHTML = picked.map(function (n) { var done = shots.some(function (s) { return s.name === n || s.hint === n; }); return '<span class="' + (done ? 'done' : '') + '">' + (done ? '✓ ' : '○ ') + esc(n) + '</span>'; }).join(''); }
   function addShot(blob) {
     var url = URL.createObjectURL(blob), name = nextName(), idea = IDEAS.filter(function (i) { return i[1] === name; })[0];
@@ -77,9 +77,10 @@
         '<div class="mid"><input class="nm" data-act="name" value="' + esc(s.name) + '" placeholder="' + (s.pending ? 'Looking…' : 'What is it?') + '" maxlength="80">' +
         (s.ai ? '<div class="aichip">✦ ' + esc(s.ai.category_label || '') + (s.ai.basis ? ' · ' + esc(s.ai.basis) : '') + '</div>' : s.pending ? '<div class="aichip pend">✦ identifying…</div>' : '') +
         '<div class="pricerow"><span class="wk">$' + (s.week || Math.round(s.price * 7 * 0.7)) + '/wk</span><button type="button" class="pm" data-act="dn" aria-label="Lower">−</button><span class="badge">$' + s.price + '<small>/day</small></span><button type="button" class="pm" data-act="up" aria-label="Raise">+</button></div>' +
-        '<input class="note" data-act="note" value="' + esc(s.note) + '" placeholder="✎ note · condition · what’s included" maxlength="200"></div>' +
+        '<textarea class="note" data-act="note" rows="2" placeholder="✎ note · condition · what’s included" maxlength="400">' + esc(s.note) + '</textarea></div>' +
         '<button type="button" class="del" data-act="del" aria-label="Remove">✕</button></div>';
     }).join('') || '<div class="hint" style="padding:20px 0">Nothing yet.</div>';
+    $('rows').querySelectorAll('textarea.note').forEach(grow);
     $('listBtn').textContent = 'LIST ' + shots.length + (shots.length === 1 ? ' THING' : ' THINGS');
     var pend = shots.some(function (s) { return s.pending; });
     $('listBtn').disabled = !shots.length || pend || shots.some(function (s) { return !s.name.trim(); });
@@ -92,7 +93,8 @@
     if (act === 'up') { shots[i].price += 1; shots[i].week = 0; shots[i].touched.price = true; renderReview(); }
     if (act === 'del') { shots.splice(i, 1); renderReview(); }
   });
-  $('rows').addEventListener('input', function (e) { var inp = e.target, row = inp.closest('.row-item'); if (!row) return; var i = +row.dataset.i; if (inp.dataset.act === 'name') { shots[i].name = inp.value; shots[i].touched.name = true; $('listBtn').disabled = shots.some(function (s) { return !s.name.trim(); }); } if (inp.dataset.act === 'note') { shots[i].note = inp.value; shots[i].touched.note = true; } });
+  $('rows').addEventListener('input', function (e) { var inp = e.target, row = inp.closest('.row-item'); if (!row) return; var i = +row.dataset.i; if (inp.dataset.act === 'name') { shots[i].name = inp.value; shots[i].touched.name = true; $('listBtn').disabled = shots.some(function (s) { return !s.name.trim(); }); } if (inp.dataset.act === 'note') { shots[i].note = inp.value; shots[i].touched.note = true; grow(inp); } });
+  function grow(t) { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 160) + 'px'; }
   $('backCam').addEventListener('click', function () { show('cam'); });
   $('listBtn').addEventListener('click', function () {
     var fd = new FormData(); shots.forEach(function (s, i) { fd.append('name_' + i, s.name.trim()); fd.append('price_' + i, s.price); fd.append('week_' + i, s.week || 0); fd.append('note_' + i, s.note); fd.append('photo_' + i, s.blob, 'p' + i + '.jpg'); });
