@@ -17,10 +17,11 @@ const MAPBOX_CSS = `https://api.mapbox.com/mapbox-gl-js/${MAPBOX_VER}/mapbox-gl.
 const MAPBOX_JS = `https://api.mapbox.com/mapbox-gl-js/${MAPBOX_VER}/mapbox-gl.js`;
 
 // Static map for the item page (Mapbox Static Images API). Returns null without a public token.
-export function staticMapUrl(env: Env, lat: number, lng: number, w = 600, h = 220): string | null {
+export function staticMapUrl(env: Env, lat: number, lng: number, w = 600, h = 220, markerImg?: string | null): string | null {
   if (!env.MAPBOX_PUBLIC_TOKEN) return null;
   const style = (env.MAPBOX_STYLE_URL || 'mapbox://styles/mapbox/light-v11').replace('mapbox://styles/', '');
-  return `https://api.mapbox.com/styles/v1/${style}/static/pin-l+FF4F00(${lng.toFixed(5)},${lat.toFixed(5)})/${lng.toFixed(5)},${lat.toFixed(5)},14.2,0/${w}x${h}@2x?access_token=${encodeURIComponent(env.MAPBOX_PUBLIC_TOKEN)}&logo=true&attribution=true`;
+  const marker = markerImg ? `url-${encodeURIComponent(markerImg)}` : 'pin-l+FF4F00';
+  return `https://api.mapbox.com/styles/v1/${style}/static/${marker}(${lng.toFixed(5)},${lat.toFixed(5)})/${lng.toFixed(5)},${lat.toFixed(5)},14.2,0/${w}x${h}@2x?access_token=${encodeURIComponent(env.MAPBOX_PUBLIC_TOKEN)}&logo=true&attribution=true`;
 }
 
 // ---------- Map (home) ----------
@@ -97,7 +98,7 @@ browse.get('/i/:id', async (c) => {
         </div>
         {it.description ? <p style="margin:8px 0 0;font-size:14px;color:var(--ink2);white-space:pre-wrap">{it.description}</p> : null}
         <div class="hint" style="margin-top:8px">{it.hood || 'near you'}{owner.cross_streets ? ' · ' + owner.cross_streets : ''}{owner.pickup_spots ? ' · meet: ' + JSON.parse(owner.pickup_spots).join(', ') : ''}</div>
-        {it.lat != null && it.lng != null && staticMapUrl(c.env, it.lat, it.lng) ? <img src={staticMapUrl(c.env, it.lat, it.lng)!} alt={'Map around ' + (it.hood || 'the item')} width="600" height="220" style="display:block;width:100%;height:auto;margin-top:10px;border-radius:12px;border:1.5px solid var(--line)" loading="lazy" /> : null}
+        {it.lat != null && it.lng != null && staticMapUrl(c.env, it.lat, it.lng) ? <img src={staticMapUrl(c.env, it.lat, it.lng, 600, 220, it.avatar_key ? `${c.env.APP_URL}/cdn-cgi/image/width=64,height=64,fit=contain,format=png/${c.env.APP_URL}/p/${it.avatar_key}` : null)!} alt={'Map around ' + (it.hood || 'the item')} width="600" height="220" style="display:block;width:100%;height:auto;margin-top:10px;border-radius:12px;border:1.5px solid var(--line)" loading="lazy" /> : null}
         {!isOwner && it.status === 'live' ? (
           <form method="post" action={'/i/' + it.id + '/rent'} id="rentForm">
             <div class="m" style="font-size:11px;color:var(--mute);margin-top:14px">next 14 days — tap to pick</div>
