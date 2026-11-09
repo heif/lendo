@@ -166,10 +166,10 @@
 
   // ---- idle wiggle (prototype 'sway'): each item rocks ±1.6° on its own phase; paused while the map moves or the tab is hidden
   var wigT0 = performance.now(), wigPhase = {};
-  function wiggleRot(id) { if (!(id in wigPhase)) wigPhase[id] = Math.random() * 6.283; var t = (performance.now() - wigT0) / 1000; return Math.sin(t * 1.3 + wigPhase[id]) * 1.6; }
+  function wiggleRot(id) { if (!(id in wigPhase)) wigPhase[id] = [Math.random() * 6.283, 2.2 + Math.floor(Math.random() * 4) * 0.45]; var w = wigPhase[id], t = (performance.now() - wigT0) / 1000; return Math.sin(t * 6.283 / w[1] + w[0]) * 3.5; }
   function startWiggle() {
     var busy = false; map.on('movestart', function () { busy = true; }); map.on('moveend', function () { busy = false; });
-    setInterval(function () { if (busy || document.hidden || !items.length || items.length > 150) return; var src = map.getSource('listings'); if (src) src.setData(toGeo(items)); }, 125);
+    setInterval(function () { if (busy || document.hidden || !items.length || items.length > 150) return; var src = map.getSource('listings'); if (src) src.setData(toGeo(items)); }, 80);
   }
 
   // ---- §2 walkers (prototype details): tiny 12×19 figures, singles/pairs/trios walking out along a short straight

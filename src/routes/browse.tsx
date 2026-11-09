@@ -8,6 +8,8 @@ import { feeFor } from '../lib/stripe';
 import { geocodePlace } from '../lib/geo';
 import { assignHood, loadHoods } from '../lib/hoods';
 
+const TICKER = ['MAKE MONEY', 'SAVE MONEY', 'SAVE SPACE', 'MEET NEIGHBORS', 'BUY LESS', 'WASTE LESS', 'TRY BEFORE YOU BUY', 'YOUR STUFF PAYS RENT', 'TRUST YOUR BLOCK', 'OWN LESS, DO MORE'];
+
 export const browse = new Hono<{ Bindings: Env; Variables: Vars }>();
 
 const LEAFLET_CSS = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
@@ -44,6 +46,7 @@ browse.get('/', async (c) => {
         </div>
       }
       head={mapbox ? <><link rel="stylesheet" href={MAPBOX_CSS} /><script src={MAPBOX_JS}></script></> : <><link rel="stylesheet" href={LEAFLET_CSS} /><script src={LEAFLET_JS}></script></>}>
+      <div class="ticker" aria-hidden="true"><div class="tk">{[0, 1].map(() => TICKER.map(t => <span>{t}<i>•</i></span>))}</div></div>
       <div class="mapwrap">
         <div id="map" role="application" aria-label="Map of things to rent"></div>
         <div class="mapctl">

@@ -108,7 +108,14 @@ html.mappage .hdr{flex-shrink:0;position:relative}
 .mapctl input::placeholder{color:#8A857B;font-weight:700}
 .mapctl .listtoggle{position:static;height:44px;border-radius:22px;border:2px solid var(--ink);padding:0 14px;font-size:17px;font-weight:800;gap:6px;background:#fff}
 .mapctl #locate{height:44px;width:44px;padding:0;border-radius:22px;border:2px solid #CFC9BC}
-.rent-out{position:absolute;right:10px;top:66px;z-index:500;display:inline-flex;align-items:center;height:48px;padding:0 16px;border-radius:10px;border:2px solid var(--ink);background:#FFFDF8;color:var(--ink);font-size:16px;font-weight:900;letter-spacing:.3px;text-decoration:none;box-shadow:4px 4px 0 var(--ink)}
+.rent-out{position:absolute;right:10px;top:66px;z-index:500;display:inline-flex;align-items:center;height:36px;padding:0 10px;border-radius:8px;border:2px solid var(--ink);background:#FFFDF8;color:var(--ink);font-size:13px;font-weight:900;letter-spacing:.2px;white-space:nowrap;text-decoration:none;box-shadow:4px 4px 0 var(--ink);animation:lfpress 2.4s ease-out .8s infinite}
+@keyframes lfpress{0%,68%,96%,100%{transform:translate(0,0) scale(1);box-shadow:4px 4px 0 var(--ink)}74%,82%{transform:translate(4px,4px) scale(.96);box-shadow:0 0 0 var(--ink)}88%{transform:translate(-2px,-2px) scale(1.04);box-shadow:6px 6px 0 var(--ink)}92%{transform:translate(1px,1px) scale(1);box-shadow:3px 3px 0 var(--ink)}}
+@media (prefers-reduced-motion:reduce){.rent-out{animation:none}.tk{animation:none}}
+/* ticker strip under the header */
+.ticker{flex-shrink:0;height:22px;overflow:hidden;background:var(--ink);color:var(--cream);display:flex;align-items:center;position:relative;z-index:900}
+.tk{display:flex;white-space:nowrap;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:10px;font-weight:700;letter-spacing:1.6px;animation:tick 48s linear infinite;will-change:transform}
+.tk span{display:inline-flex;align-items:center}.tk i{font-style:normal;color:var(--orange);padding:0 14px}
+@keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 .rent-out:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
 .listfab{display:none}
 .kpi{position:absolute;left:10px;bottom:16px;z-index:500;background:var(--ink);color:#fff;border:1.5px solid var(--ink);border-radius:12px;padding:8px 12px;box-shadow:2px 2px 0 rgba(30,58,43,.25)}
