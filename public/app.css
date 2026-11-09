@@ -234,3 +234,6 @@ button,.btn,.pm,.idea,.days button,.stars button{touch-action:manipulation}
 .promo.done{padding:0 14px;align-items:center;font-size:14px;font-weight:900;color:var(--ink);background:var(--mint,#DFF3E6)}
 .optin{position:absolute;inset:0;z-index:900;background:rgba(30,58,43,.45);display:flex;align-items:center;justify-content:center;padding:24px}
 .optin-box{width:100%;max-width:300px;padding:18px 16px 14px;border-radius:16px;background:#fff;border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);animation:rise .2s ease-out both}
+/* ghost "wanted" items (no promo): greyed emoji, nothing else */
+.ghost{display:block;font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;font-size:24px;line-height:1;text-decoration:none;filter:grayscale(1) opacity(.42);transform:rotate(var(--r,0deg));transition:filter .2s,transform .2s;cursor:pointer}
+.ghost:hover{filter:grayscale(.3) opacity(.9);transform:rotate(0) scale(1.15)}

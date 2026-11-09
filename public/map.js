@@ -215,21 +215,22 @@
 
   // ---- WANTED posters (prototype ghosts): deterministic per grid cell so they stay put while panning; never on a pin
   function startWanted() {
-    var marks = {}, CELL = 0.0045;
+    var marks = {}, PROMO = !!CFG.wantedPromo, CELL = PROMO ? 0.0045 : 0.0022, MOD = PROMO ? 5 : 2, MAX = PROMO ? 9 : 80;
     function h32(a, b) { var h = (a * 374761393 + b * 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return (h ^ (h >>> 16)) >>> 0; }
     function near(lng, lat, px) { var p = map.project([lng, lat]); for (var i = 0; i < items.length; i++) { var it = items[i]; if (it.lat == null) continue; var q = map.project([it.lng, it.lat]); if (Math.abs(q.x - p.x) < px && Math.abs(q.y - p.y) < px) return true; } return false; }
     function place() {
       var z = map.getZoom(), want = (PL && PL.wanted) || []; var keep = {};
-      if (z >= 13.2 && want.length) {
+      if (z >= (PROMO ? 13.2 : 12.8) && want.length) {
         var b = map.getBounds(), x0 = Math.floor(b.getWest() / CELL), x1 = Math.ceil(b.getEast() / CELL), y0 = Math.floor(b.getSouth() / CELL), y1 = Math.ceil(b.getNorth() / CELL), n = 0;
-        for (var x = x0; x <= x1 && n < 9; x++) for (var y = y0; y <= y1 && n < 9; y++) {
-          var h = h32(x, y); if (h % 5 !== 0) continue;
+        for (var x = x0; x <= x1 && n < MAX; x++) for (var y = y0; y <= y1 && n < MAX; y++) {
+          var h = h32(x, y); if (h % MOD !== 0) continue;
           var lng = (x + 0.2 + (h >>> 8 & 255) / 425) * CELL, lat = (y + 0.2 + (h >>> 16 & 255) / 425) * CELL;
-          if (near(lng, lat, 46)) continue;
+          if (near(lng, lat, PROMO ? 46 : 34)) continue;
           var k = x + ',' + y, w = want[h % want.length]; keep[k] = 1; n++;
           if (marks[k]) continue;
-          var el = document.createElement('a'); el.className = 'wanted'; el.href = '/list?want=' + encodeURIComponent(w.label); el.setAttribute('aria-label', 'Wanted: ' + w.label + '. Reward for listing.');
-          el.innerHTML = '<b>WANTED</b><i>' + w.emoji + '</i><em>' + w.label + '</em><strong>REWARD</strong><small>for listing</small>';
+          var el = document.createElement('a'); el.href = '/list?want=' + encodeURIComponent(w.label);
+          if (PROMO) { el.className = 'wanted'; el.setAttribute('aria-label', 'Wanted: ' + w.label + '. Reward for listing.'); el.innerHTML = '<b>WANTED</b><i>' + w.emoji + '</i><em>' + w.label + '</em><strong>REWARD</strong><small>for listing</small>'; }
+          else { el.className = 'ghost'; el.title = 'Wanted: ' + w.label; el.setAttribute('aria-label', 'Wanted: ' + w.label); el.textContent = w.emoji; el.style.setProperty('--r', ((h >>> 4) % 17 - 8) + 'deg'); el.style.fontSize = (20 + (h >>> 12) % 7) + 'px'; }
           marks[k] = new mapboxgl.Marker({ element: el, anchor: 'center', className: 'wanted-m', rotationAlignment: 'viewport' }).setLngLat([lng, lat]).addTo(map);
         }
       }
