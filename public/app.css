@@ -270,3 +270,7 @@ button,.btn,.pm,.idea,.days button,.stars button{touch-action:manipulation}
 @keyframes tpulse{0%{box-shadow:0 0 0 0 rgba(255,79,0,.55)}100%{box-shadow:0 0 0 10px rgba(255,79,0,0)}}
 .citytip{position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:700;background:var(--ink);color:#fff;font-size:13px;font-weight:700;padding:8px 12px;border-radius:12px;box-shadow:0 6px 18px rgba(30,58,43,.25);white-space:nowrap;animation:rise .25s ease-out both;pointer-events:none}
 .citytip::before{content:'';position:absolute;left:50%;top:-6px;margin-left:-6px;border:6px solid transparent;border-top:0;border-bottom-color:var(--ink)}
+.ticker{text-decoration:none;color:var(--cream);cursor:pointer}
+.ticker:hover .tk{animation-play-state:paused}
+.flywheel{margin:-16px -16px 14px;background:#fff;border-bottom:1.5px solid var(--ink);padding:6px 0 2px}
+.flywheel svg{display:block;width:100%;height:auto}

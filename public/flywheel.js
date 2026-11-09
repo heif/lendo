@@ -23,27 +23,27 @@
   ];
   var NS = 'http://www.w3.org/2000/svg';
   function el(n, a, txt) { var e = document.createElementNS(NS, n); for (var k in a) e.setAttribute(k, a[k]); if (txt != null) e.textContent = txt; return e; }
-  var svg = el('svg', { viewBox: '0 0 680 425', width: '100%', role: 'img', 'aria-label': 'Lendo flywheel: more items listed, more convenient, more rentals, more ratings and trust, more money saved and earned, more people try — around local connection, community, affordability.' });
+  var svg = el('svg', { viewBox: '-20 0 720 425', width: '100%', role: 'img', 'aria-label': 'Lendo flywheel: more items listed, more convenient, more rentals, more ratings and trust, more money saved and earned, more people try — around local connection, community, affordability.' });
   var defs = el('defs'); var mk = el('marker', { id: 'fw-arrow', viewBox: '0 0 10 10', refX: '8', refY: '5', markerWidth: '6', markerHeight: '6', orient: 'auto-start-reverse' });
   mk.appendChild(el('path', { d: 'M2 1L8 5L2 9', fill: 'none', stroke: INK, 'stroke-width': '1.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })); defs.appendChild(mk); svg.appendChild(defs);
   // hub
   var hub = el('g', { class: 'fw-hub' });
   hub.appendChild(el('circle', { cx: 340, cy: 215, r: 90, fill: OR, stroke: INK, 'stroke-width': 2 }));
-  ['More local', 'connection,', 'community,', 'affordability'].forEach(function (l, i) { hub.appendChild(el('text', { x: 340, y: 176 + 26 * i, 'text-anchor': 'middle', 'dominant-baseline': 'central', fill: '#fff', 'font-size': 21, 'font-weight': 900, 'letter-spacing': '-.4' }, l)); });
+  ['More local', 'connection,', 'community,', 'affordability'].forEach(function (l, i) { hub.appendChild(el('text', { x: 340, y: 176 + 26 * i, 'text-anchor': 'middle', 'dominant-baseline': 'central', fill: '#fff', 'font-size': 23, 'font-weight': 900, 'letter-spacing': '-.5' }, l)); });
   svg.appendChild(hub);
   var paths = ARR.map(function (a) { var p = el('path', { d: a[2], fill: 'none', stroke: INK, 'stroke-width': 2.2, 'stroke-linecap': 'round', 'marker-end': 'url(#fw-arrow)' }); svg.appendChild(p); return { from: a[0], to: a[1], el: p, len: 0 }; });
   var hi = {}, label = {};
   STEPS.forEach(function (s) {
     var g = el('g'); var r = el('rect', { x: s[1], y: s[2] - 12, width: 0, height: 24, rx: 6, fill: OR, opacity: 0 }); g.appendChild(r); hi[s[0]] = r;
-    var t = el('text', { x: s[1], y: s[2], 'text-anchor': 'middle', 'dominant-baseline': 'central', fill: INK, 'font-size': 15, 'font-weight': 800 }, s[3]); g.appendChild(t); label[s[0]] = t;
-    if (s[4]) g.appendChild(el('text', { x: s[1], y: s[2] + 19, 'text-anchor': 'middle', 'dominant-baseline': 'central', fill: '#6F6A60', 'font-size': 11.5, 'font-weight': 600 }, s[4]));
+    var t = el('text', { x: s[1], y: s[2], 'text-anchor': 'middle', 'dominant-baseline': 'central', fill: INK, 'font-size': 19, 'font-weight': 800 }, s[3]); g.appendChild(t); label[s[0]] = t;
+    if (s[4]) g.appendChild(el('text', { x: s[1], y: s[2] + 22, 'text-anchor': 'middle', 'dominant-baseline': 'central', fill: '#6F6A60', 'font-size': 13.5, 'font-weight': 600 }, s[4]));
     svg.appendChild(g);
   });
   var coinA = el('circle', { r: 6, fill: OR, stroke: INK, 'stroke-width': 1.5 }), coinB = el('circle', { r: 6, fill: OR, stroke: INK, 'stroke-width': 1.5, opacity: 0 });
   svg.appendChild(coinA); svg.appendChild(coinB);
   host.appendChild(svg);
   paths.forEach(function (p) { p.len = p.el.getTotalLength(); });
-  STEPS.forEach(function (s) { var w = label[s[0]].getBBox().width + 14; hi[s[0]].setAttribute('width', w); hi[s[0]].setAttribute('x', s[1] - w / 2); });
+  STEPS.forEach(function (s) { var w = label[s[0]].getBBox().width + 16; hi[s[0]].setAttribute('width', w); hi[s[0]].setAttribute('height', 28); hi[s[0]].setAttribute('y', s[2] - 14); hi[s[0]].setAttribute('x', s[1] - w / 2); });
   // beats: coin A rides the ring; at "rent" coin B splits off to trust → try and rejoins
   var BEAT = 1200, seqA = ['items', 'near', 'rent', 'money', 'try'], ringA = [0, 1, 2, 3, 4], sideB = [5, 6];
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
