@@ -6,6 +6,7 @@ import { requireUser } from '../lib/auth';
 import { firstPhotos, listingById, photosFor, busyDays } from '../lib/db';
 import { id, money, now, fuzz, weekDefault, dayStr, addDays, fmtDay } from '../lib/util';
 import { hoodFor, geocodeHood } from '../lib/geo';
+import { emojiFor } from '../lib/emoji';
 
 export const listings = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -76,8 +77,9 @@ listings.post('/list', async (c) => {
   }
   const lid = id('l');
   const [flat, flng] = !isNaN(lat) ? fuzz(lat, lng) : [null, null];
-  await c.env.DB.prepare('INSERT INTO listings (id, owner_id, name, description, price_cents, week_cents, status, hood, lat, lng, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
-    .bind(lid, u.id, name, String(f.description || '').trim().slice(0, 600) || null, price, week, 'live', hood, flat, flng, now()).run();
+  const desc = String(f.description || '').trim().slice(0, 600) || null;
+  await c.env.DB.prepare('INSERT INTO listings (id, owner_id, name, description, price_cents, week_cents, status, hood, lat, lng, emoji, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
+    .bind(lid, u.id, name, desc, price, week, 'live', hood, flat, flng, emojiFor(name, desc), now()).run();
   const photos = ([] as unknown[]).concat(f.photo || []).filter((p): p is File => p instanceof File);
   let pos = 0;
   for (const p of photos.slice(0, 6)) {
@@ -176,7 +178,10 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
     <Layout title="Edit listing" user={u} back="/listings">
       <form method="post" action={'/listings/' + it.id + '/edit'} style="padding:12px 16px 40px">
         <div class="thumbs" style="padding:0 0 8px">{photos.map(p => <img src={'/p/' + p.r2_key} alt="" />)}</div>
-        <label class="field"><span>Name</span><input name="name" value={it.name} required maxlength={80} /></label>
+        <div style="display:flex;gap:10px;align-items:flex-end">
+          <label class="field" style="flex:1"><span>Name</span><input name="name" value={it.name} required maxlength={80} /></label>
+          <label class="field" style="width:84px"><span>Map icon</span><input name="emoji" value={it.emoji || emojiFor(it.name, it.description)} maxlength={8} style="text-align:center;font-size:24px!important" /></label>
+        </div>
         <div style="display:flex;gap:10px">
           <label class="field" style="flex:1"><span>$ per day</span><input name="price" type="number" step="1" min={parseInt(c.env.MIN_PRICE_CENTS, 10) / 100} value={it.price_cents / 100} required /></label>
           <label class="field" style="flex:1"><span>$ per week</span><input name="week" type="number" step="1" min="0" value={(it.week_cents || 0) / 100} /></label>
@@ -206,8 +211,10 @@ listings.post('/listings/:id/edit', requireUser, async (c) => {
   const price = Math.max(minP, Math.round(parseFloat(String(f.price || '0')) * 100) || minP);
   const weekIn = parseFloat(String(f.week || ''));
   const week = !isNaN(weekIn) && weekIn > 0 ? Math.round(weekIn * 100) : weekDefault(price);
-  await c.env.DB.prepare('UPDATE listings SET name = ?, description = ?, price_cents = ?, week_cents = ? WHERE id = ?')
-    .bind(String(f.name || it.name).trim().slice(0, 80), String(f.description || '').trim().slice(0, 600) || null, price, week, it.id).run();
+  const nm = String(f.name || it.name).trim().slice(0, 80), ds = String(f.description || '').trim().slice(0, 600) || null;
+  const em = String(f.emoji || '').trim().slice(0, 8) || emojiFor(nm, ds);
+  await c.env.DB.prepare('UPDATE listings SET name = ?, description = ?, price_cents = ?, week_cents = ?, emoji = ? WHERE id = ?')
+    .bind(nm, ds, price, week, em, it.id).run();
   const today = dayStr(new Date());
   await c.env.DB.prepare('DELETE FROM blocked_days WHERE listing_id = ? AND day >= ?').bind(it.id, today).run();
   const blocks = ([] as unknown[]).concat(f.block || []).map(String).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d));

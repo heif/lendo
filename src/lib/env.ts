@@ -22,7 +22,7 @@ export type User = {
 
 export type Listing = {
   id: string; owner_id: string; name: string; description: string | null; price_cents: number; week_cents: number | null;
-  deposit_cents: number; status: 'live' | 'paused' | 'removed'; hood: string | null; lat: number | null; lng: number | null; created_at: number;
+  deposit_cents: number; status: 'live' | 'paused' | 'removed'; hood: string | null; lat: number | null; lng: number | null; emoji: string | null; created_at: number;
 };
 
 export type Rental = {
