@@ -10,7 +10,7 @@ import { feeFor } from '../lib/stripe';
 import { geocodePlace } from '../lib/geo';
 import { assignHood, loadHoods } from '../lib/hoods';
 
-const TICKER = ['MAKE MONEY', 'SAVE MONEY', 'SAVE SPACE', 'MEET NEIGHBORS', 'BUY LESS', 'WASTE LESS', 'TRY BEFORE YOU BUY'];
+const TICKER = ['MAKE MONEY', 'SAVE MONEY', 'SAVE SPACE', 'MEET NEIGHBORS', 'BUY LESS', 'WASTE LESS'];
 
 export const browse = new Hono<{ Bindings: Env; Variables: Vars }>();
 
