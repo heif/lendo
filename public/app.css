@@ -306,3 +306,8 @@ button,.btn,.pm,.idea,.days button,.stars button{touch-action:manipulation}
 .owner-rev{margin:10px 0 0;font-size:13px;font-style:italic;color:var(--ink2,#4A463F)}
 /* floating $5 bar sits above a sticky action bar when the page has one */
 body:has(.rentbar) .promo.pu{bottom:96px}
+.owner-tight{margin-top:10px;padding:8px 10px;border:1.5px solid var(--line2,#E6E2DA);border-radius:12px;background:#fff}
+.owner-tight .owner-av{width:32px;height:32px;border-radius:16px;font-size:14px}
+.owner-tight .owner-txt b{font-size:14px}.owner-tight .owner-txt small{font-size:12px}
+.meet{margin-top:10px}
+.quick{margin-top:12px!important}

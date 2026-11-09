@@ -127,13 +127,17 @@ browse.get('/i/:id', async (c) => {
         </div>
       </div>
       {photos.length > 1 ? <div class="thumbs">{photos.map(p => <img src={cutoutUrl(c.env, p.r2_key, 160, 160)} alt="" data-full={cutoutUrl(c.env, p.r2_key)} onclick={`document.getElementById('heroImg').src=this.dataset.full`} />)}</div> : null}
-      <section class="sec">
+      <section class="sec" style="padding:12px 16px 14px">
         <div class="row" style="justify-content:space-between;align-items:flex-start">
-          <h2 style="margin:0;font-size:19px;font-weight:800;line-height:1.3">{it.name}</h2>
+          <h2 style="margin:0;font-size:20px;font-weight:800;line-height:1.25">{it.name}</h2>
           {it.status === 'paused' ? <span class="pill">paused</span> : null}
         </div>
-        {it.description ? <p style="margin:8px 0 0;font-size:14px;color:var(--ink2);white-space:pre-wrap">{it.description}</p> : null}
-        <div class="hint" style="margin-top:8px">{it.hood || 'near you'}{owner.cross_streets ? ' · ' + owner.cross_streets : ''}{owner.pickup_spots ? ' · meet: ' + JSON.parse(owner.pickup_spots).join(', ') : ''}</div>
+        {it.description ? <p style="margin:4px 0 0;font-size:14px;line-height:1.4;color:var(--ink2);white-space:pre-wrap">{it.description}</p> : null}
+        <a href={'/u/' + owner.id} class="owner-row owner-tight">
+          <span class="owner-av">{(owner.name || 'N').charAt(0)}</span>
+          <span class="owner-txt"><b>{owner.name || 'Neighbor'}</b><small>{rep.as_owner_avg ? `★${rep.as_owner_avg.toFixed(1)} · ${rep.as_owner_n} ratings` : 'new'} · {rep.listed} listed{owner.hood ? ' · ' + owner.hood : ''}</small></span>
+          <svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2L8 8L2 14" fill="none" stroke="#1E3A2B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
+        </a>
         {(() => { const first = (owner.name || 'Neighbor').split(' ')[0]; const spots: string[] = owner.pickup_spots ? JSON.parse(owner.pickup_spots) : []; const spot = spots[0] || `${first}’s block`; const line = [owner.cross_streets, it.hood].filter(Boolean).join(' · ') || 'near you'; return (
           <div class="meet" id="meet">
             <div class="meet-top"><span class="meet-lbl">{first.toUpperCase()}’S MEETUP SPOT</span><span class="meet-note"><svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="#8A857B" stroke-width="2" /><path d="M12 10.5V17" stroke="#8A857B" stroke-width="2.4" stroke-linecap="round" /><circle cx="12" cy="7.2" r="1.4" fill="#8A857B" /></svg><span>You and {first}<br />confirm plans by text</span></span></div>
@@ -164,18 +168,6 @@ browse.get('/i/:id', async (c) => {
             <input type="hidden" name="start" id="start" /><input type="hidden" name="end" id="end" /><input type="hidden" name="from" id="meetFromVal" />
           </form>
         ) : null}
-      </section>
-      <section class="sec owner-sec">
-        <a href={'/u/' + owner.id} class="owner-row">
-          <span class="owner-av">{(owner.name || 'N').charAt(0)}</span>
-          <span class="owner-txt">
-            <b>{owner.name || 'Neighbor'}</b>{owner.hood ? <span class="tag" style="margin-left:8px">★ {owner.hood}</span> : null}
-            <small>{rep.listed} listed · {rep.as_owner_avg ? `★${rep.as_owner_avg.toFixed(1)} · ${rep.as_owner_n} ratings` : 'new'} · since {new Date(owner.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</small>
-          </span>
-          <svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2L8 8L2 14" fill="none" stroke="#1E3A2B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
-        </a>
-        {review ? <p class="owner-rev">“{review.rv}” — {firstName(review.nm)}</p> : null}
-        <div class="hint" style="margin-top:10px;font-size:12px">Card held until {firstName(owner.name)} says yes · {feePct}% fee</div>
       </section>
       <div style="height:84px"></div>
       {it.demo ? <div class="flash" id="demoNote" hidden style="margin:0 16px 90px">This one’s a demo — Iowa City is a preview of what a Lendo neighborhood looks like full. Nothing gets charged. <a href="/list">List your real stuff →</a></div> : null}
