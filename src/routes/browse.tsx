@@ -60,7 +60,7 @@ browse.get('/', async (c) => {
         <div class="kpi" id="kpi" hidden><b id="kpiN">{k.global}</b><span id="kpiL">things to rent</span></div>
         {!u && !getCookie(c, 'lendo_p') ? <form class="promo pu" id="promo" autocomplete="on" aria-label="Get $5 off">
           <label for="promoPhone" class="sr">Phone number</label>
-          <input id="promoPhone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Phone #" maxlength="14" />
+          <input id="promoPhone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Phone #" maxlength={14} />
           <button type="submit" id="promoBtn" disabled>$5 OFF</button>
         </form> : null}
         <div class="optin" id="optin" hidden role="dialog" aria-label="Text message opt-in">
