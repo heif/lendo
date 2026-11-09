@@ -16,7 +16,7 @@ const app = new Hono<{ Bindings: Env; Variables: Vars }>();
 app.use('*', async (c, next) => {
   const host = new URL(c.req.url).host;
   const canon = new URL(c.env.APP_URL).host;
-  if (host !== canon && (host === 'www.' + canon || host.endsWith('.workers.dev')) && !/^\/(webhooks|api|p|dev)\//.test(c.req.path)) {
+  if (c.req.method === 'GET' && host !== canon && (host === 'www.' + canon || host.endsWith('.workers.dev')) && !/^\/(webhooks|api|p|dev)\//.test(c.req.path)) {
     return c.redirect(c.env.APP_URL + c.req.path + (c.req.url.includes('?') ? '?' + c.req.url.split('?')[1] : ''), 301);
   }
   await next();
