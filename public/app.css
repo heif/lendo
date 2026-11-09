@@ -239,10 +239,17 @@ button,.btn,.pm,.idea,.days button,.stars button{touch-action:manipulation}
 /* ghost "wanted" items (no promo): greyed emoji, nothing else */
 .ghost{display:block;font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;font-size:30px;line-height:1;text-decoration:none;filter:grayscale(1) contrast(1.15) brightness(.78) opacity(.62);transform:rotate(var(--r,0deg));transition:filter .2s,transform .2s;cursor:pointer}
 .ghost:hover{filter:grayscale(.3) opacity(.9);transform:rotate(0) scale(1.15)}
-/* wanted-item sheet */
-.wsheet{position:absolute;left:10px;right:10px;margin:0 auto;max-width:360px;bottom:84px;z-index:640;background:#fff;border:2px solid var(--ink);border-radius:18px;padding:18px 14px 14px;text-align:center;box-shadow:0 8px 24px rgba(35,33,29,.18);animation:rise .2s ease-out both}
-.wsheet-em{font-size:56px;line-height:1;filter:grayscale(1) opacity(.55);font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif}
-.wsheet-t{font-size:17px;font-weight:700;margin:10px 0 14px}
+/* wanted-item poster (tapped ghost) */
+.wsheet{position:absolute;left:50%;bottom:90px;width:230px;margin-left:-115px;z-index:640;background:#F6EBC8;border:2px solid var(--ink);box-shadow:4px 5px 0 rgba(30,58,43,.45);padding:16px 14px 14px;text-align:center;transform:rotate(-3deg);animation:rise .2s ease-out both;background-image:radial-gradient(rgba(30,58,43,.06) 1px,transparent 1px);background-size:6px 6px}
+.wsheet::before,.wsheet::after{content:'';position:absolute;top:-8px;width:36px;height:14px;background:rgba(255,255,255,.55);border:1px solid rgba(30,58,43,.25);transform:rotate(-6deg)}
+.wsheet::before{left:14px}.wsheet::after{right:14px;transform:rotate(5deg)}
+.wsheet .pcard-x{right:-14px;top:-14px}
+.wsheet-head{font-family:Rockwell,'Roboto Slab',Georgia,serif;font-size:26px;letter-spacing:4px;line-height:1;border-bottom:2px solid var(--ink);padding-bottom:6px;margin:0 6px}
+.wsheet-em{font-size:84px;line-height:1.1;margin:10px 0 4px;filter:sepia(.6) saturate(.7);font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif}
+.wsheet-name{font-family:Rockwell,'Roboto Slab',Georgia,serif;font-size:18px;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+.wsheet-sub{font-size:11.5px;font-weight:600;color:#6F6A60;margin:4px 0 12px}
+.wsheet-go{display:block;background:#B42318;color:#fff;font-size:14px;font-weight:900;letter-spacing:.3px;padding:10px;border:2px solid var(--ink);text-decoration:none;box-shadow:2px 2px 0 var(--ink)}
+.wsheet-go:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)}
 .promo.incard{position:static;margin:10px 0 0;width:100%;max-width:none;height:48px;box-shadow:none;border-bottom-width:3px;animation:none;display:flex}
 .promo.incard input{flex:1;width:auto;font-size:15px}
 .pcard.on .promo.incard{display:flex}
