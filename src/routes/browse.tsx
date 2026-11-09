@@ -3,7 +3,6 @@ import { raw } from 'hono/html';
 import type { Env, Listing, Vars } from '../lib/env';
 import { Layout } from '../pages/layout';
 import { cutoutUrl } from '../lib/cutout';
-import { getCookie } from 'hono/cookie';
 import { counts, firstPhotos, listingById, photosFor, reputation, userById, busyDays } from '../lib/db';
 import { money, fmtDay, dayStr, addDays, firstName, fuzz } from '../lib/util';
 import { feeFor } from '../lib/stripe';
@@ -58,19 +57,6 @@ browse.get('/', async (c) => {
         </div>
         <a class="rent-out" href="/list">RENT OUT YOUR STUFF</a>
         <div class="kpi" id="kpi" hidden><b id="kpiN">{k.global}</b><span id="kpiL">things to rent</span></div>
-        {!u && !getCookie(c, 'lendo_p') ? <form class="promo pu" id="promo" data-promo autocomplete="on" aria-label="Get $5 off">
-          <label class="sr">Phone number</label>
-          <input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Phone #" maxlength={14} />
-          <button type="submit" disabled>$5 OFF</button>
-        </form> : null}
-        <div class="optin" id="optin" hidden role="dialog" aria-label="Text message opt-in">
-          <div class="optin-box">
-            <div style="font-size:17px;font-weight:900">Get texts from Lendo?</div>
-            <div style="font-size:13px;line-height:1.4;margin-top:6px">To <b id="optPhone"></b>: your $5 off, rentals, saved items and nearby alerts.</div>
-            <div style="font-size:11px;line-height:1.4;color:#6F6A60;margin-top:8px">Msg frequency varies. Msg &amp; data rates may apply. Reply STOP to cancel, HELP for help.</div>
-            <div style="display:flex;gap:8px;margin-top:14px"><button type="button" class="btn" id="optNo" style="flex:1">Cancel</button><button type="button" class="btn pri" id="optYes" style="flex:1.4">Agree</button></div>
-          </div>
-        </div>
         <div class="wsheet" id="wsheet" role="dialog" aria-label="Wanted item" hidden>
           <button class="pcard-x" id="wsClose" aria-label="Close"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" stroke-width="2.2" stroke-linecap="round" /></svg></button>
           <div class="wsheet-em" id="wsEm"></div>
@@ -94,7 +80,7 @@ browse.get('/', async (c) => {
             </span>
             <svg class="pcard-chev" width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2L8 8L2 14" fill="none" stroke="#1E3A2B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
           </a>
-          {!u && !getCookie(c, 'lendo_p') ? <form class="promo incard" data-promo autocomplete="on" aria-label="Get $5 off this rental">
+          {!u ? <form class="promo incard" data-promo autocomplete="on" aria-label="Get $5 off this rental" hidden>
             <label class="sr">Phone number</label>
             <input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Phone # for $5 off this" maxlength={14} />
             <button type="submit" disabled>$5 OFF</button>

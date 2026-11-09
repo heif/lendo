@@ -10,6 +10,7 @@ export type LayoutProps = {
   head?: Child;               // extra <head> content
   wide?: boolean;
   top?: Child;             // rendered above the header (e.g. the map page ticker)
+  promo?: boolean;         // show the $5-off phone bar (Layout decides: logged out + no lendo_p cookie); pass false to hide
   htmlClass?: string;      // e.g. 'mappage' locks the page to the viewport
   headerCenter?: Child;    // replaces the title (map page: hood/city pills)
   flash?: string | null;
@@ -77,6 +78,22 @@ export const Layout: FC<LayoutProps> = (p) => {
           {p.flash ? <div class="flash">{p.flash}</div> : null}
           {p.flashErr ? <div class="flash err">{p.flashErr}</div> : null}
           {p.children}
+          {!p.user && p.promo !== false ? <>
+            <form class="promo pu" id="promo" data-promo autocomplete="on" aria-label="Get $5 off" hidden>
+              <label class="sr">Phone number</label>
+              <input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Phone #" maxlength={14} />
+              <button type="submit" disabled>$5 OFF</button>
+            </form>
+            <div class="optin" id="optin" hidden role="dialog" aria-label="Text message opt-in">
+              <div class="optin-box">
+                <div style="font-size:17px;font-weight:900">Get texts from Lendo?</div>
+                <div style="font-size:13px;line-height:1.4;margin-top:6px">To <b id="optPhone"></b>: your $5 off, rentals, saved items and nearby alerts.</div>
+                <div style="font-size:11px;line-height:1.4;color:#6F6A60;margin-top:8px">Msg frequency varies. Msg &amp; data rates may apply. Reply STOP to cancel, HELP for help.</div>
+                <div style="display:flex;gap:8px;margin-top:14px"><button type="button" class="btn" id="optNo" style="flex:1">Cancel</button><button type="button" class="btn pri" id="optYes" style="flex:1.4">Agree</button></div>
+              </div>
+            </div>
+            <script src="/promo.js" defer></script>
+          </> : null}
         </div>
         {raw(`<script>
 document.addEventListener('click',function(e){document.querySelectorAll('details.acct[open]').forEach(function(d){if(!d.contains(e.target))d.removeAttribute('open')})});
