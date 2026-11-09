@@ -186,3 +186,4 @@ html.mappage .hdr{flex-shrink:0;position:relative}
 .stars{display:flex;gap:6px}
 .stars button{width:40px;height:40px;border-radius:10px;border:1.5px solid var(--ink);background:#fff;font-size:18px}
 .stars button.on{background:var(--orange);color:#fff}
+@media (max-width:420px){.scope-globe{display:none}.hdr .logo{font-size:30px}.scope button b{max-width:96px}.scope-hood{min-width:100px}}
