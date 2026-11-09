@@ -14,6 +14,8 @@ api.get('/api/listings', async (c) => {
   const bbox = (c.req.query('bbox') || '').split(',').map(parseFloat);
   const q = (c.req.query('q') || '').trim().slice(0, 60);
   const hood = (c.req.query('hood') || '').trim().slice(0, 60);
+  const near = (c.req.query('near') || '').split(',').map(parseFloat);
+  const byDist = near.length === 2 && near.every(n => !isNaN(n));
   const limit = Math.min(300, parseInt(c.req.query('limit') || '200', 10) || 200);
   const where = [`l.status = 'live'`];
   const args: (string | number)[] = [];
@@ -24,7 +26,7 @@ api.get('/api/listings', async (c) => {
       u.name owner_name, u.cross_streets owner_xs,
       (SELECT ROUND(AVG(renter_rating),1) FROM rentals r WHERE r.owner_id = l.owner_id AND renter_rating IS NOT NULL) owner_rating,
       (SELECT COUNT(*) FROM rentals r WHERE r.listing_id = l.id AND r.status IN ('confirmed','picked_up','returned','closed')) rentals
-    FROM listings l JOIN users u ON u.id = l.owner_id WHERE ${where.join(' AND ')} ORDER BY l.created_at DESC LIMIT ?`).bind(...args, limit).all<Listing & { owner_name: string | null; owner_xs: string | null; owner_rating: number | null; rentals: number }>();
+    FROM listings l JOIN users u ON u.id = l.owner_id WHERE ${where.join(' AND ')} ${byDist ? 'AND l.lat IS NOT NULL' : ''} ORDER BY ${byDist ? '((l.lat - ?) * (l.lat - ?) + (l.lng - ?) * (l.lng - ?) * 0.57)' : 'l.created_at DESC'} LIMIT ?`).bind(...args, ...(byDist ? [near[1], near[1], near[0], near[0]] : []), limit).all<Listing & { owner_name: string | null; owner_xs: string | null; owner_rating: number | null; rentals: number }>();
   const ph = await firstPhotos(c.env.DB, rows.results.map(r => r.id));
   const g = await c.env.DB.prepare(`SELECT COUNT(*) n FROM listings WHERE status = 'live'`).first<{ n: number }>();
   return c.json({

@@ -152,7 +152,13 @@
   function load() {
     var b = map.getBounds(), qq = q.value.trim();
     fetch('/api/listings?bbox=' + [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(',') + (qq ? '&q=' + encodeURIComponent(qq) : ''))
-      .then(function (r) { return r.json(); }).then(function (j) { items = j.listings; refreshSource(); renderGrid(items); setKpi(j); loadVisibleIcons(); if (window.__placeWanted) window.__placeWanted(); });
+      .then(function (r) { return r.json(); }).then(function (j) { items = j.listings; refreshSource(); renderGrid(items); setKpi(j); loadVisibleIcons(); if (window.__placeWanted) window.__placeWanted(); if (!items.length && !centered && !qq) goNearest(); centered = true; });
+  }
+  // empty first view → center on the closest live item so the map never opens blank
+  var centered = false;
+  function goNearest() {
+    var c = map.getCenter();
+    fetch('/api/listings?near=' + c.lng + ',' + c.lat + '&limit=1').then(function (r) { return r.json(); }).then(function (j) { var it = j.listings && j.listings[0]; if (it && it.lat != null) map.easeTo({ center: [it.lng, it.lat], zoom: Math.max(map.getZoom(), 14.5), duration: 900 }); }).catch(function () {});
   }
   map.on('zoomend', refreshSource);
   var moveT; map.on('moveend', function () { clearTimeout(moveT); moveT = setTimeout(function () { load(); updateHood(); }, 300); });
