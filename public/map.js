@@ -18,7 +18,7 @@
         '<div class="b"><div class="pr">' + fmt(it.price_cents) + '<span style="font-size:11px;font-weight:700">/day</span></div><div class="nm">' + esc(it.name) + '</div></div></a>';
     }).join('') || '<div style="padding:24px;grid-column:1/-1" class="hint">Nothing here yet. Be the first — list something.</div>';
   }
-  function setKpi(j) { $('scCityC').textContent = j.counts.global.toLocaleString(); }
+  function setKpi(j) { if (!PL) $('scCityC').textContent = j.counts.view.toLocaleString(); } // city count comes from /api/places once loaded
   var hoodT, lastHood = '';
   function updateHood() {
     var cc = map.getCenter();
@@ -201,7 +201,7 @@
   $('scHood').addEventListener('click', openPlaces); $('plClose').addEventListener('click', closePlaces);
   $('scCity').addEventListener('click', function () { var ct = curCity || (PL && PL.cities[0]); if (ct) map.easeTo({ center: [ct.lng, ct.lat], zoom: ct.zoom }); else map.easeTo({ center: [-73.95, 40.73], zoom: 10.6 }); });
   loadPlaces(function () { updateCityPill(); }); map.on('moveend', updateCityPill);
-  function updateCityPill() { if (!PL) return; var c = map.getCenter(), ct = cityOf(c.lng, c.lat); if (ct && ct !== curCity) { curCity = ct; $('scCity').querySelector('b').textContent = ct.name; $('scCityC').textContent = ct.n.toLocaleString(); } }
+  function updateCityPill() { if (!PL) return; var c = map.getCenter(), ct = cityOf(c.lng, c.lat); if (ct) { curCity = ct; $('scCity').querySelector('b').textContent = ct.name; $('scCityC').textContent = ct.n.toLocaleString(); } }
   startWanted();
   $('wsClose').addEventListener('click', function () { $('wsheet').hidden = true; }); map.on('click', function () { $('wsheet').hidden = true; });
 
