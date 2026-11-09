@@ -11,6 +11,7 @@ export type Env = {
   MAPBOX_PUBLIC_TOKEN?: string;  // pk., URL-restricted (secret in prod, .dev.vars locally); unset → Leaflet fallback
   MAPBOX_STYLE_URL: string;      // mapbox://styles/... (light-v11 until a Studio style exists)
   MEETUP_SPOTS: string;          // "true" enables /api/meetup
+  ADMIN_PHONES: string;          // comma-separated E.164 numbers allowed into /admin
   SESSION_SECRET: string;
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
@@ -23,6 +24,7 @@ export type User = {
   id: string; phone: string; name: string | null; hood: string | null; cross_streets: string | null;
   lat: number | null; lng: number | null; pickup_spots: string | null; stripe_account_id: string | null;
   stripe_customer_id: string | null; nudges: number; texts: number; replied: number; address: string | null; mapbox_id: string | null; geocoded_at: number | null; hood_id: string | null; created_at: number;
+  admin?: boolean; // set by loadUser from ADMIN_PHONES
 };
 
 export type Listing = {

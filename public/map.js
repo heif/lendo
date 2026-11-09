@@ -187,23 +187,30 @@
         '<path d="M3.4 3.4Q3.8 0.9 6 1Q8.2 0.9 8.6 3.4Q7.4 2.3 6 2.4Q4.6 2.3 3.4 3.4Z" fill="' + pick(HAIR) + '"/>' +
         '<circle cx="7.3" cy="4" r="0.45" fill="#1E3A2B"/></g></g>';
     }
+    function nearPin(lng, lat, px) {
+      var p = map.project([lng, lat]);
+      for (var i = 0; i < items.length; i++) { var it = items[i]; if (it.lat == null) continue; var q = map.project([it.lng, it.lat]); if (Math.abs(q.x - p.x) < px && q.y - p.y > -20 && q.y - p.y < px + 30) return true; }
+      return false;
+    }
     var walkers = [], moving = false, hidden = document.hidden;
     map.on('movestart', function () { moving = true; }); map.on('moveend', function () { moving = false; });
     document.addEventListener('visibilitychange', function () { hidden = document.hidden; });
     function spawn() {
-      var pts = items.filter(function (i) { return i.lat != null; }); if (!pts.length) return;
-      var base = pts[Math.floor(Math.random() * pts.length)];
-      var n = Math.random() < 0.55 ? 1 : Math.random() < 0.75 ? 2 : 3, w = 12 + (n - 1) * 9;
-      var el = document.createElement('div'); el.className = 'walker'; el.style.width = w + 'px';
+      // anywhere in the visible map (not tied to items), away from pins
+      var b = map.getBounds(), w = b.getEast() - b.getWest(), h = b.getNorth() - b.getSouth();
+      var base = { lng: b.getWest() + w * (0.05 + Math.random() * 0.9), lat: b.getSouth() + h * (0.05 + Math.random() * 0.9) };
+      if (nearPin(base.lng, base.lat, 90)) return;
+      var n = Math.random() < 0.55 ? 1 : Math.random() < 0.75 ? 2 : 3, wpx = 12 + (n - 1) * 9;
+      var el = document.createElement('div'); el.className = 'walker'; el.style.width = wpx + 'px';
       var inner = '';
       for (var k = 0; k < n; k++) inner += person(k * 9, 0.7 + Math.random() * 0.2, -Math.random());
-      el.innerHTML = '<div class="wf"><svg width="' + w + '" height="19" viewBox="0 0 ' + w + ' 19" style="overflow:visible">' + inner + '</svg></div>';
-      // straight path near the listing, mostly along the street grid (Manhattan ≈ 29° off north)
+      el.innerHTML = '<div class="wf"><svg width="' + wpx + '" height="19" viewBox="0 0 ' + wpx + ' 19" style="overflow:visible">' + inner + '</svg></div>';
+      // straight path, mostly along the street grid (Manhattan ≈ 29° off north)
       var ang = (Math.random() < 0.5 ? 29 : 119) * Math.PI / 180 + (Math.random() - 0.5) * 0.2, len = 0.0008 + Math.random() * 0.0012;
-      var ox = (Math.random() - 0.5) * 0.001, oy = (Math.random() - 0.5) * 0.0008;
-      var a = [base.lng + ox, base.lat + oy], b = [a[0] + Math.sin(ang) * len, a[1] + Math.cos(ang) * len * 0.76];
-      var wlk = { el: el, face: el.firstChild, a: a, b: b, t: Math.random(), dir: 1, speed: 0.000045 + Math.random() * 0.00002, m: new mapboxgl.Marker({ element: el, anchor: 'bottom' }).setLngLat(a).addTo(map), born: Date.now(), life: 40000 + Math.random() * 50000 };
-      wlk.face.style.transform = 'scaleX(' + (b[0] >= a[0] ? 1 : -1) + ')';
+      var a = [base.lng, base.lat], bb = [a[0] + Math.sin(ang) * len, a[1] + Math.cos(ang) * len * 0.76];
+      var b2 = bb; a = a; var bnd = b2;
+      var wlk = { el: el, face: el.firstChild, a: a, b: bnd, t: Math.random(), dir: 1, speed: 0.000045 + Math.random() * 0.00002, m: new mapboxgl.Marker({ element: el, anchor: 'bottom' }).setLngLat(a).addTo(map), born: Date.now(), life: 40000 + Math.random() * 50000 };
+      wlk.face.style.transform = 'scaleX(' + (bnd[0] >= a[0] ? 1 : -1) + ')';
       walkers.push(wlk);
     }
     var last = performance.now();
@@ -217,12 +224,14 @@
           w.t += w.dir * (w.speed * dt / 1000) / L;
           if (w.t >= 1) { w.t = 1; w.dir = -1; w.face.style.transform = 'scaleX(' + (w.b[0] >= w.a[0] ? -1 : 1) + ')'; }
           if (w.t <= 0) { w.t = 0; w.dir = 1; w.face.style.transform = 'scaleX(' + (w.b[0] >= w.a[0] ? 1 : -1) + ')'; }
-          w.m.setLngLat([w.a[0] + (w.b[0] - w.a[0]) * w.t, w.a[1] + (w.b[1] - w.a[1]) * w.t]);
+          var cur = [w.a[0] + (w.b[0] - w.a[0]) * w.t, w.a[1] + (w.b[1] - w.a[1]) * w.t];
+          w.m.setLngLat(cur);
+          w.el.style.opacity = nearPin(cur[0], cur[1], 56) ? '0' : '';
           if (Date.now() - w.born > w.life) w.done = true;
         });
         walkers = walkers.filter(function (w) { if (w.done) w.m.remove(); return !w.done; });
-        var want = Math.min(MAX_WALKERS, Math.max(0, Math.round(items.length * 0.6) + 2));
-        if (walkers.length < want && Math.random() < 0.06) spawn();
+        var want = Math.min(MAX_WALKERS, 6 + Math.round(items.length * 0.5));
+        if (walkers.length < want && Math.random() < 0.1) spawn();
       }
       requestAnimationFrame(tick);
     }

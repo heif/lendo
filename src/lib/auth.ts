@@ -14,7 +14,7 @@ export const loadUser: MiddlewareHandler<{ Bindings: Env; Variables: Vars }> = a
   if (sid) {
     const row = await c.env.DB.prepare('SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ? AND s.expires_at > ?')
       .bind(sid, now()).first<User>();
-    if (row) c.set('user', row);
+    if (row) { row.admin = (c.env.ADMIN_PHONES || '').split(',').map(s => s.trim()).includes(row.phone); c.set('user', row); }
   }
   await next();
 };

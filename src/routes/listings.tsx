@@ -108,7 +108,8 @@ listings.post('/api/list', async (c) => {
     const price = Math.round(parseFloat(String(f[`price_${i}`] || '0')) * 100); if (isNaN(price) || price < minP) continue;
     const photo = f[`photo_${i}`];
     const photos = photo instanceof File ? [{ bytes: await photo.arrayBuffer(), type: photo.type }] : [];
-    const lid = await createListing(c.env, c.executionCtx, u, { name, priceCents: price, description: String(f[`note_${i}`] || ''), lat: isNaN(lat) ? null : lat, lng: isNaN(lng) ? null : lng, photos });
+    const wk = Math.round(parseFloat(String(f[`week_${i}`] || '0')) * 100);
+    const lid = await createListing(c.env, c.executionCtx, u, { name, priceCents: price, weekCents: wk > 0 ? wk : null, description: String(f[`note_${i}`] || ''), lat: isNaN(lat) ? null : lat, lng: isNaN(lng) ? null : lng, photos });
     out.push({ id: lid, name });
   }
   return c.json({ listed: out, count: out.length });
