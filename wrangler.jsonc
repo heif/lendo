@@ -11,7 +11,7 @@
   "r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "lendo-photos" }],
   "triggers": { "crons": ["*/15 * * * *"] },
   "vars": {
-    "APP_URL": "https://lendo.heif.workers.dev",
+    "APP_URL": "https://lendo.co",
     "FEE_PCT": "15",
     "MIN_PRICE_CENTS": "800",
     "BLOOIO_API_BASE": "https://api.blooio.com/v2/api",

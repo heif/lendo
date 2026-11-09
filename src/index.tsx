@@ -13,6 +13,11 @@ import { Layout } from './pages/layout';
 const app = new Hono<{ Bindings: Env; Variables: Vars }>();
 
 app.use('*', async (c, next) => {
+  const host = new URL(c.req.url).host;
+  const canon = new URL(c.env.APP_URL).host;
+  if (host !== canon && (host === 'www.' + canon || host.endsWith('.workers.dev')) && !c.req.path.startsWith('/webhooks/')) {
+    return c.redirect(c.env.APP_URL + c.req.path + (c.req.url.includes('?') ? '?' + c.req.url.split('?')[1] : ''), 301);
+  }
   await next();
   c.header('x-frame-options', 'DENY');
   c.header('referrer-policy', 'strict-origin-when-cross-origin');
