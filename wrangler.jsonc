@@ -9,6 +9,7 @@
     { "binding": "DB", "database_name": "lendo", "database_id": "2cdee7e8-c29d-49ad-94e9-92caf327bc34", "migrations_dir": "migrations" }
   ],
   "r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "lendo-photos" }],
+  "ai": { "binding": "AI" },
   "triggers": { "crons": ["*/15 * * * *"] },
   "vars": {
     "APP_URL": "https://lendo.co",

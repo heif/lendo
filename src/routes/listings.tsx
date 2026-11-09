@@ -7,6 +7,7 @@ import { firstPhotos, listingById, photosFor, busyDays } from '../lib/db';
 import { id, money, now, fuzz, weekDefault, dayStr, addDays, fmtDay } from '../lib/util';
 import { hoodFor, geocodeHood } from '../lib/geo';
 import { emojiFor } from '../lib/emoji';
+import { buildAvatars } from '../lib/avatar';
 
 export const listings = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -220,4 +221,49 @@ listings.post('/listings/:id/edit', requireUser, async (c) => {
   const blocks = ([] as unknown[]).concat(f.block || []).map(String).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d));
   for (const d of blocks) await c.env.DB.prepare('INSERT OR IGNORE INTO blocked_days (listing_id, day) VALUES (?,?)').bind(it.id, d).run();
   return c.redirect('/listings');
+});
+
+// ---------- Avatar lab (owner only): build both styles from the first photo and compare ----------
+listings.get('/dev/avatar/:id', requireUser, async (c) => {
+  const u = c.get('user')!;
+  const it = await listingById(c.env.DB, c.req.param('id'));
+  if (!it || it.owner_id !== u.id) return c.notFound();
+  const photos = await photosFor(c.env.DB, it.id);
+  if (!photos[0]) return c.text('no photo', 400);
+  const t0 = Date.now();
+  const errors: string[] = [];
+  const keys = c.req.query('build') === '0' ? {} : await buildAvatars(c.env, it.id, photos[0].r2_key, (c.req.query('only') ? [c.req.query('only') as 'ai'] : ['cutout', 'ai']), errors, c.req.query('model') || undefined, it.name);
+  const ms = Date.now() - t0;
+  const have = { cutout: keys.cutout || `${it.id}/avatar-cutout.png`, ai: keys.ai || `${it.id}/avatar-ai.png` };
+  const pin = (src: string, label: string, style: string) => (
+    <div style="text-align:center">
+      <div style="height:170px;background:#EAE6DC;border-radius:14px;position:relative;overflow:hidden"><div class="epin" style={'position:absolute;left:50%;top:120px'}><span class="glow"></span>{src ? <img src={'/p/' + src + '?v=' + t0} alt="" class="emo" style="object-fit:contain;filter:drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff) drop-shadow(0 3px 3px rgba(30,58,43,.35))" /> : <span class="emo">{it.emoji || '📦'}</span>}<span class="tag">{money(it.price_cents)}<small>/day</small></span></div></div>
+      <div style="margin-top:8px;font-weight:800">{label}</div>
+      <form method="post" action={'/dev/avatar/' + it.id + '/use'}><input type="hidden" name="style" value={style} /><button class="btn sm" type="submit">Use this</button></form>
+    </div>
+  );
+  return c.html(
+    <Layout title="Avatar lab" user={u} back="/listings">
+      <div style="padding:12px 16px">
+        <div class="hint">Built in {ms} ms · {Object.keys(keys).join(', ') || 'nothing new'} </div>
+        {errors.map(e => <div class="flash err" style="margin:8px 0 0;font-size:12px;word-break:break-all">{e}</div>)}
+        <img src={'/p/' + photos[0].r2_key} alt="" style="width:120px;height:120px;object-fit:cover;border-radius:12px;margin:10px 0" />
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+          {pin('', 'Emoji (current)', 'emoji')}
+          {pin(keys.cutout ? have.cutout : '', 'A · Cut-out sticker', 'cutout')}
+          {pin(keys.ai ? have.ai : '', 'B · AI emoji redraw', 'ai')}
+        </div>
+        <form method="get" style="margin-top:14px"><button class="btn full" type="submit">Regenerate</button></form>
+      </div>
+    </Layout>
+  );
+});
+listings.post('/dev/avatar/:id/use', requireUser, async (c) => {
+  const u = c.get('user')!;
+  const it = await listingById(c.env.DB, c.req.param('id'));
+  if (!it || it.owner_id !== u.id) return c.notFound();
+  const style = String((await c.req.parseBody()).style || '');
+  if (style === 'emoji') await c.env.DB.prepare('UPDATE listings SET avatar_key = NULL, avatar_style = NULL WHERE id = ?').bind(it.id).run();
+  else if (style === 'cutout' || style === 'ai') await c.env.DB.prepare('UPDATE listings SET avatar_key = ?, avatar_style = ? WHERE id = ?').bind(`${it.id}/avatar-${style}.png`, style, it.id).run();
+  return c.redirect('/');
 });

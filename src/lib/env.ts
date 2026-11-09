@@ -2,6 +2,7 @@ export type Env = {
   DB: D1Database;
   PHOTOS: R2Bucket;
   ASSETS: Fetcher;
+  AI?: Ai;
   APP_URL: string;
   FEE_PCT: string;
   MIN_PRICE_CENTS: string;
@@ -22,7 +23,7 @@ export type User = {
 
 export type Listing = {
   id: string; owner_id: string; name: string; description: string | null; price_cents: number; week_cents: number | null;
-  deposit_cents: number; status: 'live' | 'paused' | 'removed'; hood: string | null; lat: number | null; lng: number | null; emoji: string | null; created_at: number;
+  deposit_cents: number; status: 'live' | 'paused' | 'removed'; hood: string | null; lat: number | null; lng: number | null; emoji: string | null; avatar_key: string | null; avatar_style: string | null; created_at: number;
 };
 
 export type Rental = {

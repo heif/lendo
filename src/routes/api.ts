@@ -18,7 +18,7 @@ api.get('/api/listings', async (c) => {
   if (bbox.length === 4 && bbox.every(n => !isNaN(n))) { where.push('lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?'); args.push(bbox[1], bbox[3], bbox[0], bbox[2]); }
   if (q) { where.push('(name LIKE ? OR description LIKE ?)'); args.push(`%${q}%`, `%${q}%`); }
   if (hood) { where.push('hood = ?'); args.push(hood); }
-  const rows = await c.env.DB.prepare(`SELECT id, name, price_cents, week_cents, hood, lat, lng, owner_id, emoji, created_at FROM listings WHERE ${where.join(' AND ')} ORDER BY created_at DESC LIMIT ?`).bind(...args, limit).all<Listing>();
+  const rows = await c.env.DB.prepare(`SELECT id, name, price_cents, week_cents, hood, lat, lng, owner_id, emoji, avatar_key, created_at FROM listings WHERE ${where.join(' AND ')} ORDER BY created_at DESC LIMIT ?`).bind(...args, limit).all<Listing>();
   const ph = await firstPhotos(c.env.DB, rows.results.map(r => r.id));
   const g = await c.env.DB.prepare(`SELECT COUNT(*) n FROM listings WHERE status = 'live'`).first<{ n: number }>();
   return c.json({

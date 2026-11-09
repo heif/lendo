@@ -65,6 +65,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .epin .emo{position:absolute;left:-22px;top:-50px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:34px;line-height:1;font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;filter:drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff) drop-shadow(0 3px 3px rgba(30,58,43,.35));cursor:pointer;transition:transform .15s}
 .epin .tag{position:absolute;left:50%;transform:translateX(-50%);top:-10px;white-space:nowrap;font-size:12.5px;font-weight:700;letter-spacing:-.2px;line-height:1;padding:3px 5px;border-radius:5px;border:1.5px solid var(--ink);background:var(--orange);color:#fff;box-shadow:0 1px 3px rgba(30,58,43,.25);cursor:pointer}
 .epin .tag small{font-size:8.5px;font-weight:700;opacity:.9}
+.epin .emo.av{width:52px;height:52px;left:-26px;top:-58px;object-fit:contain}
 .epin.sel .emo{transform:scale(1.18)}
 .epin.sel .tag{background:var(--ink)}
 .epin.sel .glow{background:radial-gradient(closest-side,rgba(255,79,0,.85),rgba(255,79,0,.35) 55%,rgba(255,79,0,0) 100%)}
