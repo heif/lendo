@@ -161,6 +161,22 @@
   loadPlaces(function () { updateCityPill(); }); map.on('moveend', updateCityPill);
   function updateCityPill() { if (!PL) return; var c = map.getCenter(), ct = cityOf(c.lng, c.lat); if (ct && ct !== curCity) { curCity = ct; $('scCity').querySelector('b').textContent = ct.name; $('scCityC').textContent = ct.n.toLocaleString(); } }
   startWanted();
+  // $5-off promo bar
+  (function () {
+    var form = $('promo'); if (!form) return;
+    var inp = $('promoPhone'), btn = $('promoBtn'), digits = function () { return inp.value.replace(/\D/g, '').slice(0, 10); };
+    inp.addEventListener('input', function () { var d = digits(); inp.value = d.length > 6 ? '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6) : d.length > 3 ? '(' + d.slice(0, 3) + ') ' + d.slice(3) : d; btn.disabled = d.length !== 10; });
+    form.addEventListener('submit', function (e) { e.preventDefault(); if (digits().length !== 10) return; $('optPhone').textContent = inp.value; $('optin').hidden = false; });
+    $('optNo').addEventListener('click', function () { $('optin').hidden = true; });
+    $('optYes').addEventListener('click', function () {
+      $('optin').hidden = true; btn.disabled = true; btn.textContent = '…';
+      var fd = new FormData(); fd.append('phone', digits());
+      fetch('/promo', { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (j) {
+        form.className = 'promo done'; form.innerHTML = j.ok ? '✓ $5 off saved · check your texts' : 'Hmm — try again';
+        if (j.ok) setTimeout(function () { form.remove(); }, 6000);
+      }).catch(function () { btn.disabled = false; btn.textContent = '$5 OFF'; });
+    });
+  })();
   $('scGlobe').addEventListener('click', function () { map.easeTo({ center: [-40, 30], zoom: 1.6 }); });
 
   // selection + sheet

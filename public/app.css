@@ -224,3 +224,13 @@ button,.btn,.pm,.idea,.days button,.stars button{touch-action:manipulation}
 .wanted strong{display:block;font-size:9px;font-weight:900;color:#B42318;letter-spacing:.5px;line-height:1.1;margin-top:2px}
 .wanted small{display:block;font-size:8.5px;font-weight:700;color:var(--ink);line-height:1}
 .wanted-m{z-index:0}
+
+/* $5-off promo bar (prototype) */
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.promo{position:absolute;right:10px;bottom:24px;z-index:620;display:flex;align-items:stretch;height:48px;border-radius:14px;border:2px solid var(--ink);border-bottom-width:4px;background:#fff;box-shadow:0 3px 8px rgba(0,0,0,.2);overflow:hidden;max-width:calc(100% - 20px);animation:rise .25s ease-out both}
+.promo input{width:132px;min-width:0;border:0;padding:0 10px;font-family:inherit;font-size:16px;font-weight:800;letter-spacing:.3px;background:transparent;color:var(--ink);outline:none}
+.promo button{height:100%;padding:0 14px;border:0;font-family:inherit;font-size:16px;font-weight:900;background:rgba(30,58,43,.25);color:rgba(30,58,43,.6);transition:background .15s,color .15s}
+.promo button:not(:disabled){background:var(--ink);color:#fff;cursor:pointer}
+.promo.done{padding:0 14px;align-items:center;font-size:14px;font-weight:900;color:var(--ink);background:var(--mint,#DFF3E6)}
+.optin{position:absolute;inset:0;z-index:900;background:rgba(30,58,43,.45);display:flex;align-items:center;justify-content:center;padding:24px}
+.optin-box{width:100%;max-width:300px;padding:18px 16px 14px;border-radius:16px;background:#fff;border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);animation:rise .2s ease-out both}

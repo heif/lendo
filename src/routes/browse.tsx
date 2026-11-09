@@ -3,6 +3,7 @@ import { raw } from 'hono/html';
 import type { Env, Listing, Vars } from '../lib/env';
 import { Layout } from '../pages/layout';
 import { cutoutUrl } from '../lib/cutout';
+import { getCookie } from 'hono/cookie';
 import { counts, firstPhotos, listingById, photosFor, reputation, userById, busyDays } from '../lib/db';
 import { money, fmtDay, dayStr, addDays, firstName, fuzz } from '../lib/util';
 import { feeFor } from '../lib/stripe';
@@ -57,6 +58,19 @@ browse.get('/', async (c) => {
         </div>
         <a class="rent-out" href="/list">RENT OUT YOUR STUFF</a>
         <div class="kpi" id="kpi" hidden><b id="kpiN">{k.global}</b><span id="kpiL">things to rent</span></div>
+        {!u && !getCookie(c, 'lendo_p') ? <form class="promo pu" id="promo" autocomplete="on" aria-label="Get $5 off">
+          <label for="promoPhone" class="sr">Phone number</label>
+          <input id="promoPhone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Phone #" maxlength="14" />
+          <button type="submit" id="promoBtn" disabled>$5 OFF</button>
+        </form> : null}
+        <div class="optin" id="optin" hidden role="dialog" aria-label="Text message opt-in">
+          <div class="optin-box">
+            <div style="font-size:17px;font-weight:900">Get texts from Lendo?</div>
+            <div style="font-size:13px;line-height:1.4;margin-top:6px">To <b id="optPhone"></b>: your $5 off, rentals, saved items and nearby alerts.</div>
+            <div style="font-size:11px;line-height:1.4;color:#6F6A60;margin-top:8px">Msg frequency varies. Msg &amp; data rates may apply. Reply STOP to cancel, HELP for help.</div>
+            <div style="display:flex;gap:8px;margin-top:14px"><button type="button" class="btn" id="optNo" style="flex:1">Cancel</button><button type="button" class="btn pri" id="optYes" style="flex:1.4">Agree</button></div>
+          </div>
+        </div>
         <div class="places" id="places" role="dialog" aria-label="Neighborhoods and cities" hidden>
           <div class="places-h"><b>Where?</b><button type="button" class="pcard-x" id="plClose" aria-label="Close"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" stroke-width="2.2" stroke-linecap="round" /></svg></button></div>
           <div class="places-cities" id="plCities"></div>
@@ -308,6 +322,8 @@ browse.get('/about', (c) => {
     <Layout title="Why Lendo" user={u}>
       <section class="sec" style="border-bottom:0;font-size:15px;line-height:1.5">
         <h2 style="font-size:26px;font-weight:900;letter-spacing:-.02em;margin:0 0 10px">Zu mi zusen.</h2>
+        <div id="flywheel" style="margin:4px -6px 14px"></div>
+        <script src="/flywheel.js" defer></script>
         {G.map(t => <p>{t}</p>)}
         <p><b>{c.env.FEE_PCT}% fee (will stay low).</b></p>
         <a class="btn pri full" href="/list" style="margin-top:12px">Rent out your stuff</a>

@@ -3,6 +3,9 @@ import type { Env, Vars } from '../lib/env';
 import { Layout } from '../pages/layout';
 import { startLogin, finishLogin, logout } from '../lib/auth';
 import { normPhone, prettyPhone } from '../lib/util';
+import { ensureUser } from '../lib/db';
+import { sendRaw } from '../lib/blooio';
+import { setCookie, getCookie } from 'hono/cookie';
 
 export const auth = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -81,6 +84,21 @@ auth.post('/welcome', async (c) => {
   await c.env.DB.prepare('UPDATE users SET name = ?, hood = COALESCE(NULLIF(?, \'\'), hood) WHERE id = ?')
     .bind(String(f.name || '').trim().slice(0, 40) || 'Neighbor', String(f.hood || '').trim().slice(0, 60), u.id).run();
   return c.redirect(safeNext(String(f.next || '/')));
+});
+
+// $5-off promo bar (prototype): phone → opt-in → credit saved to that number + a text. Idempotent per phone.
+auth.post('/promo', async (c) => {
+  const f = await c.req.parseBody();
+  const phone = normPhone(String(f.phone || ''));
+  if (!phone) return c.json({ ok: false, error: 'bad phone' }, 400);
+  const user = await ensureUser(c.env.DB, phone);
+  const fresh = !user.promo_claimed_at;
+  if (fresh) await c.env.DB.prepare('UPDATE users SET promo_cents = 500, promo_claimed_at = ? WHERE id = ?').bind(Date.now(), user.id).run();
+  c.executionCtx.waitUntil(sendRaw(c.env, phone, fresh
+    ? `$5 off your first rental is saved to this number. Save us as Lendo and reply OK so rental texts reach you. ${c.env.APP_URL}`
+    : `You already have $5 off saved to this number. ${c.env.APP_URL}`).then(() => {}));
+  setCookie(c, 'lendo_p', '1', { path: '/', sameSite: 'Lax', secure: c.env.APP_URL.startsWith('https'), maxAge: 365 * 86400 });
+  return c.json({ ok: true, fresh });
 });
 
 auth.get('/logout', async (c) => { await logout(c); return c.redirect('/'); });
