@@ -8,7 +8,7 @@ export type Env = {
   MIN_PRICE_CENTS: string;
   BLOOIO_API_BASE: string;
   LENDO_NUMBER: string; // the Blooio number, for "save this contact" prompts
-  MAPBOX_PUBLIC_TOKEN: string;   // pk., URL-restricted; blank → Leaflet fallback
+  MAPBOX_PUBLIC_TOKEN?: string;  // pk., URL-restricted (secret in prod, .dev.vars locally); unset → Leaflet fallback
   MAPBOX_STYLE_URL: string;      // mapbox://styles/... (light-v11 until a Studio style exists)
   MEETUP_SPOTS: string;          // "true" enables /api/meetup
   SESSION_SECRET: string;

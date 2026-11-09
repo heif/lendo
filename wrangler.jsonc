@@ -17,8 +17,7 @@
     "MIN_PRICE_CENTS": "800",
     "BLOOIO_API_BASE": "https://api.blooio.com/v2/api",
     "LENDO_NUMBER": "(907) 535-3342",
-    // Mapbox. MAPBOX_PUBLIC_TOKEN (pk., URL-restricted) is set as a *secret* in prod (GitHub push protection rejects it in git); blank = Leaflet/OSM fallback.
-    "MAPBOX_PUBLIC_TOKEN": "",
+    // Mapbox. MAPBOX_PUBLIC_TOKEN (pk., URL-restricted) is a Worker *secret* in prod (push protection rejects it in git) or a .dev.vars entry locally; unset = Leaflet/OSM fallback.
     "MAPBOX_STYLE_URL": "mapbox://styles/mapbox/light-v11",
     "MEETUP_SPOTS": "false"
   }
