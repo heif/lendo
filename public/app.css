@@ -241,12 +241,13 @@ button,.btn,.pm,.idea,.days button,.stars button{touch-action:manipulation}
 .ghost{display:block;font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;font-size:30px;line-height:1;text-decoration:none;filter:grayscale(1) contrast(1.15) brightness(.78) opacity(.62);transform:rotate(var(--r,0deg));transition:filter .2s,transform .2s;cursor:pointer}
 .ghost:hover{filter:grayscale(.3) opacity(.9);transform:rotate(0) scale(1.15)}
 /* wanted-item poster (tapped ghost) */
-.wsheet{position:absolute;left:50%;bottom:90px;width:210px;margin-left:-105px;z-index:640;background:#F6EBC8;border:2px solid var(--ink);box-shadow:4px 5px 0 rgba(30,58,43,.45);padding:14px 14px 14px;text-align:center;transform:rotate(-3deg);animation:rise .2s ease-out both}
+.wsheet{position:absolute;left:50%;bottom:90px;width:210px;margin-left:-105px;z-index:640;background:var(--cream);border:2px solid var(--ink);box-shadow:4px 5px 0 var(--ink);padding:14px 14px 14px;text-align:center;transform:rotate(-3deg);animation:rise .2s ease-out both}
 .wsheet .pcard-x{right:-14px;top:-14px}
-.wsheet-head{font-family:Rockwell,'Roboto Slab',Georgia,serif;font-size:26px;letter-spacing:4px;line-height:1;border-bottom:2px solid var(--ink);padding-bottom:6px;margin:0 6px}
-.wsheet-em{font-size:76px;line-height:1.1;margin:8px 0 2px;filter:sepia(.6) saturate(.7);font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif}
+.wsheet-head{font-family:Rockwell,'Roboto Slab',Georgia,serif;font-size:26px;letter-spacing:4px;line-height:1;border-bottom:2px solid var(--ink);padding-bottom:6px;margin:0 6px;color:var(--ink)}
+.wsheet-head small{display:block;font-family:inherit;font-size:11px;letter-spacing:3px;font-weight:700;margin-top:3px;color:var(--ink2,#4A463F)}
+.wsheet-em{font-size:76px;line-height:1.1;margin:8px 0 2px;filter:grayscale(1) opacity(.7);font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif}
 .wsheet-name{font-family:Rockwell,'Roboto Slab',Georgia,serif;font-size:17px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:12px}
-.wsheet-go{display:block;background:#B42318;color:#fff;font-size:14px;font-weight:900;letter-spacing:.3px;padding:10px;border:2px solid var(--ink);text-decoration:none;box-shadow:2px 2px 0 var(--ink)}
+.wsheet-go{display:block;background:var(--orange);color:#fff;font-size:18px;font-weight:900;letter-spacing:.2px;padding:14px 10px;border:2px solid var(--ink);border-radius:10px;text-decoration:none;box-shadow:3px 3px 0 var(--ink)}
 .wsheet-go:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)}
 .promo.incard{position:static;margin:10px 0 0;width:100%;max-width:none;height:48px;box-shadow:none;border-bottom-width:3px;animation:none;display:flex}
 .promo.incard input{flex:1;width:auto;font-size:15px}
