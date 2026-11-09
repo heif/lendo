@@ -28,7 +28,7 @@
   var toGeo = function (arr) {
     return { type: 'FeatureCollection', features: arr.filter(function (it) { return it.lat != null; }).map(function (it) {
       return { type: 'Feature', id: it.id, geometry: { type: 'Point', coordinates: [it.lng, it.lat] },
-        properties: { id: it.id, name: it.name, price: fmt(it.price_cents), price_cents: it.price_cents, week_cents: it.week_cents || 0, photo: it.photo || '', avatar: it.avatar_key || '', emoji: it.emoji || '📦', hood: it.hood || '', icon: iconCache[it.id] ? 'l_' + it.id : 'pin-default' } };
+        properties: { id: it.id, sel: sel === it.id, name: it.name, price: fmt(it.price_cents), price_cents: it.price_cents, week_cents: it.week_cents || 0, photo: it.photo || '', avatar: it.avatar_key || '', emoji: it.emoji || '📦', hood: it.hood || '', icon: iconCache[it.id] ? 'l_' + it.id : 'pin-default' } };
     }) };
   };
 
@@ -88,8 +88,8 @@
     map.addLayer({ id: 'cluster-count', type: 'symbol', source: 'listings', filter: ['has', 'point_count'],
       layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 14, 'text-font': ['DIN Pro Bold', 'Arial Unicode MS Bold'] }, paint: { 'text-color': S.cluster.text } });
     map.addLayer({ id: 'pins', type: 'symbol', source: 'listings', filter: ['!', ['has', 'point_count']],
-      layout: { 'icon-image': ['get', 'icon'], 'icon-size': 1, 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'symbol-sort-key': ['case', ['boolean', ['feature-state', 'sel'], false], 0, 1] },
-      paint: { 'icon-opacity': ['case', ['boolean', ['feature-state', 'sel'], false], 1, 0.96] } });
+      layout: { 'icon-image': ['get', 'icon'], 'icon-size': ['case', ['get', 'sel'], 1.15, 1], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'symbol-sort-key': ['case', ['get', 'sel'], 0, 1] },
+      paint: { 'icon-opacity': 1 } });
     if (HOOD_LAYER) addHoods();
     load();
     if (WALKERS) startWalkers();
@@ -105,8 +105,7 @@
   // selection + sheet
   map.on('click', 'pins', function (e) {
     var f = e.features[0], p = f.properties; var it = items.filter(function (x) { return x.id === p.id; })[0] || p;
-    if (sel) map.setFeatureState({ source: 'listings', id: sel }, { sel: false });
-    sel = p.id; map.setFeatureState({ source: 'listings', id: sel }, { sel: true });
+    sel = p.id; refreshSource();
     sheet.href = '/i/' + p.id; $('shImg').src = it.photo ? '/p/' + it.photo : ''; $('shPr').textContent = fmt(it.price_cents) + '/day'; $('shNm').textContent = it.name;
     $('shSub').textContent = (it.hood || '') + (it.week_cents ? ' · ' + fmt(it.week_cents) + '/week' : ''); sheet.classList.add('on');
   });
@@ -114,7 +113,7 @@
     var f = map.queryRenderedFeatures(e.point, { layers: ['clusters'] })[0];
     map.getSource('listings').getClusterExpansionZoom(f.properties.cluster_id, function (err, z) { if (!err) map.easeTo({ center: f.geometry.coordinates, zoom: z + 0.5 }); });
   });
-  map.on('click', function (e) { if (map.queryRenderedFeatures(e.point, { layers: ['pins', 'clusters'] }).length) return; if (sel) map.setFeatureState({ source: 'listings', id: sel }, { sel: false }); sel = null; sheet.classList.remove('on'); });
+  map.on('click', function (e) { if (map.queryRenderedFeatures(e.point, { layers: ['pins', 'clusters'] }).length) return; sel = null; refreshSource(); sheet.classList.remove('on'); });
   ['pins', 'clusters'].forEach(function (l) { map.on('mouseenter', l, function () { map.getCanvas().style.cursor = 'pointer'; }); map.on('mouseleave', l, function () { map.getCanvas().style.cursor = ''; }); });
 
   q.addEventListener('input', function () { clearTimeout(t); t = setTimeout(load, 300); });
