@@ -3,6 +3,7 @@ import { raw } from 'hono/html';
 import type { Env, Listing, Vars } from '../lib/env';
 import { Layout } from '../pages/layout';
 import { cutoutUrl } from '../lib/cutout';
+import { CITIES } from '../lib/places';
 import { counts, firstPhotos, listingById, photosFor, reputation, userById, busyDays } from '../lib/db';
 import { money, fmtDay, dayStr, addDays, firstName, fuzz } from '../lib/util';
 import { feeFor } from '../lib/stripe';
@@ -35,8 +36,13 @@ browse.get('/', async (c) => {
   const cq = (c.req.query('c') || '').split(',').map(parseFloat); // ?c=lng,lat deep link (shares, debugging)
   if (cq.length === 2 && cq.every(n => !isNaN(n)) && Math.abs(cq[1]) <= 90) center = cq;
   const badge = u ? ((await c.env.DB.prepare(`SELECT COUNT(*) n FROM rentals WHERE owner_id = ? AND status = 'held'`).bind(u.id).first<{ n: number }>())?.n ?? 0) : 0;
+  // Visitors outside a live city (by Cloudflare geo) start in NYC, the most active city, with a nudge to switch.
+  const cf: any = (c.req.raw as any).cf || {};
+  const vLat = parseFloat(cf.latitude), vLng = parseFloat(cf.longitude);
+  const inLive = !isNaN(vLat) && !isNaN(vLng) && CITIES.some(ct => ct.id === 'nyc' && vLng >= ct.bbox[0] && vLng <= ct.bbox[2] && vLat >= ct.bbox[1] && vLat <= ct.bbox[3]);
+  const away = !u?.lat && !isNaN(vLat) && !inLive;
   const mapbox = !!c.env.MAPBOX_PUBLIC_TOKEN;
-  const cfg = JSON.stringify({ wantedPromo: c.env.WANTED_PROMO === 'true', token: c.env.MAPBOX_PUBLIC_TOKEN || '', style: c.env.MAPBOX_STYLE_URL || 'mapbox://styles/mapbox/light-v11', center, zoom: 14.5, hasHome: !!(u?.lat) || cq.length === 2 && cq.every(n => !isNaN(n)) });
+  const cfg = JSON.stringify({ away, visitorCity: away ? (cf.city || '') : '', wantedPromo: c.env.WANTED_PROMO === 'true', token: c.env.MAPBOX_PUBLIC_TOKEN || '', style: c.env.MAPBOX_STYLE_URL || 'mapbox://styles/mapbox/light-v11', center, zoom: 14.5, hasHome: !!(u?.lat) || cq.length === 2 && cq.every(n => !isNaN(n)) });
   return c.html(
     <Layout title={u?.hood || 'Near you'} user={u} back={null} badge={badge} htmlClass="mappage"
       top={<div class="ticker" aria-hidden="true"><div class="tk">{[0, 1].map(() => TICKER.map(t => <span>{t}<i>•</i></span>))}</div></div>}

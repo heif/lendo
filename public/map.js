@@ -210,7 +210,15 @@
   q.addEventListener('input', function () { clearTimeout(t); t = setTimeout(load, 300); });
   $('toggle').addEventListener('click', function () { listMode = !listMode; grid.style.display = listMode ? 'grid' : 'none'; this.textContent = listMode ? 'Map' : 'List'; });
   $('locate').addEventListener('click', function () { navigator.geolocation && navigator.geolocation.getCurrentPosition(function (p) { map.easeTo({ center: [p.coords.longitude, p.coords.latitude], zoom: 15 }); }); });
-  if (!CFG.hasHome) navigator.geolocation && navigator.geolocation.getCurrentPosition(function (p) { map.jumpTo({ center: [p.coords.longitude, p.coords.latitude], zoom: 15 }); }, function () {}, { timeout: 4000 });
+  // No home base: use device location only if it's inside a live city; otherwise stay in NYC and nudge the city switcher
+  function inLiveCity(lng, lat) { return !PL || PL.cities.some(function (ct) { return ct.live && Math.abs(lng - ct.lng) < 0.45 && Math.abs(lat - ct.lat) < 0.3; }); }
+  function nudgeCity() {
+    var h = $('scHood'); h.classList.add('nudge');
+    var tip = document.createElement('div'); tip.className = 'citytip'; tip.innerHTML = (CFG.visitorCity ? 'Not in ' + CFG.visitorCity + ' yet. ' : '') + 'You’re seeing <b>NYC</b> — tap to switch city'; document.querySelector('.mapwrap').appendChild(tip);
+    var off = function () { h.classList.remove('nudge'); tip.remove(); h.removeEventListener('click', off); }; h.addEventListener('click', off); setTimeout(off, 9000);
+  }
+  if (CFG.away) loadPlaces(nudgeCity);
+  if (!CFG.hasHome && !CFG.away) navigator.geolocation && navigator.geolocation.getCurrentPosition(function (p) { loadPlaces(function () { if (inLiveCity(p.coords.longitude, p.coords.latitude)) map.jumpTo({ center: [p.coords.longitude, p.coords.latitude], zoom: 15 }); else nudgeCity(); }); }, function () {}, { timeout: 4000 });
 
   // ---- §4 neighborhoods: faint outlines, dim hoods with zero listings ----
   function addHoods() {
