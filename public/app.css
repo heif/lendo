@@ -42,7 +42,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .scope-city{background:#fff;color:#6F6A60;border:1.5px solid #E6E2DA!important;align-items:center!important}
 .scope-globe{background:#fff;color:#6F6A60;border:1.5px solid #E6E2DA!important;width:34px;padding:0!important;align-items:center!important}
 .hdr .logo{font-size:46px;font-weight:900;letter-spacing:-2.3px}
-.hdr .logo .wave{font-size:31px}
+.hdr .logo .wave{font-size:31px;margin-right:6px}
 /* bits */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:48px;padding:0 18px;border-radius:12px;border:2px solid var(--ink);background:#fff;color:var(--ink);font-size:15px;font-weight:800;text-decoration:none}
 .btn.pri{background:var(--orange);color:#fff;box-shadow:3px 3px 0 var(--ink)}
