@@ -145,7 +145,6 @@ listings.get('/listings', requireUser, async (c) => {
                 <button class="btn sm" name="delta" value="-100" type="submit" aria-label="Lower price $1">−</button>
                 <span class="price" style="font-size:22px">{money(it.price_cents)}<span style="font-size:11px;font-weight:700">/day</span></span>
                 <button class="btn sm" name="delta" value="100" type="submit" aria-label="Raise price $1">+</button>
-                <span class="hint">{it.week_cents ? money(it.week_cents) + '/wk' : ''}</span>
               </form>
             </div>
           </div>

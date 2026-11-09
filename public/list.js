@@ -79,7 +79,7 @@
         '<button type="button" class="rt" data-act="retake"><img src="' + s.url + '" alt=""><span>↻ Retake</span></button>' +
         '<div class="mid"><input class="nm" data-act="name" value="' + esc(s.name) + '" placeholder="' + (s.pending ? 'Looking…' : 'What is it?') + '" maxlength="80">' +
         (s.ai ? '<div class="aichip">✦ ' + esc(s.ai.category_label || '') + (s.ai.basis ? ' · ' + esc(s.ai.basis) : '') + '</div>' : s.pending ? '<div class="aichip pend">✦ identifying…</div>' : '') +
-        '<div class="pricerow"><span class="wk">$' + (s.week || Math.round(s.price * 7 * 0.7)) + '/wk</span><button type="button" class="pm" data-act="dn" aria-label="Lower">−</button><span class="badge">$' + s.price + '<small>/day</small></span><button type="button" class="pm" data-act="up" aria-label="Raise">+</button></div>' +
+        '<div class="pricerow"><span class="wk"></span><button type="button" class="pm" data-act="dn" aria-label="Lower">−</button><span class="badge">$' + s.price + '<small>/day</small></span><button type="button" class="pm" data-act="up" aria-label="Raise">+</button></div>' +
         '<textarea class="note" data-act="note" rows="2" placeholder="✎ note · condition · what’s included" maxlength="400">' + esc(s.note) + '</textarea></div>' +
         '<button type="button" class="del" data-act="del" aria-label="Remove">✕</button></div>';
     }).join('') || '<div class="hint" style="padding:20px 0">Nothing yet.</div>';

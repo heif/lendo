@@ -115,7 +115,7 @@ browse.get('/i/:id', async (c) => {
       <div class="hero">
         {photos[0] ? <img id="heroImg" src={cutoutUrl(c.env, photos[0].r2_key)} alt={it.name} onerror={`this.onerror=null;this.src='/p/${photos[0].r2_key}'`} /> : <div class="hint">no photo yet</div>}
         <div class="pr"><b class="price">{money(it.price_cents)}</b><span style="font-size:15px">/day</span>
-          {it.week_cents ? <div style="font-size:13px;margin-top:4px">{money(it.week_cents)}/week</div> : null}</div>
+        </div>
       </div>
       {photos.length > 1 ? <div class="thumbs">{photos.map(p => <img src={cutoutUrl(c.env, p.r2_key, 160, 160)} alt="" data-full={cutoutUrl(c.env, p.r2_key)} onclick={`document.getElementById('heroImg').src=this.dataset.full`} />)}</div> : null}
       <section class="sec">
@@ -128,7 +128,11 @@ browse.get('/i/:id', async (c) => {
         {it.lat != null && it.lng != null && staticMapUrl(c.env, it.lat, it.lng) ? <img src={staticMapUrl(c.env, it.lat, it.lng, 600, 220, it.avatar_key ? `${c.env.APP_URL}/cdn-cgi/image/width=64,height=64,fit=contain,format=png/${c.env.APP_URL}/p/${it.avatar_key}` : null)!} alt={'Map around ' + (it.hood || 'the item')} width="600" height="220" style="display:block;width:100%;height:auto;margin-top:10px;border-radius:12px;border:1.5px solid var(--line)" loading="lazy" /> : null}
         {!isOwner && it.status === 'live' ? (
           <form method="post" action={'/i/' + it.id + '/rent'} id="rentForm">
-            <div class="m" style="font-size:11px;color:var(--mute);margin-top:14px">next 14 days — tap to pick</div>
+            <div class="quick" id="quick" style="display:flex;gap:8px;margin-top:14px">
+              <button type="button" class="btn" data-q="1" style="flex:1;height:48px;flex-direction:column;line-height:1.1"><b style="font-size:16px">1 day</b><small style="font-size:12px;font-weight:700">{money(it.price_cents)}</small></button>
+              {it.week_cents && it.week_cents < it.price_cents * 7 ? <button type="button" class="btn" data-q="7" style="flex:1.3;height:48px;flex-direction:column;line-height:1.1;position:relative"><b style="font-size:16px">1 week</b><small style="font-size:12px;font-weight:700">{money(it.week_cents)} <s style="color:var(--mute);font-weight:600">{money(it.price_cents * 7)}</s></small><span style="position:absolute;right:-6px;top:-9px;background:var(--orange);color:#fff;border:1.5px solid var(--ink);border-radius:8px;font-size:10px;font-weight:900;padding:2px 6px">{Math.round(100 - it.week_cents / (it.price_cents * 7) * 100)}% OFF</span></button> : null}
+            </div>
+            <div class="m" style="font-size:11px;color:var(--mute);margin-top:12px">or tap days</div>
             <div class="days" id="days">
               {days.map(d => {
                 const b = busy.has(d);
@@ -172,7 +176,8 @@ function price(n){if(!W)return n*P;var r=Math.floor(n/7)*W+(n%7)*P;return Math.m
 function fmt(c){var d=c/100;return '$'+(Number.isInteger(d)?d:d.toFixed(2))}
 function paint(){bs.forEach(function(b){var d=b.dataset.day;b.classList.toggle('on',!!s&&!!e&&d>=s&&d<=e||d===s)});var btn=document.getElementById('rentBtn');if(s&&e){var n=Math.round((Date.parse(e)-Date.parse(s))/864e5)+1;var r=price(n);btn.disabled=false;btn.textContent='RENT '+n+(n===1?' DAY':' DAYS')+' · '+fmt(Math.round(r*(1+F/100)));document.getElementById('start').value=s;document.getElementById('end').value=e}else{btn.disabled=true;btn.textContent='PICK DAYS TO RENT'}}
 var pend=false;
-bs.forEach(function(b){b.addEventListener('click',function(){var d=b.dataset.day;if(b.disabled)return;if(!pend){s=d;e=d;pend=true}else{if(d<s){s=d;e=d;pend=true}else{var ok=true;bs.forEach(function(x){if(x.disabled&&x.dataset.day>s&&x.dataset.day<d)ok=false});if(!ok){s=d;e=d;pend=true}else{e=d;pend=false}}}paint()})});
+document.querySelectorAll('#quick button').forEach(function(q){q.addEventListener('click',function(){var n=+q.dataset.q,free=bs.filter(function(x){return !x.disabled});for(var i=0;i<free.length;i++){var ok=true,a=free[i].dataset.day,z=null;for(var k=0;k<n;k++){var dd=new Date(Date.parse(a)+k*864e5).toISOString().slice(0,10);var m=bs.filter(function(x){return x.dataset.day===dd})[0];if(!m||m.disabled){ok=false;break}z=dd}if(ok){s=a;e=z;pend=false;break}}document.querySelectorAll('#quick button').forEach(function(x){x.classList.toggle('pri',x===q)});paint()})});
+bs.forEach(function(b){b.addEventListener('click',function(){var d=b.dataset.day;document.querySelectorAll('#quick button').forEach(function(x){x.classList.remove('pri')});if(b.disabled)return;if(!pend){s=d;e=d;pend=true}else{if(d<s){s=d;e=d;pend=true}else{var ok=true;bs.forEach(function(x){if(x.disabled&&x.dataset.day>s&&x.dataset.day<d)ok=false});if(!ok){s=d;e=d;pend=true}else{e=d;pend=false}}}paint()})});
 })();
 </script>`)}
     </Layout>
