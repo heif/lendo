@@ -161,6 +161,7 @@
   loadPlaces(function () { updateCityPill(); }); map.on('moveend', updateCityPill);
   function updateCityPill() { if (!PL) return; var c = map.getCenter(), ct = cityOf(c.lng, c.lat); if (ct && ct !== curCity) { curCity = ct; $('scCity').querySelector('b').textContent = ct.name; $('scCityC').textContent = ct.n.toLocaleString(); } }
   startWanted();
+  $('wsClose').addEventListener('click', function () { $('wsheet').hidden = true; }); map.on('click', function () { $('wsheet').hidden = true; });
   // $5-off promo bar
   (function () {
     var form = $('promo'); if (!form) return;
@@ -229,6 +230,7 @@
           var k = x + ',' + y, w = want[h % want.length]; keep[k] = 1; n++;
           if (marks[k]) continue;
           var el = document.createElement('a'); el.href = '/list?want=' + encodeURIComponent(w.label);
+          el.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); $('wsEm').textContent = w.emoji; $('wsName').textContent = w.label; $('wsGo').href = el.href; $('wsheet').hidden = false; });
           if (PROMO) { el.className = 'wanted'; el.setAttribute('aria-label', 'Wanted: ' + w.label + '. Reward for listing.'); el.innerHTML = '<b>WANTED</b><i>' + w.emoji + '</i><em>' + w.label + '</em><strong>REWARD</strong><small>for listing</small>'; }
           else { el.className = 'ghost'; el.title = 'Wanted: ' + w.label; el.setAttribute('aria-label', 'Wanted: ' + w.label); el.textContent = w.emoji; el.style.setProperty('--r', ((h >>> 4) % 17 - 8) + 'deg'); el.style.fontSize = (26 + (h >>> 12) % 11) + 'px'; }
           marks[k] = new mapboxgl.Marker({ element: el, anchor: 'center', className: 'wanted-m', rotationAlignment: 'viewport' }).setLngLat([lng, lat]).addTo(map);

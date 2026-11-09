@@ -1,6 +1,7 @@
 // Admin (allowlisted phones only): pricing rules + identification test.
 import { Hono } from 'hono';
 import type { Env, Vars } from '../lib/env';
+import { WANTED_ALL } from '../lib/places';
 import { Layout } from '../pages/layout';
 import { requireUser } from '../lib/auth';
 import { identifyItem, loadPricing, suggestPrice, lastRaw } from '../lib/identify';
@@ -25,6 +26,32 @@ admin.post('/api/identify', async (c) => {
 });
 
 admin.get('/admin', (c) => c.redirect('/admin/pricing'));
+
+// Wanted ghosts: tick = shown on the map. Saved to settings.wanted_off.
+admin.get('/admin/wanted', async (c) => {
+  const u = c.get('user')!;
+  const row = await c.env.DB.prepare(`SELECT value FROM settings WHERE key = 'wanted_off'`).first<{ value: string }>();
+  const off = new Set<string>(row ? JSON.parse(row.value) : []);
+  return c.html(
+    <Layout title="Admin · wanted items" user={u} back="/admin/pricing">
+      <form method="post" action="/admin/wanted" style="padding:12px 16px 40px">
+        <div class="row" style="justify-content:space-between;margin-bottom:10px"><span class="hint">{WANTED_ALL.length - off.size} of {WANTED_ALL.length} on the map</span><button class="btn pri sm" type="submit">Save</button></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px">
+          {WANTED_ALL.map(w => <label class="card" style={'display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer' + (off.has(w.key) ? ';opacity:.45' : '')}><input type="checkbox" name="on" value={w.key} checked={!off.has(w.key)} /><span style="font-size:24px">{w.emoji}</span><span style="font-size:13px;font-weight:700">{w.label}</span></label>)}
+        </div>
+        <button class="btn pri full" type="submit" style="margin-top:14px">Save</button>
+      </form>
+    </Layout>
+  );
+});
+admin.post('/admin/wanted', async (c) => {
+  const f = await c.req.parseBody({ all: true });
+  const on = new Set<string>(Array.isArray(f.on) ? f.on.map(String) : f.on ? [String(f.on)] : []);
+  const off = WANTED_ALL.map(w => w.key).filter(k => !on.has(k));
+  await c.env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('wanted_off', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(JSON.stringify(off)).run();
+  const ck = new Request(new URL('/api/places', c.env.APP_URL).toString()); c.executionCtx.waitUntil(caches.default.delete(ck).then(() => {}));
+  return c.redirect('/admin/wanted');
+});
 
 admin.get('/admin/pricing', async (c) => {
   const u = c.get('user')!;

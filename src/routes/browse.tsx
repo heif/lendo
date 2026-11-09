@@ -71,6 +71,12 @@ browse.get('/', async (c) => {
             <div style="display:flex;gap:8px;margin-top:14px"><button type="button" class="btn" id="optNo" style="flex:1">Cancel</button><button type="button" class="btn pri" id="optYes" style="flex:1.4">Agree</button></div>
           </div>
         </div>
+        <div class="wsheet" id="wsheet" role="dialog" aria-label="Wanted item" hidden>
+          <button class="pcard-x" id="wsClose" aria-label="Close"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" stroke-width="2.2" stroke-linecap="round" /></svg></button>
+          <div class="wsheet-em" id="wsEm"></div>
+          <div class="wsheet-t">No <b id="wsName"></b> listed here yet.</div>
+          <a class="btn pri full" id="wsGo" href="/list">Got one? List it →</a>
+        </div>
         <div class="places" id="places" role="dialog" aria-label="Neighborhoods and cities" hidden>
           <div class="places-h"><b>Where?</b><button type="button" class="pcard-x" id="plClose" aria-label="Close"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" stroke-width="2.2" stroke-linecap="round" /></svg></button></div>
           <div class="places-cities" id="plCities"></div>
