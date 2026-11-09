@@ -1,3 +1,4 @@
+[hidden]{display:none!important}
 :root{--cream:#F5F3EE;--paper:#FFFFFF;--ink:#1E3A2B;--ink2:#4A463F;--mute:#8A857B;--line:#DCD7CC;--line2:#E6E2D9;--orange:#FF4F00;--red:#E5484D;--green:#1E6B35;--mint:#E3F1E4}
 *{box-sizing:border-box}
 html,body{margin:0;overflow-x:hidden;overscroll-behavior-x:none}
