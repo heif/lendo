@@ -138,7 +138,9 @@
     function spawn() {
       var pts = items.filter(function (i) { return i.lat != null; }); if (!pts.length) return;
       var base = pts[Math.floor(Math.random() * pts.length)];
-      var el = document.createElement('div'); el.className = 'walker'; el.innerHTML = '<span>🚶</span>';
+      var el = document.createElement('div'); el.className = 'walker';
+      var shirt = ['#E8745A', '#5B8DEF', '#F2C14E', '#7FB77E', '#B07CC6', '#1E3A2B'][Math.floor(Math.random() * 6)], skin = ['#F1CBA8', '#C68642', '#8D5524', '#E0AC69'][Math.floor(Math.random() * 4)];
+      el.innerHTML = '<span><svg width="14" height="22" viewBox="0 0 14 22" style="overflow:visible"><line class="lg a" x1="5.5" y1="14" x2="5.5" y2="21" stroke="#3E4A5C" stroke-width="1.9" stroke-linecap="round"/><line class="lg b" x1="8.5" y1="14" x2="8.5" y2="21" stroke="#3E4A5C" stroke-width="1.9" stroke-linecap="round"/><rect x="3.8" y="7.5" width="6.4" height="7.5" rx="2.6" fill="' + shirt + '" stroke="#4A463F" stroke-width="0.7"/><circle cx="7" cy="4.2" r="3.1" fill="' + skin + '" stroke="#4A463F" stroke-width="0.7"/><path d="M3.9 3.8Q4.4 0.8 7 1Q9.6 0.8 10.1 3.8Q8.7 2.5 7 2.6Q5.3 2.5 3.9 3.8Z" fill="#3A2A1E"/></svg></span>';
       var ang = Math.random() * Math.PI * 2, dist = 0.0012 + Math.random() * 0.002; // ~150–350 m
       var a = [base.lng + Math.cos(ang) * dist, base.lat + Math.sin(ang) * dist * 0.75], b = [base.lng, base.lat];
       if (Math.random() < 0.5) { var tmp = a; a = b; b = tmp; }
