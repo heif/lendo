@@ -253,3 +253,15 @@ button,.btn,.pm,.idea,.days button,.stars button{touch-action:manipulation}
 .promo.incard{position:static;margin:10px 0 0;width:100%;max-width:none;height:48px;box-shadow:none;border-bottom-width:3px;animation:none;display:flex}
 .promo.incard input{flex:1;width:auto;font-size:15px}
 .pcard.on .promo.incard{display:flex}
+/* item page meetup spot (prototype) */
+.meet{margin:12px 0 0;padding:10px 12px 11px;border-radius:12px;background:#F7F5F0;border:1px solid #E6E2DA}
+.meet-top{display:flex;align-items:center;gap:8px}
+.meet-lbl{font-size:10px;font-weight:900;letter-spacing:.8px;color:var(--orange);white-space:nowrap}
+.meet-note{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:11px;line-height:1.2;font-weight:500;font-style:italic;color:#6F6A60;text-align:right;max-width:52%}
+.meet-name{display:flex;align-items:center;gap:6px;margin-top:2px;font-size:18px;font-weight:900;letter-spacing:-.3px}
+.meet-line{font-size:13px;color:#4A463F;margin-top:1px}
+.meet-link{display:block;margin-top:8px;padding:0;border:0;background:none;font-family:inherit;font-size:14px;font-weight:800;color:#D94300;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.meet-ask{margin-top:10px;padding-top:10px;border-top:1px solid #E6E2DA}
+.meet-ask label{display:block;font-size:10px;font-weight:900;letter-spacing:.8px;color:#6F6A60}
+.meet-ask input{flex:1 1 0;min-width:0;height:42px;border-radius:10px;border:1.5px solid #DCD7CC;padding:0 10px;font-family:inherit;font-size:16px;font-weight:700;color:var(--ink);background:#fff}
+.meet-ask button{flex-shrink:0;height:42px;padding:0 12px;border-radius:10px;border:0;background:var(--ink);color:#fff;font-family:inherit;font-size:14px;font-weight:900}

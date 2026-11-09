@@ -127,7 +127,14 @@ browse.get('/i/:id', async (c) => {
         </div>
         {it.description ? <p style="margin:8px 0 0;font-size:14px;color:var(--ink2);white-space:pre-wrap">{it.description}</p> : null}
         <div class="hint" style="margin-top:8px">{it.hood || 'near you'}{owner.cross_streets ? ' · ' + owner.cross_streets : ''}{owner.pickup_spots ? ' · meet: ' + JSON.parse(owner.pickup_spots).join(', ') : ''}</div>
-        {it.lat != null && it.lng != null && staticMapUrl(c.env, it.lat, it.lng) ? <img src={staticMapUrl(c.env, it.lat, it.lng, 600, 220, it.avatar_key ? `${c.env.APP_URL}/cdn-cgi/image/width=64,height=64,fit=contain,format=png/${c.env.APP_URL}/p/${it.avatar_key}` : null)!} alt={'Map around ' + (it.hood || 'the item')} width="600" height="220" style="display:block;width:100%;height:auto;margin-top:10px;border-radius:12px;border:1.5px solid var(--line)" loading="lazy" /> : null}
+        {(() => { const first = (owner.name || 'Neighbor').split(' ')[0]; const spots: string[] = owner.pickup_spots ? JSON.parse(owner.pickup_spots) : []; const spot = spots[0] || `${first}’s block`; const line = [owner.cross_streets, it.hood].filter(Boolean).join(' · ') || 'near you'; return (
+          <div class="meet" id="meet">
+            <div class="meet-top"><span class="meet-lbl">{first.toUpperCase()}’S MEETUP SPOT</span><span class="meet-note"><svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="#8A857B" stroke-width="2" /><path d="M12 10.5V17" stroke="#8A857B" stroke-width="2.4" stroke-linecap="round" /><circle cx="12" cy="7.2" r="1.4" fill="#8A857B" /></svg><span>You and {first}<br />confirm plans by text</span></span></div>
+            <div class="meet-name"><svg width="14" height="16" viewBox="0 0 24 26" aria-hidden="true"><path d="M12 25C12 25 3 16 3 10A9 9 0 0 1 21 10C21 16 12 25 12 25Z" fill="#1E3A2B" /><circle cx="12" cy="10" r="3.4" fill="#fff" /></svg><span id="meetName">{spot}</span></div>
+            <div class="meet-line" id="meetLine">{line}</div>
+            {!isOwner ? <button type="button" class="meet-link" id="meetMid">Suggest meeting midway instead →</button> : null}
+            {!isOwner ? <div class="meet-ask" id="meetAsk" hidden><label for="meetFrom">WHERE ARE YOU COMING FROM?</label><div style="display:flex;gap:6px;margin-top:6px"><input id="meetFrom" placeholder="e.g. Bedford & N 7th" /><button type="button" id="meetGo">Midway</button></div></div> : null}
+          </div>); })()}
         {!isOwner && it.status === 'live' ? (
           <form method="post" action={'/i/' + it.id + '/rent'} id="rentForm">
             <div class="quick" id="quick" style="display:flex;gap:8px;margin-top:14px">
@@ -143,7 +150,7 @@ browse.get('/i/:id', async (c) => {
               })}
             </div>
             
-            <input type="hidden" name="start" id="start" /><input type="hidden" name="end" id="end" />
+            <input type="hidden" name="start" id="start" /><input type="hidden" name="end" id="end" /><input type="hidden" name="from" id="meetFromVal" />
           </form>
         ) : null}
       </section>
@@ -180,6 +187,7 @@ function paint(){bs.forEach(function(b){var d=b.dataset.day;b.classList.toggle('
 var pend=false;
 document.querySelectorAll('#quick button').forEach(function(q){q.addEventListener('click',function(){var n=+q.dataset.q,free=bs.filter(function(x){return !x.disabled});for(var i=0;i<free.length;i++){var ok=true,a=free[i].dataset.day,z=null;for(var k=0;k<n;k++){var dd=new Date(Date.parse(a)+k*864e5).toISOString().slice(0,10);var m=bs.filter(function(x){return x.dataset.day===dd})[0];if(!m||m.disabled){ok=false;break}z=dd}if(ok){s=a;e=z;pend=false;break}}document.querySelectorAll('#quick button').forEach(function(x){x.classList.toggle('pri',x===q)});paint()})});
 bs.forEach(function(b){b.addEventListener('click',function(){var d=b.dataset.day;document.querySelectorAll('#quick button').forEach(function(x){x.classList.remove('pri')});if(b.disabled)return;if(!pend){s=d;e=d;pend=true}else{if(d<s){s=d;e=d;pend=true}else{var ok=true;bs.forEach(function(x){if(x.disabled&&x.dataset.day>s&&x.dataset.day<d)ok=false});if(!ok){s=d;e=d;pend=true}else{e=d;pend=false}}}paint()})});
+var mm=document.getElementById('meetMid');if(mm){mm.addEventListener('click',function(){document.getElementById('meetAsk').hidden=false;mm.hidden=true;document.getElementById('meetFrom').focus()});document.getElementById('meetGo').addEventListener('click',function(){var v=document.getElementById('meetFrom').value.trim();if(v.length<3)return;document.getElementById('meetFromVal').value=v;document.getElementById('meetName').textContent='Midway spot';document.getElementById('meetLine').textContent='between '+v+' and '+${JSON.stringify((owner.cross_streets || it.hood || 'their block'))}+' · we’ll suggest a café by text';document.getElementById('meetAsk').hidden=true;document.querySelector('.meet-lbl').textContent='MIDWAY MEETUP SPOT'})}
 })();
 </script>`)}
     </Layout>
