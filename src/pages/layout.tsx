@@ -9,6 +9,7 @@ export type LayoutProps = {
   badge?: number;             // red count on the account button
   head?: Child;               // extra <head> content
   wide?: boolean;
+  htmlClass?: string;      // e.g. 'mappage' locks the page to the viewport
   flash?: string | null;
   flashErr?: string | null;
   children?: Child;
@@ -18,7 +19,7 @@ export const Layout: FC<LayoutProps> = (p) => {
   const u = p.user;
   const initial = (u?.name || '').trim().charAt(0).toUpperCase();
   return html`<!doctype html>${(
-    <html lang="en">
+    <html lang="en" class={p.htmlClass || ""}>
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />

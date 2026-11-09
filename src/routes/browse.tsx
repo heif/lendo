@@ -35,7 +35,7 @@ browse.get('/', async (c) => {
   const mapbox = !!c.env.MAPBOX_PUBLIC_TOKEN;
   const cfg = JSON.stringify({ token: c.env.MAPBOX_PUBLIC_TOKEN || '', style: c.env.MAPBOX_STYLE_URL || 'mapbox://styles/mapbox/light-v11', center, zoom: 14.5, hasHome: !!(u?.lat) || cq.length === 2 && cq.every(n => !isNaN(n)) });
   return c.html(
-    <Layout title={u?.hood || 'Near you'} user={u} back={null} badge={badge}
+    <Layout title={u?.hood || 'Near you'} user={u} back={null} badge={badge} htmlClass="mappage"
       head={mapbox ? <><link rel="stylesheet" href={MAPBOX_CSS} /><script src={MAPBOX_JS}></script></> : <><link rel="stylesheet" href={LEAFLET_CSS} /><script src={LEAFLET_JS}></script></>}>
       <div class="mapwrap">
         <div id="map" role="application" aria-label="Map of things to rent"></div>
