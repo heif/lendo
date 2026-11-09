@@ -172,7 +172,7 @@
     var hoods = ct.hoods.slice().sort(function (a, b) { return b.n - a.n || a.name.localeCompare(b.name); });
     hoods.forEach(function (h) {
       var b = document.createElement('button'); b.type = 'button'; b.className = (h.n ? '' : 'zero') + (h.name === lastHood ? ' on' : '');
-      b.innerHTML = h.name + ' <small>' + (h.n ? h.n + ' to rent' : '—') + '</small>';
+      b.innerHTML = h.name + (h.n ? ' <small>' + h.n + ' to rent</small>' : '');
       b.addEventListener('click', function () { closePlaces(); if (ct.live && h.lat !== ct.lat) map.easeTo({ center: [h.lng, h.lat], zoom: 14.5 }); else map.easeTo({ center: [ct.lng, ct.lat], zoom: ct.zoom }); });
       hs.appendChild(b);
     });

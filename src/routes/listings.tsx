@@ -291,6 +291,23 @@ listings.post('/dev/avatar/:id/use', requireUser, async (c) => {
   return c.redirect('/');
 });
 
+// Re-run the sticker cutout for one listing (owner only) and report what happened — used to debug Images transforms.
+listings.get('/dev/avatar/:id/retry', requireUser, async (c) => {
+  const u = c.get('user')!; const it = await listingById(c.env.DB, c.req.param('id'));
+  if (!it || it.owner_id !== u.id) return c.notFound();
+  const aiKey = `${it.id}/avatar-ai.png`;
+  const has = await c.env.PHOTOS.head(aiKey);
+  if (!has) { const ph = await photosFor(c.env.DB, it.id); if (!ph[0]) return c.text('no photo'); await autoIcon(c.env, it.id, ph[0].r2_key, it.name, it.description); const after = await listingById(c.env.DB, it.id); return c.text('ran autoIcon → avatar_key=' + after?.avatar_key); }
+  try {
+    const { makeCutout } = await import('../lib/avatar');
+    const cut = await makeCutout(c.env, aiKey);
+    if (!cut) return c.text('cutout returned null (not transparent?)');
+    await c.env.PHOTOS.put(`${it.id}/avatar.png`, cut, { httpMetadata: { contentType: 'image/png' } });
+    await c.env.DB.prepare('UPDATE listings SET avatar_key = ?, avatar_style = ? WHERE id = ?').bind(`${it.id}/avatar.png`, 'ai', it.id).run();
+    return c.redirect('/i/' + it.id);
+  } catch (e: any) { return c.text('cutout failed: ' + (e?.message || e), 500); }
+});
+
 listings.post('/dev/avatar/backfill', requireUser, async (c) => {
   const u = c.get('user')!;
   const rows = await c.env.DB.prepare(`SELECT l.id, l.name, l.description, (SELECT r2_key FROM photos p WHERE p.listing_id = l.id ORDER BY pos LIMIT 1) k FROM listings l WHERE l.owner_id = ? AND l.status != 'removed'`).bind(u.id).all<{ id: string; name: string; description: string | null; k: string | null }>();
