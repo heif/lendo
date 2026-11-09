@@ -236,6 +236,12 @@
     function cellDeg() { var zb = Math.round(map.getZoom()); return (PROMO ? 0.0045 : 0.0030) * Math.pow(2, 14.5 - zb); }
     function h32(a, b) { var h = (a * 374761393 + b * 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return (h ^ (h >>> 16)) >>> 0; }
     function near(lng, lat, px) { var p = map.project([lng, lat]); for (var i = 0; i < items.length; i++) { var it = items[i]; if (it.lat == null) continue; var q = map.project([it.lng, it.lat]); if (Math.abs(q.x - p.x) < px && Math.abs(q.y - p.y) < px) return true; } return false; }
+    var waterLayers = null;
+    function onWater(lng, lat) {
+      if (waterLayers === null) waterLayers = (map.getStyle().layers || []).map(function (l) { return l.id; }).filter(function (id) { return /^water(-|$)|^waterway/.test(id); });
+      if (!waterLayers.length) return false;
+      try { var p = map.project([lng, lat]); return map.queryRenderedFeatures([[p.x - 14, p.y - 14], [p.x + 14, p.y + 14]], { layers: waterLayers }).length > 0; } catch (e) { return false; }
+    }
     function place() {
       var z = map.getZoom(), want = (PL && PL.wanted) || []; var keep = {}, CELL = cellDeg(), zb = Math.round(z);
       if (z >= (PROMO ? 13.2 : 12.8) && want.length) {
@@ -244,6 +250,7 @@
           var h = h32(x, y); if (h % MOD !== 0) continue;
           var lng = (x + 0.15 + (h >>> 8 & 255) / 365) * CELL, lat = (y + 0.15 + (h >>> 16 & 255) / 365) * CELL;
           if (near(lng, lat, 130)) continue;
+          if (onWater(lng, lat)) continue;
           var k = zb + ':' + x + ',' + y, w = want[h % want.length]; keep[k] = 1; n++;
           if (marks[k]) continue;
           var el = document.createElement('a'); el.href = '/list?want=' + encodeURIComponent(w.label);
