@@ -109,4 +109,12 @@ api.get('/api/places', async (c) => {
   return res;
 });
 
+// Leaderboard: top owners in a city (by live listings), for the places sheet
+api.get('/api/places/owners', async (c) => {
+  const ct = CITIES.find(x => x.id === c.req.query('city')); if (!ct) return c.json({ owners: [] });
+  const rows = await c.env.DB.prepare(`SELECT u.id, u.name, u.hood, COUNT(*) n, (SELECT COUNT(*) FROM rentals r WHERE r.owner_id = u.id AND r.status IN ('confirmed','picked_up','returned','closed')) rentals
+    FROM listings l JOIN users u ON u.id = l.owner_id WHERE l.status = 'live' AND l.lng BETWEEN ? AND ? AND l.lat BETWEEN ? AND ? GROUP BY u.id ORDER BY n DESC, rentals DESC LIMIT 30`).bind(ct.bbox[0], ct.bbox[2], ct.bbox[1], ct.bbox[3]).all();
+  return c.json({ owners: rows.results }, 200, { 'cache-control': 'public, max-age=120' });
+});
+
 api.get('/api/health', (c) => c.json({ ok: true, ts: Date.now() }));

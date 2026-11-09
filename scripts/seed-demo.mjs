@@ -11,7 +11,8 @@ const HOODS = [...cityBlock.matchAll(/\['([^']+)', ([\d.]+), (-?[\d.]+)\]/g)].ma
 const CAT = [...src.matchAll(/\['(\w+)', '([^']+)', '([^']+)'\]/g)].map(m => ({ key: m[1], label: m[2], emoji: m[3] }));
 
 // deterministic PRNG so re-runs produce the same ids (idempotent via INSERT OR IGNORE)
-let seed = 20261109; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+const OFF = parseInt(process.env.OFFSET || '0', 10), NL = parseInt(process.env.NL || '480', 10), NU_NEW = parseInt(process.env.NU || '120', 10), U_OFF = parseInt(process.env.UOFFSET || '0', 10);
+let seed = 20261109 + OFF; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
 const pick = a => a[Math.floor(rnd() * a.length)];
 const rint = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const q = s => `'${String(s).replace(/'/g, "''")}'`;
@@ -30,27 +31,27 @@ const out = [];
 const now = Date.now(), DAY = 86400000;
 
 // users
-const NU = 120;
-for (let i = 0; i < NU; i++) {
+const NU = U_OFF + NU_NEW;
+for (let i = U_OFF; i < NU; i++) {
   const h = pick(HOODS); const lat = h.lat + (rnd() - .5) * 0.008, lng = h.lng + (rnd() - .5) * 0.011;
   const name = `${pick(FIRST)} ${pick(LAST)}.`; const xs = `${pick(STREETS)} & ${pick(STREETS)}`;
   const spots = JSON.stringify([pick(SPOTS)]);
   out.push(`INSERT OR IGNORE INTO users (id, phone, name, hood, cross_streets, lat, lng, pickup_spots, created_at, replied, demo) VALUES (${q(idOf('u', i))}, ${q('+1319555' + String(1000 + i))}, ${q(name)}, ${q(h.name)}, ${q(xs)}, ${lat.toFixed(5)}, ${lng.toFixed(5)}, ${q(spots)}, ${now - rint(5, 300) * DAY}, 1, 1);`);
 }
 // listings: ~4 per user, biased to a few power-listers
-const NL = 480; const listings = [];
-for (let i = 0; i < NL; i++) {
+const listings = [];
+for (let i = OFF; i < OFF + NL; i++) {
   const ui = rnd() < .3 ? rint(0, 14) : rint(0, NU - 1);
   const c = pick(usable); const h = pick(HOODS);
-  const lat = h.lat + (rnd() - .5) * 0.0075, lng = h.lng + (rnd() - .5) * 0.0105;
+  const lat = Math.min(41.715, Math.max(41.605, h.lat + (rnd() - .5) * 0.0075)), lng = Math.min(-91.465, Math.max(-91.655, h.lng + (rnd() - .5) * 0.0105));
   const base = PRICE[c.key] || 12; const price = Math.max(8, Math.round(base * (0.8 + rnd() * 0.5))) * 100; const week = Math.round(price * 7 * 0.7 / 100) * 100;
   const label = c.label.charAt(0).toUpperCase() + c.label.slice(1);
-  listings.push({ id: idOf('l', i), owner: idOf('u', ui), price, created: now - rint(0, 240) * DAY });
-  out.push(`INSERT OR IGNORE INTO listings (id, owner_id, name, description, price_cents, week_cents, status, hood, lat, lng, emoji, avatar_key, avatar_style, created_at, demo) VALUES (${q(idOf('l', i))}, ${q(idOf('u', ui))}, ${q(label)}, ${q(pick(NOTES.default))}, ${price}, ${week}, 'live', ${q(h.name)}, ${lat.toFixed(5)}, ${lng.toFixed(5)}, ${q(c.emoji)}, ${q('wanted/' + c.key + '.png')}, 'ai', ${listings[i].created}, 1);`);
+  const L = { id: idOf('l', i), owner: idOf('u', ui), price, created: now - rint(0, 240) * DAY }; listings.push(L);
+  out.push(`INSERT OR IGNORE INTO listings (id, owner_id, name, description, price_cents, week_cents, status, hood, lat, lng, emoji, avatar_key, avatar_style, created_at, demo) VALUES (${q(L.id)}, ${q(L.owner)}, ${q(label)}, ${q(pick(NOTES.default))}, ${price}, ${week}, 'live', ${q(h.name)}, ${lat.toFixed(5)}, ${lng.toFixed(5)}, ${q(c.emoji)}, ${q('wanted/' + c.key + '.png')}, 'ai', ${L.created}, 1);`);
 }
 // past rentals with ratings → owners show "N rentals · 4.9★"
 const REV = ['Right on time, easy handoff.', 'Showed me how it works. Really helpful.', 'Clean, exactly as described.', 'Met me at the Ped Mall, super chill.', 'Would rent again.', 'Great neighbor.', 'Flexible on the return time, thanks!', 'Perfect for the weekend.'];
-let rn = 0;
+let rn = OFF * 3;
 for (const l of listings) {
   const k = rnd() < .55 ? rint(1, 6) : 0;
   for (let j = 0; j < k; j++) {

@@ -70,9 +70,11 @@ browse.get('/', async (c) => {
           <div class="wsheet-name" id="wsName"></div>
           <a class="wsheet-go" id="wsGo" href="/list">List yours →</a>
         </div>
+        <div class="places-dim" id="plDim" hidden></div>
         <div class="places" id="places" role="dialog" aria-label="Neighborhoods and cities" hidden>
-          <div class="places-h"><b>Where?</b><button type="button" class="pcard-x" id="plClose" aria-label="Close"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" stroke-width="2.2" stroke-linecap="round" /></svg></button></div>
+          <div class="places-h"><b id="plTitle">Neighborhoods</b><button type="button" class="places-x" id="plClose" aria-label="Close">×</button></div>
           <div class="places-cities" id="plCities"></div>
+          <div class="places-seg" id="plSeg"><button type="button" data-s="az" class="on">A–Z</button><button type="button" data-s="rank">🏆 Most things</button><button type="button" data-s="own">Top owners</button></div>
           <div class="places-hoods" id="plHoods"></div>
         </div>
         <div class="pcard" id="sheet" role="dialog" aria-label="Selected item">

@@ -203,24 +203,36 @@ html.mappage .hdr{flex-shrink:0;position:relative}
 /* no double-tap zoom on controls (iOS) */
 button,.btn,.pm,.idea,.days button,.stars button{touch-action:manipulation}
 
-/* places picker (hoods + cities) */
-[hidden]{display:none!important}
-.places{position:absolute;left:10px;right:10px;top:62px;bottom:16px;margin:0 auto;max-width:440px;z-index:650;background:#fff;border:2px solid var(--ink);border-radius:18px;box-shadow:0 8px 24px rgba(35,33,29,.18);display:flex;flex-direction:column;overflow:hidden;animation:rise .2s ease-out both}
-.places-h{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 8px;font-size:18px;font-weight:900;letter-spacing:-.3px}
-.places-h .pcard-x{position:static}
-.places-cities{display:flex;gap:6px;overflow-x:auto;padding:4px 12px 10px;border-bottom:1.5px solid var(--line2);scrollbar-width:none}
+/* places sheet (prototype): bottom sheet, segmented sort, ranked rows */
+.places-dim{position:absolute;inset:0;z-index:640;background:rgba(30,58,43,.25)}
+.places{position:absolute;left:0;right:0;margin:0 auto;max-width:480px;bottom:0;top:40px;z-index:650;background:#fff;border-radius:18px 18px 0 0;display:flex;flex-direction:column;animation:rise .2s ease-out both;overflow:hidden}
+.places-h{display:flex;align-items:center;gap:8px;padding:12px 12px 8px 14px}
+.places-h b{flex:1;font-size:16px}
+.places-x{width:30px;height:30px;border-radius:15px;border:0;background:#F0EDE6;font-size:15px;font-weight:900;color:var(--ink);cursor:pointer}
+.places-cities{display:flex;gap:6px;overflow-x:auto;padding:0 12px 8px;scrollbar-width:none}
 .places-cities::-webkit-scrollbar{display:none}
-.places-cities button{flex-shrink:0;font-family:inherit;height:34px;padding:0 12px;border-radius:17px;border:1.5px solid var(--ink);background:#fff;color:var(--ink);font-size:13px;font-weight:900;display:flex;align-items:center;gap:6px}
+.places-cities button{flex-shrink:0;font-family:inherit;height:30px;padding:0 11px;border-radius:15px;border:1.5px solid var(--ink);background:#fff;color:var(--ink);font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:5px}
 .places-cities button.on{background:var(--ink);color:#fff}
 .places-cities button.soon{border-color:#DCD7CC;color:#9B968C;background:#F7F5F0}
 .places-cities button small{font-size:10px;font-weight:700;opacity:.75}
-.places-cities button.soon small{font-style:italic}
-.places-hoods{flex:1;overflow-y:auto;padding:6px 6px 10px;display:grid;grid-template-columns:1fr 1fr;gap:2px 6px;align-content:start}
-.places-hoods button{font-family:inherit;display:flex;align-items:center;justify-content:space-between;gap:8px;height:40px;padding:0 10px;border:0;border-radius:10px;background:none;color:var(--ink);font-size:14px;font-weight:800;text-align:left}
-.places-hoods button small{font-size:11px;font-weight:700;color:#6F6A60;white-space:nowrap}
-.places-hoods button.zero{color:#9B968C}.places-hoods button.zero small{color:#B5B0A6}
+.places-seg{display:flex;gap:3px;margin:0 12px 8px;padding:3px;border-radius:12px;background:#E6E2D9;border:1px solid #CFC9BC}
+.places-seg button{flex:1;height:30px;border:0;border-radius:9px;background:none;font-family:inherit;font-size:12.5px;font-weight:800;color:var(--ink)}
+.places-seg button.on{background:#fff;box-shadow:0 1px 2px rgba(30,58,43,.2)}
+.places-hoods{flex:1;overflow-y:auto;padding-bottom:20px}
+.places-hoods .ltr{padding:3px 14px;font-size:10.5px;font-weight:900;color:#8A857B;background:var(--cream)}
+.places-hoods button,.places-hoods a.row{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;height:42px;padding:0 14px;border:0;background:none;color:var(--ink);font-size:14px;font-family:inherit;text-decoration:none;text-align:left}
+.places-hoods button span.l{display:flex;align-items:baseline;gap:6px;min-width:0}
+.places-hoods button b.rk{font-size:11px;color:#8A857B;min-width:18px}
+.places-hoods button b.rk.top{color:var(--orange)}
+.places-hoods button b.nm{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.places-hoods button small{font-size:12px;font-weight:700;color:#6F6A60;white-space:nowrap}
+.places-hoods button.zero{color:#9B968C}.places-hoods button.zero b.nm{font-weight:700}.places-hoods button.zero small{color:#B5B0A6}
 .places-hoods button.on{background:var(--cream)}
-.places-hoods .soonmsg{grid-column:1/-1;padding:14px 10px;font-size:13px;font-weight:700;color:#6F6A60}
+.places-hoods .soonmsg{padding:14px;font-size:13px;font-weight:700;color:#6F6A60}
+.places-hoods .own{display:flex;align-items:center;gap:10px;height:48px;padding:0 14px;color:var(--ink);text-decoration:none}
+.places-hoods .own .av{width:30px;height:30px;border-radius:15px;background:var(--ink);color:#fff;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.places-hoods .own b{font-size:14px}.places-hoods .own small{display:block;font-size:11.5px;color:#6F6A60;font-weight:600}
+.places-hoods .own .n{margin-left:auto;font-size:12px;font-weight:800;color:#6F6A60;white-space:nowrap}
 /* WANTED posters on the map (prototype ghosts) */
 .wanted{display:block;width:62px;padding:5px 4px 6px;background:#F6EBC8;border:1.5px solid var(--ink);box-shadow:1.5px 2px 0 rgba(30,58,43,.35);text-align:center;text-decoration:none;color:var(--ink);transform:rotate(-4deg);cursor:pointer;transition:transform .15s}
 .wanted:hover{transform:rotate(-2deg) scale(1.06)}

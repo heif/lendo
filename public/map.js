@@ -166,6 +166,7 @@
   var PL = null, plCity = 'nyc', curCity = null;
   function loadPlaces(cb) { if (PL) return cb(PL); fetch('/api/places').then(function (r) { return r.json(); }).then(function (j) { PL = j; cb(j); }).catch(function () {}); }
   function cityOf(lng, lat) { if (!PL) return null; for (var i = 0; i < PL.cities.length; i++) { var ct = PL.cities[i]; if (Math.abs(lng - ct.lng) < 0.45 && Math.abs(lat - ct.lat) < 0.3) return ct; } return null; }
+  var plSort = 'az', plOwners = {};
   function renderPlaces() {
     var cs = $('plCities'), hs = $('plHoods'); cs.innerHTML = ''; hs.innerHTML = '';
     PL.cities.forEach(function (ct) {
@@ -174,17 +175,29 @@
       b.addEventListener('click', function () { plCity = ct.id; renderPlaces(); }); cs.appendChild(b);
     });
     var ct = PL.cities.filter(function (c) { return c.id === plCity; })[0]; if (!ct) return;
+    $('plTitle').textContent = ct.name + (plSort === 'own' ? ' leaderboard · top owners' : plSort === 'rank' ? ' leaderboard · most things to rent' : ' neighborhoods');
+    $('plSeg').querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', b.dataset.s === plSort); });
     if (!ct.live) { var m = document.createElement('div'); m.className = 'soonmsg'; m.textContent = ct.name + ' isn’t open yet. List something there to start it.'; hs.appendChild(m); }
-    var hoods = ct.hoods.slice().sort(function (a, b) { return b.n - a.n || a.name.localeCompare(b.name); });
-    hoods.forEach(function (h) {
+    if (plSort === 'own') {
+      if (!plOwners[ct.id]) { var w = document.createElement('div'); w.className = 'soonmsg'; w.textContent = 'Loading…'; hs.appendChild(w); fetch('/api/places/owners?city=' + ct.id).then(function (r) { return r.json(); }).then(function (j) { plOwners[ct.id] = j.owners || []; if (plSort === 'own' && plCity === ct.id) renderPlaces(); }); return; }
+      plOwners[ct.id].forEach(function (o, i) { var a = document.createElement('a'); a.className = 'own'; a.href = '/u/' + o.id; a.innerHTML = '<span class="av">' + (o.name || 'N').charAt(0) + '</span><span><b>' + (o.name || 'Neighbor') + '</b><small>' + (o.hood || '') + (o.rentals ? ' · ' + o.rentals + ' rentals' : '') + '</small></span><span class="n">' + o.n + ' things</span>'; hs.appendChild(a); });
+      return;
+    }
+    var hoods = ct.hoods.slice();
+    if (plSort === 'rank') hoods.sort(function (a, b) { return b.n - a.n || a.name.localeCompare(b.name); }); else hoods.sort(function (a, b) { return a.name.localeCompare(b.name); });
+    var letter = '';
+    hoods.forEach(function (h, i) {
+      if (plSort === 'az') { var L = h.name.charAt(0).toUpperCase(); if (L !== letter) { letter = L; var d = document.createElement('div'); d.className = 'ltr'; d.textContent = L; hs.appendChild(d); } }
       var b = document.createElement('button'); b.type = 'button'; b.className = (h.n ? '' : 'zero') + (h.name === lastHood ? ' on' : '');
-      b.innerHTML = h.name + (h.n ? ' <small>' + h.n + ' to rent</small>' : '');
+      b.innerHTML = '<span class="l">' + (plSort === 'rank' ? '<b class="rk' + (i < 3 ? ' top' : '') + '">' + (i + 1) + '</b>' : '') + '<b class="nm">' + h.name + '</b></span>' + (h.n ? '<small>' + h.n.toLocaleString() + '</small>' : '');
       b.addEventListener('click', function () { closePlaces(); if (ct.live && h.lat !== ct.lat) map.easeTo({ center: [h.lng, h.lat], zoom: 14.5 }); else map.easeTo({ center: [ct.lng, ct.lat], zoom: ct.zoom }); });
       hs.appendChild(b);
     });
   }
-  function openPlaces() { loadPlaces(function () { var c = map.getCenter(), ct = cityOf(c.lng, c.lat); if (ct) plCity = ct.id; renderPlaces(); $('places').hidden = false; }); }
-  function closePlaces() { $('places').hidden = true; }
+  $('plSeg').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; plSort = b.dataset.s; renderPlaces(); });
+  $('plDim').addEventListener('click', function () { closePlaces(); });
+  function openPlaces() { loadPlaces(function () { var c = map.getCenter(), ct = cityOf(c.lng, c.lat); if (ct) plCity = ct.id; renderPlaces(); $('places').hidden = false; $('plDim').hidden = false; }); }
+  function closePlaces() { $('places').hidden = true; $('plDim').hidden = true; }
   $('scHood').addEventListener('click', openPlaces); $('plClose').addEventListener('click', closePlaces);
   $('scCity').addEventListener('click', function () { var ct = curCity || (PL && PL.cities[0]); if (ct) map.easeTo({ center: [ct.lng, ct.lat], zoom: ct.zoom }); else map.easeTo({ center: [-73.95, 40.73], zoom: 10.6 }); });
   loadPlaces(function () { updateCityPill(); }); map.on('moveend', updateCityPill);
