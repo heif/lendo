@@ -11,16 +11,28 @@ export const browse = new Hono<{ Bindings: Env; Variables: Vars }>();
 
 const LEAFLET_CSS = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
 const LEAFLET_JS = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+const MAPBOX_VER = 'v3.8.0';
+const MAPBOX_CSS = `https://api.mapbox.com/mapbox-gl-js/${MAPBOX_VER}/mapbox-gl.css`;
+const MAPBOX_JS = `https://api.mapbox.com/mapbox-gl-js/${MAPBOX_VER}/mapbox-gl.js`;
+
+// Static map for the item page (Mapbox Static Images API). Returns null without a public token.
+export function staticMapUrl(env: Env, lat: number, lng: number, w = 600, h = 220): string | null {
+  if (!env.MAPBOX_PUBLIC_TOKEN) return null;
+  const style = (env.MAPBOX_STYLE_URL || 'mapbox://styles/mapbox/light-v11').replace('mapbox://styles/', '');
+  return `https://api.mapbox.com/styles/v1/${style}/static/pin-l+FF4F00(${lng.toFixed(5)},${lat.toFixed(5)})/${lng.toFixed(5)},${lat.toFixed(5)},14.2,0/${w}x${h}@2x?access_token=${encodeURIComponent(env.MAPBOX_PUBLIC_TOKEN)}&logo=true&attribution=true`;
+}
 
 // ---------- Map (home) ----------
 browse.get('/', async (c) => {
   const u = c.get('user');
   const k = await counts(c.env.DB, u?.hood ?? null);
-  const center = u?.lat && u?.lng ? [u.lat, u.lng] : [40.7465, -73.997]; // Chelsea default
+  const center = u?.lat && u?.lng ? [u.lng, u.lat] : [-73.997, 40.7465]; // [lng, lat]; Chelsea default
   const badge = u ? ((await c.env.DB.prepare(`SELECT COUNT(*) n FROM rentals WHERE owner_id = ? AND status = 'held'`).bind(u.id).first<{ n: number }>())?.n ?? 0) : 0;
+  const mapbox = !!c.env.MAPBOX_PUBLIC_TOKEN;
+  const cfg = JSON.stringify({ token: c.env.MAPBOX_PUBLIC_TOKEN || '', style: c.env.MAPBOX_STYLE_URL || 'mapbox://styles/mapbox/light-v11', center, zoom: 14.5, hasHome: !!(u?.lat) });
   return c.html(
     <Layout title={u?.hood || 'Near you'} user={u} back={null} badge={badge}
-      head={<><link rel="stylesheet" href={LEAFLET_CSS} /><script src={LEAFLET_JS}></script></>}>
+      head={mapbox ? <><link rel="stylesheet" href={MAPBOX_CSS} /><script src={MAPBOX_JS}></script></> : <><link rel="stylesheet" href={LEAFLET_CSS} /><script src={LEAFLET_JS}></script></>}>
       <div class="mapwrap">
         <div id="map" role="application" aria-label="Map of things to rent"></div>
         <div class="mapctl">
@@ -33,25 +45,8 @@ browse.get('/', async (c) => {
         <a class="sheet" id="sheet" href="#"><img id="shImg" alt="" /><div><div class="pr" id="shPr"></div><div class="nm" id="shNm"></div><div class="hint" id="shSub"></div></div></a>
         <div id="grid" class="itemgrid" style="display:none;position:absolute;inset:0;overflow:auto;background:var(--cream);z-index:450;align-content:start"></div>
       </div>
-      {raw(`<script>
-(function(){
-if(typeof L==='undefined'){document.getElementById('grid').style.display='grid';document.getElementById('toggle').style.display='none';fetch('/api/listings').then(function(r){return r.json()}).then(function(j){document.getElementById('grid').innerHTML=j.listings.map(function(it){return '<a class="itemcard" href="/i/'+it.id+'">'+(it.photo?'<img src="/p/'+it.photo+'" alt="">':'<div class="ph">no photo</div>')+'<div class="b"><div class="pr">$'+(it.price_cents/100)+'<span style="font-size:11px;font-weight:700">/day</span></div><div class="nm">'+it.name.replace(/[<>&]/g,'')+'</div></div></a>'}).join('')});return}
-var map=L.map('map',{zoomControl:false,attributionControl:true}).setView([${center[0]},${center[1]}],15);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
-var layer=L.layerGroup().addTo(map),items=[],sel=null,listMode=false,t;
-var sheet=document.getElementById('sheet');
-function fmt(c){var d=c/100;return '$'+(Number.isInteger(d)?d:d.toFixed(2))}
-function render(){layer.clearLayers();items.forEach(function(it){if(it.lat==null)return;var ic=L.divIcon({className:'',html:'<div class="epin'+(sel===it.id?' sel':'')+'"><span class="glow"></span>'+(it.avatar_key?'<img class="emo av" src="/p/'+it.avatar_key+'" alt="">':'<span class="emo">'+(it.emoji||'📦')+'</span>')<span class="tag">'+fmt(it.price_cents)+'<small>/day</small></span></div>',iconSize:[0,0]});var m=L.marker([it.lat,it.lng],{icon:ic}).addTo(layer);m.on('click',function(){sel=it.id;render();sheet.href='/i/'+it.id;document.getElementById('shImg').src=it.photo?'/p/'+it.photo:'';document.getElementById('shPr').textContent=fmt(it.price_cents)+'/day';document.getElementById('shNm').textContent=it.name;document.getElementById('shSub').textContent=(it.hood||'')+(it.week_cents?' · '+fmt(it.week_cents)+'/week':'');sheet.classList.add('on')})});
-var g=document.getElementById('grid');g.innerHTML=items.map(function(it){return '<a class="itemcard" href="/i/'+it.id+'">'+(it.photo?'<img src="/p/'+it.photo+'" alt="">':'<div class="ph">no photo</div>')+'<div class="b"><div class="pr">'+fmt(it.price_cents)+'<span style="font-size:11px;font-weight:700">/day</span></div><div class="nm">'+it.name.replace(/[<>&]/g,'')+'</div></div></a>'}).join('')||'<div style="padding:24px;grid-column:1/-1" class="hint">Nothing here yet. Be the first — list something.</div>';}
-function load(){var b=map.getBounds(),q=document.getElementById('q').value.trim();fetch('/api/listings?bbox='+[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()].join(',')+(q?'&q='+encodeURIComponent(q):'')).then(function(r){return r.json()}).then(function(j){items=j.listings;render();document.getElementById('kpiN').textContent=j.counts.view;document.getElementById('kpiL').textContent=(j.counts.view===1?'thing':'things')+' to rent here · '+j.counts.global+' total'})}
-map.on('moveend',load);map.on('click',function(){sel=null;sheet.classList.remove('on');render()});
-document.getElementById('q').addEventListener('input',function(){clearTimeout(t);t=setTimeout(load,250)});
-document.getElementById('toggle').addEventListener('click',function(){listMode=!listMode;g.style.display=listMode?'grid':'none';this.textContent=listMode?'Map':'List'});
-document.getElementById('locate').addEventListener('click',function(){navigator.geolocation&&navigator.geolocation.getCurrentPosition(function(p){map.setView([p.coords.latitude,p.coords.longitude],15)})});
-${u?.lat ? '' : "navigator.geolocation&&navigator.geolocation.getCurrentPosition(function(p){map.setView([p.coords.latitude,p.coords.longitude],15)},function(){},{timeout:4000});"}
-load();
-})();
-</script>`)}
+      {raw(`<script>window.LENDO_MAP=${cfg};</script>`)}
+      {mapbox ? <><script src="/map-style.js"></script><script src="/map.js"></script></> : <script src="/map-leaflet.js"></script>}
     </Layout>
   );
 });
@@ -87,6 +82,7 @@ browse.get('/i/:id', async (c) => {
         </div>
         {it.description ? <p style="margin:8px 0 0;font-size:14px;color:var(--ink2);white-space:pre-wrap">{it.description}</p> : null}
         <div class="hint" style="margin-top:8px">{it.hood || 'near you'}{owner.cross_streets ? ' · ' + owner.cross_streets : ''}{owner.pickup_spots ? ' · meet: ' + JSON.parse(owner.pickup_spots).join(', ') : ''}</div>
+        {it.lat != null && it.lng != null && staticMapUrl(c.env, it.lat, it.lng) ? <img src={staticMapUrl(c.env, it.lat, it.lng)!} alt={'Map around ' + (it.hood || 'the item')} width="600" height="220" style="display:block;width:100%;height:auto;margin-top:10px;border-radius:12px;border:1.5px solid var(--line)" loading="lazy" /> : null}
         {!isOwner && it.status === 'live' ? (
           <form method="post" action={'/i/' + it.id + '/rent'} id="rentForm">
             <div class="m" style="font-size:11px;color:var(--mute);margin-top:14px">next 14 days — tap to pick</div>

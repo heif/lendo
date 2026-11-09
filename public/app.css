@@ -69,6 +69,14 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .epin.sel .emo{transform:scale(1.18)}
 .epin.sel .tag{background:var(--ink)}
 .epin.sel .glow{background:radial-gradient(closest-side,rgba(255,79,0,.85),rgba(255,79,0,.35) 55%,rgba(255,79,0,0) 100%)}
+/* mapbox */
+.mapboxgl-ctrl-logo{opacity:.7}
+.mapboxgl-ctrl-attrib{font-size:10px;background:rgba(245,243,238,.8)!important}
+.mapboxgl-canvas{outline:none}
+.walker{font-size:18px;line-height:1;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.25));transition:opacity .3s}
+.walker span{display:inline-block;animation:wbob .6s ease-in-out infinite alternate}
+@keyframes wbob{from{transform:translateY(0) rotate(-3deg)}to{transform:translateY(-2px) rotate(3deg)}}
+.walkers-hidden .walker{opacity:0}
 /* map page */
 .mapwrap{position:relative;height:calc(100vh - 47px);min-height:520px}
 #map{position:absolute;inset:0;background:#EAE6DC}
