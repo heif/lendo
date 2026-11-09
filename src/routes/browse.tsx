@@ -161,25 +161,19 @@ browse.get('/i/:id', async (c) => {
           </form>
         ) : null}
       </section>
-      <section class="sec">
-        <div class="m" style="font-size:11px;color:var(--mute)">owner</div>
-        <div class="row" style="justify-content:space-between;align-items:flex-start;margin-top:6px">
-          <div>
-            <a href={'/u/' + owner.id} style="font-size:17px;font-weight:700">{owner.name || 'Neighbor'}</a>
-            {owner.hood ? <div style="margin-top:6px"><span class="tag">★ {owner.hood}</span></div> : null}
-            <div class="hint" style="margin-top:8px">on Lendo since {new Date(owner.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</div>
-          </div>
-          <div style="text-align:right"><div class="price" style="font-size:48px;line-height:.9">{rep.listed}</div><div style="font-size:11px">items listed</div></div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;margin-top:14px;border:1.5px solid var(--ink);border-radius:10px;overflow:hidden">
-          <div style="padding:10px;border-right:1.5px solid var(--ink)"><div class="price" style="font-size:26px;line-height:1">{rep.as_owner_avg ? '★' + rep.as_owner_avg.toFixed(1) : 'new'}</div><div style="font-size:11px;margin-top:4px">as owner · {rep.as_owner_n} ratings</div></div>
-          <div style="padding:10px"><div class="price" style="font-size:26px;line-height:1">{rep.as_renter_avg ? '★' + rep.as_renter_avg.toFixed(1) : 'new'}</div><div style="font-size:11px;margin-top:4px">as renter · {rep.as_renter_n}</div></div>
-        </div>
-        {review ? <p style="margin:12px 0 0;font-size:13px;font-style:italic">“{review.rv}” — {firstName(review.nm)}</p> : null}
+      <section class="sec owner-sec">
+        <a href={'/u/' + owner.id} class="owner-row">
+          <span class="owner-av">{(owner.name || 'N').charAt(0)}</span>
+          <span class="owner-txt">
+            <b>{owner.name || 'Neighbor'}</b>{owner.hood ? <span class="tag" style="margin-left:8px">★ {owner.hood}</span> : null}
+            <small>{rep.listed} listed · {rep.as_owner_avg ? `★${rep.as_owner_avg.toFixed(1)} · ${rep.as_owner_n} ratings` : 'new'} · since {new Date(owner.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</small>
+          </span>
+          <svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2L8 8L2 14" fill="none" stroke="#1E3A2B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
+        </a>
+        {review ? <p class="owner-rev">“{review.rv}” — {firstName(review.nm)}</p> : null}
+        <div class="hint" style="margin-top:10px;font-size:12px">Card held until {firstName(owner.name)} says yes · {feePct}% fee</div>
       </section>
-      <section class="sec" style="border-bottom:0;padding-bottom:110px">
-        <div class="hint">Card held until {firstName(owner.name)} says yes · {feePct}% fee · photo at pickup instead of a deposit</div>
-      </section>
+      <div style="height:84px"></div>
       {it.demo ? <div class="flash" id="demoNote" hidden style="margin:0 16px 90px">This one’s a demo — Iowa City is a preview of what a Lendo neighborhood looks like full. Nothing gets charged. <a href="/list">List your real stuff →</a></div> : null}
       {!isOwner && it.status === 'live' ? (
         <div class="rentbar">

@@ -287,3 +287,13 @@ button,.btn,.pm,.idea,.days button,.stars button{touch-action:manipulation}
 .citytip::before{content:'';position:absolute;left:50%;top:-6px;margin-left:-6px;border:6px solid transparent;border-top:0;border-bottom-color:var(--ink)}
 .ticker{text-decoration:none;color:var(--cream);cursor:pointer}
 .ticker:hover .tk{animation-play-state:paused}
+/* item page owner strip */
+.owner-sec{padding:12px 16px 14px}
+.owner-row{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink)}
+.owner-av{width:40px;height:40px;border-radius:20px;background:var(--ink);color:#fff;font-weight:900;font-size:17px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.owner-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.owner-txt b{font-size:16px;font-weight:800}
+.owner-txt small{font-size:12.5px;font-weight:600;color:#6F6A60}
+.owner-rev{margin:10px 0 0;font-size:13px;font-style:italic;color:var(--ink2,#4A463F)}
+/* floating $5 bar sits above a sticky action bar when the page has one */
+body:has(.rentbar) .promo.pu{bottom:96px}
