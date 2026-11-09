@@ -149,11 +149,15 @@ browse.get('/i/:id', async (c) => {
               {it.week_cents && it.week_cents < it.price_cents * 7 ? <button type="button" class="btn" data-q="7" style="flex:1.3;height:48px;flex-direction:column;line-height:1.1;position:relative"><b style="font-size:16px">1 week</b><small style="font-size:12px;font-weight:700">{money(it.week_cents)} <s style="color:var(--mute);font-weight:600">{money(it.price_cents * 7)}</s></small><span style="position:absolute;right:-6px;top:-9px;background:var(--orange);color:#fff;border:1.5px solid var(--ink);border-radius:8px;font-size:10px;font-weight:900;padding:2px 6px">{Math.round(100 - it.week_cents / (it.price_cents * 7) * 100)}% OFF</span></button> : null}
             </div>
             <div class="m" style="font-size:11px;color:var(--mute);margin-top:12px">or tap days</div>
-            <div class="days" id="days">
-              {days.map(d => {
+            <div class="days-hd">{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((w, i) => <span>{w}</span>)}</div>
+            <div class="days" id="days" style={`--lead:${new Date(days[0] + 'T12:00:00Z').getUTCDay()}`}>
+              {days.map((d, i) => {
                 const b = busy.has(d);
                 const dt = new Date(d + 'T12:00:00Z');
-                return <button type="button" class={b ? 'busy' : ''} data-day={d} disabled={b} aria-label={fmtDay(d) + (b ? ' booked' : '')}>{dt.toLocaleDateString('en-US', { weekday: 'narrow', timeZone: 'UTC' })} {dt.getUTCDate()}</button>;
+                const first = i === 0 || dt.getUTCDate() === 1;
+                return <button type="button" class={(b ? 'busy' : '') + (i === 0 ? ' today' : '')} data-day={d} disabled={b} aria-label={fmtDay(d) + (b ? ' booked' : '')} style={i === 0 ? `grid-column-start:${dt.getUTCDay() + 1}` : ''}>
+                  {first ? <small>{dt.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })}</small> : null}<b>{dt.getUTCDate()}</b>{i === 0 ? <i>today</i> : null}
+                </button>;
               })}
             </div>
             
