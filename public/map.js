@@ -264,7 +264,8 @@
       try { var p = map.project([lng, lat]); return map.queryRenderedFeatures([[p.x - 14, p.y - 14], [p.x + 14, p.y + 14]], { layers: waterLayers }).length > 0; } catch (e) { return false; }
     }
     function place() {
-      var z = map.getZoom(), want = (PL && PL.wanted) || []; var keep = {}, CELL = cellDeg(), zb = Math.round(z);
+      var z = map.getZoom(), want = (PL && PL.wanted) || []; var keep = {}, chosen = {}, CELL = cellDeg(), zb = Math.round(z);
+      Object.keys(marks).forEach(function (k) { if (k.indexOf(zb + ':') === 0) chosen[k.slice(k.indexOf(':') + 1)] = marks[k]._wkey; });
       if (z >= (PROMO ? 13.2 : 12.8) && want.length) {
         var b = map.getBounds(), x0 = Math.floor(b.getWest() / CELL), x1 = Math.ceil(b.getEast() / CELL), y0 = Math.floor(b.getSouth() / CELL), y1 = Math.ceil(b.getNorth() / CELL), n = 0;
         for (var x = x0; x <= x1 && n < MAX; x++) for (var y = y0; y <= y1 && n < MAX; y++) {
@@ -272,13 +273,19 @@
           var lng = (x + 0.15 + (h >>> 8 & 255) / 365) * CELL, lat = (y + 0.15 + (h >>> 16 & 255) / 365) * CELL;
           if (near(lng, lat, 130)) continue;
           if (onWater(lng, lat)) continue;
-          var k = zb + ':' + x + ',' + y, w = want[h % want.length]; keep[k] = 1; n++;
-          if (marks[k]) continue;
+          var k = zb + ':' + x + ',' + y; keep[k] = 1; n++;
+          if (marks[k]) { chosen[x + ',' + y] = marks[k]._wkey; continue; }
+          // pick a kind no neighbor (within 2 cells) already shows, so the same item doesn't repeat in one area
+          var wi = h % want.length, w = null;
+          for (var tries = 0; tries < want.length; tries++) { var cand = want[(wi + tries) % want.length], clash = false;
+            for (var dx = -2; dx <= 2 && !clash; dx++) for (var dy = -2; dy <= 2; dy++) { if (chosen[(x + dx) + ',' + (y + dy)] === cand.key) { clash = true; break; } }
+            if (!clash) { w = cand; break; } }
+          if (!w) w = want[wi]; chosen[x + ',' + y] = w.key;
           var el = document.createElement('a'); el.href = '/list?want=' + encodeURIComponent(w.label);
           (function (w, el) { el.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); $('wsEm').innerHTML = w.icon ? '<img src="' + w.icon + '" alt="" style="width:1em;height:1em;object-fit:contain;vertical-align:middle">' : w.emoji; $('wsName').textContent = w.label; $('wsGo').href = el.href; $('wsheet').hidden = false; }); })(w, el);
           if (PROMO) { el.className = 'wanted'; el.setAttribute('aria-label', 'Wanted: ' + w.label + '. Reward for listing.'); el.innerHTML = '<b>WANTED</b><i>' + w.emoji + '</i><em>' + w.label + '</em><strong>REWARD</strong><small>for listing</small>'; }
           else { el.className = 'ghost' + (w.icon ? ' img' : ''); el.title = 'Wanted: ' + w.label; el.setAttribute('aria-label', 'Wanted: ' + w.label); if (w.icon) el.innerHTML = '<img src="' + w.icon + '" alt="" draggable="false">'; else el.textContent = w.emoji; el.style.setProperty('--r', ((h >>> 4) % 17 - 8) + 'deg'); el.style.fontSize = '44px'; }
-          marks[k] = new mapboxgl.Marker({ element: el, anchor: 'center', className: 'wanted-m', rotationAlignment: 'viewport' }).setLngLat([lng, lat]).addTo(map);
+          marks[k] = new mapboxgl.Marker({ element: el, anchor: 'center', className: 'wanted-m', rotationAlignment: 'viewport' }).setLngLat([lng, lat]).addTo(map); marks[k]._wkey = w.key;
         }
       }
       Object.keys(marks).forEach(function (k) { if (!keep[k]) { marks[k].remove(); delete marks[k]; } });
