@@ -130,3 +130,7 @@ canvas.story{width:132px;height:auto;aspect-ratio:9/16;border-radius:12px;border
 .row-item .del{align-self:flex-start;margin-top:4px}
 .undo-t{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);z-index:900;display:flex;align-items:center;gap:14px;background:var(--ink);color:#fff;border-radius:12px;padding:10px 14px;font-size:14px;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.25)}
 .undo-t button{border:0;background:none;color:#FFB08A;font:inherit;font-weight:900;text-decoration:underline;cursor:pointer;padding:0}
+/* shutter always centered, even while the thumb / Done slots are hidden */
+.cam-bar .thumbwrap{grid-column:1;justify-self:start}
+.cam-bar .shutter{grid-column:2}
+.cam-bar .donebtn{grid-column:3;justify-self:end}
