@@ -54,7 +54,7 @@
   function updateHood() {
     var cc = map.getCenter();
     fetch('/api/hood?lat=' + cc.lat.toFixed(4) + '&lng=' + cc.lng.toFixed(4)).then(function (r) { return r.json(); }).then(function (j) {
-      var name = j.hood || 'Near you'; $('scHoodN').textContent = name; $('scHoodC').textContent = (j.hood ? j.hood_n : items.length).toLocaleString(); $('scCityC').textContent = j.city_n.toLocaleString();
+      var name = j.hood || (j.city ? j.city : 'Near you'); $('scHoodN').textContent = name; $('scHoodC').textContent = (j.hood ? j.hood_n : items.length).toLocaleString(); if (j.city) { $('scCity').querySelector('b').textContent = j.city; $('scCityC').textContent = j.city_n.toLocaleString(); }
       if (name !== lastHood) { lastHood = name; $('scHoodN').animate([{ opacity: 0.3 }, { opacity: 1 }], 300); }
     }).catch(function () {});
   }

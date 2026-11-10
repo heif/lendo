@@ -87,8 +87,19 @@ api.get('/api/hood', async (c) => {
     const near = await c.env.DB.prepare(`SELECT hood, COUNT(*) n FROM listings WHERE status = 'live' AND hood IS NOT NULL AND lat BETWEEN ? AND ? AND lng BETWEEN ? AND ? GROUP BY hood ORDER BY n DESC LIMIT 1`).bind(lat - 0.008, lat + 0.008, lng - 0.01, lng + 0.01).first<{ hood: string; n: number }>();
     if (near) { name = near.hood; n = near.n; }
   }
-  const g = await c.env.DB.prepare(`SELECT COUNT(*) n FROM listings WHERE status = 'live'`).first<{ n: number }>();
-  return c.json({ hood: name, hood_n: n, city: 'NYC', city_n: g?.n ?? 0, global_n: g?.n ?? 0 });
+  // fallback: nearest named hood center from the city directory (until hood polygons are seeded everywhere)
+  const km = (aLat: number, aLng: number) => Math.hypot((aLat - lat) * 111, (aLng - lng) * 111 * Math.cos(lat * Math.PI / 180));
+  const ct = CITIES.find(x => lng >= x.bbox[0] && lng <= x.bbox[2] && lat >= x.bbox[1] && lat <= x.bbox[3]) || null;
+  if (!name && ct) {
+    const best = ct.hoods.filter(h => h.lat !== ct.lat || h.lng !== ct.lng).map(h => ({ h, d: km(h.lat, h.lng) })).sort((x, y) => x.d - y.d)[0];
+    if (best && best.d < 2.5) {
+      name = best.h.name;
+      const dLat = 0.9 / 111, dLng = 0.9 / (111 * Math.cos(best.h.lat * Math.PI / 180));
+      n = (await c.env.DB.prepare(`SELECT COUNT(*) n FROM listings WHERE status = 'live' AND lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?`).bind(best.h.lat - dLat, best.h.lat + dLat, best.h.lng - dLng, best.h.lng + dLng).first<{ n: number }>())?.n ?? 0;
+    }
+  }
+  const cityN = ct ? (await c.env.DB.prepare(`SELECT COUNT(*) n FROM listings WHERE status = 'live' AND lng BETWEEN ? AND ? AND lat BETWEEN ? AND ?`).bind(ct.bbox[0], ct.bbox[2], ct.bbox[1], ct.bbox[3]).first<{ n: number }>())?.n ?? 0 : 0;
+  return c.json({ hood: name, hood_n: n, city: ct?.name || null, city_n: cityN });
 });
 
 // Directory for the hood/city picker: live counts per city (bbox) and per hood (~0.9 km radius around the center).
