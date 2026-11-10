@@ -122,7 +122,7 @@ browse.get('/i/:id', async (c) => {
   return c.html(
     <Layout title="Item" user={u} flash={c.req.query('canceled') ? 'Checkout canceled — nothing was charged.' : null}>
       <div class="hero">
-        {photos[0] ? <img id="heroImg" src={cutoutUrl(c.env, photos[0].r2_key)} alt={it.name} onerror={`this.onerror=null;this.src='/p/${photos[0].r2_key}'`} /> : it.avatar_key ? <img id="heroImg" src={'/p/' + it.avatar_key} alt={it.name} style="padding:40px;box-sizing:border-box" /> : <div class="hint">no photo yet</div>}
+        {photos[0] ? <img id="heroImg" src={cutoutUrl(c.env, photos[0].r2_key)} alt={it.name} onerror={`this.onerror=null;this.src='/p/${photos[0].r2_key}'`} /> : it.avatar_key ? <img id="heroImg" src={'/p/' + it.avatar_key} alt={it.name} style="padding:18px 40px 0" /> : <div class="hint">no photo yet</div>}
         <div class="pr"><b class="price">{money(it.price_cents)}</b><span style="font-size:15px">/day</span>
         </div>
       </div>
