@@ -92,6 +92,12 @@ api.post('/api/alerts/:id/off', async (c) => {
   const u = c.get('user'); if (!u) return c.json({ error: 'login' }, 401);
   await turnOff(c.env, u, c.req.param('id')); return c.json({ ok: true });
 });
+// public health check: schema version only, nothing sensitive
+api.get('/api/health', async (c) => {
+  const mig = await c.env.DB.prepare(`SELECT name FROM d1_migrations ORDER BY id DESC LIMIT 1`).first<{ name: string }>().catch(() => null);
+  const t = await c.env.DB.prepare(`SELECT COUNT(*) n FROM sqlite_master WHERE type = 'table' AND name = 'saved_searches'`).first<{ n: number }>();
+  return c.json({ ok: true, last_migration: mig?.name ?? null, alerts_tables: !!t?.n });
+});
 api.get('/api/hood', async (c) => {
   const lat = parseFloat(c.req.query('lat') || ''), lng = parseFloat(c.req.query('lng') || '');
   if (isNaN(lat) || isNaN(lng)) return c.json({ error: 'lat,lng required' }, 400);
