@@ -12,12 +12,43 @@
   function fmt(c) { var d = c / 100; return '$' + (Number.isInteger(d) ? d : d.toFixed(2)); }
   function esc(s) { return String(s).replace(/[<>&"]/g, function (c) { return ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]; }); }
 
-  function renderGrid(items) {
-    grid.innerHTML = items.map(function (it) {
-      return '<a class="itemcard" href="/i/' + it.id + '">' + (it.photo ? '<img src="/p/' + it.photo + '" alt="">' : '<div class="ph">no photo</div>') +
-        '<div class="b"><div class="pr">' + fmt(it.price_cents) + '<span style="font-size:11px;font-weight:700">/day</span></div><div class="nm">' + esc(it.name) + '</div></div></a>';
-    }).join('') || '<div style="padding:24px;grid-column:1/-1" class="hint">Nothing here yet. Be the first — list something.</div>';
+  // List view (prototype "aisles"): category sections, big heading + count, horizontal row of item stickers
+  var AISLES = [
+    ['Tech & cameras', /projector|laptop|macbook|monitor|printer|camera|camcorder|drone|\btv\b|console|controller|vr |headset|ipad|tablet|power station|battery|gopro/],
+    ['Music & sound', /guitar|keyboard|piano|violin|drum|sax|trumpet|banjo|accordion|speaker|micro|\bmic\b|dj |boombox|disco|amp\b/],
+    ['Wheels', /bike|bicycle|scooter|skateboard|roller|moped|\bcar\b|\bvan\b|truck|wheelchair|crutch|stroller|wagon/],
+    ['Outdoors', /tent|kayak|sail|surf|umbrella|telescope|microscope|fishing|archery|\bbow\b|kite|snorkel|paraglid|backpack|hammock|cooler|binocular|camping/],
+    ['Snow', /\bski|snowboard|ice skate|\bsled|ski jacket/],
+    ['Sports & games', /pickleball|racket|tennis|hockey|lacrosse|cricket|boxing|soccer|goal|golf|game/],
+    ['Tools & home', /ladder|saw|axe|toolbox|hammer|drill|chair|vacuum|mixer|suitcase|luggage|grill|table|tool/],
+    ['Dress up', /gown|heels|boots|top hat|\btux|dress|costume|film kit|clapper|jacket/]
+  ];
+  var openAisle = null;
+  function aisleOf(it) { var n = (it.name + ' ' + (it.description || '')).toLowerCase(); for (var k = 0; k < AISLES.length; k++) if (AISLES[k][1].test(n)) return AISLES[k][0]; return 'Everything else'; }
+  function tile(it) {
+    var img = it.avatar_key ? '/p/' + it.avatar_key : it.photo ? '/p/' + it.photo : '';
+    return '<div class="ai-t"><a href="/i/' + it.id + '"><div class="ai-im">' + '<span class="ai-sh"></span>' +
+      (img ? '<img loading="lazy" decoding="async" src="' + img + '" alt="' + esc(it.name) + '"' + (it.avatar_key ? '' : ' class="ph"') + '>' : '<span class="ai-em">' + (it.emoji || '📦') + '</span>') +
+      '<span class="ai-pr">' + fmt(it.price_cents) + '<small>/day</small></span></div><div class="ai-nm">' + esc(it.name) + '</div></a>' +
+      '<button type="button" class="ai-wh" data-go="' + it.id + '"><svg width="9" height="11" viewBox="0 0 24 28" aria-hidden="true"><path d="M12 27C12 27 3 17 3 10.5A9 9 0 0 1 21 10.5C21 17 12 27 12 27Z" fill="#1E3A2B"/><circle cx="12" cy="10.5" r="3.2" fill="#fff"/></svg>' + esc(it.hood || 'nearby') + '</button></div>';
   }
+  function renderGrid(items) {
+    var c = map.getCenter(), groups = {};
+    var sorted = items.slice().sort(function (a, b) { return Math.hypot(a.lat - c.lat, (a.lng - c.lng) * .76) - Math.hypot(b.lat - c.lat, (b.lng - c.lng) * .76); });
+    sorted.forEach(function (it) { var a = aisleOf(it); (groups[a] = groups[a] || []).push(it); });
+    var names = Object.keys(groups).sort(function (a, b) { return a === 'Everything else' ? 1 : b === 'Everything else' ? -1 : groups[b].length - groups[a].length; });
+    if (openAisle && !groups[openAisle]) openAisle = null;
+    if (!names.length) { grid.innerHTML = '<div class="hint" style="padding:24px 16px">Nothing here yet. Be the first — <a href="/list">list something</a>.</div>'; return; }
+    grid.innerHTML = (openAisle ? '<button type="button" class="ai-back" data-aisle="">‹ All categories</button>' : '') + (openAisle ? [openAisle] : names).map(function (n) {
+      var list = groups[n], focus = n === openAisle;
+      return '<section class="aisle' + (focus ? ' focus' : '') + '"><button type="button" class="ai-h" data-aisle="' + (focus ? '' : esc(n)) + '"><h2>' + esc(n) + '</h2><span class="ai-n">' + list.length + '</span>' + (focus ? '' : '<span class="ai-all">All ›</span>') + '</button>' +
+        '<div class="ai-row">' + (focus ? list : list.slice(0, 24)).map(tile).join('') + '</div></section>';
+    }).join('');
+  }
+  grid.addEventListener('click', function (e) {
+    var h = e.target.closest('[data-aisle]'); if (h) { openAisle = h.dataset.aisle || null; renderGrid(items); grid.scrollTop = 0; return; }
+    var g = e.target.closest('[data-go]'); if (g) { var it = items.filter(function (x) { return x.id === g.dataset.go; })[0]; if (!it) return; setList(false); map.easeTo({ center: [it.lng, it.lat], zoom: Math.max(map.getZoom(), 15.5) }); }
+  });
   function setKpi(j) { if (!PL) $('scCityC').textContent = j.counts.view.toLocaleString(); } // city count comes from /api/places once loaded
   var hoodT, lastHood = '';
   function updateHood() {
@@ -225,7 +256,10 @@
   ['pins', 'clusters'].forEach(function (l) { map.on('mouseenter', l, function () { map.getCanvas().style.cursor = 'pointer'; }); map.on('mouseleave', l, function () { map.getCanvas().style.cursor = ''; }); });
 
   q.addEventListener('input', function () { clearTimeout(t); t = setTimeout(load, 300); });
-  $('toggle').addEventListener('click', function () { listMode = !listMode; grid.style.display = listMode ? 'grid' : 'none'; this.textContent = listMode ? 'Map' : 'List'; });
+  var LIST_IC = '<svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 1.5h1M4 1.5h9M1 6h1M4 6h9M1 10.5h1M4 10.5h9" stroke="#1E3A2B" stroke-width="2" stroke-linecap="round"/></svg> List',
+      MAP_IC = '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6L9 4L15 6L21 4V18L15 20L9 18L3 20Z M9 4V18 M15 6V20" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linejoin="round"/></svg> Map';
+  function setList(on) { listMode = on; grid.style.display = on ? 'block' : 'none'; $('toggle').innerHTML = on ? MAP_IC : LIST_IC; document.querySelector('.mapwrap').classList.toggle('listing', on); if (on) renderGrid(items); }
+  $('toggle').addEventListener('click', function () { setList(!listMode); });
   $('locate').addEventListener('click', function () { navigator.geolocation && navigator.geolocation.getCurrentPosition(function (p) { map.easeTo({ center: [p.coords.longitude, p.coords.latitude], zoom: 15 }); }); });
   // No home base: use device location only if it's inside a live city; otherwise stay in NYC and nudge the city switcher
   function inLiveCity(lng, lat) { return !PL || PL.cities.some(function (ct) { return ct.live && Math.abs(lng - ct.lng) < 0.45 && Math.abs(lat - ct.lat) < 0.3; }); }

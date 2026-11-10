@@ -95,7 +95,7 @@ browse.get('/', async (c) => {
             <button type="submit" disabled>$5 OFF</button>
           </form> : null}
         </div>
-        <div id="grid" class="itemgrid" style="display:none;position:absolute;inset:0;overflow:auto;background:var(--cream);z-index:450;align-content:start;padding-top:64px"></div>
+        <div id="grid" class="aisles" style="display:none"></div>
       </div>
       {raw(`<script>window.LENDO_MAP=${cfg};</script>`)}
       {mapbox ? <><script src="/map-style.js"></script><script src="/map.js"></script></> : <script src="/map-leaflet.js"></script>}
