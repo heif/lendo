@@ -20,8 +20,11 @@
     ['Outdoors', /tent|kayak|sail|surf|umbrella|telescope|microscope|fishing|archery|\bbow\b|kite|snorkel|paraglid|backpack|hammock|cooler|binocular|camping/],
     ['Snow', /\bski|snowboard|ice skate|\bsled|ski jacket/],
     ['Sports & games', /pickleball|racket|tennis|hockey|lacrosse|cricket|boxing|soccer|goal|golf|game/],
-    ['Tools & home', /ladder|saw|axe|toolbox|hammer|drill|chair|vacuum|mixer|suitcase|luggage|grill|table|tool/],
-    ['Dress up', /gown|heels|boots|top hat|\btux|dress|costume|film kit|clapper|jacket/]
+    ['Tools', /ladder|saw|axe|toolbox|hammer|drill|pressure washer|leaf blower|mower|trimmer|sander|shop vac|nail gun|sprayer|generator|hand truck|wheelbarrow|laser level|tool/],
+    ['Home & kitchen', /mixer|espresso|air fryer|dinner|picnic|sewing|steamer|carpet cleaner|vacuum|chair|suitcase|luggage|grill|table|crib|stroller|car seat|record player|pottery/],
+    ['Parties & photo', /balloon|backdrop|ring light|disco|projector|speaker|craft|cutting machine/],
+    ['Wellness', /yoga|exercise bike|massage|paddleboard/],
+    ['Dress up', /gown|heels|boots|top hat|\btux|dress|costume|handbag|hair styler|film kit|clapper|jacket/]
   ];
   var openAisle = null;
   function aisleOf(it) { var n = (it.name + ' ' + (it.description || '')).toLowerCase(); for (var k = 0; k < AISLES.length; k++) if (AISLES[k][1].test(n)) return AISLES[k][0]; return 'Everything else'; }
