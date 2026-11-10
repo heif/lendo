@@ -392,3 +392,9 @@ input,textarea,select{font-size:max(16px,1em)}
 html,body{overflow-x:hidden}
 /* iOS Safari zooms into any field under 16px — keep every text field at 16px+ on touch screens */
 @media (pointer:coarse){input:not([type=checkbox]):not([type=radio]):not([type=range]),textarea,select{font-size:max(16px,1em)!important}}
+
+/* picker: city chips are the header; the selected chip carries a pointer down into its neighborhoods */
+.places-h{padding:12px 10px 4px 0}
+.places-h .places-cities{flex:1;min-width:0;padding:0 4px 9px 12px}
+.places-cities button{position:relative;overflow:visible}
+.places-cities button.on::after{content:"";position:absolute;left:50%;bottom:-9px;margin-left:-8px;border:8px solid transparent;border-top:9px solid var(--ink);border-bottom:0}

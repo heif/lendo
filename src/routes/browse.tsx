@@ -73,8 +73,7 @@ browse.get('/', async (c) => {
         </div>
         <div class="places-dim" id="plDim" hidden></div>
         <div class="places" id="places" role="dialog" aria-label="Neighborhoods and cities" hidden>
-          <div class="places-h"><b id="plTitle">Neighborhoods</b><button type="button" class="places-x" id="plClose" aria-label="Close">×</button></div>
-          <div class="places-cities" id="plCities"></div>
+          <div class="places-h"><b id="plTitle" hidden>Neighborhoods</b><div class="places-cities" id="plCities"></div><button type="button" class="places-x" id="plClose" aria-label="Close">×</button></div>
           <div class="places-seg" id="plSeg"><button type="button" data-s="az" class="on">A–Z</button><button type="button" data-s="rank">🏆 Most things</button><button type="button" data-s="own">Top owners</button></div>
           <div class="places-hoods" id="plHoods"></div>
         </div>
