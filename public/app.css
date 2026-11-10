@@ -37,7 +37,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .scope button b,.scope button small{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .scope button b{font-size:13px;font-weight:900;letter-spacing:-.2px;white-space:nowrap}
 .scope button small{font-size:9.5px;font-weight:700;white-space:nowrap}
-.scope-hood{background:#fff;color:var(--ink);border:1.5px solid var(--ink)!important;position:relative;padding-right:30px!important;min-width:96px;max-width:150px;flex:0 1 auto}
+.scope-hood{background:#fff;color:var(--ink);border:1.5px solid #CFC9BC!important;position:relative;padding-right:30px!important;min-width:96px;max-width:150px;flex:0 1 auto}
 .scope-hood svg{position:absolute;right:9px;top:50%;margin-top:-3px}
 .scope-hood svg path{stroke:var(--ink)}
 .scope-hood::after{content:'';position:absolute;right:25px;top:7px;bottom:7px;width:1px;background:#DCD7CC}
