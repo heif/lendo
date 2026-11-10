@@ -395,7 +395,8 @@
       try { var p = map.project([lng, lat]); return map.queryRenderedFeatures([[p.x - 14, p.y - 14], [p.x + 14, p.y + 14]], { layers: waterLayers }).length > 0; } catch (e) { return false; }
     }
     function place() {
-      var z = map.getZoom(), want = ((PL && PL.wanted) || []).filter(function (w) { return w.icon; }); // only drawn, vision-checked icons of the actual item — no emoji stand-ins var keep = {}, chosen = {}, CELL = cellDeg(), zb = Math.round(z);
+      var z = map.getZoom(), want = ((PL && PL.wanted) || []).filter(function (w) { return w.icon; });; // only drawn, vision-checked icons — no emoji stand-ins
+      var keep = {}, chosen = {}, CELL = cellDeg(), zb = Math.round(z);
       Object.keys(marks).forEach(function (k) { if (k.indexOf(zb + ':') === 0) chosen[k.slice(k.indexOf(':') + 1)] = marks[k]._wkey; });
       if (z >= (PROMO ? 13.2 : 12.8) && want.length) {
         var b = map.getBounds(), x0 = Math.floor(b.getWest() / CELL), x1 = Math.ceil(b.getEast() / CELL), y0 = Math.floor(b.getSouth() / CELL), y1 = Math.ceil(b.getNorth() / CELL), n = 0;
@@ -441,7 +442,7 @@
     }
     function nearPin(lng, lat, px) {
       var p = map.project([lng, lat]);
-      for (var i = 0; i < items.length; i++) { var it = items[i]; if (it.lat == null) continue; var q = map.project([it.lng, it.lat]); if (Math.abs(q.x - p.x) < px && q.y - p.y > -20 && q.y - p.y < px + 30) return true; }
+      for (var i = 0; i < items.length; i++) { var it = items[i]; if (it.lat == null) continue; var q = map.project([it.lng, it.lat]); if (Math.abs(q.x - p.x) < px + 14 && q.y - p.y > -50 && q.y - p.y < px * 1.6 + 60) return true; /* pin = icon above + price tag below its point */ }
       return false;
     }
     var walkers = [], moving = false, hidden = document.hidden;
@@ -478,7 +479,7 @@
           if (w.t <= 0) { w.t = 0; w.dir = 1; w.face.style.transform = 'scaleX(' + (w.b[0] >= w.a[0] ? 1 : -1) + ')'; }
           var cur = [w.a[0] + (w.b[0] - w.a[0]) * w.t, w.a[1] + (w.b[1] - w.a[1]) * w.t];
           w.m.setLngLat(cur);
-          w.el.style.opacity = nearPin(cur[0], cur[1], 56) ? '0' : '';
+          w.el.style.opacity = nearPin(cur[0], cur[1], 64) ? '0' : '';
           if (Date.now() - w.born > w.life) w.done = true;
         });
         walkers = walkers.filter(function (w) { if (w.done) w.m.remove(); return !w.done; });
