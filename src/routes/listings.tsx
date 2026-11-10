@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { makeCutout } from '../lib/avatar';
 import { raw } from 'hono/html';
 import type { Env, Listing, Vars } from '../lib/env';
 import { Layout } from '../pages/layout';
@@ -70,8 +71,9 @@ listings.get('/list', async (c) => {
             <div class="dn-items" id="tray"></div>
           </div>
           <div class="share">
-            <div class="share-h">Share it. Post it.</div>
-            <div class="flyer"><div class="flyer-h">FOR RENT ON MY BLOCK</div><div class="flyer-tray" id="shTray"></div><div class="flyer-l" id="shLine"></div><div class="flyer-u">lendo.co/u/{u.id.slice(0, 8)}…</div></div>
+            <div class="share-h">Share it</div>
+            <div class="story-wrap"><canvas class="story" id="story" width="1080" height="1920" aria-label="Story card"></canvas>
+              <div class="story-side"><button type="button" class="btn pri" id="stShare">📸 Share story</button><button type="button" class="btn" id="stSave">⬇ Save image</button><div class="hint" style="font-size:12px">Instagram story, WhatsApp status, or the building chat · scan the QR to rent</div></div></div>
             <div class="shbtns" id="shBtns"></div>
           </div>
           <div class="dn-acts"><button type="button" class="btn" id="again" style="box-shadow:3px 3px 0 var(--ink)">+ Keep going</button><a class="btn dark" href="/">See the map</a></div>
@@ -79,6 +81,7 @@ listings.get('/list', async (c) => {
         <div class="toast" id="shToast" style="display:none"></div>
       </section>
       {raw(`<script>window.LENDO_LIST=${cfg};</script>`)}
+      <script src="/qrgen.js"></script>
       <script src="/list.js"></script>
     </Layout>
   );
@@ -101,6 +104,19 @@ listings.post('/list', async (c) => {
 });
 
 // Batch create from the snap-flow: multipart with items[i][name|price|week|note] + photo_i
+// real photo of the item on a transparent background (for the share story card); cached in R2
+listings.get('/api/cut/:id', async (c) => {
+  const lid = c.req.param('id'), key = `${lid}/cut.png`;
+  let o = await c.env.PHOTOS.get(key);
+  if (!o) {
+    const ph = await c.env.DB.prepare('SELECT r2_key FROM photos WHERE listing_id = ? ORDER BY pos LIMIT 1').bind(lid).first<{ r2_key: string }>();
+    if (!ph) return c.json({ error: 'none' }, 404);
+    try { const cut = await makeCutout(c.env, ph.r2_key, 900); if (!cut) return c.json({ error: 'cut' }, 502); await c.env.PHOTOS.put(key, cut, { httpMetadata: { contentType: 'image/png' } }); return c.body(cut, 200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' }); }
+    catch { return c.json({ error: 'cut' }, 502); }
+  }
+  return c.body(o.body, 200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' });
+});
+
 listings.post('/api/list', async (c) => {
   const u = c.get('user');
   if (!u) return c.json({ error: 'login' }, 401);

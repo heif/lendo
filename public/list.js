@@ -119,14 +119,56 @@
     $('tray').innerHTML = shots.map(function (s) { return '<div class="dn-item"><img src="' + s.url + '" alt=""><div class="dn-nm">' + escH(s.name.trim()) + '</div><div class="dn-pr">$' + s.price + '/day</div><span class="dn-tick">✓</span></div>'; }).join('');
     $('dnHead').textContent = shots.length === 1 ? 'Posted' : shots.length + ' posted';
     $('dnSub').textContent = shots.length === 1 ? 'Live on the map — neighbors can rent it now' : 'Live on the map — neighbors can rent them now';
-    $('shTray').innerHTML = shots.slice(0, 4).map(function (s) { return '<img src="' + s.url + '" alt="">'; }).join('');
-    $('shLine').textContent = shots.length + (shots.length === 1 ? ' thing' : ' things') + ' from $' + Math.min.apply(null, shots.map(function (s) { return s.price; })) + '/day' + (CFG.hood ? ' · ' + CFG.hood : '');
-    var text = 'Renting out ' + (shots.length === 1 ? 'my ' + shots[0].name.trim() : shots.length + ' things') + ' on my block, from $' + Math.min.apply(null, shots.map(function (s) { return s.price; })) + '/day', url = CFG.shareUrl, full = text + ' ' + url, enc = encodeURIComponent(full);
+
+    var L = (j && j.listed) || [], one = shots.length === 1 && L[0], minP = Math.min.apply(null, shots.map(function (s) { return s.price; }));
+    var text = one ? 'Renting out my ' + shots[0].name.trim().toLowerCase() + ' — $' + shots[0].price + '/day' + (CFG.hood ? ', pickup in ' + CFG.hood : '') : 'Renting out ' + shots.length + ' things' + (CFG.hood ? ' in ' + CFG.hood : '') + ', from $' + minP + '/day', url = one ? location.origin + '/i/' + L[0].id : CFG.shareUrl, full = text + ' ' + url, enc = encodeURIComponent(full);
     var toast = function (t) { $('shToast').textContent = t; $('shToast').classList.add('on'); setTimeout(function () { $('shToast').classList.remove('on'); }, 2000); };
     var copy = function (t) { try { navigator.clipboard.writeText(full); } catch (e) {} toast(t); };
-    var B = [['💬', 'Text', function () { location.href = 'sms:?&body=' + enc; }], ['🟢', 'WhatsApp', function () { window.open('https://wa.me/?text=' + enc, '_blank'); }], ['🏢', 'Building chat', function () { copy('Copied'); }], ['🔗', 'Copy', function () { copy('Link copied'); }]];
+    var B = [['💬', 'Text', function () { location.href = 'sms:?&body=' + enc; }], ['🟢', 'WhatsApp', function () { window.open('https://wa.me/?text=' + enc, '_blank'); }], ['🔗', 'Copy', function () { copy('Copied'); }]];
     $('shBtns').innerHTML = B.map(function (b, i) { return '<button type="button" data-i="' + i + '"><span class="ic">' + b[0] + '</span><span>' + b[1] + '</span></button>'; }).join('');
-    $('shBtns').onclick = function (e) { var b = e.target.closest('button'); if (!b) return; if (navigator.share && b.dataset.i === '3') { navigator.share({ text: text, url: url }).catch(function () {}); return; } B[+b.dataset.i][2](); };
+    $('shBtns').onclick = function (e) { var b = e.target.closest('button'); if (!b) return; if (navigator.share && b.dataset.i === '2') { navigator.share({ text: text, url: url }).catch(function () {}); return; } B[+b.dataset.i][2](); };
+    drawStory(L, url);
+  }
+  // ---- story card (1080x1920): real item cut out on cream, name + price, QR to the item
+  function drawStory(L, url) {
+    var cv = $('story'), g = cv.getContext('2d'), W = 1080, H = 1920, F = '"Helvetica Neue",Helvetica,Arial,sans-serif';
+    var one = shots.length === 1, minP = Math.min.apply(null, shots.map(function (s) { return s.price; }));
+    function base(imgs) {
+      g.fillStyle = '#F5F3EE'; g.fillRect(0, 0, W, H);
+      g.fillStyle = '#1E3A2B'; g.font = '900 64px ' + F; g.textBaseline = 'alphabetic'; g.fillText('👋 Lendo', 80, 150);
+      g.fillStyle = '#FF4F00'; g.font = '900 46px ' + F; g.fillText('FOR RENT' + (CFG.hood ? ' · ' + CFG.hood.toUpperCase() : ''), 80, 250);
+      // item(s)
+      var box = { x: 90, y: 300, w: 900, h: 900 };
+      var n = imgs.length, cols = n === 1 ? 1 : 2, rows = Math.ceil(Math.min(n, 4) / cols), cw = box.w / cols, ch = box.h / rows;
+      imgs.slice(0, 4).forEach(function (im, k) { if (!im) return; var cx = box.x + (k % cols) * cw, cy = box.y + Math.floor(k / cols) * ch, sc = Math.min((cw - 40) / im.width, (ch - 40) / im.height);
+        var w = im.width * sc, h = im.height * sc; g.drawImage(im, cx + (cw - w) / 2, cy + (ch - h) / 2, w, h); });
+      // name + price
+      g.fillStyle = '#1E3A2B'; g.textAlign = 'center'; g.font = '900 104px ' + F;
+      var title = one ? shots[0].name.trim() : shots.length + ' things to rent'; while (g.measureText(title).width > 920 && title.length > 4) title = title.slice(0, -2);
+      g.fillText(title, W / 2, 1340);
+      var tag = (one ? '$' + shots[0].price : 'from $' + minP) + '/day'; g.font = '900 76px ' + F; var tw = g.measureText(tag).width + 70;
+      g.fillStyle = '#1E3A2B'; g.fillRect(W / 2 - tw / 2 + 8, 1392, tw, 112); g.fillStyle = '#FF4F00'; g.fillRect(W / 2 - tw / 2, 1384, tw, 112); g.fillStyle = '#fff'; g.fillText(tag, W / 2, 1468);
+      // QR
+      try { var q = qrcode(0, 'M'); q.addData(url); q.make(); var m = q.getModuleCount(), S = 280, cell = S / m, qx = 80, qy = 1560;
+        g.fillStyle = '#fff'; g.fillRect(qx - 16, qy - 16, S + 32, S + 32); g.fillStyle = '#1E3A2B';
+        for (var r = 0; r < m; r++) for (var c2 = 0; c2 < m; c2++) if (q.isDark(r, c2)) g.fillRect(qx + c2 * cell, qy + r * cell, Math.ceil(cell), Math.ceil(cell)); } catch (e) {}
+      g.textAlign = 'left'; g.fillStyle = '#1E3A2B'; g.font = '900 58px ' + F; g.fillText('Scan to rent', 420, 1660);
+      g.font = '700 40px ' + F; g.fillStyle = '#4A463F'; g.fillText(url.replace(/^https?:\/\//, '').slice(0, 30), 420, 1730);
+      g.fillText('Neighbors renting to neighbors', 420, 1790);
+    }
+    // cutouts load async; draw with photos first, swap to cutouts as they arrive
+    var imgs = shots.slice(0, 4).map(function () { return null; });
+    function redraw() { base(imgs); }
+    shots.slice(0, 4).forEach(function (s, k) {
+      var ph = new Image(); ph.onload = function () { if (!imgs[k] || !imgs[k]._cut) { imgs[k] = ph; redraw(); } }; ph.src = s.url;
+      if (L[k]) { var tries = 0, get = function () { var im = new Image(); im._cut = true; im.onload = function () { imgs[k] = im; redraw(); }; im.onerror = function () { if (++tries < 3) setTimeout(get, 2500); }; im.src = '/api/cut/' + L[k].id + '?t=' + tries; }; setTimeout(get, 600); }
+    });
+    redraw();
+    function blob(cb) { cv.toBlob(function (b) { cb(b); }, 'image/png'); }
+    $('stShare').onclick = function () { blob(function (b) { var f = new File([b], 'lendo-story.png', { type: 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [f] })) navigator.share({ files: [f] }).catch(function () {}); else dl(b); }); };
+    $('stSave').onclick = function () { blob(dl); };
+    function dl(b) { var a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'lendo-story.png'; document.body.appendChild(a); a.click(); a.remove(); }
   }
   $('again').addEventListener('click', function () { shots = []; picked = []; t0 = Date.now(); renderIdeas(); show('cam'); });
 

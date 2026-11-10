@@ -115,3 +115,10 @@ html.camdark body,html.camdark .wrap{background:#1E3A2B}
 .dn-nm{margin-top:6px;font-size:14px;font-weight:800;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dn-pr{font-size:13px;font-weight:700;color:#D94300}
 .dn-tick{position:absolute;right:-6px;top:-6px;width:24px;height:24px;border-radius:50%;background:#1F8A4C;color:#fff;font-size:14px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid #fff}
+
+/* share story card */
+.story-wrap{display:flex;gap:12px;align-items:center;margin:4px 0 12px}
+canvas.story{width:132px;height:auto;aspect-ratio:9/16;border-radius:12px;border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);background:#F5F3EE;flex-shrink:0}
+.story-side{flex:1;display:flex;flex-direction:column;gap:8px}
+.story-side .btn{width:100%;height:46px;font-size:15px}
+.story-side .btn.pri{background:var(--orange);color:#fff;border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink)}

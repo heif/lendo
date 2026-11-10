@@ -6,10 +6,10 @@ import type { Env } from './env';
 const PROMPT = 'a single flat vector emoji icon of this object, Apple iOS emoji style, simple shapes, soft shading, thick clean edges, centered, isolated on plain white background, no text, no people, no hands';
 const NEG = 'photo, realistic, photorealistic, background scene, room, floor, shadow on floor, text, watermark, blurry, multiple objects, person, hands';
 
-export async function makeCutout(env: Env, photoKey: string): Promise<ArrayBuffer | null> {
+export async function makeCutout(env: Env, photoKey: string, size = 320): Promise<ArrayBuffer | null> {
   // Images transformations run on the zone; this fetches our own /p/ URL through the resizer.
   const src = `${env.APP_URL}/p/${photoKey}`;
-  const u = `${env.APP_URL}/cdn-cgi/image/segment=foreground,fit=contain,width=320,height=320,trim=auto,format=png/${src}`;
+  const u = `${env.APP_URL}/cdn-cgi/image/segment=foreground,fit=contain,width=${size},height=${size},trim=auto,format=png/${src}`;
   const r = await fetch(u);
   if (!r.ok) throw new Error(`cutout ${r.status}: ${(await r.text().catch(() => '')).slice(0, 200)}`);
   if (!(r.headers.get('content-type') || '').includes('png')) throw new Error('cutout: not a png (transformations off?)');
