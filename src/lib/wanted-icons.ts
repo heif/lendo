@@ -66,7 +66,7 @@ export async function looksLike(env: Env, png: ArrayBuffer, label: string): Prom
       headers: { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: 'claude-haiku-5-5', max_tokens: 5, messages: [{ role: 'user', content: [
         { type: 'image', source: { type: 'base64', media_type: 'image/png', data: btoa(bin) } },
-        { type: 'text', text: `Would a shopper instantly recognize this icon as "${label}" (the actual product itself, not food, wood, a symbol or a related object)? Answer only YES or NO.` }] }] }) });
+        { type: 'text', text: `Would a shopper instantly recognize this icon as "${label}" (the actual product itself, not food, wood, a symbol or a related object, and with no person, baby, face or body part in it)? Answer only YES or NO.` }] }] }) });
     if (!r.ok) return null;
     const j: any = await r.json(); return /^\s*YES/i.test(j?.content?.[0]?.text || '');
   } catch { return null; }

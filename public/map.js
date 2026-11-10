@@ -395,7 +395,7 @@
       try { var p = map.project([lng, lat]); return map.queryRenderedFeatures([[p.x - 14, p.y - 14], [p.x + 14, p.y + 14]], { layers: waterLayers }).length > 0; } catch (e) { return false; }
     }
     function place() {
-      var z = map.getZoom(), want = (PL && PL.wanted) || []; var keep = {}, chosen = {}, CELL = cellDeg(), zb = Math.round(z);
+      var z = map.getZoom(), want = ((PL && PL.wanted) || []).filter(function (w) { return w.icon || !/\p{Extended_Pictographic}/u.test(w.emoji) || !/[\u{1F466}-\u{1F487}\u{1F574}-\u{1F57A}\u{1F645}-\u{1F64F}\u{1F6B4}-\u{1F6B6}\u{1F926}-\u{1F937}\u{1F9CD}-\u{1F9DF}\u{1F3C2}-\u{1F3CC}\u{1F938}-\u{1F93E}]/u.test(w.emoji); }); // never a person/baby emoji as a ghost var keep = {}, chosen = {}, CELL = cellDeg(), zb = Math.round(z);
       Object.keys(marks).forEach(function (k) { if (k.indexOf(zb + ':') === 0) chosen[k.slice(k.indexOf(':') + 1)] = marks[k]._wkey; });
       if (z >= (PROMO ? 13.2 : 12.8) && want.length) {
         var b = map.getBounds(), x0 = Math.floor(b.getWest() / CELL), x1 = Math.ceil(b.getEast() / CELL), y0 = Math.floor(b.getSouth() / CELL), y1 = Math.ceil(b.getNorth() / CELL), n = 0;
