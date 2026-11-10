@@ -6,7 +6,7 @@ import { requireUser } from '../lib/auth';
 import { busyDays, firstPhotos, listingById, photosFor, rentalById, userById } from '../lib/db';
 import { id, money, now, daysBetween, dayStr, addDays, fmtRange, rentFor, firstName, fmtDay } from '../lib/util';
 import { createCheckout, feeFor, connectOnboardingUrl, flushPendingPayouts, stripe } from '../lib/stripe';
-import { accept, decline, markHeld, pickedUp, rate, relay, returned } from '../lib/rentals';
+import { accept, decline, customerCancel, markHeld, pickedUp, rate, relay, returned } from '../lib/rentals';
 
 export const rentals = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -91,6 +91,13 @@ rentals.get('/r/:id', requireUser, async (c) => {
           </div>
         ) : null}
 
+        {/* customer cancel: free before YES, 50% back after YES */}
+        {!isOwner && (r.status === 'held' || r.status === 'confirmed') ? (
+          <form method="post" action={'/r/' + r.id + '/cancel'} onsubmit={r.status === 'confirmed' ? `return confirm('Cancel? You get ${money(Math.round(r.total_cents / 2))} back — ${firstName(other.name)} already said yes')` : ''} style="margin:4px 0 10px">
+            <button class="btn sm" type="submit" style="width:100%;color:var(--mute)">{r.status === 'held' ? 'Cancel request · nothing charged' : `Cancel · ${money(Math.round(r.total_cents / 2))} back (half)`}</button>
+          </form>
+        ) : null}
+
         {/* quick actions */}
         {!dead && stage >= 1 && stage < 3 ? (
           <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">
@@ -156,6 +163,12 @@ rentals.post('/r/:id/accept', requireUser, async (c) => {
   const disc = String(f.rent || '').trim();
   const cents = disc === '' ? undefined : Math.round(parseFloat(disc) * 100);
   await accept(c.env, r, cents != null && !isNaN(cents) ? Math.max(0, Math.min(cents, r.rent_cents)) : undefined);
+  return c.redirect('/r/' + r.id);
+});
+rentals.post('/r/:id/cancel', requireUser, async (c) => {
+  const u = c.get('user')!; const r = await rentalById(c.env.DB, c.req.param('id'));
+  if (!r || r.renter_id !== u.id) return c.notFound();
+  await customerCancel(c.env, r);
   return c.redirect('/r/' + r.id);
 });
 rentals.post('/r/:id/decline', requireUser, async (c) => {

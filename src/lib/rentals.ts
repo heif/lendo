@@ -2,7 +2,7 @@
 import type { Env, Rental, User } from './env';
 import { addMessage, busyDays, listingById, rentalById, setRentalStatus, userById } from './db';
 import { textUser } from './blooio';
-import { captureRental, feeFor, payoutRental, releaseHold } from './stripe';
+import { captureRental, feeFor, payoutRental, refundPart, releaseHold } from './stripe';
 import { firstName, fmtRange, money, now } from './util';
 
 const HOLD_HOURS = 24;
@@ -69,6 +69,28 @@ export async function decline(env: Env, r: Rental, reason: 'declined' | 'expired
   await addMessage(env, r.id, null, `${why} · hold released, nothing charged`, 'system');
   if (reason !== 'canceled') await textUser(env, renter, `${listing.name}: ${why}. Nothing was charged. Browse more: ${env.APP_URL}/`, 'rental', r.id);
   return true;
+}
+
+// Customer cancels. Before the owner's YES: full release. After YES, before pickup: 50% back, owner keeps half the rent.
+export async function customerCancel(env: Env, r: Rental): Promise<'released' | 'half' | false> {
+  const { owner, renter, listing } = await parties(env, r);
+  if (r.status === 'held' || r.status === 'requested') {
+    await decline(env, r, 'canceled');
+    if (r.status === 'held') await textUser(env, owner, `${firstName(renter.name)} canceled the request for your ${listing.name}`, 'rental', r.id);
+    return 'released';
+  }
+  if (r.status !== 'confirmed') return false;
+  const refund = Math.round(r.total_cents * 0.5);
+  const keep = r.total_cents >= 50 ? Math.round(r.rent_cents * 0.5) : 0; // nothing was charged on a free / near-free rental
+  if (r.total_cents >= 50) { try { await refundPart(env, r, refund); } catch (e) { console.error('late cancel refund failed', e); return false; } }
+  const charged = Math.max(0, r.total_cents - refund);
+  await setRentalStatus(env.DB, r.id, 'canceled', { late_cancel: 1, rent_cents: keep, fee_cents: Math.max(0, charged - keep), total_cents: charged });
+  const fresh = (await rentalById(env.DB, r.id))!;
+  await addMessage(env, r.id, null, `${firstName(renter.name)} canceled after the yes · ${money(refund)} refunded · ${firstName(owner.name)} keeps ${money(keep)}`, 'system');
+  try { await payoutRental(env, fresh, owner); } catch (e) { console.error('late cancel payout failed', e); }
+  await textUser(env, owner, `${firstName(renter.name)} canceled the ${listing.name} rental — you keep ${money(keep)}`, 'money', r.id);
+  await textUser(env, renter, `Canceled. ${money(refund)} back to your card (half, since ${firstName(owner.name)} had already said yes)`, 'money', r.id);
+  return 'half';
 }
 
 export async function pickedUp(env: Env, r: Rental, photoKey: string | null) {

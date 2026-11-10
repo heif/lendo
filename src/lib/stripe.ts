@@ -60,6 +60,14 @@ export async function payoutRental(env: Env, rental: Rental, owner: User): Promi
   return true;
 }
 
+// partial refund of a captured rental (late cancel)
+export async function refundPart(env: Env, rental: Rental, amountCents: number): Promise<boolean> {
+  const s = stripe(env);
+  if (!s || !rental.stripe_payment_intent || amountCents <= 0) return false;
+  await s.refunds.create({ payment_intent: rental.stripe_payment_intent, amount: amountCents, metadata: { rental_id: rental.id, reason: 'late_cancel' } }, { idempotencyKey: `latecancel_${rental.id}` });
+  return true;
+}
+
 export async function releaseHold(env: Env, rental: Rental): Promise<void> {
   const s = stripe(env);
   if (!s || !rental.stripe_payment_intent) return;
@@ -83,7 +91,7 @@ export async function connectOnboardingUrl(env: Env, owner: User): Promise<{ url
 export async function flushPendingPayouts(env: Env, owner: User): Promise<number> {
   const s = stripe(env);
   if (!s || !owner.stripe_account_id) return 0;
-  const rows = await env.DB.prepare(`SELECT * FROM rentals WHERE owner_id = ? AND status IN ('picked_up','returned','closed') AND stripe_payment_intent IS NOT NULL AND paid_out = 0 AND rent_cents > 0`).bind(owner.id).all<Rental>();
+  const rows = await env.DB.prepare(`SELECT * FROM rentals WHERE owner_id = ? AND status IN ('picked_up','returned','closed') AND stripe_payment_intent IS NOT NULL AND paid_out = 0 AND rent_cents > 0 UNION SELECT * FROM rentals WHERE owner_id = ? AND status = 'canceled' AND late_cancel = 1 AND paid_out = 0 AND rent_cents > 0`).bind(owner.id, owner.id).all<Rental>();
   let n = 0;
   for (const r of rows.results) {
     await s.transfers.create({ amount: r.rent_cents, currency: 'usd', destination: owner.stripe_account_id, transfer_group: r.id, metadata: { rental_id: r.id } }, { idempotencyKey: `payout_${r.id}` });

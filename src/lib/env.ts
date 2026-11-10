@@ -42,7 +42,7 @@ export type Rental = {
   pickup_photo_key: string | null; return_photo_key: string | null;
   renter_rating: number | null; renter_review: string | null; owner_rating: number | null; owner_review: string | null;
   created_at: number; updated_at: number; expires_at: number | null;
-  held_at: number | null; owner_nudges: number; alts: string | null; credit_cents: number; list_rent_cents: number | null;
+  held_at: number | null; owner_nudges: number; alts: string | null; credit_cents: number; list_rent_cents: number | null; late_cancel: number;
 };
 
 export type Vars = { user: User | null };
