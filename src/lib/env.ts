@@ -18,7 +18,8 @@ export type Env = {
   STRIPE_WEBHOOK_SECRET?: string;
   BLOOIO_API_KEY?: string;
   BLOOIO_WEBHOOK_SECRET?: string;
-  MAPBOX_SECRET_TOKEN?: string;  // sk., never sent to the client
+  MAPBOX_SECRET_TOKEN?: string;
+  ANTHROPIC_API_KEY?: string;     // plain-English texting (intent.ts)  // sk., never sent to the client
 };
 
 export type User = {

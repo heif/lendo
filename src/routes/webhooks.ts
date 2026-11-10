@@ -1,3 +1,4 @@
+import { answerPending, actOn, intentContext, parseIntent } from '../lib/intent';
 import { Hono } from 'hono';
 import type Stripe from 'stripe';
 import type { Env, Rental, Vars } from '../lib/env';
@@ -90,6 +91,8 @@ webhooks.post('/webhooks/blooio', async (c) => {
   if (kw === 'LIST') { await textUser(c.env, user, `Point, tap, done: ${c.env.APP_URL}/list`, 'nudge'); return c.json({ ok: true }); }
   if (kw === 'HELP') { await textUser(c.env, user, `Lendo: reply YES/NO to a request, LATE if you're running late, STOP to stop texts. Your rentals: ${c.env.APP_URL}/rentals`, 'rental'); return c.json({ ok: true }); }
 
+  // a parked plain-English action (price change, cancel) waiting for YES wins over an owner's pending request
+  if ((kw === 'YES' || kw === 'Y' || kw === 'NO' || kw === 'N') && await answerPending(c.env, user, kw.startsWith('Y'))) return c.json({ ok: true });
   if (kw === 'YES' || kw === 'Y' || kw === 'ACCEPT' || kw === 'NO' || kw === 'N' || kw === 'PASS' || kw === 'DECLINE') {
     const held = await c.env.DB.prepare(`SELECT * FROM rentals WHERE owner_id = ? AND status = 'held' ORDER BY created_at DESC LIMIT 1`).bind(user.id).first<Rental>();
     if (held) {
@@ -101,6 +104,11 @@ webhooks.post('/webhooks/blooio', async (c) => {
   }
 
   const r = await activeRentalFor(c.env, user.id);
+  if (kw !== 'LATE' && kw !== 'HERE' && kw !== 'IM HERE' && text.length > 1 && c.env.ANTHROPIC_API_KEY) {
+    const ctx = await intentContext(c.env, user, r);
+    const intent = await parseIntent(c.env, user, text, ctx);
+    if (intent && await actOn(c.env, user, intent, ctx, text)) return c.json({ ok: true });
+  }
   if (!r) {
     await textUser(c.env, user, `No active rental on this number. Browse: ${c.env.APP_URL}/`, 'rental');
     return c.json({ ok: true });
