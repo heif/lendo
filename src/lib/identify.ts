@@ -35,19 +35,20 @@ export let lastRaw = '';
 const BRAND_RULES = `Brand: include the brand (and model if readable) in the name ONLY when it is visible in the photo AND it matters to a renter — electronics, cameras/lenses, power tools (battery platform), appliances, audio, bikes/e-bikes, fitness machines, strollers/car seats, designer fashion, outdoor gear brands. Leave the brand out for commodity items (folding chairs, basic ladders, hand tools like a hammer, sleds, generic luggage) even if a logo shows. Never guess a brand you can't see.`;
 const DESC_RULES = `Description: 1-2 short lines, facts a renter checks before renting — brand/model and one key spec if known (watts, size, battery, capacity), what's visibly included (case, strap, charger, batteries), and condition only if visible. No filler like "for use in outdoor activities", no restating the photo's colors unless they identify it, no marketing words, no trailing period.`;
 
-async function identifyClaude(env: Env, photo: ArrayBuffer, hint?: string | null): Promise<any | null> {
+async function identifyClaude(env: Env, photo: ArrayBuffer, hint?: string | null, model = 'claude-haiku-5-5'): Promise<any | null> {
   if (!env.ANTHROPIC_API_KEY) return null;
   const b = new Uint8Array(photo); let bin = ''; for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode(...b.subarray(i, i + 0x8000));
   const mt = b[0] === 0x89 ? 'image/png' : b[0] === 0x52 ? 'image/webp' : 'image/jpeg';
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-haiku-5-5', max_tokens: 300, messages: [{ role: 'user', content: [
+      body: JSON.stringify({ model, max_tokens: 300, messages: [{ role: 'user', content: [
         { type: 'image', source: { type: 'base64', media_type: mt, data: btoa(bin) } },
         { type: 'text', text: `A neighbor is listing this item for rent${hint ? ` (their hint: "${hint}"; trust what you see)` : ''}.
 Name: 1-4 words, what a renter would search for, Title Case first word only (e.g. "Pyle bullhorn", "DeWalt cordless drill", "Folding chairs", "Canon EOS R6 camera").
 ${BRAND_RULES}
 ${DESC_RULES}
+Look-alikes: tell similar products apart by concrete details (e.g. AirPods Max = mesh canopy headband + aluminum cups + Digital Crown; Beats = plastic band with "b" logo). If you can't tell which of two, set "confidence":"low", leave brand/model null and use the generic name ("Over-ear headphones") — a wrong brand is worse than none.
 Reply with JSON only: {"name":"","brand":"<visible brand or null>","model":"<visible model or null>","description":"","category":"<one of: ${CATS.join(', ')}>","retail_usd":<new retail price of this brand/model in USD>,"confidence":"high|medium|low"}` }] }] }) });
     if (!r.ok) { lastRaw = 'claude ' + r.status + ' ' + (await r.text().catch(() => '')).slice(0, 300); return null; }
     const j: any = await r.json(); const t = String(j?.content?.[0]?.text || ''); lastRaw = t;
@@ -56,7 +57,9 @@ Reply with JSON only: {"name":"","brand":"<visible brand or null>","model":"<vis
 }
 
 export async function identifyItem(env: Env, photo: ArrayBuffer, hint?: string | null): Promise<Ident> {
-  const cj = await identifyClaude(env, photo, hint);
+  let cj = await identifyClaude(env, photo, hint);
+  // unsure → a stronger model looks again (brand/model mistakes cost trust; ~2-3¢ only on these)
+  if (cj && cj.confidence !== 'high') { const cj2 = await identifyClaude(env, photo, hint, 'claude-sonnet-5-5'); if (cj2 && cj2.name) cj = cj2; }
   if (cj && cj.name) {
     const cat = CATS.includes(String(cj.category || '').trim()) ? String(cj.category).trim() : guessCategory(String(cj.name));
     const retail = typeof cj.retail_usd === 'number' ? cj.retail_usd : parseFloat(String(cj.retail_usd || '').replace(/[^0-9.]/g, '')) || null;
