@@ -111,7 +111,6 @@ html.mappage .hdr{flex-shrink:0;position:relative}
 .mapctl input{flex:1 1 0;min-width:0;height:44px;border-radius:22px;border:2px solid #CFC9BC;padding:0 16px 0 38px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%238A857B' stroke-width='2.6'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-4-4'/%3E%3C/svg%3E") 12px 50% no-repeat;font-weight:700;font-size:17px}
 .mapctl input::placeholder{color:#8A857B;font-weight:700}
 .mapctl .listtoggle{position:static;height:44px;border-radius:22px;border:2px solid var(--ink);padding:0 14px;font-size:17px;font-weight:800;gap:6px;background:#fff}
-.mapctl #locate{height:44px;width:44px;padding:0;border-radius:22px;border:2px solid #CFC9BC}
 .rent-out{position:absolute;right:10px;top:66px;z-index:500;display:inline-flex;align-items:center;height:36px;padding:0 10px;border-radius:8px;border:2px solid var(--ink);background:#FFFDF8;color:var(--ink);font-size:13px;font-weight:900;letter-spacing:.2px;white-space:nowrap;text-decoration:none;box-shadow:4px 4px 0 var(--ink);animation:lfpress 2.4s ease-out .8s infinite}
 @keyframes lfpress{0%,68%,96%,100%{transform:translate(0,0) scale(1);box-shadow:4px 4px 0 var(--ink)}74%,82%{transform:translate(4px,4px) scale(.96);box-shadow:0 0 0 var(--ink)}88%{transform:translate(-2px,-2px) scale(1.04);box-shadow:6px 6px 0 var(--ink)}92%{transform:translate(1px,1px) scale(1);box-shadow:3px 3px 0 var(--ink)}}
 @media (prefers-reduced-motion:reduce){.rent-out{animation:none}.tk{animation:none}}
@@ -346,3 +345,11 @@ body:has(.rentbar) .promo.pu{bottom:96px}
 .ai-nm{font-size:11.5px;font-weight:500;line-height:1.25;margin-top:4px;color:#26432F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ai-wh{display:flex;align-items:center;gap:3px;margin-top:2px;padding:1px 0;border:0;background:none;font-family:inherit;cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px;font-size:10.5px;font-weight:500;color:#6F6A60;max-width:96px;white-space:nowrap;overflow:hidden}
 .ai-back{margin:0 12px 6px;padding:4px 0;border:0;background:none;font-family:inherit;font-size:13px;font-weight:800;color:var(--ink);cursor:pointer}
+/* standard my-location button + blue dot */
+.locbtn{position:absolute;right:12px;bottom:92px;z-index:610;width:48px;height:48px;border-radius:14px;border:0;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.22);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.locbtn.on svg circle:first-child{fill:#1A73E8}.locbtn:not(.on) svg circle:first-child{fill:#9AA0A6}
+.locbtn.busy svg{animation:locspin 1s linear infinite}
+@keyframes locspin{to{transform:rotate(360deg)}}
+.medot{width:18px;height:18px;border-radius:50%;background:#1A73E8;border:3px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.12),0 0 0 14px rgba(26,115,232,.16)}
+body:has(.promo.pu:not([hidden])) .locbtn{bottom:96px}
+.mapwrap.listing .locbtn{display:none}

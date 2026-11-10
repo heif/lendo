@@ -268,7 +268,18 @@
       MAP_IC = '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6L9 4L15 6L21 4V18L15 20L9 18L3 20Z M9 4V18 M15 6V20" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linejoin="round"/></svg> Map';
   function setList(on) { listMode = on; grid.style.display = on ? 'block' : 'none'; $('toggle').innerHTML = on ? MAP_IC : LIST_IC; document.querySelector('.mapwrap').classList.toggle('listing', on); if (on) renderGrid(items); }
   $('toggle').addEventListener('click', function () { setList(!listMode); });
-  $('locate').addEventListener('click', function () { navigator.geolocation && navigator.geolocation.getCurrentPosition(function (p) { map.easeTo({ center: [p.coords.longitude, p.coords.latitude], zoom: 15 }); }); });
+  // standard "my location": blue dot + accuracy halo, recenters on tap
+  var meMk = null;
+  $('locate').addEventListener('click', function () {
+    var btn = this; if (!navigator.geolocation) return; btn.classList.add('busy');
+    navigator.geolocation.getCurrentPosition(function (p) {
+      btn.classList.remove('busy'); btn.classList.add('on');
+      var ll = [p.coords.longitude, p.coords.latitude];
+      if (!meMk) { var el = document.createElement('div'); el.className = 'medot'; meMk = new mapboxgl.Marker({ element: el }).setLngLat(ll).addTo(map); } else meMk.setLngLat(ll);
+      map.easeTo({ center: ll, zoom: Math.max(map.getZoom(), 15), duration: 800 });
+    }, function () { btn.classList.remove('busy'); }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 });
+  });
+  map.on('dragstart', function () { $('locate').classList.remove('on'); });
   // No home base: use device location only if it's inside a live city; otherwise stay in NYC and nudge the city switcher
   function inLiveCity(lng, lat) { return !PL || PL.cities.some(function (ct) { return ct.live && Math.abs(lng - ct.lng) < 0.45 && Math.abs(lat - ct.lat) < 0.3; }); }
   function nudgeCity() {
