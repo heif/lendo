@@ -1,6 +1,7 @@
 // Plain-English texting: Claude turns a text into one of a few actions. Anything touching money or bookings
 // is parked in pending_actions and only runs after the sender replies YES.
 import type { Env, Listing, Rental, User } from './env';
+import { saveSearch, allowMore } from './alerts';
 import { listingById, userById } from './db';
 import { textUser } from './blooio';
 import { customerCancel, relay } from './rentals';
@@ -58,6 +59,14 @@ async function park(env: Env, uid: string, kind: string, payload: unknown) {
 export async function answerPending(env: Env, user: User, yes: boolean): Promise<boolean> {
   const p = await env.DB.prepare('SELECT * FROM pending_actions WHERE user_id = ? AND expires_at > ?').bind(user.id, now()).first<{ kind: string; payload: string }>();
   if (!p) return false;
+  if (p.kind === 'alerts_more') {
+    // an owner's YES to a waiting request always wins over "more alerts"
+    const held = await env.DB.prepare(`SELECT 1 FROM rentals WHERE owner_id = ? AND status = 'held' LIMIT 1`).bind(user.id).first();
+    if (held) return false;
+    await env.DB.prepare('DELETE FROM pending_actions WHERE user_id = ?').bind(user.id).run();
+    if (yes) await allowMore(env, user); else await textUser(env, user, `Ok, 1 alert a day`, 'alert');
+    return true;
+  }
   await env.DB.prepare('DELETE FROM pending_actions WHERE user_id = ?').bind(user.id).run();
   if (!yes) { await textUser(env, user, `Skipped — nothing changed`, 'rental'); return true; }
   const d = JSON.parse(p.payload);
@@ -88,7 +97,8 @@ export async function actOn(env: Env, user: User, it: Intent, ctx: { rental: Ren
       const rows = (await env.DB.prepare(`SELECT id, name, price_cents, hood FROM listings WHERE status = 'live' AND name LIKE ? AND lat BETWEEN ? AND ? AND lng BETWEEN ? AND ? ORDER BY ((lat - ?) * (lat - ?) + (lng - ?) * (lng - ?)) LIMIT 3`)
         .bind(`%${q}%`, lat - d, lat + d, lng - d * 1.3, lng + d * 1.3, lat, lat, lng, lng).all<{ id: string; name: string; price_cents: number; hood: string | null }>()).results;
       if (rows.length) await textUser(env, user, `${q} near you:\n${rows.map(r => `${r.name} ${money(r.price_cents)}/day${r.hood ? ' · ' + r.hood : ''} ${url}/i/${r.id}`).join('\n')}`, 'rental');
-      else await textUser(env, user, `No ${q} nearby yet. Know someone who might have one? ${url}/list`, 'rental');
+      else await textUser(env, user, `No ${q} nearby yet — alert on, you'll get a text when one's listed. Know someone who might have one? ${url}/list`, 'rental');
+      await saveSearch(env, user, q, lat, lng, user.hood);
       return true;
     }
     case 'change_price': {

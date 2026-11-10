@@ -1,5 +1,6 @@
 // Public read API — agents welcome. No auth for reads; writes come later (keys + scopes).
 import { Hono } from 'hono';
+import { saveSearch, turnOff } from '../lib/alerts';
 import type { Env, Listing, Vars } from '../lib/env';
 import { firstPhotos, listingById, photosFor, reputation, userById } from '../lib/db';
 import { emojiFor } from '../lib/emoji';
@@ -78,6 +79,19 @@ api.get('/api/map-loads', async (c) => {
 });
 
 // Which neighborhood is the map centered on, and how many live listings it has. Falls back to nearest listing hood name.
+// auto-saved search alert from the map (logged in only; logged-out visitors get the phone prompt client-side)
+api.post('/api/alerts', async (c) => {
+  const u = c.get('user'); if (!u) return c.json({ error: 'login' }, 401);
+  const b = await c.req.json<{ q?: string; lat?: number; lng?: number; hood?: string }>().catch(() => ({} as any));
+  const lat = Number(b.lat), lng = Number(b.lng);
+  if (!isFinite(lat) || !isFinite(lng)) return c.json({ error: 'where' }, 400);
+  const sid = await saveSearch(c.env, u, String(b.q || ''), lat, lng, b.hood ? String(b.hood).slice(0, 40) : null);
+  return c.json({ id: sid });
+});
+api.post('/api/alerts/:id/off', async (c) => {
+  const u = c.get('user'); if (!u) return c.json({ error: 'login' }, 401);
+  await turnOff(c.env, u, c.req.param('id')); return c.json({ ok: true });
+});
 api.get('/api/hood', async (c) => {
   const lat = parseFloat(c.req.query('lat') || ''), lng = parseFloat(c.req.query('lng') || '');
   if (isNaN(lat) || isNaN(lng)) return c.json({ error: 'lat,lng required' }, 400);

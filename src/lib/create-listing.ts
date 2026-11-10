@@ -5,6 +5,7 @@ import { hoodFor, geocodePlace } from './geo';
 import { emojiFor } from './emoji';
 import { assignHood } from './hoods';
 import { autoIcon } from './avatar';
+import { matchListing } from './alerts';
 
 export type NewListing = { name: string; priceCents: number; weekCents?: number | null; description?: string | null; lat?: number | null; lng?: number | null; photos: { bytes: ArrayBuffer; type: string }[] };
 
@@ -41,5 +42,6 @@ export async function createListing(env: Env, ctx: { waitUntil(p: Promise<unknow
     if (!firstKey) firstKey = key;
   }
   if (firstKey) ctx.waitUntil(autoIcon(env, lid, firstKey, name, desc));
+  ctx.waitUntil(matchListing(env, lid).catch(e => console.warn('alerts', e)));
   return lid;
 }

@@ -1,4 +1,5 @@
 import { answerPending, actOn, intentContext, parseIntent } from '../lib/intent';
+import { turnOff } from '../lib/alerts';
 import { Hono, type Context } from 'hono';
 import type Stripe from 'stripe';
 import type { Env, Rental, Vars } from '../lib/env';
@@ -92,6 +93,11 @@ async function blooioInbound(c: Context<{ Bindings: Env; Variables: Vars }>) {
   if (kw === 'STOP NUDGES' || kw === 'NO NUDGES') {
     await c.env.DB.prepare('UPDATE users SET nudges = 0 WHERE id = ?').bind(user.id).run();
     await textUser(c.env, user, `Got it — no more listing tips. You'll still get rental and money texts.`, 'rental');
+    return c.json({ ok: true });
+  }
+  if (kw === 'ALERTS OFF' || kw === 'STOP ALERTS' || kw === 'NO ALERTS') {
+    await turnOff(c.env, user);
+    await textUser(c.env, user, `Alerts off. Turn any back on at ${c.env.APP_URL}/alerts`, 'rental');
     return c.json({ ok: true });
   }
   if (kw === 'LIST') { await textUser(c.env, user, `Point, tap, done: ${c.env.APP_URL}/list`, 'nudge'); return c.json({ ok: true }); }

@@ -42,7 +42,7 @@ browse.get('/', async (c) => {
   const inLive = !isNaN(vLat) && !isNaN(vLng) && CITIES.some(ct => ct.id === 'nyc' && vLng >= ct.bbox[0] && vLng <= ct.bbox[2] && vLat >= ct.bbox[1] && vLat <= ct.bbox[3]);
   const away = !u?.lat && !isNaN(vLat) && !inLive;
   const mapbox = !!c.env.MAPBOX_PUBLIC_TOKEN;
-  const cfg = JSON.stringify({ ipLoc: !isNaN(vLat) && !isNaN(vLng) ? [vLng, vLat] : null, away, visitorCity: away ? (cf.city || '') : '', wantedPromo: c.env.WANTED_PROMO === 'true', token: c.env.MAPBOX_PUBLIC_TOKEN || '', style: c.env.MAPBOX_STYLE_URL || 'mapbox://styles/mapbox/light-v11', center, zoom: 14.5, hasHome: !!(u?.lat) || cq.length === 2 && cq.every(n => !isNaN(n)) });
+  const cfg = JSON.stringify({ user: !!u, ipLoc: !isNaN(vLat) && !isNaN(vLng) ? [vLng, vLat] : null, away, visitorCity: away ? (cf.city || '') : '', wantedPromo: c.env.WANTED_PROMO === 'true', token: c.env.MAPBOX_PUBLIC_TOKEN || '', style: c.env.MAPBOX_STYLE_URL || 'mapbox://styles/mapbox/light-v11', center, zoom: 14.5, hasHome: !!(u?.lat) || cq.length === 2 && cq.every(n => !isNaN(n)) });
   return c.html(
     <Layout title={u?.hood || 'Near you'} user={u} back={null} badge={badge} htmlClass="mappage"
       top={<a class="ticker" href="/about" aria-label="Why Lendo"><div class="tk" aria-hidden="true">{[0, 1].map(() => TICKER.map(t => <span>{t}<i>•</i></span>))}</div></a>}
@@ -59,6 +59,7 @@ browse.get('/', async (c) => {
         <div class="mapctl">
           <button class="btn sm listtoggle" id="toggle" type="button"><svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 1.5h1M4 1.5h9M1 6h1M4 6h9M1 10.5h1M4 10.5h9" stroke="#1E3A2B" stroke-width="2" stroke-linecap="round" /></svg> List</button>
           <input id="q" type="search" placeholder="Rent a…" aria-label="Search" />
+          <div class="alertchip" id="alertChip" hidden></div>
           <a class="rent-out" href="/list"><span class="ro-l">RENT OUT YOUR STUFF</span><span class="ro-s">RENT YOURS OUT</span></a>
         </div>
         <div class="kpi" id="kpi" hidden><b id="kpiN">{k.global}</b><span id="kpiL">things to rent</span></div>

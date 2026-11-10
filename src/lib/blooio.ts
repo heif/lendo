@@ -3,7 +3,7 @@
 import type { Env, User } from './env';
 import { id, now } from './util';
 
-export type TextCategory = 'login' | 'rental' | 'money' | 'pickup' | 'nudge' | 'milestone';
+export type TextCategory = 'login' | 'rental' | 'money' | 'pickup' | 'nudge' | 'milestone' | 'alert';
 
 export async function sendRaw(env: Env, phone: string, text: string, attachments?: string[]): Promise<{ ok: boolean; message_id?: string; error?: string }> {
   if (!env.BLOOIO_API_KEY) {

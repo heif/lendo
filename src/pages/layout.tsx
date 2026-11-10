@@ -56,6 +56,7 @@ export const Layout: FC<LayoutProps> = (p) => {
                   <>
                     <a href="/inbox">Inbox</a>
                     <a href="/rentals">Your rentals</a>
+                    <a href="/alerts">Search alerts</a>
                     <a href="/listings">Your listings</a>
                     <a href="/saved">Saved</a>
                     <a href={'/u/' + u.id}>Profile</a>

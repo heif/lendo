@@ -270,6 +270,23 @@
   ['pins', 'clusters'].forEach(function (l) { map.on('mouseenter', l, function () { map.getCanvas().style.cursor = 'pointer'; }); map.on('mouseleave', l, function () { map.getCanvas().style.cursor = ''; }); });
 
   q.addEventListener('input', function () { clearTimeout(t); t = setTimeout(load, 300); });
+  // saved-search alert: on automatically after a search settles; visible Turn off
+  var alertT, alertQ = '', alertId = null;
+  function alertChip() {
+    var qq = q.value.trim(), chip = $('alertChip'); clearTimeout(alertT);
+    if (qq.length < 3) { chip.hidden = true; return; }
+    alertT = setTimeout(function () {
+      if (qq === alertQ && !chip.hidden) return; alertQ = qq; var cc = map.getCenter(), hood = ($('scHoodN') || {}).title || '';
+      var esc = function (x) { return x.replace(/[<>&"]/g, ''); };
+      if (!CFG.user) { chip.innerHTML = '🔔 <a href="/login?next=' + encodeURIComponent('/?q=' + qq) + '">Text me when a ' + esc(qq) + ' is listed</a>'; chip.hidden = false; return; }
+      fetch('/api/alerts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ q: qq, lat: cc.lat, lng: cc.lng, hood: hood }) })
+        .then(function (r) { return r.json(); }).then(function (j) { if (!j.id) return; alertId = j.id;
+          chip.innerHTML = '🔔 Alert on for <b>' + esc(qq) + '</b> · <button type="button" id="alertOff">Turn off</button>'; chip.hidden = false;
+          $('alertOff').onclick = function () { fetch('/api/alerts/' + alertId + '/off', { method: 'POST' }); chip.innerHTML = 'Alert off · <a href="/alerts">All alerts</a>'; }; });
+    }, 1500);
+  }
+  q.addEventListener('input', alertChip);
+  try { var q0 = new URLSearchParams(location.search).get('q'); if (q0) { q.value = q0.slice(0, 40); setTimeout(function () { load(); alertChip(); }, 400); } } catch (e) {}
   var LIST_IC = '<svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 1.5h1M4 1.5h9M1 6h1M4 6h9M1 10.5h1M4 10.5h9" stroke="#1E3A2B" stroke-width="2" stroke-linecap="round"/></svg> List',
       MAP_IC = '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6L9 4L15 6L21 4V18L15 20L9 18L3 20Z M9 4V18 M15 6V20" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linejoin="round"/></svg> Map';
   // List view covers the whole city you're in (not just the map viewport)

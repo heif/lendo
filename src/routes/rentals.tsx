@@ -244,6 +244,29 @@ rentals.get('/rentals', requireUser, async (c) => {
   );
 });
 
+// Saved-search alerts: every search is saved automatically; this is where they turn them off
+rentals.get('/alerts', requireUser, async (c) => {
+  const u = c.get('user')!;
+  const rows = (await c.env.DB.prepare('SELECT id, query, hood, active, created_at FROM saved_searches WHERE user_id = ? ORDER BY active DESC, created_at DESC LIMIT 100').bind(u.id).all<{ id: string; query: string; hood: string | null; active: number; created_at: number }>()).results;
+  return c.html(
+    <Layout title="Search alerts" user={u}>
+      <div style="padding:14px 16px 4px"><div style="font-size:22px;font-weight:900">Search alerts</div>
+        <div class="hint">Every search is saved. When a match is listed nearby you get a text — 1 a day, reply YES for more. Held matches come in one morning text</div></div>
+      {rows.length ? rows.map(r => (
+        <form method="post" action={`/alerts/${r.id}/toggle`} class="inboxrow" style={r.active ? '' : 'opacity:.5'}>
+          <div style="min-width:0;flex:1"><div style="font-weight:800">{r.query}</div><div class="hint">{r.hood ? `near ${r.hood}` : 'near where you searched'}{r.active ? '' : ' · off'}</div></div>
+          <button class="btn" style="width:auto;height:36px;padding:0 14px;font-size:14px">{r.active ? 'Turn off' : 'Turn on'}</button>
+        </form>
+      )) : <div class="hint" style="padding:24px 16px">No alerts yet. Search the <a href="/">map</a> for something you'd rent</div>}
+    </Layout>
+  );
+});
+rentals.post('/alerts/:id/toggle', requireUser, async (c) => {
+  const u = c.get('user')!;
+  await c.env.DB.prepare('UPDATE saved_searches SET active = 1 - active WHERE id = ? AND user_id = ?').bind(c.req.param('id'), u.id).run();
+  return c.redirect('/alerts');
+});
+
 rentals.get('/inbox', requireUser, async (c) => {
   const u = c.get('user')!;
   const texts = await c.env.DB.prepare('SELECT * FROM outbound_texts WHERE user_id = ? ORDER BY created_at DESC LIMIT 100').bind(u.id).all<{ id: string; body: string; category: string; rental_id: string | null; created_at: number }>();
