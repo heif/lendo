@@ -6,10 +6,11 @@ import { listingById, userById } from './db';
 import { textUser } from './blooio';
 import { customerCancel, relay } from './rentals';
 import { money, now, firstName } from './util';
+import { CITIES } from './places';
 
 export type Intent =
   | { action: 'message'; text: string }
-  | { action: 'find'; query: string }
+  | { action: 'find'; query: string; place?: string | null }
   | { action: 'change_price'; item: string | null; price_usd: number }
   | { action: 'cancel' }
   | { action: 'extend'; until: string | null }
@@ -23,7 +24,7 @@ export async function parseIntent(env: Env, user: User, text: string, ctx: { ren
   const sys = `You route text messages sent to Lendo, a neighbor-to-neighbor rental service, into ONE action. Reply with JSON only, no prose.
 Actions:
 - {"action":"message","text":"..."}  — words meant for the other person in their active rental (pickup times, questions, "running late", thanks). Keep the text as written.
-- {"action":"find","query":"..."}  — they want to rent something ("need a ladder saturday", "anyone have a projector"). query = the thing, 1-3 words.
+- {"action":"find","query":"..."}  — they want to rent something ("need a ladder saturday", "anyone have a projector"). query = the thing, 1-3 words. Add "place":"..." only if they name a city or neighborhood ("in iowa city", "near park slope").
 - {"action":"change_price","item":"<one of their listing names or null>","price_usd":10}  — an owner changing a listing's daily price.
 - {"action":"cancel"}  — the customer wants to cancel their rental or request.
 - {"action":"extend","until":"YYYY-MM-DD or null"}  — the customer wants to keep the item longer.
@@ -93,12 +94,13 @@ export async function actOn(env: Env, user: User, it: Intent, ctx: { rental: Ren
       return true;
     case 'find': {
       const q = (it.query || '').trim().slice(0, 40); if (!q) return false;
-      const lat = user.lat ?? 40.7348, lng = user.lng ?? -73.9937, d = 0.05;
+      let lat = user.lat ?? 40.7348, lng = user.lng ?? -73.9937, d = 0.05, where = user.hood || null;
+      const pl = placeFor(it.place); if (pl) { lat = pl.lat; lng = pl.lng; d = pl.d; where = pl.name; }
       const rows = (await env.DB.prepare(`SELECT id, name, price_cents, hood FROM listings WHERE status = 'live' AND name LIKE ? AND lat BETWEEN ? AND ? AND lng BETWEEN ? AND ? ORDER BY ((lat - ?) * (lat - ?) + (lng - ?) * (lng - ?)) LIMIT 3`)
         .bind(`%${q}%`, lat - d, lat + d, lng - d * 1.3, lng + d * 1.3, lat, lat, lng, lng).all<{ id: string; name: string; price_cents: number; hood: string | null }>()).results;
-      if (rows.length) await textUser(env, user, `${q} near you:\n${rows.map(r => `${r.name} ${money(r.price_cents)}/day${r.hood ? ' · ' + r.hood : ''} ${url}/i/${r.id}`).join('\n')}`, 'rental');
-      else await textUser(env, user, `No ${q} nearby yet — alert on, you'll get a text when one's listed. Know someone who might have one? ${url}/list`, 'rental');
-      await saveSearch(env, user, q, lat, lng, user.hood);
+      if (rows.length) await textUser(env, user, `${q} for rent ${where ? 'near ' + where : 'nearby'}:\n${rows.map(r => `${r.name} ${money(r.price_cents)}/day${r.hood ? ' · ' + r.hood : ''} ${url}/i/${r.id}`).join('\n')}`, 'rental');
+      else await textUser(env, user, `No ${q} for rent ${where ? 'near ' + where : 'nearby'} yet — alert on, you'll get a text when one's listed. Know someone who might have one? ${url}/list`, 'rental');
+      await saveSearch(env, user, q, lat, lng, where);
       return true;
     }
     case 'change_price': {
@@ -143,4 +145,12 @@ export async function intentContext(env: Env, user: User, rental: Rental | null)
     other = firstName((await userById(env.DB, role === 'owner' ? rental.renter_id : rental.owner_id))?.name || 'them');
   }
   return { rental, role, item, other, listings };
+}
+
+// "in iowa city" / "near park slope" → that city or hood instead of the sender's home
+function placeFor(p0?: string | null): { name: string; lat: number; lng: number; d: number } | null {
+  const p = (p0 || '').toLowerCase().replace(/[^a-z ]/g, '').trim(); if (p.length < 2) return null;
+  for (const c of CITIES) for (const h of c.hoods) if (h.name.toLowerCase() === p) return { name: h.name, lat: h.lat, lng: h.lng, d: 0.03 };
+  for (const c of CITIES) { const n = c.name.toLowerCase(); if (n === p || n.includes(p) || p.includes(n) || (c as any).short?.toLowerCase() === p) return { name: c.name, lat: c.lat, lng: c.lng, d: 0.12 }; }
+  return null;
 }
