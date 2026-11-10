@@ -20,7 +20,7 @@ async function ask(env: Env, images: ArrayBuffer[], text: string, max = 80): Pro
 
 // "bullhorn" → "a handheld electric megaphone with a pistol grip, red and white body, wide flared white horn"
 export async function artistPrompt(env: Env, photo: ArrayBuffer, name: string): Promise<string | null> {
-  const t = await ask(env, [photo], `This is a photo of an item listed for rent as "${name}". Write a 15-25 word description of the physical object for an illustrator who has never seen it. Name the object unambiguously by what it physically is (e.g. "electric megaphone", never words that could be read as something else like "bullhorn" → bull horns). Include color(s), material and its most distinctive shape. No background, no people. Output only the description.`, 90);
+  const t = await ask(env, [photo], `This is a photo of an item listed for rent as "${name}". Write a 15-25 word description of the physical object for an illustrator who has never seen it. Name the object unambiguously by what it physically is (e.g. "electric megaphone", never words that could be read as something else like "bullhorn" → bull horns). Include color(s), material and its most distinctive shape; if a brand is visible and has a signature look (Dyson\'s shape, a KitchenAid stand mixer, a Brompton fold), describe that look, but no logos or text. No background, no people. Output only the description.`, 90);
   return t ? t.replace(/^["']|["'.]$/g, '') : null;
 }
 

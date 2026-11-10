@@ -10,3 +10,4 @@
 - Terms: "owner" (lists, gets paid) and "customer" (rents, pays). Never "renter" in copy or new code names. Customers "rent", owners "list". Fee is "15% fee (will stay low)", charged from day one; a free rental (owner waived) has no fee.
 - Brand: cream `#F5F3EE`, ink `#1E3A2B`, orange `#FF4F00`, Helvetica Neue; 👋 Lendo logo. Tokens in `public/app.css`.
 - Verify: `npm run typecheck`, then `npm run dev` + walk the flow (list → rent → YES via `/webhooks/blooio` → pickup → return → rate).
+- Item names/descriptions: name the brand (+ model) when visible AND it matters to a customer (electronics, cameras, power tools, appliances, audio, bikes, fitness, baby gear, designer fashion, outdoor brands); leave it out for commodity items (folding chairs, ladders, hammers, sleds). Never guess a brand. Descriptions = 1-2 lines of checkable facts (model, key spec, what's included, visible condition), no filler. Rules live in `src/lib/identify.ts`.

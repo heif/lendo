@@ -1,7 +1,7 @@
 // Visual identification of a snapped item → name, description, category, retail estimate → suggested price.
 import type { Env } from './env';
 
-export type Ident = { name: string; description: string; category: string; retail_usd: number | null; confidence: 'high' | 'medium' | 'low' };
+export type Ident = { name: string; description: string; category: string; retail_usd: number | null; confidence: 'high' | 'medium' | 'low'; brand?: string | null; model?: string | null };
 export type PriceRule = { category: string; label: string; day_cents: number; rate_pct: number; week_pct: number };
 
 let rulesCache: { at: number; rules: PriceRule[]; settings: Record<string, string> } | null = null;
@@ -28,7 +28,41 @@ export function suggestPrice(rules: PriceRule[], settings: Record<string, string
 const CATS = ['power_tools', 'hand_tools', 'ladders', 'cleaning', 'camping', 'sports', 'bikes', 'water', 'winter', 'av', 'cameras', 'gaming', 'music', 'kitchen', 'party', 'furniture', 'baby', 'luggage', 'fashion', 'pets', 'garden', 'electronics', 'mobility', 'other'];
 
 export let lastRaw = '';
+// Brand rules: name the brand when it changes what a customer expects (quality, compatibility, price) — Dyson,
+// DeWalt (battery platform), Canon (lens mount), Pyle vs. a toy megaphone, Vitamix, Peloton, Patagonia, Thule,
+// Nintendo. Skip it for commodity items where brand doesn't matter (folding chairs, ladders, a hammer, a sled).
+// Only a brand actually visible (logo, label, distinctive design) — never guessed.
+const BRAND_RULES = `Brand: include the brand (and model if readable) in the name ONLY when it is visible in the photo AND it matters to a renter — electronics, cameras/lenses, power tools (battery platform), appliances, audio, bikes/e-bikes, fitness machines, strollers/car seats, designer fashion, outdoor gear brands. Leave the brand out for commodity items (folding chairs, basic ladders, hand tools like a hammer, sleds, generic luggage) even if a logo shows. Never guess a brand you can't see.`;
+const DESC_RULES = `Description: 1-2 short lines, facts a renter checks before renting — brand/model and one key spec if known (watts, size, battery, capacity), what's visibly included (case, strap, charger, batteries), and condition only if visible. No filler like "for use in outdoor activities", no restating the photo's colors unless they identify it, no marketing words, no trailing period.`;
+
+async function identifyClaude(env: Env, photo: ArrayBuffer, hint?: string | null): Promise<any | null> {
+  if (!env.ANTHROPIC_API_KEY) return null;
+  const b = new Uint8Array(photo); let bin = ''; for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode(...b.subarray(i, i + 0x8000));
+  const mt = b[0] === 0x89 ? 'image/png' : b[0] === 0x52 ? 'image/webp' : 'image/jpeg';
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-haiku-5-5', max_tokens: 300, messages: [{ role: 'user', content: [
+        { type: 'image', source: { type: 'base64', media_type: mt, data: btoa(bin) } },
+        { type: 'text', text: `A neighbor is listing this item for rent${hint ? ` (their hint: "${hint}"; trust what you see)` : ''}.
+Name: 1-4 words, what a renter would search for, Title Case first word only (e.g. "Pyle bullhorn", "DeWalt cordless drill", "Folding chairs", "Canon EOS R6 camera").
+${BRAND_RULES}
+${DESC_RULES}
+Reply with JSON only: {"name":"","brand":"<visible brand or null>","model":"<visible model or null>","description":"","category":"<one of: ${CATS.join(', ')}>","retail_usd":<new retail price of this brand/model in USD>,"confidence":"high|medium|low"}` }] }] }) });
+    if (!r.ok) { lastRaw = 'claude ' + r.status; return null; }
+    const j: any = await r.json(); const t = String(j?.content?.[0]?.text || ''); lastRaw = t;
+    const m = t.match(/\{[\s\S]*\}/); return m ? JSON.parse(m[0]) : null;
+  } catch (e: any) { lastRaw = 'claude ERR ' + (e?.message || e); return null; }
+}
+
 export async function identifyItem(env: Env, photo: ArrayBuffer, hint?: string | null): Promise<Ident> {
+  const cj = await identifyClaude(env, photo, hint);
+  if (cj && cj.name) {
+    const cat = CATS.includes(String(cj.category || '').trim()) ? String(cj.category).trim() : guessCategory(String(cj.name));
+    const retail = typeof cj.retail_usd === 'number' ? cj.retail_usd : parseFloat(String(cj.retail_usd || '').replace(/[^0-9.]/g, '')) || null;
+    return { name: String(cj.name).replace(/^["']|["'.]$/g, '').slice(0, 60), description: String(cj.description || '').replace(/\.$/, '').slice(0, 240), category: cat, retail_usd: retail,
+      confidence: ['high', 'medium', 'low'].includes(cj.confidence) ? cj.confidence : 'medium', brand: cj.brand || null, model: cj.model || null };
+  }
   const { settings } = await loadPricing(env);
   const model = settings.vision_model || '@cf/llava-hf/llava-1.5-7b-hf';
   const prompt = `USER: You are cataloguing an item a neighbor wants to rent out. Look at the photo${hint ? ` (the owner's hint: "${hint}", but trust what you see)` : ''}. Answer ONLY with JSON:
