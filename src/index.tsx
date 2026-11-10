@@ -53,8 +53,8 @@ export default {
     try {
       const done = await iconsDone(env);
       const br = await env.DB.prepare(`SELECT value FROM settings WHERE key = 'wanted_bad'`).first<{ value: string }>(); const bad = new Set<string>(br ? JSON.parse(br.value) : []);
-      const todo = WANTED_ALL.filter(w => !done.has(w.key) && !bad.has(w.key)).slice(0, 6);
-      { const redo = await auditIcons(env, todo.length ? 4 : 10); if (redo.length) console.log('icon audit redo', redo); }
+      const todo = WANTED_ALL.filter(w => !done.has(w.key) && !bad.has(w.key)).slice(0, 3);
+      { const redo = await auditIcons(env, todo.length ? 2 : 6); if (redo.length) console.log('icon audit redo', redo); }
       for (const w of todo) {
         try { await makeWantedIcon(env, w.key); }
         catch (e: any) { await env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('wanted_icons_err', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(`${w.key}: ${e?.message || e}`.slice(0, 500)).run(); }
