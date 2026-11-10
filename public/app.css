@@ -268,7 +268,7 @@ button,.btn,.pm,.idea,.days button,.stars button{touch-action:manipulation}
 .wsheet{position:absolute;left:50%;bottom:90px;width:210px;margin-left:-105px;z-index:640;background:var(--cream);border:2px solid var(--ink);box-shadow:4px 5px 0 var(--ink);padding:14px 14px 14px;text-align:center;transform:rotate(-3deg);animation:rise .2s ease-out both}
 .wsheet .pcard-x{right:-14px;top:-14px}
 .wsheet-head{font-family:Rockwell,'Roboto Slab',Georgia,serif;font-size:26px;letter-spacing:4px;line-height:1;border-bottom:2px solid var(--ink);padding-bottom:6px;margin:0 6px;color:var(--ink)}
-.wsheet-head small{display:block;font-family:inherit;font-size:14px;letter-spacing:3.5px;font-weight:700;margin-top:3px;color:var(--ink2,#4A463F)}
+.wsheet-head small{display:block;font-family:inherit;font-size:19px;letter-spacing:4px;font-weight:700;margin-top:3px;color:var(--ink2,#4A463F)}
 .wsheet-em{font-size:76px;line-height:1.1;margin:8px 0 2px;filter:grayscale(1) opacity(.7);font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif}
 .wsheet-name{font-family:Rockwell,'Roboto Slab',Georgia,serif;font-size:17px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:12px}
 .wsheet-go{display:block;background:var(--orange);color:#fff;font-size:18px;font-weight:900;letter-spacing:.2px;padding:14px 10px;border:2px solid var(--ink);border-radius:10px;text-decoration:none;box-shadow:3px 3px 0 var(--ink)}
@@ -362,3 +362,4 @@ body:has(.promo.pu:not([hidden])) .locbtn{bottom:96px}
 @media (max-width:430px){.rent-out .ro-l{display:none}.rent-out .ro-s{display:inline}}
 .aisles{padding-top:62px!important}
 .wsheet-em .wsimg{display:block;margin:6px auto;object-fit:contain}
+.wsheet-go{box-sizing:border-box;width:calc(100% - 6px);margin:0 auto;text-align:center}
