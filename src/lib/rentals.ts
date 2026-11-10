@@ -1,6 +1,6 @@
 // Rental state transitions + the texts they trigger. Used by web routes, Stripe webhook, Blooio webhook and cron.
 import type { Env, Rental, User } from './env';
-import { addMessage, listingById, rentalById, setRentalStatus, userById } from './db';
+import { addMessage, busyDays, listingById, rentalById, setRentalStatus, userById } from './db';
 import { textUser } from './blooio';
 import { captureRental, releaseHold } from './stripe';
 import { firstName, fmtRange, money, now } from './util';
@@ -16,7 +16,16 @@ async function parties(env: Env, r: Rental) {
 export async function markHeld(env: Env, r: Rental, paymentIntent: string | null, checkoutId: string | null) {
   if (r.status !== 'requested') return;
   const exp = now() + HOLD_HOURS * 3600000;
-  await setRentalStatus(env.DB, r.id, 'held', { stripe_payment_intent: paymentIntent, stripe_checkout_id: checkoutId, expires_at: exp });
+  await setRentalStatus(env.DB, r.id, 'held', { stripe_payment_intent: paymentIntent, stripe_checkout_id: checkoutId, expires_at: exp, held_at: now() });
+  // booking one of the alternatives we suggested replaces the unanswered original (same customer, overlapping days)
+  const originals = await env.DB.prepare(`SELECT * FROM rentals WHERE renter_id = ? AND id != ? AND status = 'held' AND alts IS NOT NULL AND end_day >= ? AND start_day <= ?`)
+    .bind(r.renter_id, r.id, r.start_day, r.end_day).all<Rental>();
+  for (const o of originals.results) {
+    if (!(JSON.parse(o.alts || '[]') as string[]).includes(r.listing_id)) continue;
+    await decline(env, o, 'canceled');
+    const op = await parties(env, o);
+    await textUser(env, op.owner, `${firstName(op.renter.name)} found another ${op.listing.name} nearby, so that request is canceled`, 'rental', o.id);
+  }
   const { owner, renter, listing } = await parties(env, r);
   const url = `${env.APP_URL}/r/${r.id}`;
   await addMessage(env, r.id, null, `${firstName(renter.name)} requested ${fmtRange(r.start_day, r.end_day)} · card held · waiting for ${firstName(owner.name)}`, 'system');
@@ -92,6 +101,54 @@ export async function relay(env: Env, r: Rental, from: User, body: string, via: 
 export async function activeRentalFor(env: Env, uid: string, statuses: Rental['status'][] = ['held', 'confirmed', 'picked_up', 'returned']) {
   const q = `SELECT * FROM rentals WHERE (owner_id = ? OR renter_id = ?) AND status IN (${statuses.map(() => '?').join(',')}) ORDER BY updated_at DESC LIMIT 1`;
   return env.DB.prepare(q).bind(uid, uid, ...statuses).first<Rental>();
+}
+
+// Owner hasn't answered: re-text at 30 min, 1 h, 2 h. At 4 h, text the customer similar items nearby (request stays open).
+const NUDGE_AT = [30, 60, 120].map(m => m * 60000);
+const ALTS_AT = 4 * 3600000;
+export async function chaseHolds(env: Env) {
+  const rows = (await env.DB.prepare(`SELECT * FROM rentals WHERE status = 'held' AND held_at IS NOT NULL`).all<Rental>()).results;
+  let sent = 0;
+  for (const r of rows) {
+    const age = now() - (r.held_at || now());
+    const due = NUDGE_AT.filter(t => age >= t).length;
+    if (due > r.owner_nudges) {
+      const { owner, renter, listing } = await parties(env, r);
+      await textUser(env, owner, `${firstName(renter.name)} is still waiting on your ${listing.name} for ${fmtRange(r.start_day, r.end_day)} — reply YES or NO ${env.APP_URL}/r/${r.id}`, 'rental', r.id);
+      await env.DB.prepare('UPDATE rentals SET owner_nudges = ? WHERE id = ?').bind(due, r.id).run();
+      sent++;
+    }
+    if (age >= ALTS_AT && r.alts == null) {
+      const { owner, renter, listing } = await parties(env, r);
+      const alts = await similarNearby(env, r, listing);
+      await env.DB.prepare('UPDATE rentals SET alts = ? WHERE id = ?').bind(JSON.stringify(alts.map(a => a.id)), r.id).run();
+      if (alts.length) {
+        const lines = alts.map(a => `${a.name} ${money(a.price_cents)}/day ${env.APP_URL}/i/${a.id}`).join('\n');
+        await textUser(env, renter, `${firstName(owner.name)} hasn't answered yet. Similar nearby, free those days:\n${lines}\nYour first request stays open too`, 'rental', r.id);
+        sent++;
+      }
+    }
+  }
+  return sent;
+}
+
+// up to 3 live listings like this one within ~2 km, other owners, free for the requested days
+async function similarNearby(env: Env, r: Rental, listing: { id: string; name: string; emoji: string | null; avatar_key: string | null; lat: number | null; lng: number | null; owner_id: string }) {
+  if (listing.lat == null || listing.lng == null) return [];
+  const d = 0.02;
+  const cands = (await env.DB.prepare(`SELECT id, name, emoji, avatar_key, price_cents, lat, lng FROM listings WHERE status = 'live' AND owner_id != ? AND id != ? AND lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?`)
+    .bind(listing.owner_id, listing.id, listing.lat - d, listing.lat + d, listing.lng - d * 1.3, listing.lng + d * 1.3).all<{ id: string; name: string; emoji: string | null; avatar_key: string | null; price_cents: number; lat: number; lng: number }>()).results;
+  const words = (s: string) => s.toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length >= 3);
+  const mine = new Set(words(listing.name));
+  const alike = cands.filter(c => words(c.name).some(w => mine.has(w)) || (listing.avatar_key && c.avatar_key === listing.avatar_key) || (listing.emoji && listing.emoji !== '📦' && c.emoji === listing.emoji));
+  alike.sort((a, b) => Math.hypot(a.lat - listing.lat!, a.lng - listing.lng!) - Math.hypot(b.lat - listing.lat!, b.lng - listing.lng!));
+  const out = [];
+  for (const c of alike) {
+    const busy = await busyDays(env.DB, c.id, r.start_day, r.end_day);
+    if (!busy.size) out.push(c);
+    if (out.length >= 3) break;
+  }
+  return out;
 }
 
 export async function expireHolds(env: Env) {

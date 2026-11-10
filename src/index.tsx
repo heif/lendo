@@ -13,7 +13,7 @@ import { webhooks } from './routes/webhooks';
 import { api } from './routes/api';
 import { meetup } from './routes/meetup';
 import { admin } from './routes/admin';
-import { expireHolds } from './lib/rentals';
+import { expireHolds , chaseHolds } from './lib/rentals';
 import { Layout } from './pages/layout';
 
 const app = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -46,6 +46,9 @@ export default {
   async scheduled(_ev: ScheduledEvent, env: Env) {
     const n = await expireHolds(env);
     if (n) console.log(`expired ${n} held requests`);
+    try { const c = await chaseHolds(env); if (c) console.log(`chase: ${c} texts`); } catch (e) { console.warn('chase', e); }
+    // heavier jobs every 15 min only (cron runs every 5)
+    if (new Date(_ev.scheduledTime).getUTCMinutes() % 15 >= 5) return;
     try { const a = await backfillAvatars(env, 3); if (a) console.log(`avatars backfilled ${a}`); } catch (e) { console.warn('avatar backfill', e); }
     try { const f = await fixDemoLand(env, 150); if (f.checked) console.log(`demo land: checked ${f.checked}, moved ${f.moved}`); } catch (e) { console.warn('demo land', e); }
     // backfill custom icons for the wanted catalog, a few per tick (Flux + cutout each)
