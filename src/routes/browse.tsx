@@ -122,16 +122,27 @@ browse.get('/i/:id', async (c) => {
   const saved = u ? !!(await c.env.DB.prepare('SELECT 1 FROM saved WHERE user_id = ? AND listing_id = ?').bind(u.id, it.id).first()) : false;
   return c.html(
     <Layout title={it.name} headerCenter={<span />} user={u} flash={c.req.query('canceled') ? 'Checkout canceled — nothing was charged.' : null}>
-      <div class="hero">
+      <div class={photos.length > 1 ? 'hero gal' : 'hero'}>
         {photos[0] ? <img id="heroImg" src={cutoutUrl(c.env, photos[0].r2_key)} alt={it.name} onerror={`this.onerror=null;this.src='/p/${photos[0].r2_key}'`} /> : it.avatar_key ? <img id="heroImg" class="trimme" crossorigin="anonymous" src={'/p/' + it.avatar_key} alt={it.name} /> : <div class="hint">no photo yet</div>}
+        {photos.length > 1 ? <>
+          <button type="button" class="gal-nav prev" id="galPrev" aria-label="Previous photo"><svg width="12" height="18" viewBox="0 0 12 18"><path d="M9 2L3 9l6 7" fill="none" stroke="#1E3A2B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
+          <button type="button" class="gal-nav next" id="galNext" aria-label="Next photo"><svg width="12" height="18" viewBox="0 0 12 18"><path d="M3 2l6 7-6 7" fill="none" stroke="#1E3A2B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
+          <div class="gal-dots" id="galDots">{photos.map((_, i) => <i class={i ? '' : 'on'} />)}</div>
+          {raw(`<script>(function(){var S=${JSON.stringify(photos.map(p => ({ c: cutoutUrl(c.env, p.r2_key), o: '/p/' + p.r2_key })))},i=0,im=document.getElementById('heroImg'),d=document.getElementById('galDots').children;
+S.forEach(function(p){var x=new Image();x.src=p.c;});
+function go(n){i=(n+S.length)%S.length;im.onerror=function(){this.onerror=null;this.src=S[i].o;};im.src=S[i].c;for(var k=0;k<d.length;k++)d[k].className=k===i?'on':'';}
+document.getElementById('galPrev').onclick=function(){go(i-1)};document.getElementById('galNext').onclick=function(){go(i+1)};
+var h=im.closest('.hero'),x0=null,y0=0;h.addEventListener('touchstart',function(e){x0=e.touches[0].clientX;y0=e.touches[0].clientY},{passive:true});
+h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTouches[0].clientX-x0,dy=e.changedTouches[0].clientY-y0;if(Math.abs(dx)>40&&Math.abs(dx)>Math.abs(dy))go(i+(dx<0?1:-1));x0=null},{passive:true});})();</script>`)}
+        </> : null}
         <div class="pr"><b class="price">{money(it.price_cents)}</b><span style="font-size:15px">/day</span>
         </div>
       </div>
-      {photos.length > 1 ? <div class="thumbs">{photos.map(p => <img src={cutoutUrl(c.env, p.r2_key, 160, 160)} alt="" data-full={cutoutUrl(c.env, p.r2_key)} onclick={`document.getElementById('heroImg').src=this.dataset.full`} />)}</div> : null}
       <section class="sec" style="padding:12px 16px 14px">
         <div class="row" style="justify-content:space-between;align-items:flex-start">
           <h2 style="margin:0;font-size:20px;font-weight:800;line-height:1.25">{(() => { const f = (owner.name || 'Neighbor').split(' ')[0]; return f + (/s$/i.test(f) ? '’ ' : '’s ') + it.name.charAt(0).toLowerCase() + it.name.slice(1); })()}</h2>
           {it.status === 'paused' ? <span class="pill">paused</span> : null}
+          {isOwner ? <a class="btn sm" href={'/listings/' + it.id + '/edit'} style="flex-shrink:0;margin-left:8px">✎ Edit</a> : null}
         </div>
         {it.description ? <p style="margin:4px 0 0;font-size:14px;line-height:1.4;color:var(--ink2);white-space:pre-wrap">{it.description}</p> : null}
         <a href={'/u/' + owner.id} class="owner-row owner-tight">

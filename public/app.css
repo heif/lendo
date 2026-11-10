@@ -398,3 +398,10 @@ html,body{overflow-x:hidden}
 .places-h .places-cities{flex:1;min-width:0;padding:0 4px 9px 12px}
 .places-cities button{position:relative;overflow:visible}
 .places-cities button.on::after{content:"";position:absolute;left:50%;bottom:-9px;margin-left:-8px;border:8px solid transparent;border-top:9px solid var(--ink);border-bottom:0}
+
+/* item page photo gallery: arrows + dots + swipe */
+.gal-nav{position:absolute;top:50%;margin-top:-34px;z-index:2;width:36px;height:36px;border-radius:18px;border:1.5px solid var(--ink);background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer;box-shadow:1.5px 1.5px 0 var(--ink)}
+.gal-nav.prev{left:10px}.gal-nav.next{right:10px}
+.gal-dots{position:absolute;left:0;right:0;top:8px;display:flex;justify-content:center;gap:5px;z-index:2}
+.gal-dots i{width:6px;height:6px;border-radius:3px;background:#CFC9BC}.gal-dots i.on{background:var(--ink);width:16px}
+.hero.gal{padding-top:22px}.hero.gal img{height:220px;max-width:70%;object-fit:contain}
