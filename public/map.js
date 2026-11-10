@@ -207,7 +207,18 @@
         var pb = map.getBounds(), w = pb.getEast() - pb.getWest(), h = pb.getNorth() - pb.getSouth();
         items = Object.keys(known).map(function (k) { return known[k]; }).filter(function (it) { return it.lng > pb.getWest() - w * .5 && it.lng < pb.getEast() + w * .5 && it.lat > pb.getSouth() - h * .5 && it.lat < pb.getNorth() + h * .5; })
           .sort(function (a, b2) { return Math.hypot(a.lat - cc.lat, (a.lng - cc.lng) * .76) - Math.hypot(b2.lat - cc.lat, (b2.lng - cc.lng) * .76); }).slice(0, 600);
-        $('toggle').hidden = !items.length && !listMode; if (!items.length && listMode && !qq) setList(false); refreshSource(); if (!listMode) renderGrid(items); setKpi(j); loadVisibleIcons(); if (window.__placeWanted) window.__placeWanted(); if (!items.length && !centered && !qq) goNearest(); centered = true; });
+        $('toggle').hidden = !items.length && !listMode; if (!items.length && listMode && !qq) setList(false); refreshSource(); if (!listMode) renderGrid(items); setKpi(j); loadVisibleIcons(); if (window.__placeWanted) window.__placeWanted(); if (!items.length && !centered && !qq) goNearest(); if (qq) searchFeedback(qq, items.length); centered = true; });
+  }
+  // search with nothing in view: jump to the nearest match (once per search), else say so plainly
+  var widened = '';
+  function searchFeedback(qq, n) {
+    if (n || widened === qq) return; widened = qq; var c = map.getCenter();
+    fetch('/api/listings?limit=1&near=' + c.lng + ',' + c.lat + '&q=' + encodeURIComponent(qq)).then(function (r) { return r.json(); }).then(function (j) {
+      if (q.value.trim() !== qq) return; var it = j.listings && j.listings[0];
+      var km = it && it.lat != null ? Math.hypot(it.lat - c.lat, (it.lng - c.lng) * Math.cos(c.lat * Math.PI / 180)) * 111 : 1e9;
+      if (km < 40) { map.easeTo({ center: [it.lng, it.lat], zoom: Math.max(Math.min(map.getZoom(), 15), 13.5), duration: 900 }); toast('Nearest ' + qq.toLowerCase() + ' · ' + (km < 1 ? Math.round(km * 1000) + ' m' : km.toFixed(1) + ' km') + ' away'); }
+      else { qNote = 'No ' + esc(qq.toLowerCase()) + ' for rent nearby yet'; alertChip(true); }
+    }).catch(function () {});
   }
   // empty first view → center on the closest live item so the map never opens blank
   var centered = !!RESTORED;
@@ -278,19 +289,19 @@
 
   q.addEventListener('input', function () { clearTimeout(t); t = setTimeout(load, 300); });
   // saved-search alert: on automatically after a search settles; visible Turn off
-  var alertT, alertQ = '', alertId = null;
-  function alertChip() {
-    var qq = q.value.trim(), chip = $('alertChip'); clearTimeout(alertT);
+  var alertT, alertQ = '', alertId = null, qNote = '';
+  function alertChip(now) {
+    var qq = q.value.trim(), chip = $('alertChip'); clearTimeout(alertT); if (now !== true) qNote = '';
     if (qq.length < 3) { chip.hidden = true; return; }
     alertT = setTimeout(function () {
-      if (qq === alertQ && !chip.hidden) return; alertQ = qq; var cc = map.getCenter(), hood = ($('scHoodN') || {}).title || '';
+      if (qq === alertQ && !chip.hidden && now !== true) return; alertQ = qq; var pre = qNote ? '<b>' + qNote + '</b><br>' : ''; var cc = map.getCenter(), hood = ($('scHoodN') || {}).title || '';
       var esc = function (x) { return x.replace(/[<>&"]/g, ''); };
-      if (!CFG.user) { chip.innerHTML = '🔔 <a href="/login?next=' + encodeURIComponent('/?q=' + qq) + '">Text me when a ' + esc(qq) + ' is listed</a>'; chip.hidden = false; return; }
+      if (!CFG.user) { chip.innerHTML = pre + '🔔 <a href="/login?next=' + encodeURIComponent('/?q=' + qq) + '">Text me when a ' + esc(qq) + ' is listed</a>'; chip.hidden = false; return; }
       fetch('/api/alerts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ q: qq, lat: cc.lat, lng: cc.lng, hood: hood }) })
         .then(function (r) { return r.json(); }).then(function (j) { if (!j.id) return; alertId = j.id;
-          chip.innerHTML = '🔔 Alert on for <b>' + esc(qq) + '</b> · <button type="button" id="alertOff">Turn off</button>'; chip.hidden = false;
+          chip.innerHTML = pre + '🔔 Alert on' + (pre ? ' — you’ll get a text when one’s listed' : ' for <b>' + esc(qq) + '</b>') + ' · <button type="button" id="alertOff">Turn off</button>'; chip.hidden = false;
           $('alertOff').onclick = function () { fetch('/api/alerts/' + alertId + '/off', { method: 'POST' }); chip.innerHTML = 'Alert off · <a href="/alerts">All alerts</a>'; }; });
-    }, 1500);
+    }, now === true ? 0 : 1500);
   }
   q.addEventListener('input', alertChip);
   // always-visible clear (iOS only shows its own while focused): clears the text and the results

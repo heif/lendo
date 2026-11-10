@@ -384,7 +384,7 @@ body:has(.promo.pu:not([hidden])) .locbtn{bottom:96px}
 .disc summary::-webkit-details-marker{display:none}
 
 /* saved-search alert chip under the search row */
-.alertchip{position:absolute;left:12px;top:100%;margin-top:6px;z-index:5;background:#fff;border:1.5px solid var(--ink);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:700;color:var(--ink);box-shadow:2px 2px 0 var(--ink);white-space:nowrap;max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis}
+.alertchip{position:absolute;left:12px;top:100%;margin-top:6px;z-index:5;background:#fff;border:1.5px solid var(--ink);border-radius:16px;padding:7px 12px;font-size:13px;line-height:1.35;font-weight:700;color:var(--ink);box-shadow:2px 2px 0 var(--ink);max-width:calc(100% - 24px)}
 .alertchip a{color:var(--ink)}
 .alertchip button{border:0;background:none;padding:0;font:inherit;font-weight:900;color:#D94300;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 /* iOS zooms into any field under 16px on focus — keep every field at 16px+ */
