@@ -194,7 +194,8 @@
         j.listings.forEach(function (it) { known[it.id] = it; });
         var pb = map.getBounds(), w = pb.getEast() - pb.getWest(), h = pb.getNorth() - pb.getSouth();
         items = Object.keys(known).map(function (k) { return known[k]; }).filter(function (it) { return it.lng > pb.getWest() - w * .5 && it.lng < pb.getEast() + w * .5 && it.lat > pb.getSouth() - h * .5 && it.lat < pb.getNorth() + h * .5; })
-          .sort(function (a, b2) { return Math.hypot(a.lat - cc.lat, (a.lng - cc.lng) * .76) - Math.hypot(b2.lat - cc.lat, (b2.lng - cc.lng) * .76); }).slice(0, 600); refreshSource(); renderGrid(items); setKpi(j); loadVisibleIcons(); if (window.__placeWanted) window.__placeWanted(); if (!items.length && !centered && !qq) goNearest(); centered = true; });
+          .sort(function (a, b2) { return Math.hypot(a.lat - cc.lat, (a.lng - cc.lng) * .76) - Math.hypot(b2.lat - cc.lat, (b2.lng - cc.lng) * .76); }).slice(0, 600);
+        $('toggle').hidden = !items.length && !listMode; if (!items.length && listMode && !qq) setList(false); refreshSource(); renderGrid(items); setKpi(j); loadVisibleIcons(); if (window.__placeWanted) window.__placeWanted(); if (!items.length && !centered && !qq) goNearest(); centered = true; });
   }
   // empty first view → center on the closest live item so the map never opens blank
   var centered = !!RESTORED;
