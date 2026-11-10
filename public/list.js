@@ -74,17 +74,23 @@
   $('camClose').addEventListener('click', function () { if (shots.length) show('review'); else show('ideas'); });
 
   // ---- review
+  function undoToast(msg, undo) {
+    var t = $('undoT'); if (!t) { t = document.createElement('div'); t.id = 'undoT'; t.className = 'undo-t'; document.body.appendChild(t); }
+    t.innerHTML = '<span></span><button type="button">Undo</button>'; t.firstChild.textContent = msg; t.hidden = false;
+    clearTimeout(t._h); t._h = setTimeout(function () { t.hidden = true; }, 5000);
+    t.lastChild.onclick = function () { t.hidden = true; undo(); };
+  }
   function renderReview() {
     $('rvCount').textContent = shots.length + ' in ' + clock();
     $('rows').innerHTML = shots.map(function (s, i) {
       return '<div class="row-item" data-i="' + i + '">' +
         '<div class="rtcol"><button type="button" class="rt" data-act="retake"><img src="' + s.url + '" alt=""><span>↻ Retake</span></button>' +
         '<div class="xtra">' + (s.extra || []).map(function (x, k) { return '<button type="button" class="xt" data-act="xdel" data-k="' + k + '" aria-label="Remove photo"><img src="' + x.url + '" alt=""><b>×</b></button>'; }).join('') + ((s.extra || []).length < 5 ? '<button type="button" class="xadd" data-act="xadd" aria-label="Add photos">+</button>' : '') + '</div></div>' +
-        '<div class="mid"><input class="nm" data-act="name" value="' + esc(s.name) + '" placeholder="' + (s.pending ? 'Looking…' : 'What is it?') + '" maxlength="80">' +
+        '<div class="mid"><div class="nmwrap"><input class="nm" data-act="name" value="' + esc(s.name) + '" placeholder="' + (s.pending ? 'Looking…' : 'What is it?') + '" maxlength="80"><button type="button" class="nmclr" data-act="nmclr" aria-label="Clear name">×</button></div>' +
         (s.pending ? '<div class="aichip pend">✦ identifying…</div>' : '') +
         '<div class="pricerow"><button type="button" class="pm" data-act="dn" aria-label="Lower">−</button><span class="badge">$' + s.price + '<small>/day</small></span><button type="button" class="pm" data-act="up" aria-label="Raise">+</button></div>' +
         '<textarea class="note" data-act="note" rows="2" placeholder="✎ note · condition · what’s included" maxlength="400">' + esc(s.note) + '</textarea></div>' +
-        '<button type="button" class="del" data-act="del" aria-label="Remove">✕</button></div>';
+        '<button type="button" class="del" data-act="del" aria-label="Remove this item"><svg width="18" height="20" viewBox="0 0 18 20" aria-hidden="true"><path d="M2 5h14M7 5V3h4v2M4 5l1 13h8l1-13" fill="none" stroke="#9B968C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>';
     }).join('') || '<div class="hint" style="padding:20px 0">Nothing yet.</div>';
     $('rows').querySelectorAll('textarea.note').forEach(grow);
     $('listBtn').textContent = 'LIST ' + shots.length + (shots.length === 1 ? ' THING' : ' THINGS');
@@ -99,7 +105,8 @@
     if (act === 'xdel') { (shots[i].extra || []).splice(+b.dataset.k, 1); renderReview(); }
     if (act === 'dn') { shots[i].price = Math.max(MIN, shots[i].price - 1); shots[i].week = 0; shots[i].touched.price = true; renderReview(); }
     if (act === 'up') { shots[i].price += 1; shots[i].week = 0; shots[i].touched.price = true; renderReview(); }
-    if (act === 'del') { shots.splice(i, 1); renderReview(); }
+    if (act === 'nmclr') { shots[i].name = ''; shots[i].touched.name = true; var inp = row.querySelector('input.nm'); inp.value = ''; inp.focus(); $('listBtn').disabled = true; }
+    if (act === 'del') { var gone = shots.splice(i, 1)[0]; renderReview(); undoToast('Removed ' + (gone.name || 'item'), function () { shots.splice(i, 0, gone); renderReview(); }); }
   });
   $('moreFile').addEventListener('change', function () { var i = moreFor; if (i == null || !shots[i]) return; var fs = Array.prototype.slice.call(this.files, 0, 5 - (shots[i].extra || []).length); fs.forEach(function (f) { shrink(f, function (b) { (shots[i].extra = shots[i].extra || []).push({ blob: b, url: URL.createObjectURL(b) }); renderReview(); }); }); });
   $('rows').addEventListener('input', function (e) { var inp = e.target, row = inp.closest('.row-item'); if (!row) return; var i = +row.dataset.i; if (inp.dataset.act === 'name') { shots[i].name = inp.value; shots[i].touched.name = true; $('listBtn').disabled = shots.some(function (s) { return !s.name.trim(); }); } if (inp.dataset.act === 'note') { shots[i].note = inp.value; shots[i].touched.note = true; grow(inp); } });

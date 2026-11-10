@@ -49,7 +49,7 @@ Name: 1-4 words, what a renter would search for, Title Case first word only (e.g
 ${BRAND_RULES}
 ${DESC_RULES}
 Reply with JSON only: {"name":"","brand":"<visible brand or null>","model":"<visible model or null>","description":"","category":"<one of: ${CATS.join(', ')}>","retail_usd":<new retail price of this brand/model in USD>,"confidence":"high|medium|low"}` }] }] }) });
-    if (!r.ok) { lastRaw = 'claude ' + r.status; return null; }
+    if (!r.ok) { lastRaw = 'claude ' + r.status + ' ' + (await r.text().catch(() => '')).slice(0, 300); return null; }
     const j: any = await r.json(); const t = String(j?.content?.[0]?.text || ''); lastRaw = t;
     const m = t.match(/\{[\s\S]*\}/); return m ? JSON.parse(m[0]) : null;
   } catch (e: any) { lastRaw = 'claude ERR ' + (e?.message || e); return null; }
