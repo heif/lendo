@@ -92,6 +92,9 @@
       }
       if (!moved) break;
     }
+    // never push a pin more than ~250 m from its real spot: zoomed out, co-located pins just stack/fan slightly
+    var mpp = 78271.5 * Math.cos(map.getCenter().lat * Math.PI / 180) / Math.pow(2, map.getZoom()), maxD = Math.max(10, 250 / mpp);
+    pts.forEach(function (p) { var dx = p.x - p.ox, dy = p.y - p.oy, d = Math.hypot(dx, dy); if (d > maxD) { p.x = p.ox + dx * maxD / d; p.y = p.oy + dy * maxD / d; } });
     pts.forEach(function (p) { if (Math.abs(p.x - p.ox) > 0.5 || Math.abs(p.y - p.oy) > 0.5) { var ll = map.unproject([p.x, p.y]); spreadPos[p.id] = [ll.lng, ll.lat]; } });
   }
   var toGeo = function (arr) {
@@ -384,7 +387,7 @@
     im.src = w.icon;
   }
   var GMARKS = {};
-  function ghostScale() { var z = map.getZoom(); map.getContainer().style.setProperty('--gs', z < 13.5 ? 0.72 : z < 14.5 ? 0.86 : 1); }
+  function ghostScale() { var z = map.getZoom(); map.getContainer().style.setProperty('--gs', z < 12.5 ? 0.58 : z < 13.5 ? 0.72 : z < 14.5 ? 0.86 : 1); }
   map.on('zoom', ghostScale); map.on('load', ghostScale);
   function startWanted() {
     var marks = GMARKS, PROMO = !!CFG.wantedPromo, MOD = PROMO ? 5 : 1, MAX = PROMO ? 9 : 400;
@@ -403,7 +406,7 @@
       var z = map.getZoom(), want = ((PL && PL.wanted) || []).filter(function (w) { return w.icon; });; // only drawn, vision-checked icons — no emoji stand-ins
       var keep = {}, chosen = {}, CELL = cellDeg(), zb = Math.round(z);
       Object.keys(marks).forEach(function (k) { if (k.indexOf(zb + ':') === 0) chosen[k.slice(k.indexOf(':') + 1)] = marks[k]._wkey; });
-      if (z >= (PROMO ? 13.2 : 12.8) && want.length) {
+      if (z >= (PROMO ? 13.2 : 11.5) && want.length) {
         var b = map.getBounds(), x0 = Math.floor(b.getWest() / CELL), x1 = Math.ceil(b.getEast() / CELL), y0 = Math.floor(b.getSouth() / CELL), y1 = Math.ceil(b.getNorth() / CELL), n = 0;
         for (var x = x0; x <= x1 && n < MAX; x++) for (var y = y0; y <= y1 && n < MAX; y++) {
           var h = h32(x, y); if (h % MOD !== 0) continue;
