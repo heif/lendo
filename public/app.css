@@ -371,3 +371,12 @@ body:has(.promo.pu:not([hidden])) .locbtn{bottom:96px}
 .thumbs-pick button{flex:1;height:56px;border-radius:14px;border:2px solid var(--line);background:#fff;font-size:28px;cursor:pointer}
 .thumbs-pick button.on{border-color:var(--ink);background:var(--cream);box-shadow:2px 2px 0 var(--ink)}
 .pill.stars{color:var(--orange);letter-spacing:1px}
+/* header: one breadcrumb pill */
+.scope-hood.crumb{flex-direction:row!important;align-items:center!important;gap:6px;height:38px;border-radius:19px;padding:0 30px 0 14px!important;max-width:220px;min-width:0}
+.scope-hood.crumb::after{display:none}
+.crumb b{font-size:14px!important;min-width:0}
+.crumb .cr-city{font-size:12px;font-weight:700;color:var(--mute);white-space:nowrap;flex-shrink:0}
+.crumb .cr-city:empty{display:none}
+.crumb .cr-n{flex-shrink:0;font-size:11px;font-weight:900;color:#fff;background:var(--orange);border-radius:9px;padding:1px 6px;line-height:1.4}
+.crumb svg{right:11px!important}
+@media (max-width:420px){.scope-hood.crumb{max-width:190px}}
