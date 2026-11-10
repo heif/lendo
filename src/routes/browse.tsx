@@ -59,7 +59,7 @@ browse.get('/', async (c) => {
         <div class="mapctl">
           <button class="btn sm listtoggle" id="toggle" type="button"><svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 1.5h1M4 1.5h9M1 6h1M4 6h9M1 10.5h1M4 10.5h9" stroke="#1E3A2B" stroke-width="2" stroke-linecap="round" /></svg> List</button>
           <input id="q" type="search" placeholder="Rent a…" aria-label="Search" />
-          <a class="rent-out" href="/list"><span class="ro-l">RENT OUT YOUR STUFF</span><span class="ro-s">RENT YOURS</span></a>
+          <a class="rent-out" href="/list"><span class="ro-l">RENT OUT YOUR STUFF</span><span class="ro-s">RENT YOURS OUT</span></a>
         </div>
         <div class="kpi" id="kpi" hidden><b id="kpiN">{k.global}</b><span id="kpiL">things to rent</span></div>
         <button type="button" class="locbtn" id="locate" aria-label="Go to my location"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.6" fill="#1A73E8" /><circle cx="12" cy="12" r="7.2" fill="none" stroke="#1E3A2B" stroke-width="2" /><path d="M12 1.8v3.4M12 18.8v3.4M1.8 12h3.4M18.8 12h3.4" stroke="#1E3A2B" stroke-width="2" stroke-linecap="round" /></svg></button>
