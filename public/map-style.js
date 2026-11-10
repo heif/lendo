@@ -9,7 +9,7 @@ window.LENDO_MAP_STYLE = {
   // Hide anything matching these (layer id or source-layer), unless kept below.
   hide: ['poi', 'transit', 'airport', 'housenum', 'building', 'road-number-shield', 'road-exit-shield', 'natural-', 'contour', 'hillshade',
     'admin-', 'aeroway', 'ferry', 'golf', 'path-pedestrian-label', 'road-label-simple', 'place-label-sm', 'settlement-minor-label', 'state-label', 'country-label', 'continent', 'landuse-overlay', 'wetland', 'pitch-outline'],
-  keep: ['road-label', 'settlement-subdivision-label', 'settlement-major-label', 'water-line-label', 'water-point-label', 'waterway-label', 'park-label', 'national-park', 'landuse'],
+  keep: ['poi-label', 'road-label', 'settlement-subdivision-label', 'settlement-major-label', 'water-line-label', 'water-point-label', 'waterway-label', 'park-label', 'national-park', 'landuse'],
   // Lendo layers
   cluster: { fill: '#FF4F00', stroke: '#1E3A2B', text: '#FFFFFF' },
   hoods: { line: '#1E3A2B', lineOpacity: 0.3, fill: '#1E3A2B', fillOpacity: 0.03, emptyFillOpacity: 0.1, emptyColor: '#8A857B' },
@@ -52,6 +52,8 @@ window.applyLendoStyle = function (map) {
     if (type === 'symbol') {
       var mono = { 'text-font': S.fonts.mono, 'text-transform': 'uppercase', 'text-letter-spacing': 0.14 };
       if (/^road-label/.test(id)) { Object.keys(mono).forEach(function (k) { set(id, 'layout', k, mono[k]); }); set(id, 'layout', 'text-size', ['interpolate', ['linear'], ['zoom'], 13, 8, 16, 10, 18, 12]); set(id, 'paint', 'text-color', C.label); set(id, 'paint', 'text-halo-color', C.road); set(id, 'paint', 'text-halo-width', 1.2); return; }
+      // park names live in poi-label (light-v11); show only parks, as quiet green mono text, no icons
+      if (id === 'poi-label') { try { map.setFilter(id, ['all', ['match', ['get', 'class'], ['park_like'], true, false], ['<=', ['get', 'filterrank'], 3]]); } catch (e) {} Object.keys(mono).forEach(function (k) { set(id, 'layout', k, mono[k]); }); set(id, 'layout', 'text-size', ['interpolate', ['linear'], ['zoom'], 13, 8.5, 16, 10]); set(id, 'layout', 'icon-image', ''); set(id, 'layout', 'text-max-width', 7); set(id, 'paint', 'text-color', C.parkLabel); set(id, 'paint', 'text-halo-color', C.park); set(id, 'paint', 'text-halo-width', 1); return; }
       if (/park|national-park|landuse/.test(id)) { Object.keys(mono).forEach(function (k) { set(id, 'layout', k, mono[k]); }); set(id, 'layout', 'text-size', 9); set(id, 'layout', 'icon-image', ''); set(id, 'paint', 'text-color', C.parkLabel); set(id, 'paint', 'text-halo-color', C.park); return; }
       if (/water/.test(id)) { Object.keys(mono).forEach(function (k) { set(id, 'layout', k, mono[k]); }); set(id, 'layout', 'text-size', 9.5); set(id, 'paint', 'text-color', C.waterLabel); set(id, 'paint', 'text-halo-color', C.water); return; }
       if (/settlement-subdivision/.test(id)) { Object.keys(mono).forEach(function (k) { set(id, 'layout', k, mono[k]); }); set(id, 'layout', 'text-size', ['interpolate', ['linear'], ['zoom'], 11, 9, 15, 11]); set(id, 'paint', 'text-color', C.hoodLabel); set(id, 'paint', 'text-halo-color', C.ground); set(id, 'paint', 'text-halo-width', 1.5); return; }
