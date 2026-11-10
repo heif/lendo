@@ -409,3 +409,7 @@ html,body{overflow-x:hidden}
 /* ghosts shrink when zoomed out (map sets --gs) */
 .ghost.img img{transform:scale(var(--gs,1));transform-origin:50% 50%}
 .ai-res{padding:14px 16px 2px;font-size:13px;font-weight:800;color:#6F6A60}
+.qwrap{position:relative;flex:1 1 0;min-width:0;display:flex}
+.qwrap input{flex:1 1 0;padding-right:38px!important}
+.qwrap input::-webkit-search-cancel-button{display:none}
+.qclr{position:absolute;right:7px;top:50%;margin-top:-14px;width:28px;height:28px;border-radius:14px;border:0;background:#E6E2D9;color:var(--ink);font-size:18px;font-weight:800;line-height:1;padding:0;cursor:pointer}
