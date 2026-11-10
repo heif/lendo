@@ -68,7 +68,7 @@
   mapboxgl.accessToken = CFG.token;
   // come back to the same view (item page → back) instead of jumping home; ?c= in the URL still wins
   var RESTORED = null;
-  try { if (!/[?&]c=/.test(location.search)) { var sv = JSON.parse(sessionStorage.getItem('lendo_view') || 'null'); if (sv && sv.c && Date.now() - sv.t < 6 * 3600e3) RESTORED = sv; } } catch (e) {}
+  try { if (!/[?&]c=/.test(location.search) && !CFG.pinned) { var sv = JSON.parse(sessionStorage.getItem('lendo_view') || 'null'); if (sv && sv.c && Date.now() - sv.t < 6 * 3600e3) RESTORED = sv; } } catch (e) {}
   var map = new mapboxgl.Map({ container: 'map', style: CFG.style, center: RESTORED ? RESTORED.c : CFG.center, zoom: RESTORED ? RESTORED.z : (CFG.zoom || 14.5), attributionControl: true, logoPosition: 'bottom-right', cooperativeGestures: false });
   try { navigator.sendBeacon && navigator.sendBeacon('/api/map-load', ''); } catch (e) {}   // §6 cost guard
 
@@ -308,7 +308,7 @@
   function syncClr() { $('qClr').hidden = !q.value; }
   q.addEventListener('input', syncClr);
   $('qClr').addEventListener('click', function () { q.value = ''; syncClr(); $('alertChip').hidden = true; alertQ = ''; clearTimeout(alertT); load(); if (listMode) loadCityList(); q.blur(); });
-  try { var q0 = new URLSearchParams(location.search).get('q'); if (q0) { q.value = q0.slice(0, 40); syncClr(); setTimeout(function () { load(); alertChip(); }, 400); } } catch (e) {}
+  try { var q0 = new URLSearchParams(location.search).get('q') || CFG.q; if (q0) { q.value = q0.slice(0, 40); syncClr(); setTimeout(function () { load(); alertChip(); }, 400); } } catch (e) {}
   var LIST_IC = '<svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 1.5h1M4 1.5h9M1 6h1M4 6h9M1 10.5h1M4 10.5h9" stroke="#1E3A2B" stroke-width="2" stroke-linecap="round"/></svg> List',
       MAP_IC = '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6L9 4L15 6L21 4V18L15 20L9 18L3 20Z M9 4V18 M15 6V20" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linejoin="round"/></svg> Map';
   // List view covers the whole city you're in (not just the map viewport)

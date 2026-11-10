@@ -1,4 +1,6 @@
 import { iconsDone, makeWantedIcon, auditIcons } from './lib/wanted-icons';
+import { pretty } from './routes/pretty';
+import { backfillUrls } from './lib/urls';
 import { selfMigrate } from './lib/migrate';
 import { morningBundle } from './lib/alerts';
 import { backfillAvatars, auditAvatars } from './lib/avatar';
@@ -40,6 +42,7 @@ app.route('/', listings);
 app.route('/', rentals);
 app.route('/', meetup);
 app.route('/', admin);
+app.route('/', pretty);   // readable URLs last: lendo.co/heif, /nyc/tribeca/ladder
 
 app.notFound((c) => c.html(<Layout title="Not found" user={c.get('user') ?? null}><div style="padding:24px 16px"><b>Nothing here.</b> <a href="/">Back to the map</a>.</div></Layout>, 404));
 app.onError((err, c) => { console.error(err); if (c.req.path.startsWith('/api/')) return c.json({ error: String(err?.message || err) }, 500); return c.html(<Layout title="Error" user={null}><div style="padding:24px 16px"><b>Something broke.</b> It's logged. <a href="/">Back to the map</a>.</div></Layout>, 500); });
@@ -48,6 +51,7 @@ export default {
   fetch: app.fetch,
   async scheduled(_ev: ScheduledEvent, env: Env) {
     try { const m = await selfMigrate(env); if (m.length) console.log('self-migrated', m); } catch (e) { console.warn('self-migrate', e); }
+    try { await backfillUrls(env, 150); } catch (e) { console.warn('urls', e); }
     const n = await expireHolds(env);
     if (n) console.log(`expired ${n} held requests`);
     try { const c = await chaseHolds(env); if (c) console.log(`chase: ${c} texts`); } catch (e) { console.warn('chase', e); }

@@ -1,5 +1,6 @@
 // One place that turns (name, price, photos, maybe GPS) into a live listing: location fallback chain, hood, emoji, icon job.
 import type { Env, User } from './env';
+import { assignSlug, assignHandle, assignCode } from './urls';
 import { id, now, fuzz, weekDefault } from './util';
 import { hoodFor, geocodePlace } from './geo';
 import { emojiFor } from './emoji';
@@ -43,5 +44,6 @@ export async function createListing(env: Env, ctx: { waitUntil(p: Promise<unknow
   }
   if (firstKey) ctx.waitUntil(autoIcon(env, lid, firstKey, name, desc));
   ctx.waitUntil(matchListing(env, lid).catch(e => console.warn('alerts', e)));
+  ctx.waitUntil((async () => { await assignSlug(env, lid, u.id, name); await assignCode(env, lid); if (!(u as any).handle) await assignHandle(env, u.id, u.name); })().catch(() => {}));
   return lid;
 }

@@ -1,4 +1,5 @@
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
+type Ctx = Context<{ Bindings: Env; Variables: Vars }>;
 import { raw } from 'hono/html';
 import type { Env, Listing, Vars } from '../lib/env';
 import { Layout } from '../pages/layout';
@@ -9,6 +10,7 @@ import { money, fmtDay, dayStr, addDays, firstName, fuzz , starStr } from '../li
 import { feeFor } from '../lib/stripe';
 import { geocodePlace } from '../lib/geo';
 import { assignHood, loadHoods } from '../lib/hoods';
+import { handleOk } from '../lib/urls';
 
 const TICKER = ['MAKE MONEY', 'SAVE MONEY', 'SAVE SPACE', 'MEET NEIGHBORS', 'BUY LESS', 'WASTE LESS'];
 
@@ -29,12 +31,13 @@ export function staticMapUrl(env: Env, lat: number, lng: number, w = 600, h = 22
 }
 
 // ---------- Map (home) ----------
-browse.get('/', async (c) => {
+export const homePage = async (c: Ctx, opt: { center?: number[]; zoom?: number; q?: string; title?: string } = {}) => {
   const u = c.get('user');
   const k = await counts(c.env.DB, u?.hood ?? null);
   let center = u?.lat && u?.lng ? [u.lng, u.lat] : [-73.997, 40.7465]; // [lng, lat]; Chelsea default
   const cq = (c.req.query('c') || '').split(',').map(parseFloat); // ?c=lng,lat deep link (shares, debugging)
   if (cq.length === 2 && cq.every(n => !isNaN(n)) && Math.abs(cq[1]) <= 90) center = cq;
+  if (opt.center) center = opt.center;
   const badge = u ? ((await c.env.DB.prepare(`SELECT COUNT(*) n FROM rentals WHERE owner_id = ? AND status = 'held'`).bind(u.id).first<{ n: number }>())?.n ?? 0) : 0;
   // Visitors outside a live city (by Cloudflare geo) start in NYC, the most active city, with a nudge to switch.
   const cf: any = (c.req.raw as any).cf || {};
@@ -42,7 +45,7 @@ browse.get('/', async (c) => {
   const inLive = !isNaN(vLat) && !isNaN(vLng) && CITIES.some(ct => ct.id === 'nyc' && vLng >= ct.bbox[0] && vLng <= ct.bbox[2] && vLat >= ct.bbox[1] && vLat <= ct.bbox[3]);
   const away = !u?.lat && !isNaN(vLat) && !inLive;
   const mapbox = !!c.env.MAPBOX_PUBLIC_TOKEN;
-  const cfg = JSON.stringify({ user: !!u, ipLoc: !isNaN(vLat) && !isNaN(vLng) ? [vLng, vLat] : null, away, visitorCity: away ? (cf.city || '') : '', wantedPromo: c.env.WANTED_PROMO === 'true', token: c.env.MAPBOX_PUBLIC_TOKEN || '', style: c.env.MAPBOX_STYLE_URL || 'mapbox://styles/mapbox/light-v11', center, zoom: 14.5, hasHome: !!(u?.lat) || cq.length === 2 && cq.every(n => !isNaN(n)) });
+  const cfg = JSON.stringify({ user: !!u, ipLoc: !isNaN(vLat) && !isNaN(vLng) ? [vLng, vLat] : null, away, visitorCity: away ? (cf.city || '') : '', wantedPromo: c.env.WANTED_PROMO === 'true', token: c.env.MAPBOX_PUBLIC_TOKEN || '', style: c.env.MAPBOX_STYLE_URL || 'mapbox://styles/mapbox/light-v11', center, zoom: opt.zoom || 14.5, q: opt.q || "", pinned: !!opt.center, hasHome: !!(u?.lat) || cq.length === 2 && cq.every(n => !isNaN(n)) });
   return c.html(
     <Layout title={u?.hood || 'Near you'} user={u} back={null} badge={badge} htmlClass="mappage"
       top={<a class="ticker" href="/about" aria-label="Why Lendo"><div class="tk" aria-hidden="true">{[0, 1].map(() => TICKER.map(t => <span>{t}<i>•</i></span>))}</div></a>}
@@ -101,12 +104,13 @@ browse.get('/', async (c) => {
       {mapbox ? <><script src="/map-style.js"></script><script src="/map.js"></script></> : <script src="/map-leaflet.js"></script>}
     </Layout>
   );
-});
+};
+browse.get('/', (c) => homePage(c));
 
 // ---------- Item ----------
-browse.get('/i/:id', async (c) => {
+export const itemPage = async (c: Ctx, lid: string, pretty = false) => {
   const u = c.get('user');
-  const it = await listingById(c.env.DB, c.req.param('id'));
+  const it = await listingById(c.env.DB, lid);
   if (!it || it.status === 'removed') return c.notFound();
   const owner = (await userById(c.env.DB, it.owner_id))!;
   const photos = await photosFor(c.env.DB, it.id);
@@ -203,6 +207,12 @@ var mm=document.getElementById('meetMid');if(mm){mm.addEventListener('click',fun
 </script>`)}
     </Layout>
   );
+};
+browse.get('/i/:id', async (c) => {
+  // old links → readable URL when there is one
+  const r = await c.env.DB.prepare('SELECT l.slug, u.handle FROM listings l JOIN users u ON u.id = l.owner_id WHERE l.id = ?').bind(c.req.param('id')).first<{ slug: string | null; handle: string | null }>().catch(() => null);
+  if (r?.slug && r.handle) return c.redirect(`/${r.handle}/${r.slug}`, 301);
+  return itemPage(c, c.req.param('id'));
 });
 
 browse.post('/i/:id/save', async (c) => {
@@ -232,9 +242,9 @@ browse.get('/saved', async (c) => {
 });
 
 // ---------- Profile ----------
-browse.get('/u/:id', async (c) => {
+export const personPage = async (c: Ctx, uid: string) => {
   const u = c.get('user');
-  const who = await userById(c.env.DB, c.req.param('id'));
+  const who = await userById(c.env.DB, uid);
   if (!who) return c.notFound();
   const me = u?.id === who.id;
   const rep = await reputation(c.env.DB, who.id);
@@ -277,6 +287,11 @@ browse.get('/u/:id', async (c) => {
       </section>
     </Layout>
   );
+};
+browse.get('/u/:id', async (c) => {
+  const r = await c.env.DB.prepare('SELECT handle FROM users WHERE id = ?').bind(c.req.param('id')).first<{ handle: string | null }>().catch(() => null);
+  if (r?.handle) return c.redirect(`/${r.handle}`, 301);
+  return personPage(c, c.req.param('id'));
 });
 
 browse.get('/profile/edit', async (c) => {
@@ -284,9 +299,10 @@ browse.get('/profile/edit', async (c) => {
   if (!u) return c.redirect('/login?next=/profile/edit');
   const spots = u.pickup_spots ? (JSON.parse(u.pickup_spots) as string[]).join(', ') : '';
   return c.html(
-    <Layout title="Edit profile" user={u} back={'/u/' + u.id}>
+    <Layout title="Edit profile" user={u} back={'/u/' + u.id} flashErr={c.req.query('err') === 'taken' ? 'That link is taken — try another' : c.req.query('err') === 'handle' ? 'Links use 2–24 lowercase letters, numbers or dashes' : undefined}>
       <form method="post" action="/profile/edit" style="padding:12px 16px 40px">
         <label class="field"><span>Your name (first name + last initial)</span><input name="name" value={u.name || ''} placeholder="Fiona S." required maxlength={40} /></label>
+        <label class="field"><span>Your Lendo link</span><div style="display:flex;align-items:center;gap:2px"><b style="font-size:16px;color:#6F6A60">lendo.co/</b><input name="handle" value={(u as any).handle || ''} placeholder="yourname" pattern="[a-z0-9][a-z0-9-]{1,23}" maxlength={24} autocapitalize="none" autocomplete="off" style="flex:1" /></div></label>
         <label class="field" style="position:relative"><span>Pickup address (private — renters only see cross streets)</span><input name="address" id="addr" value={u.address || ''} placeholder="Street address" maxlength={160} autocomplete="off" /><div id="addrSug" class="card" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:50;padding:4px;margin-top:4px"></div></label>
         <label class="field"><span>Cross streets (public)</span><input name="cross_streets" value={u.cross_streets || ''} placeholder="W 22nd & 9th Ave" maxlength={80} /></label>
         <label class="field"><span>Meetup spots (comma separated)</span><input name="pickup_spots" value={spots} placeholder="Lobby, Joe Coffee on 9th" maxlength={200} /></label>
@@ -312,6 +328,12 @@ browse.post('/profile/edit', async (c) => {
   const u = c.get('user');
   if (!u) return c.redirect('/login');
   const f = await c.req.parseBody();
+  const hNew = String(f.handle || '').trim().toLowerCase();
+  if (hNew && hNew !== (u as any).handle) {
+    if (!handleOk(hNew)) return c.redirect('/profile/edit?err=handle');
+    const r = await c.env.DB.prepare('UPDATE users SET handle = ? WHERE id = ? AND NOT EXISTS (SELECT 1 FROM users WHERE handle = ?)').bind(hNew, u.id, hNew).run().catch(() => null);
+    if (!r?.meta.changes) return c.redirect('/profile/edit?err=taken');
+  }
   const spots = String(f.pickup_spots || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 6);
   let lat = parseFloat(String(f.lat || '')), lng = parseFloat(String(f.lng || ''));
   const xs = String(f.cross_streets || '').trim(), hd = String(f.hood || '').trim(), addr = String(f.address || '').trim().slice(0, 160);
