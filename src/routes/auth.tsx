@@ -54,7 +54,15 @@ auth.post('/login/verify', async (c) => {
   const next = safeNext(String(f.next || '/'));
   if (!phone) return c.redirect('/login');
   const u = await finishLogin(c, phone, String(f.code || ''));
-  if (!u) return c.html(<Layout title="Enter code" user={null} flashErr="Wrong or expired code."><div style="padding:16px"><a class="btn" href={'/login?next=' + encodeURIComponent(next)}>Send a new code</a></div></Layout>, 400);
+  if (!u) return c.html(
+    <Layout title="Enter code" user={null} back="/login" flashErr="That code didn't match — check the latest text and try again">
+      <form method="post" action="/login/verify" style="padding:20px 16px">
+        <input type="hidden" name="phone" value={phone} /><input type="hidden" name="next" value={next} />
+        <label class="field"><span>6-digit code</span><input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength={6} required autofocus style="letter-spacing:.3em;font-size:22px!important;height:56px" /></label>
+        <button class="btn pri full" type="submit">Continue</button>
+      </form>
+      <form method="post" action="/login" style="padding:0 16px"><input type="hidden" name="phone" value={phone} /><input type="hidden" name="next" value={next} /><button class="btn full" type="submit">Text me a new code</button></form>
+    </Layout>, 400);
   if (!u.name) return c.redirect('/welcome?next=' + encodeURIComponent(next));
   return c.redirect(next);
 });
