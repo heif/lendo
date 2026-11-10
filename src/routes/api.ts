@@ -96,7 +96,7 @@ api.post('/api/alerts/:id/off', async (c) => {
 api.get('/api/health', async (c) => {
   const mig = await c.env.DB.prepare(`SELECT name FROM d1_migrations ORDER BY id DESC LIMIT 1`).first<{ name: string }>().catch(() => null);
   const t = await c.env.DB.prepare(`SELECT COUNT(*) n FROM sqlite_master WHERE type = 'table' AND name = 'saved_searches'`).first<{ n: number }>();
-  return c.json({ ok: true, last_migration: mig?.name ?? null, alerts_tables: !!t?.n });
+  return c.json({ ok: true, last_migration: mig?.name ?? null, alerts_tables: !!t?.n, sms_fallback: !!(c.env.TWILIO_ACCOUNT_SID && c.env.TWILIO_AUTH_TOKEN && c.env.TWILIO_VERIFY_SID), twilio_sid_ok: /^VA[0-9a-f]{32}$/.test(c.env.TWILIO_VERIFY_SID || '') && /^AC[0-9a-f]{32}$/.test(c.env.TWILIO_ACCOUNT_SID || '') });
 });
 api.get('/api/hood', async (c) => {
   const lat = parseFloat(c.req.query('lat') || ''), lng = parseFloat(c.req.query('lng') || '');
