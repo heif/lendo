@@ -2,8 +2,9 @@
 (function () {
   var CFG = window.LENDO_LIST || {}, MIN = CFG.minPrice || 8;
   var $ = function (id) { return document.getElementById(id); };
-  var IDEAS = [['🪛', 'Drill', 8], ['⛺', 'Tent', 15], ['📽️', 'Projector', 18], ['🥣', 'Stand mixer', 10], ['🔊', 'Party speaker', 14], ['🪜', 'Ladder', 9], ['🧊', 'Cooler', 8], ['🚲', 'Bike', 20], ['📷', 'Camera', 25], ['🎸', 'Guitar', 12], ['👶', 'Stroller', 10], ['🚿', 'Pressure washer', 22],
-    ['🛴', 'Scooter', 15], ['🎿', 'Skis', 20], ['🧳', 'Suitcase', 8], ['🛶', 'Kayak', 35], ['🍲', 'Dutch oven', 8], ['☕', 'Espresso machine', 15], ['🧰', 'Tool kit', 10], ['🪚', 'Saw', 12], ['🎤', 'Karaoke mic', 10], ['🏓', 'Pickleball set', 9], ['🧵', 'Sewing machine', 12], ['🔭', 'Telescope', 18]];
+  // [icon key (same drawn icons as the map's wanted ghosts), name, $/day]
+  var IDEAS = [['drill', 'Drill', 8], ['tent', 'Tent', 15], ['projector', 'Projector', 18], ['mixer2', 'Stand mixer', 10], ['speaker', 'Party speaker', 14], ['ladder', 'Ladder', 9], ['picnic', 'Picnic set', 8], ['bike', 'Bike', 20], ['camera', 'Camera', 25], ['guitar', 'Guitar', 12], ['stroller2', 'Stroller', 10], ['pwasher', 'Pressure washer', 22],
+    ['escooter', 'Scooter', 15], ['skis', 'Skis', 20], ['luggage', 'Suitcase', 8], ['kayak', 'Kayak', 35], ['airfryer', 'Air fryer', 8], ['espresso2', 'Espresso machine', 15], ['toolbox', 'Tool kit', 10], ['saw', 'Saw', 12], ['mic', 'Karaoke mic', 10], ['pickle', 'Pickleball set', 9], ['sewing2', 'Sewing machine', 12], ['telescope', 'Telescope', 18]];
   var moreFor = null;
   function shrink(f, cb) { var img = new Image(); img.onload = function () { var s = Math.min(1, 1400 / Math.max(img.width, img.height)), c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); c.toBlob(function (b) { if (b) cb(b); }, 'image/jpeg', 0.86); URL.revokeObjectURL(img.src); }; img.src = URL.createObjectURL(f); }
   var picked = [], shots = [], step = 'ideas', t0 = null, clockT, stream = null, retakeIdx = null, more = false;
@@ -18,7 +19,7 @@
   if (WANT && picked.indexOf(WANT) < 0) { var wi = IDEAS.filter(function (i) { return i[1].toLowerCase() === WANT.toLowerCase(); })[0]; picked.push(wi ? wi[1] : WANT); }
   function renderIdeas() {
     var list = more ? IDEAS : IDEAS.slice(0, 12);
-    $('ideas').innerHTML = list.map(function (i, k) { var on = picked.indexOf(i[1]) > -1; return '<button type="button" class="idea' + (on ? ' on' : '') + '" data-n="' + esc(i[1]) + '" data-p="' + i[2] + '"><span class="mk">' + (on ? '✓' : '') + '</span><span class="em">' + i[0] + '</span><span class="nm">' + esc(i[1]) + '</span><span class="pr">~$' + i[2] + '/day</span></button>'; }).join('');
+    $('ideas').innerHTML = list.map(function (i, k) { var on = picked.indexOf(i[1]) > -1; return '<button type="button" class="idea' + (on ? ' on' : '') + '" data-n="' + esc(i[1]) + '" data-p="' + i[2] + '"><span class="mk">' + (on ? '✓' : '') + '</span><span class="em"><img src="/p/wanted/' + i[0] + '.png" alt="" loading="lazy"></span><span class="nm">' + esc(i[1]) + '</span><span class="pr">~$' + i[2] + '/day</span></button>'; }).join('');
     $('moreIdeas').hidden = more;
     $('toCam').textContent = picked.length ? 'SNAP ' + picked.length + (picked.length === 1 ? ' THING' : ' THINGS') : 'OPEN CAMERA';
   }
