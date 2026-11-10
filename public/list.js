@@ -161,9 +161,14 @@
     function redraw() { base(imgs); }
     shots.slice(0, 4).forEach(function (s, k) {
       var ph = new Image(); ph.onload = function () { if (!imgs[k] || !imgs[k]._cut) { imgs[k] = ph; redraw(); } }; ph.src = s.url;
-      if (L[k]) { var tries = 0, get = function () { var im = new Image(); im._cut = true; im.onload = function () { imgs[k] = im; redraw(); }; im.onerror = function () { if (++tries < 3) setTimeout(get, 2500); }; im.src = '/api/cut/' + L[k].id + '?t=' + tries; }; setTimeout(get, 600); }
+      if (L[k]) { var tries = 0, get = function () { var im = new Image(); im._cut = true; im.onload = function () { imgs[k] = trimAlpha(im); redraw(); }; im.onerror = function () { if (++tries < 3) setTimeout(get, 2500); }; im.src = '/api/cut/' + L[k].id + '?t=' + tries; }; setTimeout(get, 600); }
     });
     redraw();
+    // crop transparent padding so the item fills its box
+    function trimAlpha(im) { try { var c = document.createElement('canvas'); c.width = im.width; c.height = im.height; var x = c.getContext('2d'); x.drawImage(im, 0, 0);
+      var d = x.getImageData(0, 0, c.width, c.height).data, x0 = c.width, y0 = c.height, x1 = 0, y1 = 0;
+      for (var y = 0; y < c.height; y += 2) for (var xx = 0; xx < c.width; xx += 2) if (d[(y * c.width + xx) * 4 + 3] > 20) { if (xx < x0) x0 = xx; if (xx > x1) x1 = xx; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      if (x1 <= x0) return im; var o = document.createElement('canvas'); o.width = x1 - x0 + 1; o.height = y1 - y0 + 1; o.getContext('2d').drawImage(c, x0, y0, o.width, o.height, 0, 0, o.width, o.height); o._cut = true; return o; } catch (e) { return im; } }
     function blob(cb) { cv.toBlob(function (b) { cb(b); }, 'image/png'); }
     $('stShare').onclick = function () { blob(function (b) { var f = new File([b], 'lendo-story.png', { type: 'image/png' });
       if (navigator.canShare && navigator.canShare({ files: [f] })) navigator.share({ files: [f] }).catch(function () {}); else dl(b); }); };
