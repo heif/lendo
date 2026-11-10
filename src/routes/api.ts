@@ -4,7 +4,7 @@ import type { Env, Listing, Vars } from '../lib/env';
 import { firstPhotos, listingById, photosFor, reputation, userById } from '../lib/db';
 import { emojiFor } from '../lib/emoji';
 import { loadHoods, hoodAt } from '../lib/hoods';
-import { CITIES, WANTED_ALL } from '../lib/places';
+import { CITIES, WANTED_ALL, short } from '../lib/places';
 import { iconsDone } from '../lib/wanted-icons';
 
 export const api = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -99,7 +99,7 @@ api.get('/api/hood', async (c) => {
     }
   }
   const cityN = ct ? (await c.env.DB.prepare(`SELECT COUNT(*) n FROM listings WHERE status = 'live' AND lng BETWEEN ? AND ? AND lat BETWEEN ? AND ?`).bind(ct.bbox[0], ct.bbox[2], ct.bbox[1], ct.bbox[3]).first<{ n: number }>())?.n ?? 0 : 0;
-  return c.json({ hood: name, hood_n: n, city: ct?.name || null, city_n: cityN });
+  return c.json({ hood: name, hood_short: name ? short(name) : null, hood_n: n, city: ct?.name || null, city_short: ct ? short(ct.name) : null, city_n: cityN });
 });
 
 // Directory for the hood/city picker: live counts per city (bbox) and per hood (~0.9 km radius around the center).
@@ -113,7 +113,7 @@ api.get('/api/places', async (c) => {
   const cities = CITIES.map(ct => {
     const inCity = pts.filter(p => p.lng >= ct.bbox[0] && p.lng <= ct.bbox[2] && p.lat >= ct.bbox[1] && p.lat <= ct.bbox[3]);
     const hoods = ct.hoods.map(h => ({ ...h, n: inCity.filter(p => Math.hypot((p.lat - h.lat) * 111, (p.lng - h.lng) * 111 * Math.cos(h.lat * Math.PI / 180)) < 0.9).length }));
-    return { id: ct.id, name: ct.name, lat: ct.lat, lng: ct.lng, zoom: ct.zoom, n: inCity.length, live: inCity.length > 0, hoods };
+    return { id: ct.id, name: ct.name, short: short(ct.name), lat: ct.lat, lng: ct.lng, zoom: ct.zoom, n: inCity.length, live: inCity.length > 0, hoods };
   });
   const res = new Response(JSON.stringify({ cities, total: pts.length, wanted: WANTED_ALL.filter(w => !off.has(w.key)).map(w => ({ ...w, icon: icons.has(w.key) ? `/p/wanted/${w.key}.png` : null })) }), { headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=120' } });
   c.executionCtx.waitUntil(caches.default.put(cacheKey, res.clone()));

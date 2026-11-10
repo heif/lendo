@@ -54,7 +54,7 @@
   function updateHood() {
     var cc = map.getCenter();
     fetch('/api/hood?lat=' + cc.lat.toFixed(4) + '&lng=' + cc.lng.toFixed(4)).then(function (r) { return r.json(); }).then(function (j) {
-      var name = j.hood || (j.city ? j.city : 'Near you'); $('scHoodN').textContent = name; $('scHoodC').textContent = (j.hood ? j.hood_n : items.length).toLocaleString(); if (j.city) { $('scCity').querySelector('b').textContent = j.city; $('scCityC').textContent = j.city_n.toLocaleString(); }
+      var name = j.hood || (j.city ? j.city : 'Near you'); $('scHoodN').textContent = j.hood_short || name; $('scHoodN').title = name; $('scHoodC').textContent = (j.hood ? j.hood_n : items.length).toLocaleString(); if (j.city) { $('scCity').querySelector('b').textContent = j.city_short || j.city; $('scCity').title = j.city; $('scCityC').textContent = j.city_n.toLocaleString(); }
       if (name !== lastHood) { lastHood = name; $('scHoodN').animate([{ opacity: 0.3 }, { opacity: 1 }], 300); }
     }).catch(function () {});
   }
@@ -244,7 +244,7 @@
   $('scHood').addEventListener('click', openPlaces); $('plClose').addEventListener('click', closePlaces);
   $('scCity').addEventListener('click', function () { var ct = curCity || (PL && PL.cities[0]); if (ct) map.easeTo({ center: [ct.lng, ct.lat], zoom: ct.zoom }); else map.easeTo({ center: [-73.95, 40.73], zoom: 10.6 }); });
   loadPlaces(function () { updateCityPill(); }); map.on('moveend', updateCityPill);
-  function updateCityPill() { if (!PL) return; var c = map.getCenter(), ct = cityOf(c.lng, c.lat); if (ct) { curCity = ct; $('scCity').querySelector('b').textContent = ct.name; $('scCityC').textContent = ct.n.toLocaleString(); } }
+  function updateCityPill() { if (!PL) return; var c = map.getCenter(), ct = cityOf(c.lng, c.lat); if (ct) { curCity = ct; $('scCity').querySelector('b').textContent = ct.short || ct.name; $('scCityC').textContent = ct.n.toLocaleString(); } }
   startWanted();
   $('wsClose').addEventListener('click', function () { $('wsheet').hidden = true; }); map.on('click', function () { $('wsheet').hidden = true; });
 

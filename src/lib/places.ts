@@ -31,3 +31,13 @@ export const WANTED_ALL: { key: string; label: string; emoji: string }[] = [
   ['pickle', 'pickleball set', '🏓'], ['racket', 'racket', '🏸'], ['hockey', 'hockey stick', '🏒'], ['lacrosse', 'lacrosse stick', '🥍'], ['cricket', 'cricket bat', '🏏'], ['boxing', 'boxing gloves', '🥊'], ['goal', 'soccer goal', '🥅'],
   ['ladder', 'ladder', '🪜'], ['saw', 'saw', '🪚'], ['axe', 'axe', '🪓'], ['toolbox', 'toolbox', '🧰'], ['hammer', 'hammer', '🔨'], ['chair', 'folding chairs', '🪑'], ['luggage', 'suitcase', '🧳'], ['backpack', 'hiking backpack', '🎒'], ['gown', 'gown', '👗'], ['jacket', 'ski jacket', '🧥'], ['heels', 'heels', '👠'], ['boots', 'boots', '👢'], ['tophat', 'top hat', '🎩'], ['vr', 'VR headset', '🥽'], ['clapper', 'film kit', '🎬'], ['battery', 'power station', '🔋'],
 ].map(w => ({ key: w[0], label: w[1], emoji: w[2] }));
+// Local shorthand for tight spots (header pills). Only names locals actually use.
+export const SHORT: Record<string, string> = {
+  'Iowa City': 'IC', 'Chicago': 'Chi', 'Austin': 'ATX', 'London': 'LDN', 'Toronto': 'TO', 'Denver': 'DEN', 'Berlin': 'BER',
+  'Upper West Side': 'UWS', 'Upper East Side': 'UES', 'Lower East Side': 'LES', 'Long Island City': 'LIC', 'Financial District': 'FiDi',
+  'Washington Heights': 'WaHi', 'Greenwich Village': 'The Village', 'Brooklyn Heights': 'BK Heights', "Hell's Kitchen": "Hell’s Kitchen",
+  'Prospect Heights': 'Pro Heights', 'Jackson Heights': 'Jackson Hts', 'Carroll Gardens': 'Carroll Gdns', 'Windsor Terrace': 'Windsor Ter.',
+  'Downtown LA': 'DTLA', 'West Hollywood': 'WeHo', 'Koreatown': 'K-Town', 'South Congress': 'SoCo',
+  'University Heights': 'U Heights', 'Riverfront Crossings': 'Riverfront', 'Manville Heights': 'Manville', 'North Liberty': 'North Lib',
+};
+export const short = (n: string) => SHORT[n] || n;
