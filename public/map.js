@@ -372,8 +372,8 @@
         var d = g.getImageData(0, 0, c.width, c.height).data, x0 = c.width, y0 = c.height, x1 = -1, y1 = -1, ink = 0;
         for (var y = 0; y < c.height; y++) for (var x = 0; x < c.width; x++) { var a = d[(y * c.width + x) * 4 + 3]; if (a > 10) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } if (a > 20) ink++; }
         var bw = x1 - x0 + 1, bh = y1 - y0 + 1, o = document.createElement('canvas'); o.width = bw; o.height = bh; o.getContext('2d').drawImage(c, x0, y0, bw, bh, 0, 0, bw, bh);
-        var s = Math.sqrt(34 * 34 / Math.max(ink, 1)) * (DOWN.test(w.key) ? 0.9 : UP.test(w.key) ? 1.12 : 1), hi = UP.test(w.key) ? 74 : 62, L = Math.max(bw, bh) * s;
-        if (L > hi) s *= hi / L; if (Math.max(bw, bh) * s < 38) s = 38 / Math.max(bw, bh);
+        var s = Math.sqrt(25 * 25 / Math.max(ink, 1)) * (DOWN.test(w.key) ? 0.9 : UP.test(w.key) ? 1.12 : 1), hi = UP.test(w.key) ? 54 : 46, L = Math.max(bw, bh) * s;
+        if (L > hi) s *= hi / L; if (Math.max(bw, bh) * s < 28) s = 28 / Math.max(bw, bh);
         f = { url: o.toDataURL(), w: Math.round(bw * s), h: Math.round(bh * s) };
       } catch (e) { f = { url: w.icon, w: 44, h: 44 }; }
       var q = FIT[w.key].q; FIT[w.key] = f; q.forEach(function (cb) { cb(f); });
@@ -381,8 +381,11 @@
     im.onerror = function () { var q = FIT[w.key].q; FIT[w.key] = { url: w.icon, w: 44, h: 44 }; q.forEach(function (cb) { cb(FIT[w.key]); }); };
     im.src = w.icon;
   }
+  var GMARKS = {};
+  function ghostScale() { var z = map.getZoom(); map.getContainer().style.setProperty('--gs', z < 13.5 ? 0.72 : z < 14.5 ? 0.86 : 1); }
+  map.on('zoom', ghostScale); map.on('load', ghostScale);
   function startWanted() {
-    var marks = {}, PROMO = !!CFG.wantedPromo, MOD = PROMO ? 5 : 1, MAX = PROMO ? 9 : 400;
+    var marks = GMARKS, PROMO = !!CFG.wantedPromo, MOD = PROMO ? 5 : 1, MAX = PROMO ? 9 : 400;
     // cell size scales with zoom (≈ 80px on screen) so density looks the same at any zoom; quantized per zoom band so
     // ghosts hold still while panning
     function cellDeg() { var zb = Math.round(map.getZoom()); return (PROMO ? 0.0045 : 0.0030) * Math.pow(2, 14.5 - zb); }
@@ -440,8 +443,14 @@
         '<path d="M3.4 3.4Q3.8 0.9 6 1Q8.2 0.9 8.6 3.4Q7.4 2.3 6 2.4Q4.6 2.3 3.4 3.4Z" fill="' + pick(HAIR) + '"/>' +
         '<circle cx="7.3" cy="4" r="0.45" fill="#1E3A2B"/></g></g>';
     }
+    var gPts = null; map.on('moveend', function () { gPts = null; }); map.on('zoomend', function () { gPts = null; });
+    function nearGhost(p) {
+      if (!gPts) { gPts = []; Object.keys(GMARKS).forEach(function (k) { var m = GMARKS[k]; if (m && m.getLngLat) { var q = map.project(m.getLngLat()); gPts.push([q.x, q.y]); } }); setTimeout(function () { gPts = null; }, 1500); }
+      for (var i = 0; i < gPts.length; i++) if (Math.abs(gPts[i][0] - p.x) < 40 && Math.abs(gPts[i][1] - p.y + 8) < 36) return true;
+      return false;
+    }
     function nearPin(lng, lat, px) {
-      var p = map.project([lng, lat]);
+      var p = map.project([lng, lat]); if (nearGhost(p)) return true;
       for (var i = 0; i < items.length; i++) { var it = items[i]; if (it.lat == null) continue; var q = map.project([it.lng, it.lat]); if (Math.abs(q.x - p.x) < px + 14 && q.y - p.y > -50 && q.y - p.y < px * 1.6 + 60) return true; /* pin = icon above + price tag below its point */ }
       return false;
     }

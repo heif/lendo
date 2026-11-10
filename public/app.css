@@ -405,3 +405,6 @@ html,body{overflow-x:hidden}
 .gal-dots{position:absolute;left:0;right:0;top:8px;display:flex;justify-content:center;gap:5px;z-index:2}
 .gal-dots i{width:6px;height:6px;border-radius:3px;background:#CFC9BC}.gal-dots i.on{background:var(--ink);width:16px}
 .hero.gal{padding-top:22px}.hero.gal img{height:220px;max-width:70%;object-fit:contain}
+
+/* ghosts shrink when zoomed out (map sets --gs) */
+.ghost.img img{transform:scale(var(--gs,1));transform-origin:50% 50%}
