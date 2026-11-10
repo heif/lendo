@@ -80,3 +80,18 @@ export const SHORT: Record<string, string> = {
   'University Heights': 'U Heights', 'Riverfront Crossings': 'Riverfront', 'Manville Heights': 'Manville', 'North Liberty': 'North Lib',
 };
 export const short = (n: string) => SHORT[n] || n;
+
+// NYC NTA names → what locals call the area. Default: drop "(North)" etc, keep the first "-" segment.
+const NTA_NAME: Record<string, string> = {
+  'Midtown South-Flatiron-Union Square': 'Flatiron', 'Bedford-Stuyvesant': 'Bed-Stuy', 'Long Island City-Hunters Point': 'Long Island City',
+  'Carroll Gardens-Cobble Hill-Gowanus-Red Hook': 'Carroll Gardens', 'Downtown Brooklyn-DUMBO-Boerum Hill': 'Downtown Brooklyn', 'Prospect Lefferts Gardens-Wingate': 'Prospect Lefferts',
+  'Flatbush (West)-Ditmas Park-Parkville': 'Ditmas Park', 'Murray Hill-Kips Bay': 'Murray Hill', 'East Midtown-Turtle Bay': 'Turtle Bay', 'Midtown-Times Square': 'Midtown',
+  'Stuyvesant Town-Peter Cooper Village': 'Stuy Town', 'Windsor Terrace-South Slope': 'South Slope', 'Hamilton Heights-Sugar Hill': 'Hamilton Heights', 'Manhattanville-West Harlem': 'West Harlem',
+  'Upper East Side-Carnegie Hill': 'Carnegie Hill', 'Upper East Side-Lenox Hill-Roosevelt Island': 'Lenox Hill', 'Upper East Side-Yorkville': 'Yorkville',
+  'Upper West Side-Lincoln Square': 'Lincoln Square', 'Upper West Side-Manhattan Valley': 'Manhattan Valley', 'Astoria (North)-Ditmars-Steinway': 'Ditmars',
+  'Old Astoria-Hallets Point': 'Old Astoria', 'Queensbridge-Ravenswood-Dutch Kills': 'Dutch Kills', 'Sunset Park (East)-Borough Park (West)': 'Sunset Park',
+};
+export function hoodDisplay(nta: string): string {
+  const base = nta.replace(/\s*\([^)]*\)/g, '').trim();
+  return NTA_NAME[nta] || NTA_NAME[base] || base.split('-')[0].trim();
+}

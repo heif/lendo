@@ -4,7 +4,7 @@ import type { Env, Listing, Vars } from '../lib/env';
 import { firstPhotos, listingById, photosFor, reputation, userById } from '../lib/db';
 import { emojiFor } from '../lib/emoji';
 import { loadHoods, hoodAt } from '../lib/hoods';
-import { CITIES, WANTED_ALL, short } from '../lib/places';
+import { CITIES, WANTED_ALL, short, hoodDisplay } from '../lib/places';
 import { iconsDone } from '../lib/wanted-icons';
 
 export const api = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -82,7 +82,7 @@ api.get('/api/hood', async (c) => {
   const lat = parseFloat(c.req.query('lat') || ''), lng = parseFloat(c.req.query('lng') || '');
   if (isNaN(lat) || isNaN(lng)) return c.json({ error: 'lat,lng required' }, 400);
   let name: string | null = null, n = 0;
-  try { const h = await hoodAt(c.env, lat, lng); if (h) { name = h.name; n = (await c.env.DB.prepare(`SELECT COUNT(*) n FROM listings WHERE status = 'live' AND hood_id = ?`).bind(h.id).first<{ n: number }>())?.n ?? 0; } } catch {}
+  try { const h = await hoodAt(c.env, lat, lng); if (h) { name = hoodDisplay(h.name); n = (await c.env.DB.prepare(`SELECT COUNT(*) n FROM listings WHERE status = 'live' AND hood_id = ?`).bind(h.id).first<{ n: number }>())?.n ?? 0; } } catch {}
   if (!name) {
     const near = await c.env.DB.prepare(`SELECT hood, COUNT(*) n FROM listings WHERE status = 'live' AND hood IS NOT NULL AND lat BETWEEN ? AND ? AND lng BETWEEN ? AND ? GROUP BY hood ORDER BY n DESC LIMIT 1`).bind(lat - 0.008, lat + 0.008, lng - 0.01, lng + 0.01).first<{ hood: string; n: number }>();
     if (near) { name = near.hood; n = near.n; }

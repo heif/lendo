@@ -1,11 +1,10 @@
 // Download NYC 2020 Neighborhood Tabulation Areas from NYC Open Data and write data/nyc-ntas.geojson + data/hoods.sql
 // Usage: node scripts/fetch-nta.mjs            (then: npx wrangler d1 execute lendo --remote --file data/hoods.sql)
 // Dataset: "2020 Neighborhood Tabulation Areas (NTAs)" — https://data.cityofnewyork.us/City-Government/2020-Neighborhood-Tabulation-Areas-NTAs-/9nt8-h7nd
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 const URL_ = 'https://data.cityofnewyork.us/api/geospatial/9nt8-h7nd?method=export&format=GeoJSON';
-const res = await fetch(URL_);
-if (!res.ok) throw new Error('download failed ' + res.status);
-const raw = await res.json();
+// optional: node scripts/fetch-nta.mjs <already-downloaded.geojson> (e.g. when Node can't reach the site through a proxy)
+const raw = process.argv[2] ? JSON.parse(readFileSync(process.argv[2], 'utf8')) : await (async () => { const res = await fetch(URL_); if (!res.ok) throw new Error('download failed ' + res.status); return res.json(); })();
 const round = (n) => Math.round(n * 1e5) / 1e5; // ~1 m precision, shrinks the file a lot
 const rr = (c) => Array.isArray(c[0]) ? c.map(rr) : [round(c[0]), round(c[1])];
 const feats = raw.features
