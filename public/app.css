@@ -160,8 +160,8 @@ html.mappage .hdr{flex-shrink:0;position:relative}
 .itemcard .nm{font-size:13px;font-weight:700;margin-top:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 
 /* item page */
-.hero{position:relative;background:#FBFAF6;display:flex;flex-direction:column;align-items:center;padding:14px 16px 10px;border-bottom:1.5px solid var(--ink);overflow:hidden}
-.hero img{display:block;width:auto;height:auto;max-width:78%;max-height:230px;object-fit:contain}
+.hero{position:relative;background:#FBFAF6;display:flex;flex-direction:column;align-items:center;padding:10px 16px 8px;border-bottom:1.5px solid var(--ink);overflow:hidden}
+.hero img{display:block;width:auto;height:auto;max-width:80%;max-height:220px;object-fit:contain}
 .hero .pr{position:relative;z-index:1;margin-top:-16px;line-height:1;background:var(--orange);color:#fff;border:2px solid var(--ink);padding:4px 10px 5px;border-radius:8px;box-shadow:2.5px 2.5px 0 var(--ink);display:flex;align-items:baseline;gap:2px}
 .hero .pr b{font-size:28px;font-weight:900;letter-spacing:-.05em;color:#fff}
 .hero .pr span{font-size:15px;font-weight:700;color:#fff}
