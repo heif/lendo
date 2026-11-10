@@ -274,7 +274,7 @@ button,.btn,.pm,.idea,.days button,.stars button{touch-action:manipulation}
 .wsheet-go{display:block;background:var(--orange);color:#fff;font-size:18px;font-weight:900;letter-spacing:.2px;padding:14px 10px;border:2px solid var(--ink);border-radius:10px;text-decoration:none;box-shadow:3px 3px 0 var(--ink)}
 .wsheet-go:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)}
 .promo.incard{position:static;margin:10px 0 0;width:100%;max-width:none;height:48px;box-shadow:none;border-bottom-width:3px;animation:none;display:flex}
-.promo.incard input{flex:1;width:auto;font-size:15px}
+.promo.incard input{flex:1;width:auto;font-size:16px}
 .pcard.on .promo.incard{display:flex}
 /* item page meetup spot (prototype) */
 .meet{margin:12px 0 0;padding:10px 12px 11px;border-radius:12px;background:#F7F5F0;border:1px solid #E6E2DA}
@@ -387,3 +387,8 @@ body:has(.promo.pu:not([hidden])) .locbtn{bottom:96px}
 .alertchip{position:absolute;left:12px;top:100%;margin-top:6px;z-index:5;background:#fff;border:1.5px solid var(--ink);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:700;color:var(--ink);box-shadow:2px 2px 0 var(--ink);white-space:nowrap;max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis}
 .alertchip a{color:var(--ink)}
 .alertchip button{border:0;background:none;padding:0;font:inherit;font-weight:900;color:#D94300;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+/* iOS zooms into any field under 16px on focus — keep every field at 16px+ */
+input,textarea,select{font-size:max(16px,1em)}
+html,body{overflow-x:hidden}
+/* iOS Safari zooms into any field under 16px — keep every text field at 16px+ on touch screens */
+@media (pointer:coarse){input:not([type=checkbox]):not([type=radio]):not([type=range]),textarea,select{font-size:max(16px,1em)!important}}

@@ -61,13 +61,13 @@ html.camdark body,html.camdark .wrap{background:#1E3A2B}
 .row-item .rt img{width:72px;height:72px;object-fit:cover;border-radius:10px;background:var(--cream);display:block}
 .row-item .rt span{position:absolute;left:0;right:0;bottom:0;border-radius:0 0 10px 10px;background:rgba(30,58,43,.78);color:#fff;font-size:10px;font-weight:800;padding:3px 0}
 .row-item .mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
-.row-item .nm{width:100%;border:0;border-bottom:1px dashed #DCD7CC;font-size:14.5px!important;font-weight:700;background:transparent;padding:4px 0;height:auto}
+.row-item .nm{width:100%;border:0;border-bottom:1px dashed #DCD7CC;font-size:17px!important;font-weight:700;background:transparent;padding:4px 0;height:auto}
 .pricerow{display:flex;align-items:center;gap:8px}
 .pricerow .wk{font-family:ui-monospace,Menlo,monospace;font-size:8px;letter-spacing:.6px;font-weight:700;color:#6F6A60;text-transform:uppercase;margin-right:auto}
 .pricerow .pm{width:36px;height:36px;border-radius:18px;border:1.5px solid #CFC9BC;background:#fff;font-size:22px;font-weight:700;color:var(--ink);line-height:1}
 .pricerow .badge{font-size:16px;font-weight:800;color:#fff;background:var(--orange);border:1.5px solid var(--ink);border-radius:6px;padding:2px 7px;white-space:nowrap}
 .pricerow .badge small{font-size:11px;font-weight:700}
-.row-item .note{display:block;width:100%;border:0;border-radius:8px;background:var(--cream);font:inherit;font-size:13px!important;line-height:1.35;padding:7px 9px;height:auto;min-height:40px;max-height:160px;resize:none;overflow:hidden;field-sizing:content}
+.row-item .note{display:block;width:100%;border:0;border-radius:8px;background:var(--cream);font:inherit;font-size:16px!important;line-height:1.35;padding:7px 9px;height:auto;min-height:40px;max-height:160px;resize:none;overflow:hidden;field-sizing:content}
 .row-item .del{border:0;background:transparent;color:#9B968C;font-size:16px;padding:0 2px;flex-shrink:0}
 /* done */
 .tray{display:flex;gap:10px;padding:6px 0 12px;overflow-x:auto}
