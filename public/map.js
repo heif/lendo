@@ -288,6 +288,28 @@
   }
 
   // ---- WANTED posters (prototype ghosts): deterministic per grid cell so they stay put while panning; never on a pin
+  // Ghost sizing rubric: crop to the object, scale to equal visible ink area (34px²-equivalent), nudge by class,
+  // clamp the long side (38–62px; long thin gear up to 74px). Computed once per icon, cached for the session.
+  var FIT = {}, DOWN = /^(truck|car|van|moped|sailboat|guitar|violin|banjo|sax|trumpet|accordion)$/, UP = /^(skis|snowboard|hockey|lacrosse|fishing|crutch|bow|ladder|cricket)$/;
+  function fitIcon(w, img) {
+    var done = function (f) { img.src = f.url; img.style.width = f.w + 'px'; img.style.height = f.h + 'px'; };
+    if (FIT[w.key] && FIT[w.key].url) return done(FIT[w.key]);
+    (FIT[w.key] = FIT[w.key] || { q: [] }).q.push(done); if (FIT[w.key].q.length > 1) return;
+    var im = new Image(); im.onload = function () {
+      var f; try {
+        var c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; var g = c.getContext('2d'); g.drawImage(im, 0, 0);
+        var d = g.getImageData(0, 0, c.width, c.height).data, x0 = c.width, y0 = c.height, x1 = -1, y1 = -1, ink = 0;
+        for (var y = 0; y < c.height; y++) for (var x = 0; x < c.width; x++) { var a = d[(y * c.width + x) * 4 + 3]; if (a > 10) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } if (a > 20) ink++; }
+        var bw = x1 - x0 + 1, bh = y1 - y0 + 1, o = document.createElement('canvas'); o.width = bw; o.height = bh; o.getContext('2d').drawImage(c, x0, y0, bw, bh, 0, 0, bw, bh);
+        var s = Math.sqrt(34 * 34 / Math.max(ink, 1)) * (DOWN.test(w.key) ? 0.9 : UP.test(w.key) ? 1.12 : 1), hi = UP.test(w.key) ? 74 : 62, L = Math.max(bw, bh) * s;
+        if (L > hi) s *= hi / L; if (Math.max(bw, bh) * s < 38) s = 38 / Math.max(bw, bh);
+        f = { url: o.toDataURL(), w: Math.round(bw * s), h: Math.round(bh * s) };
+      } catch (e) { f = { url: w.icon, w: 44, h: 44 }; }
+      var q = FIT[w.key].q; FIT[w.key] = f; q.forEach(function (cb) { cb(f); });
+    };
+    im.onerror = function () { var q = FIT[w.key].q; FIT[w.key] = { url: w.icon, w: 44, h: 44 }; q.forEach(function (cb) { cb(FIT[w.key]); }); };
+    im.src = w.icon;
+  }
   function startWanted() {
     var marks = {}, PROMO = !!CFG.wantedPromo, MOD = PROMO ? 5 : 1, MAX = PROMO ? 9 : 400;
     // cell size scales with zoom (≈ 80px on screen) so density looks the same at any zoom; quantized per zoom band so
@@ -322,7 +344,7 @@
           var el = document.createElement('a'); el.href = '/list?want=' + encodeURIComponent(w.label);
           (function (w, el) { el.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); $('wsEm').innerHTML = w.icon ? '<img src="' + w.icon + '" alt="" style="width:1em;height:1em;object-fit:contain;vertical-align:middle">' : w.emoji; $('wsName').textContent = w.label; $('wsGo').href = el.href; $('wsheet').hidden = false; }); })(w, el);
           if (PROMO) { el.className = 'wanted'; el.setAttribute('aria-label', 'Wanted: ' + w.label + '. Reward for listing.'); el.innerHTML = '<b>WANTED</b><i>' + w.emoji + '</i><em>' + w.label + '</em><strong>REWARD</strong><small>for listing</small>'; }
-          else { el.className = 'ghost' + (w.icon ? ' img' : ''); el.title = 'Wanted: ' + w.label; el.setAttribute('aria-label', 'Wanted: ' + w.label); if (w.icon) el.innerHTML = '<img src="' + w.icon + '" alt="" draggable="false">'; else el.textContent = w.emoji; el.style.setProperty('--r', ((h >>> 4) % 17 - 8) + 'deg'); el.style.fontSize = '44px'; }
+          else { el.className = 'ghost' + (w.icon ? ' img' : ''); el.title = 'Wanted: ' + w.label; el.setAttribute('aria-label', 'Wanted: ' + w.label); if (w.icon) { el.innerHTML = '<img alt="" draggable="false">'; fitIcon(w, el.firstChild); } else el.textContent = w.emoji; el.style.setProperty('--r', ((h >>> 4) % 17 - 8) + 'deg'); el.style.fontSize = '44px'; }
           marks[k] = new mapboxgl.Marker({ element: el, anchor: 'center', className: 'wanted-m', rotationAlignment: 'viewport' }).setLngLat([lng, lat]).addTo(map); marks[k]._wkey = w.key;
         }
       }
