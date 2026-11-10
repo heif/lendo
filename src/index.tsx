@@ -47,17 +47,17 @@ export default {
     const n = await expireHolds(env);
     if (n) console.log(`expired ${n} held requests`);
     try { const c = await chaseHolds(env); if (c) console.log(`chase: ${c} texts`); } catch (e) { console.warn('chase', e); }
-    // heavier jobs every 15 min only (cron runs every 5)
-    if (new Date(_ev.scheduledTime).getUTCMinutes() % 15 >= 5) return;
-    try { const a = await backfillAvatars(env, 3); if (a) console.log(`avatars backfilled ${a}`); } catch (e) { console.warn('avatar backfill', e); }
-    try { const f = await fixDemoLand(env, 150); if (f.checked) console.log(`demo land: checked ${f.checked}, moved ${f.moved}`); } catch (e) { console.warn('demo land', e); }
     // backfill custom icons for the wanted catalog, a few per tick (Flux + cutout each)
     try {
       const done = await iconsDone(env);
-      for (const w of WANTED_ALL.filter(w => !done.has(w.key)).slice(0, 5)) {
+      for (const w of WANTED_ALL.filter(w => !done.has(w.key)).slice(0, 6)) {
         try { await makeWantedIcon(env, w.key); }
         catch (e: any) { await env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('wanted_icons_err', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(`${w.key}: ${e?.message || e}`.slice(0, 500)).run(); }
       }
     } catch (e: any) { await env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('wanted_icons_err', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(`outer: ${e?.message || e}`.slice(0, 500)).run().catch(() => {}); }
+    // heavier jobs every 15 min only (cron runs every 5)
+    if (new Date(_ev.scheduledTime).getUTCMinutes() % 15 >= 5) return;
+    try { const a = await backfillAvatars(env, 3); if (a) console.log(`avatars backfilled ${a}`); } catch (e) { console.warn('avatar backfill', e); }
+    try { const f = await fixDemoLand(env, 150); if (f.checked) console.log(`demo land: checked ${f.checked}, moved ${f.moved}`); } catch (e) { console.warn('demo land', e); }
   },
 };
