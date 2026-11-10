@@ -31,7 +31,7 @@ export async function startLogin(env: Env, phone: string): Promise<{ ok: boolean
   const code = String(Math.floor(100000 + Math.random() * 900000));
   await env.DB.prepare('INSERT OR REPLACE INTO otp_codes (phone, code, expires_at, attempts) VALUES (?,?,?,0)')
     .bind(phone, code, now() + 10 * 60 * 1000).run();
-  const r = await sendRaw(env, phone, `${code} is your Lendo code. Save this number as Lendo and reply OK so rental texts reach you.`);
+  const r = await sendRaw(env, phone, `${code} is your Lendo code. Save contact + reply OK so rental texts reach you`);
   if (!r.ok) {
     if ((r.error || '').includes('conversation_awaiting_reply')) return { ok: false, error: `We've texted you before and need a reply first. Find the thread from ${env.LENDO_NUMBER} (check Spam / Unknown Senders), reply OK, then try again.` };
     return { ok: false, error: r.error };

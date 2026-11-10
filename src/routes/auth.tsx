@@ -66,7 +66,7 @@ auth.get('/welcome', async (c) => {
   return c.html(
     <Layout title="Welcome" user={u} back={null}>
       <form method="post" action="/welcome" style="padding:20px 16px">
-        <div class="flash" style="margin:0 0 14px">📱 Save <b>{c.env.LENDO_NUMBER}</b> as "Lendo" · reply <b>OK</b> to the text.</div>
+        <div class="flash" style="margin:0 0 14px;display:flex;align-items:center;gap:10px"><span style="flex:1">📱 Reply <b>OK</b> to the text so rental texts reach you</span><a class="btn sm" href="/lendo.vcf" style="width:auto;white-space:nowrap">Save contact</a></div>
         <h2 style="margin:0 0 6px;font-size:24px;font-weight:900;letter-spacing:-.02em">What should neighbors call you?</h2>
         <input type="hidden" name="next" value={next} />
         <label class="field"><span>First name + last initial</span><input name="name" placeholder="Fiona S." required maxlength={40} autofocus /></label>
@@ -95,10 +95,17 @@ auth.post('/promo', async (c) => {
   const fresh = !user.promo_claimed_at;
   if (fresh) await c.env.DB.prepare('UPDATE users SET promo_cents = 500, promo_claimed_at = ? WHERE id = ?').bind(Date.now(), user.id).run();
   c.executionCtx.waitUntil(sendRaw(c.env, phone, fresh
-    ? `$5 off your first rental is saved to this number. Save us as Lendo and reply OK so rental texts reach you. ${c.env.APP_URL}`
-    : `You already have $5 off saved to this number. ${c.env.APP_URL}`).then(() => {}));
+    ? `$5 off your first rental is saved to this number. Save contact + reply OK so rental texts reach you ${c.env.APP_URL}/lendo.vcf`
+    : `$5 off is already saved to this number ${c.env.APP_URL}`).then(() => {}));
   setCookie(c, 'lendo_p', '1', { path: '/', sameSite: 'Lax', secure: c.env.APP_URL.startsWith('https'), maxAge: 365 * 86400 });
   return c.json({ ok: true, fresh });
+});
+
+// tap → iPhone/Android "Create contact" sheet for the Lendo number
+auth.get('/lendo.vcf', (c) => {
+  const n = (c.env.LENDO_NUMBER || '').replace(/[^\d+]/g, '');
+  const card = ['BEGIN:VCARD', 'VERSION:3.0', 'FN:Lendo', 'N:;Lendo;;;', 'ORG:Lendo', `TEL;TYPE=CELL:${n}`, `URL:${c.env.APP_URL}`, 'END:VCARD'].join('\r\n');
+  return c.body(card + '\r\n', 200, { 'content-type': 'text/vcard; charset=utf-8', 'content-disposition': 'inline; filename="Lendo.vcf"' });
 });
 
 auth.get('/logout', async (c) => { await logout(c); return c.redirect('/'); });
