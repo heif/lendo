@@ -37,22 +37,39 @@ async function twilio(env: Env, path: string, body: Record<string, string>): Pro
   return r.ok ? j : { error: j?.message || `twilio ${r.status}` };
 }
 
-export async function startLogin(env: Env, phone: string): Promise<{ ok: boolean; devCode?: string; error?: string }> {
-  if (twilioOn(env)) {
-    const j = await twilio(env, 'Verifications', { To: phone, Channel: 'sms' });
-    if (j.error) return { ok: false, error: j.error };
-    await env.DB.prepare('INSERT OR REPLACE INTO otp_codes (phone, code, expires_at, attempts) VALUES (?,?,?,0)').bind(phone, 'twilio', now() + 10 * 60 * 1000).run();
-    return { ok: true };
-  }
+// last 20 failed code sends (admin /admin/debug)
+async function logFail(env: Env, phone: string, via: string, err: string) {
+  try {
+    const r = await env.DB.prepare(`SELECT value FROM settings WHERE key = 'login_fails'`).first<{ value: string }>();
+    const list = r ? JSON.parse(r.value) : []; list.unshift({ t: new Date().toISOString(), phone: phone.slice(0, -4) + '••••', via, err: String(err).slice(0, 200) });
+    await env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('login_fails', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(JSON.stringify(list.slice(0, 20))).run();
+  } catch {}
+}
+async function viaTwilio(env: Env, phone: string): Promise<{ ok: boolean; error?: string }> {
+  const j = await twilio(env, 'Verifications', { To: phone, Channel: 'sms' });
+  if (j.error) { await logFail(env, phone, 'twilio', j.error); return { ok: false, error: j.error }; }
+  // keep any Blooio code valid too (moved to prev:)
+  const old = await env.DB.prepare('SELECT code, expires_at FROM otp_codes WHERE phone = ?').bind(phone).first<{ code: string; expires_at: number }>();
+  if (old && old.code !== 'twilio' && old.expires_at > now()) await env.DB.prepare('INSERT OR REPLACE INTO otp_codes (phone, code, expires_at, attempts) VALUES (?,?,?,0)').bind('prev:' + phone, old.code, old.expires_at).run();
+  await env.DB.prepare('INSERT OR REPLACE INTO otp_codes (phone, code, expires_at, attempts) VALUES (?,?,?,0)').bind(phone, 'twilio', now() + 10 * 60 * 1000).run();
+  return { ok: true };
+}
+export const smsFallback = twilioOn;
+
+// Blooio (iMessage) first; Twilio SMS when Blooio refuses, or when the person asks for SMS ("didn't get it")
+export async function startLogin(env: Env, phone: string, via: 'auto' | 'sms' = 'auto'): Promise<{ ok: boolean; devCode?: string; error?: string }> {
+  if (via === 'sms' && twilioOn(env)) return viaTwilio(env, phone);
   const code = String(Math.floor(100000 + Math.random() * 900000));
   // the previous unexpired code stays valid (resend + autofill of the first text): kept as a 'prev:' row
   const old = await env.DB.prepare('SELECT code, expires_at FROM otp_codes WHERE phone = ?').bind(phone).first<{ code: string; expires_at: number }>();
-  if (old && old.expires_at > now()) await env.DB.prepare('INSERT OR REPLACE INTO otp_codes (phone, code, expires_at, attempts) VALUES (?,?,?,0)').bind('prev:' + phone, old.code, old.expires_at).run();
+  if (old && old.code !== 'twilio' && old.expires_at > now()) await env.DB.prepare('INSERT OR REPLACE INTO otp_codes (phone, code, expires_at, attempts) VALUES (?,?,?,0)').bind('prev:' + phone, old.code, old.expires_at).run();
   await env.DB.prepare('INSERT OR REPLACE INTO otp_codes (phone, code, expires_at, attempts) VALUES (?,?,?,0)')
     .bind(phone, code, now() + 15 * 60 * 1000).run();
   const r = await sendRaw(env, phone, `${code} is your Lendo code. Save contact + reply OK so rental texts reach you`);
   if (!r.ok) {
-    if ((r.error || '').includes('conversation_awaiting_reply')) return { ok: false, error: `We've texted you before and need a reply first. Find the thread from ${env.LENDO_NUMBER} (check Spam / Unknown Senders), reply OK, then try again.` };
+    await logFail(env, phone, 'blooio', r.error || 'unknown');
+    if (twilioOn(env)) return viaTwilio(env, phone);
+    if ((r.error || '').includes('conversation_awaiting_reply')) return { ok: false, error: `Texts to this number are paused until you reply. Find the thread from ${env.LENDO_NUMBER} (check Unknown Senders), reply OK, then try again` };
     return { ok: false, error: r.error };
   }
   return { ok: true, devCode: env.BLOOIO_API_KEY ? undefined : code };
@@ -63,9 +80,10 @@ export async function finishLogin(c: Context<{ Bindings: Env; Variables: Vars }>
   if (!row || row.expires_at < now() || row.attempts >= 8) return null;
   const prev = await c.env.DB.prepare('SELECT code, expires_at FROM otp_codes WHERE phone = ?').bind('prev:' + phone).first<{ code: string; expires_at: number }>();
   const typed = code.replace(/\D/g, '');
-  const ok = row.code === 'twilio' && twilioOn(c.env)
+  const prevOk = !!(prev && prev.expires_at > now() && typed === prev.code);
+  const ok = prevOk || (row.code === 'twilio' && twilioOn(c.env)
     ? (await twilio(c.env, 'VerificationCheck', { To: phone, Code: typed })).status === 'approved'
-    : typed === row.code || !!(prev && prev.expires_at > now() && typed === prev.code);
+    : typed === row.code);
   if (!ok) {
     await c.env.DB.prepare('UPDATE otp_codes SET attempts = attempts + 1 WHERE phone = ?').bind(phone).run();
     return null;

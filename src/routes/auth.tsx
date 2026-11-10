@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import type { Env, Vars } from '../lib/env';
 import { Layout } from '../pages/layout';
-import { startLogin, finishLogin, logout } from '../lib/auth';
+import { startLogin, finishLogin, logout, smsFallback } from '../lib/auth';
 import { normPhone, prettyPhone } from '../lib/util';
 import { ensureUser } from '../lib/db';
 import { sendRaw } from '../lib/blooio';
@@ -33,7 +33,7 @@ auth.post('/login', async (c) => {
   const phone = normPhone(String(f.phone || ''));
   const next = safeNext(String(f.next || '/'));
   if (!phone) return c.html(<Layout title="Log in" user={null} flashErr="That doesn't look like a phone number."><div style="padding:16px"><a class="btn" href={'/login?next=' + encodeURIComponent(next)}>Try again</a></div></Layout>, 400);
-  const r = await startLogin(c.env, phone);
+  const r = await startLogin(c.env, phone, f.via === 'sms' ? 'sms' : 'auto');
   if (!r.ok) return c.html(<Layout title="Log in" user={null} flashErr={'Could not send the text. ' + (r.error || '')}><div style="padding:16px"><a class="btn" href="/login">Try again</a></div></Layout>, 502);
   return c.html(
     <Layout title="Enter code" user={null} back="/login">
@@ -44,6 +44,7 @@ auth.post('/login', async (c) => {
         <label class="field"><span>6-digit code</span><input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength={6} required autofocus style="letter-spacing:.3em;font-size:22px!important;height:56px" /></label>
         <button class="btn pri full" type="submit">Continue</button>
       </form>
+      {smsFallback(c.env) && f.via !== 'sms' ? <form method="post" action="/login" style="padding:0 16px"><input type="hidden" name="phone" value={phone} /><input type="hidden" name="next" value={next} /><input type="hidden" name="via" value="sms" /><button class="btn full" type="submit">No text after a minute? Send it by SMS</button></form> : null}
     </Layout>
   );
 });

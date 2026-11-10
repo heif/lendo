@@ -36,7 +36,7 @@ admin.post('/api/identify', async (c) => {
 admin.get('/admin', (c) => c.redirect('/admin/pricing'));
 // what the background pieces last did (identify, inbound texts, icons) + a live Claude ping
 admin.get('/admin/debug', async (c) => {
-  const rows = (await c.env.DB.prepare(`SELECT key, value FROM settings WHERE key IN ('last_identify','last_inbound','last_inbound_err','wanted_icons_err','wanted_bad')`).all<{ key: string; value: string }>()).results;
+  const rows = (await c.env.DB.prepare(`SELECT key, value FROM settings WHERE key IN ('last_identify','last_inbound','last_inbound_err','wanted_icons_err','wanted_bad','login_fails')`).all<{ key: string; value: string }>()).results;
   let ping = 'no ANTHROPIC_API_KEY';
   if (c.env.ANTHROPIC_API_KEY) { try { const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': c.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: 'claude-haiku-5-5', max_tokens: 5, messages: [{ role: 'user', content: 'Say OK' }] }) }); ping = r.status + ' ' + (await r.text()).slice(0, 300); } catch (e: any) { ping = 'ERR ' + (e?.message || e); } }
   const tables = (await c.env.DB.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`).all<{ name: string }>()).results.map(r => r.name);
