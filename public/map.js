@@ -54,12 +54,12 @@
   });
   function setKpi(j) { if (!PL) $('scCityC').textContent = j.counts.view.toLocaleString(); } // city count comes from /api/places once loaded
   var hoodT, lastHood = '';
-  function syncCrumb() { var c = $('scCity').querySelector('b').textContent, h = $('scHoodN').textContent; $('scCityS').textContent = c && c !== h ? c : ''; }
+  function syncCrumb(hasHood) { var c = $('scCity').querySelector('b').textContent; $('scCityS').textContent = hasHood && c ? c : ''; }
   function updateHood() {
     var cc = map.getCenter();
     fetch('/api/hood?lat=' + cc.lat.toFixed(4) + '&lng=' + cc.lng.toFixed(4)).then(function (r) { return r.json(); }).then(function (j) {
       var name = j.hood || (j.city ? j.city : 'Near you'); $('scHoodN').textContent = j.hood_short || name; $('scHoodN').title = name; $('scHoodC').textContent = (j.hood ? j.hood_n : items.length).toLocaleString(); if (j.city) { $('scCity').querySelector('b').textContent = j.city_short || j.city; $('scCity').title = j.city; $('scCityC').textContent = j.city_n.toLocaleString(); }
-      syncCrumb(); if (name !== lastHood) { lastHood = name; $('scHoodN').animate([{ opacity: 0.3 }, { opacity: 1 }], 300); }
+      syncCrumb(!!j.hood); if (name !== lastHood) { lastHood = name; $('scHoodN').animate([{ opacity: 0.3 }, { opacity: 1 }], 300); }
     }).catch(function () {});
   }
 
