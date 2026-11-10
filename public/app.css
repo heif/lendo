@@ -217,7 +217,7 @@ button,.btn,.pm,.idea,.days button,.stars button{touch-action:manipulation}
 .places{position:absolute;left:0;right:0;margin:0 auto;max-width:480px;bottom:0;top:40px;z-index:650;background:#fff;border-radius:18px 18px 0 0;display:flex;flex-direction:column;animation:rise .2s ease-out both;overflow:hidden}
 .places-h{display:flex;align-items:center;gap:8px;padding:12px 12px 8px 14px}
 .places-h b{flex:1;font-size:16px}
-.places-x{width:30px;height:30px;border-radius:15px;border:0;background:#F0EDE6;font-size:15px;font-weight:900;color:var(--ink);cursor:pointer}
+.places-x{flex-shrink:0;width:30px;height:30px;border-radius:15px;border:0;background:#F0EDE6;font-size:15px;font-weight:900;color:var(--ink);cursor:pointer}
 .places-cities{display:flex;gap:6px;overflow-x:auto;padding:0 12px 8px;scrollbar-width:none}
 .places-cities::-webkit-scrollbar{display:none}
 .places-cities button{flex-shrink:0;font-family:inherit;height:30px;padding:0 11px;border-radius:15px;border:1.5px solid var(--ink);background:#fff;color:var(--ink);font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:5px}
@@ -394,7 +394,7 @@ html,body{overflow-x:hidden}
 @media (pointer:coarse){input:not([type=checkbox]):not([type=radio]):not([type=range]),textarea,select{font-size:max(16px,1em)!important}}
 
 /* picker: city chips are the header; the selected chip carries a pointer down into its neighborhoods */
-.places-h{padding:12px 10px 4px 0}
+.places-h{padding:12px 10px 8px 0}
 .places-h .places-cities{flex:1;min-width:0;padding:0 4px 9px 12px}
 .places-cities button{position:relative;overflow:visible}
 .places-cities button.on::after{content:"";position:absolute;left:50%;bottom:-9px;margin-left:-8px;border:8px solid transparent;border-top:9px solid var(--ink);border-bottom:0}
