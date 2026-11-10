@@ -17,7 +17,7 @@ api.get('/api/listings', async (c) => {
   const hood = (c.req.query('hood') || '').trim().slice(0, 60);
   const near = (c.req.query('near') || '').split(',').map(parseFloat);
   const byDist = near.length === 2 && near.every(n => !isNaN(n));
-  const limit = Math.min(300, parseInt(c.req.query('limit') || '200', 10) || 200);
+  const limit = Math.min(1500, parseInt(c.req.query('limit') || '200', 10) || 200);
   const where = [`l.status = 'live'`];
   const args: (string | number)[] = [];
   if (bbox.length === 4 && bbox.every(n => !isNaN(n))) { where.push('l.lat BETWEEN ? AND ? AND l.lng BETWEEN ? AND ?'); args.push(bbox[1], bbox[3], bbox[0], bbox[2]); }

@@ -49,8 +49,8 @@
     }).join('');
   }
   grid.addEventListener('click', function (e) {
-    var h = e.target.closest('[data-aisle]'); if (h) { openAisle = h.dataset.aisle || null; renderGrid(items); grid.scrollTop = 0; return; }
-    var g = e.target.closest('[data-go]'); if (g) { var it = items.filter(function (x) { return x.id === g.dataset.go; })[0]; if (!it) return; setList(false); map.easeTo({ center: [it.lng, it.lat], zoom: Math.max(map.getZoom(), 15.5) }); }
+    var h = e.target.closest('[data-aisle]'); if (h) { openAisle = h.dataset.aisle || null; renderGrid(cityItems || items); grid.scrollTop = 0; return; }
+    var g = e.target.closest('[data-go]'); if (g) { var it = known[g.dataset.go]; if (!it) return; setList(false); map.easeTo({ center: [it.lng, it.lat], zoom: Math.max(map.getZoom(), 15.5) }); }
   });
   function setKpi(j) { if (!PL) $('scCityC').textContent = j.counts.view.toLocaleString(); } // city count comes from /api/places once loaded
   var hoodT, lastHood = '';
@@ -198,7 +198,7 @@
         var pb = map.getBounds(), w = pb.getEast() - pb.getWest(), h = pb.getNorth() - pb.getSouth();
         items = Object.keys(known).map(function (k) { return known[k]; }).filter(function (it) { return it.lng > pb.getWest() - w * .5 && it.lng < pb.getEast() + w * .5 && it.lat > pb.getSouth() - h * .5 && it.lat < pb.getNorth() + h * .5; })
           .sort(function (a, b2) { return Math.hypot(a.lat - cc.lat, (a.lng - cc.lng) * .76) - Math.hypot(b2.lat - cc.lat, (b2.lng - cc.lng) * .76); }).slice(0, 600);
-        $('toggle').hidden = !items.length && !listMode; if (!items.length && listMode && !qq) setList(false); refreshSource(); renderGrid(items); setKpi(j); loadVisibleIcons(); if (window.__placeWanted) window.__placeWanted(); if (!items.length && !centered && !qq) goNearest(); centered = true; });
+        $('toggle').hidden = !items.length && !listMode; if (!items.length && listMode && !qq) setList(false); refreshSource(); if (!listMode) renderGrid(items); setKpi(j); loadVisibleIcons(); if (window.__placeWanted) window.__placeWanted(); if (!items.length && !centered && !qq) goNearest(); centered = true; });
   }
   // empty first view → center on the closest live item so the map never opens blank
   var centered = !!RESTORED;
@@ -270,7 +270,18 @@
   q.addEventListener('input', function () { clearTimeout(t); t = setTimeout(load, 300); });
   var LIST_IC = '<svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 1.5h1M4 1.5h9M1 6h1M4 6h9M1 10.5h1M4 10.5h9" stroke="#1E3A2B" stroke-width="2" stroke-linecap="round"/></svg> List',
       MAP_IC = '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6L9 4L15 6L21 4V18L15 20L9 18L3 20Z M9 4V18 M15 6V20" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linejoin="round"/></svg> Map';
-  function setList(on) { listMode = on; grid.style.display = on ? 'block' : 'none'; $('toggle').innerHTML = on ? MAP_IC : LIST_IC; document.querySelector('.mapwrap').classList.toggle('listing', on); if (on) renderGrid(items); }
+  // List view covers the whole city you're in (not just the map viewport)
+  var cityItems = null;
+  function loadCityList() {
+    var cc = map.getCenter(), ct = PL && PL.cities.filter(function (c) { return Math.abs(cc.lng - c.lng) < 0.45 && Math.abs(cc.lat - c.lat) < 0.3; })[0];
+    if (!ct) { renderGrid(items); return; }
+    grid.innerHTML = '<div class="hint" style="padding:24px 16px">Loading ' + ct.name + '…</div>';
+    var d = 0.35, qq = q.value.trim();
+    fetch('/api/listings?limit=1500&near=' + ct.lng + ',' + ct.lat + '&bbox=' + [ct.lng - d * 1.3, ct.lat - d, ct.lng + d * 1.3, ct.lat + d].join(',') + (qq ? '&q=' + encodeURIComponent(qq) : ''))
+      .then(function (r) { return r.json(); }).then(function (j) { cityItems = j.listings; j.listings.forEach(function (it) { known[it.id] = it; }); if (listMode) renderGrid(cityItems); })
+      .catch(function () { renderGrid(items); });
+  }
+  function setList(on) { listMode = on; grid.style.display = on ? 'block' : 'none'; $('toggle').innerHTML = on ? MAP_IC : LIST_IC; document.querySelector('.mapwrap').classList.toggle('listing', on); if (on) loadCityList(); }
   $('toggle').addEventListener('click', function () { setList(!listMode); });
   // standard "my location": blue dot + accuracy halo, recenters on tap
   var meMk = null;
