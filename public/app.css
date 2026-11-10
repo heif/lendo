@@ -367,3 +367,7 @@ body:has(.promo.pu:not([hidden])) .locbtn{bottom:96px}
 .days button.today.on{background:var(--orange);border-color:var(--ink);color:#fff}
 .days button.today.on small{color:#fff}
 .days button.today b{margin-top:6px}
+.thumbs-pick{display:flex;gap:10px}
+.thumbs-pick button{flex:1;height:56px;border-radius:14px;border:2px solid var(--line);background:#fff;font-size:28px;cursor:pointer}
+.thumbs-pick button.on{border-color:var(--ink);background:var(--cream);box-shadow:2px 2px 0 var(--ink)}
+.pill.stars{color:var(--orange);letter-spacing:1px}

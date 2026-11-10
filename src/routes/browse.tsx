@@ -5,7 +5,7 @@ import { Layout } from '../pages/layout';
 import { cutoutUrl } from '../lib/cutout';
 import { CITIES } from '../lib/places';
 import { counts, firstPhotos, listingById, photosFor, reputation, userById, busyDays } from '../lib/db';
-import { money, fmtDay, dayStr, addDays, firstName, fuzz } from '../lib/util';
+import { money, fmtDay, dayStr, addDays, firstName, fuzz , starStr } from '../lib/util';
 import { feeFor } from '../lib/stripe';
 import { geocodePlace } from '../lib/geo';
 import { assignHood, loadHoods } from '../lib/hoods';
@@ -135,7 +135,7 @@ browse.get('/i/:id', async (c) => {
         {it.description ? <p style="margin:4px 0 0;font-size:14px;line-height:1.4;color:var(--ink2);white-space:pre-wrap">{it.description}</p> : null}
         <a href={'/u/' + owner.id} class="owner-row owner-tight">
           <span class="owner-av">{(owner.name || 'N').charAt(0)}</span>
-          <span class="owner-txt"><b>{owner.name || 'Neighbor'}</b><small>{rep.as_owner_avg ? `★${rep.as_owner_avg.toFixed(1)} · ${rep.as_owner_n} ratings` : 'new'} · {rep.listed} listed{owner.hood ? ' · ' + owner.hood : ''}</small></span>
+          <span class="owner-txt"><b>{owner.name || 'Neighbor'}</b><small>{rep.as_owner_avg ? `${starStr(rep.as_owner_avg)} · ${rep.rentals} rentals` : 'new'} · {rep.listed} listed{owner.hood ? ' · ' + owner.hood : ''}</small></span>
           <svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2L8 8L2 14" fill="none" stroke="#1E3A2B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
         </a>
         {!isOwner && it.status === 'live' ? (
@@ -242,7 +242,7 @@ browse.get('/u/:id', async (c) => {
           {me ? <a class="btn sm" href="/profile/edit">Edit</a> : null}
         </div>
         <div style="margin-top:14px;display:flex;gap:18px;align-items:baseline">
-          <div><div class="price" style="font-size:44px;line-height:1">{avgAll ? '★ ' + avgAll.toFixed(1) : 'new'}</div><div class="hint">{rep.rentals} rentals · renting and renting out</div></div>
+          <div><div class="price" style="font-size:44px;line-height:1">{avgAll ? starStr(avgAll) : 'new'}</div><div class="hint">{rep.rentals} rentals · renting and renting out</div></div>
           <div><div class="price" style="font-size:44px;line-height:1">{rep.listed}</div><div class="hint">things listed</div></div>
         </div>
         {me ? <a class="btn pri full" style="margin-top:14px" href="/list">LIST MORE STUFF</a> : null}
@@ -258,7 +258,7 @@ browse.get('/u/:id', async (c) => {
         {reviews.results.length ? reviews.results.map(r => (
           <div class="card" style="margin-top:8px">
             <div class="row" style="justify-content:space-between"><b>{firstName(r.nm)}</b><span class="hint">{r.tag} · {r.item}</span></div>
-            <div style="color:var(--orange);font-weight:900">{'★'.repeat(r.st)}</div>
+            <div style="font-size:18px">{r.st >= 3 ? '👍' : '👎'}</div>
             {r.rv ? <div style="font-size:14px;margin-top:4px">{r.rv}</div> : null}
           </div>
         )) : <div class="hint" style="margin-top:8px">No reviews yet.</div>}

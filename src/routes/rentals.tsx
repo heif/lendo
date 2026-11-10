@@ -117,12 +117,12 @@ rentals.get('/r/:id', requireUser, async (c) => {
         {(r.status === 'returned' || r.status === 'closed') && !myRating ? (
           <form method="post" action={'/r/' + r.id + '/rate'} class="card" style="border:2px solid var(--ink)">
             <b>How was {isOwner ? firstName(other.name) : 'the ' + it.name + ' and ' + firstName(other.name)}?</b>
-            <div class="stars" style="margin-top:8px">{[1, 2, 3, 4, 5].map(n => <button type="button" data-n={n} onclick="var n=+this.dataset.n;document.getElementById('stars').value=n;[].forEach.call(this.parentNode.children,function(b,i){b.classList.toggle('on',i<n)})">★</button>)}</div>
+            <div class="thumbs-pick" style="margin-top:8px">{[[5, '👍'], [1, '👎']].map(([n, e]) => <button type="button" data-n={String(n)} aria-label={n === 5 ? 'Thumbs up' : 'Thumbs down'} onclick="document.getElementById('stars').value=this.dataset.n;[].forEach.call(this.parentNode.children,function(b){b.classList.remove('on')});this.classList.add('on')">{e}</button>)}</div>
             <input type="hidden" name="stars" id="stars" />
             <input name="review" placeholder="One line others will see (optional)" maxlength={200} style="width:100%;height:42px;border-radius:10px;border:1.5px solid var(--line);padding:0 12px;margin-top:8px" />
             <button class="btn pri full" type="submit" style="margin-top:8px">Rate</button>
           </form>
-        ) : myRating ? <div class="hint">You rated {'★'.repeat(myRating)}</div> : null}
+        ) : myRating ? <div class="hint">You gave {myRating >= 3 ? '👍' : '👎'}</div> : null}
 
         <div class="m" style="font-size:8px;color:var(--mute);margin:6px 2px 0">history</div>
         <div class="msgs">

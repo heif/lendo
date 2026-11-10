@@ -99,13 +99,14 @@
     }) };
   };
 
+  function wholeStars(avg) { var up = (avg - 1) / 4; return up >= .9 ? 5 : up >= .75 ? 4 : up >= .55 ? 3 : up >= .35 ? 2 : 1; }
   function fillCard(it) {
     $('shLink').href = '/i/' + it.id;
     var im = $('shImg'); im.src = it.avatar_key ? '/p/' + it.avatar_key : it.photo ? '/p/' + it.photo : ''; im.className = it.avatar_key ? 'cut' : 'photo';
     $('shPr').innerHTML = fmt(it.price_cents) + '<small>/day</small>';
     var own = (it.owner_name || 'Neighbor').split(' ')[0];
     $('shNm').textContent = own + (/s$/i.test(own) ? '’ ' : '’s ') + it.name.charAt(0).toLowerCase() + it.name.slice(1);
-    $('shOwner').innerHTML = '<span class="av">' + esc(own.charAt(0)) + '</span>' + esc(own) + (it.owner_rating ? ' <span class="pill">★ ' + it.owner_rating + '</span>' : ' <span class="pill new">new</span>') + (it.rentals ? ' <span class="n">' + it.rentals + ' rental' + (it.rentals === 1 ? '' : 's') + '</span>' : '');
+    $('shOwner').innerHTML = '<span class="av">' + esc(own.charAt(0)) + '</span>' + esc(own) + (it.owner_rating ? ' <span class="pill stars">' + '★★★★★'.slice(0, wholeStars(it.owner_rating)) + '</span>' : ' <span class="pill new">new</span>') + (it.rentals ? ' <span class="n">' + it.rentals + ' rental' + (it.rentals === 1 ? '' : 's') + '</span>' : '');
     $('shWhere').textContent = (it.hood || 'near you') + (it.owner_xs ? ' · ' + it.owner_xs : '');
   }
   $('shClose').addEventListener('click', function () { sel = null; refreshSource(); sheet.classList.remove('on'); });

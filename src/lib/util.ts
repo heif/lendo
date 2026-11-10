@@ -81,3 +81,11 @@ export function timingSafeEq(a: string, b: string): boolean {
   for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return r === 0;
 }
+
+// Ratings: people give a thumbs up (stored 5) or down (stored 1); we show whole stars only — no decimals
+export function wholeStars(avg: number | null | undefined): number {
+  if (avg == null) return 0;
+  const up = (avg - 1) / 4; // share of thumbs up
+  return up >= 0.9 ? 5 : up >= 0.75 ? 4 : up >= 0.55 ? 3 : up >= 0.35 ? 2 : 1;
+}
+export const starStr = (avg: number | null | undefined) => { const n = wholeStars(avg); return n ? '★'.repeat(n) : ''; };
