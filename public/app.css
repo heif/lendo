@@ -361,3 +361,4 @@ body:has(.promo.pu:not([hidden])) .locbtn{bottom:96px}
 .rent-out .ro-s{display:none}
 @media (max-width:430px){.rent-out .ro-l{display:none}.rent-out .ro-s{display:inline}}
 .aisles{padding-top:62px!important}
+.wsheet-em .wsimg{display:block;margin:6px auto;object-fit:contain}
