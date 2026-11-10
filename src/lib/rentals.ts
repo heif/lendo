@@ -2,7 +2,7 @@
 import type { Env, Rental, User } from './env';
 import { addMessage, busyDays, listingById, rentalById, setRentalStatus, userById } from './db';
 import { textUser } from './blooio';
-import { captureRental, releaseHold } from './stripe';
+import { captureRental, feeFor, payoutRental, releaseHold } from './stripe';
 import { firstName, fmtRange, money, now } from './util';
 
 const HOLD_HOURS = 24;
@@ -33,17 +33,28 @@ export async function markHeld(env: Env, r: Rental, paymentIntent: string | null
   await textUser(env, renter, `Requested ${listing.name} from ${firstName(owner.name)} for ${fmtRange(r.start_day, r.end_day)}. Your card is held, not charged, until they say yes. We'll text you. ${url}`, 'rental', r.id);
 }
 
-export async function accept(env: Env, r: Rental): Promise<boolean> {
-  if (r.status !== 'held') return false;
+// rentCents: owner's "Give a discount" — any amount from the requested rent down to 0, never higher.
+export async function accept(env: Env, r0: Rental, rentCents?: number): Promise<boolean> {
+  if (r0.status !== 'held') return false;
+  let r = r0;
+  if (rentCents != null && rentCents >= 0 && rentCents < r0.rent_cents) {
+    const fee = rentCents === 0 ? 0 : feeFor(env, rentCents);           // free rental = no fee
+    const total = Math.max(0, rentCents + fee - r0.credit_cents);
+    await env.DB.prepare('UPDATE rentals SET list_rent_cents = COALESCE(list_rent_cents, rent_cents), rent_cents = ?, fee_cents = ?, total_cents = ? WHERE id = ?').bind(rentCents, fee, total, r0.id).run();
+    r = { ...r0, rent_cents: rentCents, fee_cents: fee, total_cents: total };
+  }
   const { owner, renter, listing } = await parties(env, r);
-  try { await captureRental(env, r, owner); } catch (e) { console.error('capture failed', e); return false; }
+  let how: string;
+  try { how = await captureRental(env, r); } catch (e) { console.error('capture failed', e); return false; }
   await setRentalStatus(env.DB, r.id, 'confirmed', { expires_at: null });
   const url = `${env.APP_URL}/r/${r.id}`;
-  await addMessage(env, r.id, null, `${firstName(owner.name)} said yes · ${money(r.total_cents)} paid · set a pickup time`, 'system');
-  const spot = owner.pickup_spots ? ` Meet: ${(JSON.parse(owner.pickup_spots) as string[]).join(' or ')}.` : '';
-  await textUser(env, renter, `${firstName(owner.name)} said yes! Paid ${money(r.total_cents)}.${spot} Set a pickup time — reply here or tap: ${url}`, 'money', r.id);
-  await textUser(env, owner, `Done. ${firstName(renter.name)} paid. Set a pickup time with them — reply here or tap: ${url}`, 'rental', r.id);
-  if (!owner.stripe_account_id) {
+  const paidLine = r.total_cents <= 0 || how === 'released' ? 'free — nothing charged' : `${money(r.total_cents)} paid`;
+  await addMessage(env, r.id, null, `${firstName(owner.name)} said yes · ${paidLine} · set a pickup time`, 'system');
+  const spot = owner.pickup_spots ? ` Meet: ${(JSON.parse(owner.pickup_spots) as string[]).join(' or ')}` : '';
+  const gift = r.rent_cents === 0 ? ` ${firstName(owner.name)} is lending it to you free!` : r0.rent_cents > r.rent_cents ? ` ${firstName(owner.name)} gave you a discount` : '';
+  await textUser(env, renter, `${firstName(owner.name)} said yes!${gift} ${paidLine[0].toUpperCase() + paidLine.slice(1)}.${spot} Set a pickup time — reply here or tap ${url}`, 'money', r.id);
+  await textUser(env, owner, r.rent_cents === 0 ? `Done — lending it free. Set a pickup time with ${firstName(renter.name)} — reply here or tap ${url}` : `Done. ${firstName(renter.name)} paid. Set a pickup time with them — reply here or tap ${url}`, 'rental', r.id);
+  if (!owner.stripe_account_id && r.rent_cents > 0) {
     await textUser(env, owner, `Where should your ${money(r.rent_cents)} go? Add a debit card or bank, takes 30 sec: ${env.APP_URL}/payout`, 'money', r.id);
   }
   return true;
@@ -66,7 +77,7 @@ export async function pickedUp(env: Env, r: Rental, photoKey: string | null) {
   const { owner, renter, listing } = await parties(env, r);
   await addMessage(env, r.id, null, photoKey ? `${firstName(owner.name)} took the pickup photo · time-stamped, you both have it` : `Picked up`, 'system');
   await textUser(env, renter, `You've got the ${listing.name}. Return ${fmtRange(r.end_day, r.end_day)}. Running late? Reply LATE and we'll tell ${firstName(owner.name)}.`, 'pickup', r.id);
-  if (owner.stripe_account_id) await textUser(env, owner, `${money(r.rent_cents)} is on its way to your account.`, 'money', r.id);
+  try { if (await payoutRental(env, r, owner)) await textUser(env, owner, `${money(r.rent_cents)} is on its way to your account`, 'money', r.id); } catch (e) { console.error('payout failed', e); }
   return true;
 }
 

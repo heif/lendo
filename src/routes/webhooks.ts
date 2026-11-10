@@ -31,7 +31,8 @@ webhooks.post('/webhooks/stripe', async (c) => {
   } else if (ev.type === 'payment_intent.canceled') {
     const pi = ev.data.object as Stripe.PaymentIntent;
     const r = await c.env.DB.prepare('SELECT * FROM rentals WHERE stripe_payment_intent = ?').bind(pi.id).first<Rental>();
-    if (r && r.status === 'held') await decline(c.env, r, 'expired');
+    // a free / sub-50¢ rental is released on purpose at accept — not an expiry
+    if (r && r.status === 'held' && r.total_cents >= 50) await decline(c.env, r, 'expired');
   }
   return c.json({ received: true });
 });

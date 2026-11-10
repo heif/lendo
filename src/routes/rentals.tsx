@@ -30,8 +30,11 @@ rentals.post('/i/:id/rent', async (c) => {
   const fee = feeFor(c.env, rent);
   const rid = id('r');
   const t = now();
-  await c.env.DB.prepare(`INSERT INTO rentals (id, listing_id, owner_id, renter_id, start_day, end_day, days, rent_cents, fee_cents, total_cents, status, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-    .bind(rid, it.id, it.owner_id, u.id, start, end, days, rent, fee, rent + fee, 'requested', t, t).run();
+  // $5 promo credit (claimed via phone bar): first rental only, never more than the total
+  const prior = await c.env.DB.prepare(`SELECT COUNT(*) n FROM rentals WHERE renter_id = ? AND status IN ('held','confirmed','picked_up','returned','closed')`).bind(u.id).first<{ n: number }>();
+  const credit = (u.promo_cents || 0) > 0 && !(prior?.n) ? Math.min(u.promo_cents, rent + fee - 50) : 0;
+  await c.env.DB.prepare(`INSERT INTO rentals (id, listing_id, owner_id, renter_id, start_day, end_day, days, rent_cents, fee_cents, total_cents, credit_cents, status, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    .bind(rid, it.id, it.owner_id, u.id, start, end, days, rent, fee, rent + fee - Math.max(0, credit), Math.max(0, credit), 'requested', t, t).run();
   const r = (await rentalById(c.env.DB, rid))!;
   const url = await createCheckout(c.env, r, it, u);
   if (url) return c.redirect(url, 303);
@@ -77,9 +80,13 @@ rentals.get('/r/:id', requireUser, async (c) => {
           <div class="card" style="border:2px solid var(--ink)">
             <b>{firstName(other.name)} wants it {fmtRange(r.start_day, r.end_day)}. You'd earn {money(r.rent_cents)}.</b>
             <div class="row" style="margin-top:10px;gap:8px">
-              <form method="post" action={'/r/' + r.id + '/accept'} style="flex:1"><button class="btn pri full" type="submit">YES — accept</button></form>
+              <form method="post" action={'/r/' + r.id + '/accept'} style="flex:1" id="acceptForm"><button class="btn pri full" type="submit">YES — accept</button></form>
               <form method="post" action={'/r/' + r.id + '/decline'}><button class="btn" type="submit">No</button></form>
             </div>
+            <details class="disc"><summary>Give a discount</summary>
+              <label class="field" style="margin-top:8px"><span>Your price for these days ($0 = free, max {money(r.rent_cents)})</span><input form="acceptForm" name="rent" type="number" inputmode="decimal" min="0" max={(r.rent_cents / 100).toFixed(2)} step="0.01" placeholder={(r.rent_cents / 100).toFixed(0)} /></label>
+              <div class="hint">Can only go down. Free = no Lendo fee. Then tap YES</div>
+            </details>
             <div class="hint" style="margin-top:8px">or reply YES / NO by text · expires {r.expires_at ? fmtT(r.expires_at) : 'in 24h'}</div>
           </div>
         ) : null}
@@ -145,7 +152,10 @@ rentals.get('/r/:id', requireUser, async (c) => {
 rentals.post('/r/:id/accept', requireUser, async (c) => {
   const u = c.get('user')!; const r = await rentalById(c.env.DB, c.req.param('id'));
   if (!r || r.owner_id !== u.id) return c.notFound();
-  await accept(c.env, r);
+  const f = await c.req.parseBody();
+  const disc = String(f.rent || '').trim();
+  const cents = disc === '' ? undefined : Math.round(parseFloat(disc) * 100);
+  await accept(c.env, r, cents != null && !isNaN(cents) ? Math.max(0, Math.min(cents, r.rent_cents)) : undefined);
   return c.redirect('/r/' + r.id);
 });
 rentals.post('/r/:id/decline', requireUser, async (c) => {

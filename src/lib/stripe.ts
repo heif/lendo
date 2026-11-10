@@ -17,7 +17,10 @@ export function feeFor(env: Env, rentCents: number): number {
 export async function createCheckout(env: Env, rental: Rental, listing: Listing, renter: User): Promise<string | null> {
   const s = stripe(env);
   if (!s) return null; // dev mode → caller fakes a hold
+  // $5 promo credit: a one-off coupon on this session (Lendo absorbs it; the owner's rent is unchanged)
+  const coupon = rental.credit_cents > 0 ? await s.coupons.create({ amount_off: rental.credit_cents, currency: 'usd', duration: 'once', name: '$5 off your first rental', max_redemptions: 1 }) : null;
   const session = await s.checkout.sessions.create({
+    ...(coupon ? { discounts: [{ coupon: coupon.id }] } : {}),
     mode: 'payment',
     customer_email: undefined,
     client_reference_id: rental.id,
@@ -38,18 +41,23 @@ export async function createCheckout(env: Env, rental: Rental, listing: Listing,
   return session.url;
 }
 
-export async function captureRental(env: Env, rental: Rental, owner: User): Promise<void> {
+// Owner said YES: charge what's due now (total_cents already reflects any discount and promo credit).
+// Under Stripe's 50¢ minimum (free / near-free) → release the hold instead; Lendo covers the difference.
+export async function captureRental(env: Env, rental: Rental): Promise<'captured' | 'released' | 'none'> {
   const s = stripe(env);
-  if (!s || !rental.stripe_payment_intent) return;
-  await s.paymentIntents.capture(rental.stripe_payment_intent);
-  if (owner.stripe_account_id) {
-    await s.transfers.create({
-      amount: rental.rent_cents, currency: 'usd', destination: owner.stripe_account_id,
-      transfer_group: rental.id, metadata: { rental_id: rental.id },
-    });
-    await env.DB.prepare('UPDATE rentals SET paid_out = 1 WHERE id = ?').bind(rental.id).run();
-  }
-  // else: rent sits in the platform balance; owner is texted a /payout link and the transfer happens when they connect.
+  if (!s || !rental.stripe_payment_intent) return 'none';
+  if (rental.total_cents < 50) { await s.paymentIntents.cancel(rental.stripe_payment_intent); return 'released'; }
+  await s.paymentIntents.capture(rental.stripe_payment_intent, { amount_to_capture: rental.total_cents });
+  return 'captured';
+}
+
+// Owner gets paid at pickup (decision Nov 10). No connected account yet → paid when they connect (flushPendingPayouts).
+export async function payoutRental(env: Env, rental: Rental, owner: User): Promise<boolean> {
+  const s = stripe(env);
+  if (!s || !owner.stripe_account_id || rental.paid_out || rental.rent_cents <= 0) return false;
+  await s.transfers.create({ amount: rental.rent_cents, currency: 'usd', destination: owner.stripe_account_id, transfer_group: rental.id, metadata: { rental_id: rental.id } }, { idempotencyKey: `payout_${rental.id}` });
+  await env.DB.prepare('UPDATE rentals SET paid_out = 1 WHERE id = ?').bind(rental.id).run();
+  return true;
 }
 
 export async function releaseHold(env: Env, rental: Rental): Promise<void> {
@@ -75,7 +83,7 @@ export async function connectOnboardingUrl(env: Env, owner: User): Promise<{ url
 export async function flushPendingPayouts(env: Env, owner: User): Promise<number> {
   const s = stripe(env);
   if (!s || !owner.stripe_account_id) return 0;
-  const rows = await env.DB.prepare(`SELECT * FROM rentals WHERE owner_id = ? AND status IN ('confirmed','picked_up','returned','closed') AND stripe_payment_intent IS NOT NULL AND paid_out = 0`).bind(owner.id).all<Rental>();
+  const rows = await env.DB.prepare(`SELECT * FROM rentals WHERE owner_id = ? AND status IN ('picked_up','returned','closed') AND stripe_payment_intent IS NOT NULL AND paid_out = 0 AND rent_cents > 0`).bind(owner.id).all<Rental>();
   let n = 0;
   for (const r of rows.results) {
     await s.transfers.create({ amount: r.rent_cents, currency: 'usd', destination: owner.stripe_account_id, transfer_group: r.id, metadata: { rental_id: r.id } }, { idempotencyKey: `payout_${r.id}` });
