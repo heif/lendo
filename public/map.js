@@ -187,7 +187,7 @@
     // zoomed-out clusters are plain orange dots sized by count (no number); zoomed in, every item is its own pin
     map.addLayer({ id: 'cluster-count', type: 'symbol', source: 'listings', filter: ['==', 1, 2], layout: { 'text-field': '' } });
     map.addLayer({ id: 'pins', type: 'symbol', source: 'listings', filter: ['!', ['has', 'point_count']],
-      layout: { 'icon-image': ['get', 'icon'], 'icon-rotate': ['get', 'rot'], 'icon-size': ['case', ['get', 'sel'], 1.15, 1], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'symbol-sort-key': ['case', ['get', 'sel'], 0, 1] },
+      layout: { 'icon-image': ['get', 'icon'], 'icon-rotate': ['get', 'rot'], 'icon-size': ['case', ['get', 'sel'], 1.15, 1], 'icon-anchor': 'bottom', 'icon-allow-overlap': false, 'icon-ignore-placement': false, 'icon-padding': 0, /* dense areas: pins that would overlap hide until you zoom in (list shows all) */ 'symbol-sort-key': ['case', ['get', 'sel'], 0, 1] },
       paint: { 'icon-opacity': 1 } });
     if (HOOD_LAYER) addHoods();
     load(); updateHood();
