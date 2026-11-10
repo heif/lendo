@@ -1,7 +1,7 @@
 // Visual identification of a snapped item → name, description, category, retail estimate → suggested price.
 import type { Env } from './env';
 
-export type Ident = { name: string; description: string; category: string; retail_usd: number | null; confidence: 'high' | 'medium' | 'low'; brand?: string | null; model?: string | null };
+export type Ident = { name: string; description: string; category: string; retail_usd: number | null; confidence: 'high' | 'medium' | 'low'; brand?: string | null; model?: string | null; ask_label?: boolean };
 export type PriceRule = { category: string; label: string; day_cents: number; rate_pct: number; week_pct: number };
 
 let rulesCache: { at: number; rules: PriceRule[]; settings: Record<string, string> } | null = null;
@@ -35,36 +35,55 @@ export let lastRaw = '';
 const BRAND_RULES = `Brand: include the brand (and model if readable) in the name ONLY when it is visible in the photo AND it matters to a renter — electronics, cameras/lenses, power tools (battery platform), appliances, audio, bikes/e-bikes, fitness machines, strollers/car seats, designer fashion, outdoor gear brands. Leave the brand out for commodity items (folding chairs, basic ladders, hand tools like a hammer, sleds, generic luggage) even if a logo shows. Never guess a brand you can't see.`;
 const DESC_RULES = `Description: 1-2 short lines, facts a renter checks before renting — brand/model and one key spec if known (watts, size, battery, capacity), what's visibly included (case, strap, charger, batteries), and condition only if visible. No filler like "for use in outdoor activities", no restating the photo's colors unless they identify it, no marketing words, no trailing period.`;
 
-async function identifyClaude(env: Env, photo: ArrayBuffer, hint?: string | null, model = 'claude-haiku-5-5'): Promise<any | null> {
+const img = (photo: ArrayBuffer) => { const b = new Uint8Array(photo); let bin = ''; for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode(...b.subarray(i, i + 0x8000));
+  return { type: 'image', source: { type: 'base64', media_type: b[0] === 0x89 ? 'image/png' : b[0] === 0x52 ? 'image/webp' : 'image/jpeg', data: btoa(bin) } }; };
+
+// Owners' name fixes (AI guess → what they listed it as), newest first; fed back as examples
+export async function recordCorrection(env: Env, ai: string, final: string) {
+  const a = ai.trim(), f = final.trim(); if (!a || !f || a.toLowerCase() === f.toLowerCase()) return;
+  const r = await env.DB.prepare(`SELECT value FROM settings WHERE key = 'id_corrections'`).first<{ value: string }>();
+  const list: [string, string][] = r ? JSON.parse(r.value) : [];
+  list.unshift([a.slice(0, 60), f.slice(0, 60)]);
+  await env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('id_corrections', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(JSON.stringify(list.slice(0, 40))).run();
+}
+async function corrections(env: Env): Promise<string> {
+  const r = await env.DB.prepare(`SELECT value FROM settings WHERE key = 'id_corrections'`).first<{ value: string }>().catch(() => null);
+  const list: [string, string][] = r ? JSON.parse(r.value) : [];
+  return list.length ? `\nRecent owner corrections of earlier guesses (guess → what it really was); learn from these mistakes:\n${list.slice(0, 15).map(([a, f]) => `- "${a}" → "${f}"`).join('\n')}` : '';
+}
+
+async function identifyClaude(env: Env, photos: ArrayBuffer[], hint?: string | null, model = 'claude-haiku-5-5', fixes = ''): Promise<any | null> {
   if (!env.ANTHROPIC_API_KEY) return null;
-  const b = new Uint8Array(photo); let bin = ''; for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode(...b.subarray(i, i + 0x8000));
-  const mt = b[0] === 0x89 ? 'image/png' : b[0] === 0x52 ? 'image/webp' : 'image/jpeg';
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model, max_tokens: 300, messages: [{ role: 'user', content: [
-        { type: 'image', source: { type: 'base64', media_type: mt, data: btoa(bin) } },
-        { type: 'text', text: `A neighbor is listing this item for rent${hint ? ` (their hint: "${hint}"; trust what you see)` : ''}.
+        ...photos.map(img),
+        { type: 'text', text: `A neighbor is listing this item for rent${photos.length > 1 ? ' (photo 2 is a close-up of its label/logo)' : ''}${hint ? ` (their hint: "${hint}"; trust what you see)` : ''}.
 Name: 1-4 words, what a renter would search for, Title Case first word only (e.g. "Pyle bullhorn", "DeWalt cordless drill", "Folding chairs", "Canon EOS R6 camera").
 ${BRAND_RULES}
 ${DESC_RULES}
 Look-alikes: tell similar products apart by concrete details (e.g. AirPods Max = mesh canopy headband + aluminum cups + Digital Crown; Beats = plastic band with "b" logo). If you can't tell which of two, set "confidence":"low", leave brand/model null and use the generic name ("Over-ear headphones") — a wrong brand is worse than none.
-Reply with JSON only: {"name":"","brand":"<visible brand or null>","model":"<visible model or null>","description":"","category":"<one of: ${CATS.join(', ')}>","retail_usd":<new retail price of this brand/model in USD>,"confidence":"high|medium|low"}` }] }] }) });
+brand_matters: true if the brand/model changes what a renter expects for this kind of item (per the brand rule), else false.${fixes}
+Reply with JSON only: {"name":"","brand":"<visible brand or null>","model":"<visible model or null>","brand_matters":true,"description":"","category":"<one of: ${CATS.join(', ')}>","retail_usd":<new retail price of this brand/model in USD>,"confidence":"high|medium|low"}` }] }] }) });
     if (!r.ok) { lastRaw = 'claude ' + r.status + ' ' + (await r.text().catch(() => '')).slice(0, 300); return null; }
     const j: any = await r.json(); const t = String(j?.content?.[0]?.text || ''); lastRaw = t;
     const m = t.match(/\{[\s\S]*\}/); return m ? JSON.parse(m[0]) : null;
   } catch (e: any) { lastRaw = 'claude ERR ' + (e?.message || e); return null; }
 }
 
-export async function identifyItem(env: Env, photo: ArrayBuffer, hint?: string | null): Promise<Ident> {
-  let cj = await identifyClaude(env, photo, hint);
+export async function identifyItem(env: Env, photo: ArrayBuffer, hint?: string | null, label?: ArrayBuffer | null): Promise<Ident> {
+  const photos = label ? [photo, label] : [photo], fixes = await corrections(env);
+  let cj = await identifyClaude(env, photos, hint, 'claude-haiku-5-5', fixes);
   // unsure → a stronger model looks again (brand/model mistakes cost trust; ~2-3¢ only on these)
-  if (cj && cj.confidence !== 'high') { const cj2 = await identifyClaude(env, photo, hint, 'claude-sonnet-5-5'); if (cj2 && cj2.name) cj = cj2; }
+  if (cj && cj.confidence !== 'high') { const cj2 = await identifyClaude(env, photos, hint, 'claude-sonnet-5-5', fixes); if (cj2 && cj2.name) cj = cj2; }
   if (cj && cj.name) {
     const cat = CATS.includes(String(cj.category || '').trim()) ? String(cj.category).trim() : guessCategory(String(cj.name));
     const retail = typeof cj.retail_usd === 'number' ? cj.retail_usd : parseFloat(String(cj.retail_usd || '').replace(/[^0-9.]/g, '')) || null;
     return { name: String(cj.name).replace(/^["']|["'.]$/g, '').slice(0, 60), description: String(cj.description || '').replace(/\.$/, '').slice(0, 240), category: cat, retail_usd: retail,
-      confidence: ['high', 'medium', 'low'].includes(cj.confidence) ? cj.confidence : 'medium', brand: cj.brand || null, model: cj.model || null };
+      confidence: ['high', 'medium', 'low'].includes(cj.confidence) ? cj.confidence : 'medium', brand: cj.brand || null, model: cj.model || null,
+      // brand matters but we couldn't read it → ask for a close-up of the label (not again once they sent one)
+      ask_label: !label && cj.brand_matters !== false && (!cj.brand || cj.confidence === 'low') };
   }
   const { settings } = await loadPricing(env);
   const model = settings.vision_model || '@cf/llava-hf/llava-1.5-7b-hf';

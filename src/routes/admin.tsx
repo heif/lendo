@@ -25,7 +25,8 @@ admin.post('/api/identify', async (c) => {
   // keep the snap so the review/done screens can show it cut out before the listing exists
   const tmp = `tmp/${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
   c.executionCtx.waitUntil(c.env.PHOTOS.put(`${tmp}.jpg`, bytes, { httpMetadata: { contentType: p.type || 'image/jpeg' } }).then(() => {}));
-  const id = await identifyItem(c.env, bytes, hint);
+  const lf = f.label; const label = lf instanceof File ? await lf.arrayBuffer() : null;
+  const id = await identifyItem(c.env, bytes, hint, label);
   c.executionCtx.waitUntil(c.env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('last_identify', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(JSON.stringify({ at: new Date().toISOString(), key: !!c.env.ANTHROPIC_API_KEY, name: id.name, brand: id.brand ?? null, raw: lastRaw.slice(0, 600) })).run());
   const { rules, settings } = await loadPricing(c.env);
   const pr = suggestPrice(rules, settings, id.category, id.retail_usd);

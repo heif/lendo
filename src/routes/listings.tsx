@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { recordCorrection } from '../lib/identify';
 import { makeCutout } from '../lib/avatar';
 import { raw } from 'hono/html';
 import type { Env, Listing, Vars } from '../lib/env';
@@ -34,7 +35,7 @@ listings.get('/list', async (c) => {
       {/* camera */}
       <section id="st-cam" class="cam" hidden>
         <video id="cam" playsinline muted autoplay></video>
-        <input type="file" id="file" accept="image/*" capture="environment" hidden /><input type="file" id="moreFile" accept="image/*" multiple hidden />
+        <input type="file" id="file" accept="image/*" capture="environment" hidden /><input type="file" id="moreFile" accept="image/*" multiple hidden /><input type="file" id="labelFile" accept="image/*" capture="environment" hidden />
         <div class="cam-top">
           <button type="button" class="cam-x" id="camClose" aria-label="Close"><svg width="14" height="14" viewBox="0 0 12 12"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg></button>
           <div class="cam-hints"><span class="hint-big" id="hintBig"></span><span class="hint-sm" id="hint"></span></div>
@@ -77,7 +78,7 @@ listings.get('/list', async (c) => {
               <div class="story-side"><button type="button" class="btn pri" id="stShare">📸 Share story</button><button type="button" class="btn" id="stSave">⬇ Save image</button><div class="hint" style="font-size:12px">Instagram story, WhatsApp status, or the building chat · scan the QR to rent</div></div></div>
             <div class="shbtns" id="shBtns"></div>
           </div>
-          <div class="dn-acts"><button type="button" class="btn" id="again" style="box-shadow:3px 3px 0 var(--ink)">+ Keep going</button><a class="btn dark" href="/">See the map</a></div>
+          <div class="dn-acts"><button type="button" class="btn" id="again" style="box-shadow:3px 3px 0 var(--ink)">+ List more</button><a class="btn dark" href="/">See the map</a></div>
         </div>
         <div class="toast" id="shToast" style="display:none"></div>
       </section>
@@ -136,6 +137,7 @@ listings.post('/api/list', async (c) => {
   const out: { id: string; name: string }[] = [];
   for (let i = 0; i < 30; i++) {
     const name = String(f[`name_${i}`] || '').trim(); if (!name) continue;
+    const aiName = String(f[`ai_${i}`] || '').trim(); if (aiName) c.executionCtx.waitUntil(recordCorrection(c.env, aiName, name).catch(() => {}));
     const price = Math.round(parseFloat(String(f[`price_${i}`] || '0')) * 100); if (isNaN(price) || price < minP) continue;
     const files = [f[`photo_${i}`], ...Array.from({ length: 5 }, (_, j) => f[`photo_${i}_${j + 1}`])].filter((x): x is File => x instanceof File);
     const photos = await Promise.all(files.slice(0, 6).map(async p => ({ bytes: await p.arrayBuffer(), type: p.type })));
