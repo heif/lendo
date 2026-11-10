@@ -29,7 +29,10 @@
   }
 
   mapboxgl.accessToken = CFG.token;
-  var map = new mapboxgl.Map({ container: 'map', style: CFG.style, center: CFG.center, zoom: CFG.zoom || 14.5, attributionControl: true, logoPosition: 'bottom-right', cooperativeGestures: false });
+  // come back to the same view (item page → back) instead of jumping home; ?c= in the URL still wins
+  var RESTORED = null;
+  try { if (!/[?&]c=/.test(location.search)) { var sv = JSON.parse(sessionStorage.getItem('lendo_view') || 'null'); if (sv && sv.c && Date.now() - sv.t < 6 * 3600e3) RESTORED = sv; } } catch (e) {}
+  var map = new mapboxgl.Map({ container: 'map', style: CFG.style, center: RESTORED ? RESTORED.c : CFG.center, zoom: RESTORED ? RESTORED.z : (CFG.zoom || 14.5), attributionControl: true, logoPosition: 'bottom-right', cooperativeGestures: false });
   try { navigator.sendBeacon && navigator.sendBeacon('/api/map-load', ''); } catch (e) {}   // §6 cost guard
 
   var items = [], sel = null, listMode = false, t, iconCache = {}, loading = {};
@@ -155,7 +158,8 @@
       .then(function (r) { return r.json(); }).then(function (j) { items = j.listings; refreshSource(); renderGrid(items); setKpi(j); loadVisibleIcons(); if (window.__placeWanted) window.__placeWanted(); if (!items.length && !centered && !qq) goNearest(); centered = true; });
   }
   // empty first view → center on the closest live item so the map never opens blank
-  var centered = false;
+  var centered = !!RESTORED;
+  map.on('moveend', function () { try { var c = map.getCenter(); sessionStorage.setItem('lendo_view', JSON.stringify({ c: [c.lng, c.lat], z: map.getZoom(), t: Date.now() })); } catch (e) {} });
   function goNearest() {
     var c = map.getCenter();
     fetch('/api/listings?near=' + c.lng + ',' + c.lat + '&limit=1').then(function (r) { return r.json(); }).then(function (j) { var it = j.listings && j.listings[0]; if (it && it.lat != null) map.easeTo({ center: [it.lng, it.lat], zoom: Math.max(map.getZoom(), 14.5), duration: 900 }); }).catch(function () {});
@@ -230,8 +234,8 @@
     var tip = document.createElement('div'); tip.className = 'citytip'; tip.innerHTML = (CFG.visitorCity ? 'Not in ' + CFG.visitorCity + ' yet. ' : '') + 'You’re seeing <b>NYC</b> — tap to switch city'; document.querySelector('.mapwrap').appendChild(tip);
     var off = function () { h.classList.remove('nudge'); tip.remove(); h.removeEventListener('click', off); }; h.addEventListener('click', off); setTimeout(off, 9000);
   }
-  if (CFG.away) loadPlaces(nudgeCity);
-  if (!CFG.hasHome && !CFG.away) navigator.geolocation && navigator.geolocation.getCurrentPosition(function (p) { loadPlaces(function () { if (inLiveCity(p.coords.longitude, p.coords.latitude)) map.jumpTo({ center: [p.coords.longitude, p.coords.latitude], zoom: 15 }); else nudgeCity(); }); }, function () {}, { timeout: 4000 });
+  if (CFG.away && !RESTORED) loadPlaces(nudgeCity);
+  if (!RESTORED && !CFG.hasHome && !CFG.away) navigator.geolocation && navigator.geolocation.getCurrentPosition(function (p) { loadPlaces(function () { if (inLiveCity(p.coords.longitude, p.coords.latitude)) map.jumpTo({ center: [p.coords.longitude, p.coords.latitude], zoom: 15 }); else nudgeCity(); }); }, function () {}, { timeout: 4000 });
 
   // ---- §4 neighborhoods: faint outlines, dim hoods with zero listings ----
   function addHoods() {

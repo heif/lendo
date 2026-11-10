@@ -37,7 +37,7 @@ export const Layout: FC<LayoutProps> = (p) => {
           {p.top}
           <header class="hdr">
             {p.back === null ? null : (
-              <a class="back" href={p.back || '/'} aria-label="Back">
+              <a class="back" href={p.back || '/'} aria-label="Back" onclick="if(document.referrer&&new URL(document.referrer).origin===location.origin&&history.length>1){history.back();return false}">
                 <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M9 2L4 7L9 12" fill="none" stroke="#1E3A2B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
               </a>
             )}
