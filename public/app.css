@@ -312,3 +312,13 @@ body:has(.rentbar) .promo.pu{bottom:96px}
 .meet{margin-top:10px}
 .quick{margin-top:12px!important}
 .itemcard{position:relative}.itemcard .b{position:relative}.itemcard .b .pr{display:inline-block;margin-top:-16px;background:var(--orange);color:#fff;border:1.5px solid var(--ink);border-radius:6px;padding:1px 7px;box-shadow:1.5px 1.5px 0 var(--ink);font-weight:900}
+/* edit page photo manager */
+.phm{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.phm-it{position:relative;width:84px}
+.phm-it img{width:84px;height:84px;object-fit:cover;border-radius:10px;display:block;background:var(--cream)}
+.phm-x{position:absolute;top:-6px;right:-6px;width:24px;height:24px;border-radius:12px;border:1.5px solid #fff;background:var(--ink);color:#fff;font-size:15px;font-weight:900;line-height:1;padding:0}
+.phm-cover,.phm-mk{display:block;margin-top:3px;font-size:10px;font-weight:800;text-align:center;width:100%}
+.phm-cover{color:var(--orange)}
+.phm-mk{border:0;background:none;color:#6F6A60;text-decoration:underline;padding:0;font-family:inherit}
+.phm-add{width:84px;height:84px;border:1.5px dashed #B9B3A6;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:26px;font-weight:900;color:var(--ink);cursor:pointer;background:#fff;line-height:1}
+.phm-add small{font-size:10px;font-weight:800;color:#6F6A60}

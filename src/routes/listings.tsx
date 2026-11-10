@@ -33,7 +33,7 @@ listings.get('/list', async (c) => {
       {/* camera */}
       <section id="st-cam" class="cam" hidden>
         <video id="cam" playsinline muted autoplay></video>
-        <input type="file" id="file" accept="image/*" capture="environment" hidden />
+        <input type="file" id="file" accept="image/*" capture="environment" hidden /><input type="file" id="moreFile" accept="image/*" multiple hidden />
         <div class="cam-top">
           <button type="button" class="cam-x" id="camClose" aria-label="Close"><svg width="14" height="14" viewBox="0 0 12 12"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg></button>
           <div class="cam-hints"><span class="hint-big" id="hintBig"></span><span class="hint-sm" id="hint"></span></div>
@@ -107,8 +107,8 @@ listings.post('/api/list', async (c) => {
   for (let i = 0; i < 30; i++) {
     const name = String(f[`name_${i}`] || '').trim(); if (!name) continue;
     const price = Math.round(parseFloat(String(f[`price_${i}`] || '0')) * 100); if (isNaN(price) || price < minP) continue;
-    const photo = f[`photo_${i}`];
-    const photos = photo instanceof File ? [{ bytes: await photo.arrayBuffer(), type: photo.type }] : [];
+    const files = [f[`photo_${i}`], ...Array.from({ length: 5 }, (_, j) => f[`photo_${i}_${j + 1}`])].filter((x): x is File => x instanceof File);
+    const photos = await Promise.all(files.slice(0, 6).map(async p => ({ bytes: await p.arrayBuffer(), type: p.type })));
     const wk = Math.round(parseFloat(String(f[`week_${i}`] || '0')) * 100);
     const lid = await createListing(c.env, c.executionCtx, u, { name, priceCents: price, weekCents: wk > 0 ? wk : null, description: String(f[`note_${i}`] || ''), lat: isNaN(lat) ? null : lat, lng: isNaN(lng) ? null : lng, photos });
     out.push({ id: lid, name });
@@ -200,7 +200,14 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
   return c.html(
     <Layout title="Edit listing" user={u} back="/listings">
       <form method="post" action={'/listings/' + it.id + '/edit'} style="padding:12px 16px 40px">
-        <div class="thumbs" style="padding:0 0 8px">{photos.map(p => <img src={'/p/' + p.r2_key} alt="" />)}</div>
+        <div class="phm">
+          {photos.map((p, i) => <div class="phm-it">
+            <img src={'/p/' + p.r2_key} alt="" />
+            {i === 0 ? <span class="phm-cover">cover</span> : <button type="submit" formaction={`/listings/${it.id}/photos/${p.id}/cover`} formnovalidate class="phm-mk">make cover</button>}
+            <button type="submit" formaction={`/listings/${it.id}/photos/${p.id}/delete`} formnovalidate class="phm-x" aria-label="Remove photo">×</button>
+          </div>)}
+          {photos.length < 6 ? <label class="phm-add">+<small>photo</small><input type="file" accept="image/*" multiple hidden onchange="this.form.action=this.dataset.u;this.form.enctype='multipart/form-data';this.form.submit()" data-u={`/listings/${it.id}/photos`} name="photos" /></label> : null}
+        </div>
         <div style="display:flex;gap:10px;align-items:flex-end">
           <label class="field" style="flex:1"><span>Name</span><input name="name" value={it.name} required maxlength={80} /></label>
           <label class="field" style="width:84px"><span>Map icon</span><input name="emoji" value={it.emoji || emojiFor(it.name, it.description)} maxlength={8} style="text-align:center;font-size:24px!important" /></label>
@@ -223,6 +230,35 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
       </form>
     </Layout>
   );
+});
+
+// photos: add (up to 6), remove, make cover — owner only
+async function ownListing(c: any) { const u = c.get('user')!; const it = await listingById(c.env.DB, c.req.param('id')); return it && it.owner_id === u.id ? it : null; }
+async function renumber(env: any, lid: string) { const rows = (await env.DB.prepare('SELECT id FROM photos WHERE listing_id = ? ORDER BY pos, id').bind(lid).all()).results as { id: string }[]; for (let i = 0; i < rows.length; i++) await env.DB.prepare('UPDATE photos SET pos = ? WHERE id = ?').bind(i, rows[i].id).run(); }
+listings.post('/listings/:id/photos', requireUser, async (c) => {
+  const it = await ownListing(c); if (!it) return c.notFound();
+  const f = await c.req.parseBody({ all: true });
+  const files = (Array.isArray(f.photos) ? f.photos : [f.photos]).filter((x): x is File => x instanceof File && x.size > 0);
+  const have = (await photosFor(c.env.DB, it.id)).length;
+  let pos = have;
+  for (const p of files.slice(0, Math.max(0, 6 - have))) {
+    const key = `${it.id}/${id('ph')}.${(p.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg')}`;
+    await c.env.PHOTOS.put(key, await p.arrayBuffer(), { httpMetadata: { contentType: p.type || 'image/jpeg' } });
+    await c.env.DB.prepare('INSERT INTO photos (id, listing_id, r2_key, pos) VALUES (?,?,?,?)').bind(id('ph'), it.id, key, pos++).run();
+  }
+  return c.redirect(`/listings/${it.id}/edit`);
+});
+listings.post('/listings/:id/photos/:pid/delete', requireUser, async (c) => {
+  const it = await ownListing(c); if (!it) return c.notFound();
+  const ph = await c.env.DB.prepare('SELECT r2_key FROM photos WHERE id = ? AND listing_id = ?').bind(c.req.param('pid'), it.id).first<{ r2_key: string }>();
+  if (ph) { await c.env.DB.prepare('DELETE FROM photos WHERE id = ?').bind(c.req.param('pid')).run(); await c.env.PHOTOS.delete(ph.r2_key); await renumber(c.env, it.id); }
+  return c.redirect(`/listings/${it.id}/edit`);
+});
+listings.post('/listings/:id/photos/:pid/cover', requireUser, async (c) => {
+  const it = await ownListing(c); if (!it) return c.notFound();
+  await c.env.DB.prepare('UPDATE photos SET pos = -1 WHERE id = ? AND listing_id = ?').bind(c.req.param('pid'), it.id).run();
+  await renumber(c.env, it.id);
+  return c.redirect(`/listings/${it.id}/edit`);
 });
 
 listings.post('/listings/:id/edit', requireUser, async (c) => {

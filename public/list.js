@@ -4,6 +4,8 @@
   var $ = function (id) { return document.getElementById(id); };
   var IDEAS = [['🪛', 'Drill', 8], ['⛺', 'Tent', 15], ['📽️', 'Projector', 18], ['🥣', 'Stand mixer', 10], ['🔊', 'Party speaker', 14], ['🪜', 'Ladder', 9], ['🧊', 'Cooler', 8], ['🚲', 'Bike', 20], ['📷', 'Camera', 25], ['🎸', 'Guitar', 12], ['👶', 'Stroller', 10], ['🚿', 'Pressure washer', 22],
     ['🛴', 'Scooter', 15], ['🎿', 'Skis', 20], ['🧳', 'Suitcase', 8], ['🛶', 'Kayak', 35], ['🍲', 'Dutch oven', 8], ['☕', 'Espresso machine', 15], ['🧰', 'Tool kit', 10], ['🪚', 'Saw', 12], ['🎤', 'Karaoke mic', 10], ['🏓', 'Pickleball set', 9], ['🧵', 'Sewing machine', 12], ['🔭', 'Telescope', 18]];
+  var moreFor = null;
+  function shrink(f, cb) { var img = new Image(); img.onload = function () { var s = Math.min(1, 1400 / Math.max(img.width, img.height)), c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); c.toBlob(function (b) { if (b) cb(b); }, 'image/jpeg', 0.86); URL.revokeObjectURL(img.src); }; img.src = URL.createObjectURL(f); }
   var picked = [], shots = [], step = 'ideas', t0 = null, clockT, stream = null, retakeIdx = null, more = false;
   var fmt = function (n) { return '$' + n; };
   function esc(s) { return String(s).replace(/[<>&"]/g, function (c) { return ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]; }); }
@@ -76,7 +78,8 @@
     $('rvCount').textContent = shots.length + ' in ' + clock();
     $('rows').innerHTML = shots.map(function (s, i) {
       return '<div class="row-item" data-i="' + i + '">' +
-        '<button type="button" class="rt" data-act="retake"><img src="' + s.url + '" alt=""><span>↻ Retake</span></button>' +
+        '<div class="rtcol"><button type="button" class="rt" data-act="retake"><img src="' + s.url + '" alt=""><span>↻ Retake</span></button>' +
+        '<div class="xtra">' + (s.extra || []).map(function (x, k) { return '<button type="button" class="xt" data-act="xdel" data-k="' + k + '" aria-label="Remove photo"><img src="' + x.url + '" alt=""><b>×</b></button>'; }).join('') + ((s.extra || []).length < 5 ? '<button type="button" class="xadd" data-act="xadd" aria-label="Add photos">+</button>' : '') + '</div></div>' +
         '<div class="mid"><input class="nm" data-act="name" value="' + esc(s.name) + '" placeholder="' + (s.pending ? 'Looking…' : 'What is it?') + '" maxlength="80">' +
         (s.ai ? '<div class="aichip">✦ ' + esc(s.ai.category_label || '') + (s.ai.basis ? ' · ' + esc(s.ai.basis) : '') + '</div>' : s.pending ? '<div class="aichip pend">✦ identifying…</div>' : '') +
         '<div class="pricerow"><span class="wk"></span><button type="button" class="pm" data-act="dn" aria-label="Lower">−</button><span class="badge">$' + s.price + '<small>/day</small></span><button type="button" class="pm" data-act="up" aria-label="Raise">+</button></div>' +
@@ -92,15 +95,18 @@
   $('rows').addEventListener('click', function (e) {
     var b = e.target.closest('[data-act]'); if (!b) return; var row = b.closest('.row-item'), i = +row.dataset.i, act = b.dataset.act;
     if (act === 'retake') { retakeIdx = i; show('cam'); }
+    if (act === 'xadd') { moreFor = i; $('moreFile').value = ''; $('moreFile').click(); }
+    if (act === 'xdel') { (shots[i].extra || []).splice(+b.dataset.k, 1); renderReview(); }
     if (act === 'dn') { shots[i].price = Math.max(MIN, shots[i].price - 1); shots[i].week = 0; shots[i].touched.price = true; renderReview(); }
     if (act === 'up') { shots[i].price += 1; shots[i].week = 0; shots[i].touched.price = true; renderReview(); }
     if (act === 'del') { shots.splice(i, 1); renderReview(); }
   });
+  $('moreFile').addEventListener('change', function () { var i = moreFor; if (i == null || !shots[i]) return; var fs = Array.prototype.slice.call(this.files, 0, 5 - (shots[i].extra || []).length); fs.forEach(function (f) { shrink(f, function (b) { (shots[i].extra = shots[i].extra || []).push({ blob: b, url: URL.createObjectURL(b) }); renderReview(); }); }); });
   $('rows').addEventListener('input', function (e) { var inp = e.target, row = inp.closest('.row-item'); if (!row) return; var i = +row.dataset.i; if (inp.dataset.act === 'name') { shots[i].name = inp.value; shots[i].touched.name = true; $('listBtn').disabled = shots.some(function (s) { return !s.name.trim(); }); } if (inp.dataset.act === 'note') { shots[i].note = inp.value; shots[i].touched.note = true; grow(inp); } });
   function grow(t) { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 160) + 'px'; }
   $('backCam').addEventListener('click', function () { show('cam'); });
   $('listBtn').addEventListener('click', function () {
-    var fd = new FormData(); shots.forEach(function (s, i) { fd.append('name_' + i, s.name.trim()); fd.append('price_' + i, s.price); fd.append('week_' + i, s.week || 0); fd.append('note_' + i, s.note); fd.append('photo_' + i, s.blob, 'p' + i + '.jpg'); });
+    var fd = new FormData(); shots.forEach(function (s, i) { (s.extra || []).forEach(function (x, k) { fd.append('photo_' + i + '_' + (k + 1), x.blob, 'p' + i + '_' + (k + 1) + '.jpg'); }); fd.append('name_' + i, s.name.trim()); fd.append('price_' + i, s.price); fd.append('week_' + i, s.week || 0); fd.append('note_' + i, s.note); fd.append('photo_' + i, s.blob, 'p' + i + '.jpg'); });
     if (window._gps) { fd.append('lat', window._gps[0]); fd.append('lng', window._gps[1]); }
     $('listBtn').disabled = true; $('listBtn').textContent = 'LISTING…';
     fetch('/api/list', { method: 'POST', body: fd }).then(function (r) { if (r.status === 401) { location.href = '/login?next=/list'; return null; } return r.json(); }).then(function (j) { if (!j) return; renderDone(j); show('done'); }).catch(function () { $('listBtn').disabled = false; $('listBtn').textContent = 'TRY AGAIN'; });
