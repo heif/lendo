@@ -1,4 +1,5 @@
 import { iconsDone, makeWantedIcon, auditIcons } from './lib/wanted-icons';
+import { selfMigrate } from './lib/migrate';
 import { morningBundle } from './lib/alerts';
 import { backfillAvatars, auditAvatars } from './lib/avatar';
 import { fixDemoLand } from './lib/demo-land';
@@ -46,6 +47,7 @@ app.onError((err, c) => { console.error(err); if (c.req.path.startsWith('/api/')
 export default {
   fetch: app.fetch,
   async scheduled(_ev: ScheduledEvent, env: Env) {
+    try { const m = await selfMigrate(env); if (m.length) console.log('self-migrated', m); } catch (e) { console.warn('self-migrate', e); }
     const n = await expireHolds(env);
     if (n) console.log(`expired ${n} held requests`);
     try { const c = await chaseHolds(env); if (c) console.log(`chase: ${c} texts`); } catch (e) { console.warn('chase', e); }

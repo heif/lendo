@@ -2,6 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "lendo",
   "main": "src/index.tsx",
+  "rules": [{ "type": "Text", "globs": ["**/*.sql"], "fallthrough": true }],
   "compatibility_date": "2024-11-01",
   "compatibility_flags": ["nodejs_compat"],
   "assets": { "directory": "./public", "binding": "ASSETS" },

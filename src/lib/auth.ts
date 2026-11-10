@@ -27,7 +27,23 @@ export const requireUser: MiddlewareHandler<{ Bindings: Env; Variables: Vars }> 
   await next();
 };
 
+// Twilio Verify sends + checks the code itself (SMS to any phone; no 10DLC registration needed)
+const twilioOn = (env: Env) => !!(env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_VERIFY_SID);
+async function twilio(env: Env, path: string, body: Record<string, string>): Promise<any> {
+  const r = await fetch(`https://verify.twilio.com/v2/Services/${env.TWILIO_VERIFY_SID}/${path}`, { method: 'POST',
+    headers: { authorization: 'Basic ' + btoa(`${env.TWILIO_ACCOUNT_SID}:${env.TWILIO_AUTH_TOKEN}`), 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(body).toString() });
+  const j: any = await r.json().catch(() => ({}));
+  return r.ok ? j : { error: j?.message || `twilio ${r.status}` };
+}
+
 export async function startLogin(env: Env, phone: string): Promise<{ ok: boolean; devCode?: string; error?: string }> {
+  if (twilioOn(env)) {
+    const j = await twilio(env, 'Verifications', { To: phone, Channel: 'sms' });
+    if (j.error) return { ok: false, error: j.error };
+    await env.DB.prepare('INSERT OR REPLACE INTO otp_codes (phone, code, expires_at, attempts) VALUES (?,?,?,0)').bind(phone, 'twilio', now() + 10 * 60 * 1000).run();
+    return { ok: true };
+  }
   const code = String(Math.floor(100000 + Math.random() * 900000));
   // the previous unexpired code stays valid (resend + autofill of the first text): kept as a 'prev:' row
   const old = await env.DB.prepare('SELECT code, expires_at FROM otp_codes WHERE phone = ?').bind(phone).first<{ code: string; expires_at: number }>();
@@ -47,7 +63,10 @@ export async function finishLogin(c: Context<{ Bindings: Env; Variables: Vars }>
   if (!row || row.expires_at < now() || row.attempts >= 8) return null;
   const prev = await c.env.DB.prepare('SELECT code, expires_at FROM otp_codes WHERE phone = ?').bind('prev:' + phone).first<{ code: string; expires_at: number }>();
   const typed = code.replace(/\D/g, '');
-  if (typed !== row.code && !(prev && prev.expires_at > now() && typed === prev.code)) {
+  const ok = row.code === 'twilio' && twilioOn(c.env)
+    ? (await twilio(c.env, 'VerificationCheck', { To: phone, Code: typed })).status === 'approved'
+    : typed === row.code || !!(prev && prev.expires_at > now() && typed === prev.code);
+  if (!ok) {
     await c.env.DB.prepare('UPDATE otp_codes SET attempts = attempts + 1 WHERE phone = ?').bind(phone).run();
     return null;
   }

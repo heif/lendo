@@ -19,6 +19,9 @@ export type Env = {
   BLOOIO_API_KEY?: string;
   BLOOIO_WEBHOOK_SECRET?: string;
   MAPBOX_SECRET_TOKEN?: string;
+  TWILIO_ACCOUNT_SID?: string;    // login codes by SMS via Twilio Verify (works on Android / non-iMessage); unset → Blooio
+  TWILIO_AUTH_TOKEN?: string;
+  TWILIO_VERIFY_SID?: string;     // VA… service id
   ANTHROPIC_API_KEY?: string;     // plain-English texting (intent.ts)  // sk., never sent to the client
 };
 
