@@ -134,3 +134,19 @@ canvas.story{width:132px;height:auto;aspect-ratio:9/16;border-radius:12px;border
 .cam-bar .thumbwrap{grid-column:1;justify-self:start}
 .cam-bar .shutter{grid-column:2}
 .cam-bar .donebtn{grid-column:3;justify-self:end}
+
+/* tighter Posted card: check + "Posted" on one line, items as compact rows */
+.dn-ok{padding:12px 14px;margin:0 0 12px;border-radius:16px}
+.dn-top{gap:10px}
+.dn-check{width:42px;height:42px;box-shadow:0 0 0 4px rgba(31,138,76,.18)}
+.dn-ok .dn-head{font-size:28px;letter-spacing:-1px;line-height:1}
+.dn-ok .dn-sub{font-size:13px;margin-top:2px}
+.dn-items{flex-direction:column;gap:6px;margin-top:10px;padding:0;overflow:visible}
+.dn-item{width:auto;display:flex;align-items:center;gap:10px;background:#fff;border-radius:12px;padding:6px 10px 6px 6px}
+.dn-item img{width:52px;height:52px;border:0;border-radius:8px;flex-shrink:0}
+.dn-item img.cut{object-fit:contain;background:#fff}
+.dn-nm{margin:0;font-size:15px;flex:1;min-width:0}
+.dn-pr{font-size:14px;white-space:nowrap}
+.dn-tick{position:static;width:20px;height:20px;font-size:12px;border:0;flex-shrink:0}
+/* review thumb: transparent cutout on white */
+.row-item .rt img.cut{object-fit:contain;background:#fff;border:1px solid #EEEBE4}

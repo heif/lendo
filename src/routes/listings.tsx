@@ -65,7 +65,7 @@ listings.get('/list', async (c) => {
         <div class="lf-scroll">
           <div class="dn-ok">
             <div class="dn-top">
-              <div class="dn-check" aria-hidden="true"><svg width="40" height="40" viewBox="0 0 40 40"><path d="M9 21l7 7L31 12" fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" /></svg></div>
+              <div class="dn-check" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 40 40"><path d="M9 21l7 7L31 12" fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" /></svg></div>
               <div><div class="dn-head" id="dnHead">Posted</div><div class="dn-sub" id="dnSub">Live on the map now</div></div>
             </div>
             <div class="dn-items" id="tray"></div>
@@ -115,6 +115,15 @@ listings.get('/api/cut/:id', async (c) => {
     catch { return c.json({ error: 'cut' }, 502); }
   }
   return c.body(o.body, 200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' });
+});
+
+listings.get('/api/cuttmp/:id{[a-f0-9]{16}}', async (c) => {
+  const base = `tmp/${c.req.param('id')}`, key = `${base}-cut.png`;
+  const o = await c.env.PHOTOS.get(key);
+  if (o) return c.body(o.body, 200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' });
+  if (!(await c.env.PHOTOS.head(`${base}.jpg`))) return c.json({ error: 'none' }, 404);
+  try { const cut = await makeCutout(c.env, `${base}.jpg`, 900); if (!cut) return c.json({ error: 'cut' }, 502); await c.env.PHOTOS.put(key, cut, { httpMetadata: { contentType: 'image/png' } }); return c.body(cut, 200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' }); }
+  catch { return c.json({ error: 'cut' }, 502); }
 });
 
 listings.post('/api/list', async (c) => {

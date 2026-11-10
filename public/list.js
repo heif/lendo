@@ -48,11 +48,17 @@
     $('toast').classList.add('on'); clearTimeout($('toast')._t); $('toast')._t = setTimeout(function () { $('toast').classList.remove('on'); }, 1100);
     updateHint();
   }
+  // crop the transparent padding off a cutout → data URL (falls back to the original URL)
+  function trimUrl(im, fallback) { try { var c = document.createElement('canvas'), W = im.naturalWidth, H = im.naturalHeight; c.width = W; c.height = H; var g = c.getContext('2d'); g.drawImage(im, 0, 0);
+    var d = g.getImageData(0, 0, W, H).data, x0 = W, y0 = H, x1 = 0, y1 = 0;
+    for (var y = 0; y < H; y += 2) for (var x = 0; x < W; x += 2) if (d[(y * W + x) * 4 + 3] > 20) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    if (x1 <= x0) return fallback; var pad = 6, o = document.createElement('canvas'); o.width = x1 - x0 + 1 + pad * 2; o.height = y1 - y0 + 1 + pad * 2; o.getContext('2d').drawImage(c, x0, y0, x1 - x0 + 1, y1 - y0 + 1, pad, pad, x1 - x0 + 1, y1 - y0 + 1); return o.toDataURL('image/png'); } catch (e) { return fallback; } }
   function identify(shot) {
     var fd = new FormData(); fd.append('photo', shot.blob, 'p.jpg'); if (shot.hint) fd.append('hint', shot.hint);
     shot.pending = true;
     fetch('/api/identify', { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (j) {
       shot.pending = false; if (!j || j.error) return; shot.ai = j;
+      if (j.cut) { var ci = new Image(); ci.onload = function () { shot.cutUrl = trimUrl(ci, j.cut); var k = shots.indexOf(shot), im = k < 0 ? null : document.querySelector('.row-item[data-i="' + k + '"] .rt img'); if (im) { im.src = shot.cutUrl; im.classList.add('cut'); } }; ci.src = j.cut; }
       if (!shot.touched.name) shot.name = j.name || shot.name;
       if (!shot.touched.price) { shot.price = Math.max(MIN, Math.round(j.price_cents / 100)); shot.week = Math.round((j.week_cents || 0) / 100); }
       if (!shot.touched.note && j.description) shot.note = j.description;
@@ -84,7 +90,7 @@
     $('rvCount').textContent = shots.length + ' in ' + clock();
     $('rows').innerHTML = shots.map(function (s, i) {
       return '<div class="row-item" data-i="' + i + '">' +
-        '<div class="rtcol"><button type="button" class="rt" data-act="retake"><img src="' + s.url + '" alt=""><span>↻ Retake</span></button>' +
+        '<div class="rtcol"><button type="button" class="rt" data-act="retake"><img src="' + (s.cutUrl || s.url) + '" alt=""' + (s.cutUrl ? ' class="cut"' : '') + '><span>↻ Retake</span></button>' +
         '<div class="xtra">' + (s.extra || []).map(function (x, k) { return '<button type="button" class="xt" data-act="xdel" data-k="' + k + '" aria-label="Remove photo"><img src="' + x.url + '" alt=""><b>×</b></button>'; }).join('') + ((s.extra || []).length < 5 ? '<button type="button" class="xadd" data-act="xadd" aria-label="Add photos">+</button>' : '') + '</div></div>' +
         '<div class="mid"><div class="nmwrap"><input class="nm" data-act="name" value="' + esc(s.name) + '" placeholder="' + (s.pending ? 'Looking…' : 'What is it?') + '" maxlength="80"><button type="button" class="nmclr" data-act="nmclr" aria-label="Clear name">×</button></div>' +
         (s.pending ? '<div class="aichip pend">✦ identifying…</div>' : '') +
@@ -123,7 +129,7 @@
   function renderDone(j) {
     clearInterval(clockT);
     var escH = function (x) { return String(x).replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]; }); };
-    $('tray').innerHTML = shots.map(function (s) { return '<div class="dn-item"><img src="' + s.url + '" alt=""><div class="dn-nm">' + escH(s.name.trim()) + '</div><div class="dn-pr">$' + s.price + '/day</div><span class="dn-tick">✓</span></div>'; }).join('');
+    $('tray').innerHTML = shots.map(function (s) { return '<div class="dn-item"><img src="' + (s.cutUrl || s.url) + '" alt=""' + (s.cutUrl ? ' class="cut"' : '') + '><div class="dn-nm">' + escH(s.name.trim()) + '</div><div class="dn-pr">$' + s.price + '/day</div><span class="dn-tick">✓</span></div>'; }).join('');
     $('dnHead').textContent = shots.length === 1 ? 'Posted' : shots.length + ' posted';
     $('dnSub').textContent = shots.length === 1 ? 'Live on the map — neighbors can rent it now' : 'Live on the map — neighbors can rent them now';
 
@@ -168,7 +174,8 @@
     function redraw() { base(imgs); }
     shots.slice(0, 4).forEach(function (s, k) {
       var ph = new Image(); ph.onload = function () { if (!imgs[k] || !imgs[k]._cut) { imgs[k] = ph; redraw(); } }; ph.src = s.url;
-      if (L[k]) { var tries = 0, get = function () { var im = new Image(); im._cut = true; im.onload = function () { imgs[k] = trimAlpha(im); redraw(); }; im.onerror = function () { if (++tries < 3) setTimeout(get, 2500); }; im.src = '/api/cut/' + L[k].id + '?t=' + tries; }; setTimeout(get, 600); }
+      if (s.cutUrl) { var c0 = new Image(); c0.onload = function () { imgs[k] = trimAlpha(c0); redraw(); }; c0.src = s.cutUrl; }
+      else if (L[k]) { var tries = 0, get = function () { var im = new Image(); im._cut = true; im.onload = function () { imgs[k] = trimAlpha(im); redraw(); }; im.onerror = function () { if (++tries < 6) setTimeout(get, 3000); }; im.src = '/api/cut/' + L[k].id + '?t=' + tries; }; setTimeout(get, 600); }
     });
     redraw();
     // crop transparent padding so the item fills its box

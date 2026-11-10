@@ -21,11 +21,15 @@ admin.post('/api/identify', async (c) => {
   const p = f.photo;
   if (!(p instanceof File)) return c.json({ error: 'photo required' }, 400);
   const hint = String(f.hint || '').slice(0, 60) || null;
-  const id = await identifyItem(c.env, await p.arrayBuffer(), hint);
+  const bytes = await p.arrayBuffer();
+  // keep the snap so the review/done screens can show it cut out before the listing exists
+  const tmp = `tmp/${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
+  c.executionCtx.waitUntil(c.env.PHOTOS.put(`${tmp}.jpg`, bytes, { httpMetadata: { contentType: p.type || 'image/jpeg' } }).then(() => {}));
+  const id = await identifyItem(c.env, bytes, hint);
   c.executionCtx.waitUntil(c.env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('last_identify', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(JSON.stringify({ at: new Date().toISOString(), key: !!c.env.ANTHROPIC_API_KEY, name: id.name, brand: id.brand ?? null, raw: lastRaw.slice(0, 600) })).run());
   const { rules, settings } = await loadPricing(c.env);
   const pr = suggestPrice(rules, settings, id.category, id.retail_usd);
-  return c.json({ ...id, price_cents: pr.day_cents, week_cents: pr.week_cents, basis: pr.basis, category_label: pr.rule.label, ...(c.req.query('raw') && c.get('user')!.admin ? { raw: lastRaw } : {}) });
+  return c.json({ ...id, cut: `/api/cuttmp/${tmp.slice(4)}`, price_cents: pr.day_cents, week_cents: pr.week_cents, basis: pr.basis, category_label: pr.rule.label, ...(c.req.query('raw') && c.get('user')!.admin ? { raw: lastRaw } : {}) });
 });
 
 admin.get('/admin', (c) => c.redirect('/admin/pricing'));
