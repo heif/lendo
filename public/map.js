@@ -329,6 +329,18 @@
     setInterval(function () { if (busy || document.hidden || !items.length || items.length > 150) return; var src = map.getSource('listings'); if (src) src.setData(toGeo(items)); }, 80);
   }
 
+  // desktop: poster sits beside the tapped marker (right side, or left if no room), clamped to the map; phones keep bottom-center
+  function placePoster(ws, el) {
+    ws.style.left = ws.style.top = ws.style.bottom = ws.style.marginLeft = '';
+    if (window.innerWidth < 760) return;
+    var box = ws.offsetParent ? ws.offsetParent.getBoundingClientRect() : document.body.getBoundingClientRect(), m = el.getBoundingClientRect();
+    var w = ws.offsetWidth, h = ws.offsetHeight, gap = 18;
+    var x = m.right - box.left + gap; if (x + w > box.width - 12) x = m.left - box.left - gap - w;
+    var y = m.top - box.top + m.height / 2 - h / 2;
+    x = Math.max(12, Math.min(box.width - w - 12, x)); y = Math.max(70, Math.min(box.height - h - 12, y));
+    ws.style.left = x + 'px'; ws.style.top = y + 'px'; ws.style.bottom = 'auto'; ws.style.marginLeft = '0';
+  }
+  map.on('movestart', function (e) { if (e.originalEvent && window.innerWidth >= 760) $('wsheet').hidden = true; });
   // ---- WANTED posters (prototype ghosts): deterministic per grid cell so they stay put while panning; never on a pin
   // Ghost sizing rubric: crop to the object, scale to equal visible ink area (34px²-equivalent), nudge by class,
   // clamp the long side (38–62px; long thin gear up to 74px). Computed once per icon, cached for the session.
@@ -384,7 +396,7 @@
             if (!clash) { w = cand; break; } }
           if (!w) w = want[wi]; chosen[x + ',' + y] = w.key;
           var el = document.createElement('a'); el.href = '/list?want=' + encodeURIComponent(w.label);
-          (function (w, el) { el.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); if (w.icon) { $('wsEm').innerHTML = '<img alt="" class="wsimg">'; var pim = $('wsEm').firstChild; fitIcon(w, pim); var fit = function () { var r = Math.min(120 / (parseFloat(pim.style.width) || 1), 104 / (parseFloat(pim.style.height) || 1)); pim.style.width = Math.round(parseFloat(pim.style.width) * r) + 'px'; pim.style.height = Math.round(parseFloat(pim.style.height) * r) + 'px'; }; if (pim.style.width) fit(); else pim.addEventListener('load', fit, { once: true }); } else $('wsEm').textContent = w.emoji; $('wsName').textContent = w.label; $('wsGo').href = el.href; $('wsheet').hidden = false; }); })(w, el);
+          (function (w, el) { el.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); if (w.icon) { $('wsEm').innerHTML = '<img alt="" class="wsimg">'; var pim = $('wsEm').firstChild; fitIcon(w, pim); var fit = function () { var r = Math.min(120 / (parseFloat(pim.style.width) || 1), 104 / (parseFloat(pim.style.height) || 1)); pim.style.width = Math.round(parseFloat(pim.style.width) * r) + 'px'; pim.style.height = Math.round(parseFloat(pim.style.height) * r) + 'px'; }; if (pim.style.width) fit(); else pim.addEventListener('load', fit, { once: true }); } else $('wsEm').textContent = w.emoji; $('wsName').textContent = w.label; $('wsGo').href = el.href; var ws = $('wsheet'); ws.hidden = false; placePoster(ws, el); }); })(w, el);
           if (PROMO) { el.className = 'wanted'; el.setAttribute('aria-label', 'Wanted: ' + w.label + '. Reward for listing.'); el.innerHTML = '<b>WANTED</b><i>' + w.emoji + '</i><em>' + w.label + '</em><strong>REWARD</strong><small>for listing</small>'; }
           else { el.className = 'ghost' + (w.icon ? ' img' : ''); el.title = 'Wanted: ' + w.label; el.setAttribute('aria-label', 'Wanted: ' + w.label); if (w.icon) { el.innerHTML = '<img alt="" draggable="false">'; fitIcon(w, el.firstChild); } else el.textContent = w.emoji; el.style.setProperty('--r', ((h >>> 4) % 17 - 8) + 'deg'); el.style.fontSize = '44px'; }
           marks[k] = new mapboxgl.Marker({ element: el, anchor: 'center', className: 'wanted-m', rotationAlignment: 'viewport' }).setLngLat([lng, lat]).addTo(map); marks[k]._wkey = w.key;

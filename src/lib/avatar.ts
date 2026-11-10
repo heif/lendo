@@ -26,7 +26,7 @@ export async function describeItem(env: Env, photo: ArrayBuffer, name: string): 
 }
 export async function drawIcon(env: Env, desc: string): Promise<ArrayBuffer | null> {
   const r: any = await env.AI!.run('@cf/black-forest-labs/flux-1-schnell' as any, {
-    prompt: `${desc}. Rendered as a single Apple iOS emoji-style icon: faithful to the described shape and proportions, simple rounded forms, soft gradients, subtle shading, slight glossy 3D look, clean silhouette, centered, isolated on a pure solid white background, no text, no ground shadow.`,
+    prompt: `${desc}. Rendered as a single glossy 3D product icon of that exact real-world object (not a symbol, not food, not a pun): faithful to the described shape and proportions, simple rounded forms, soft gradients, subtle shading, slight glossy 3D look, clean silhouette, centered, isolated on a pure solid white background, no text, no ground shadow.`,
     steps: 6,
   } as any);
   if (r?.image) return Uint8Array.from(atob(r.image), ch => ch.charCodeAt(0)).buffer;

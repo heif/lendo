@@ -25,7 +25,7 @@ Object.assign(PROMPTS, {
   picnic: 'a wicker picnic basket with a blanket',
   dinnerware: 'a stack of elegant plates and glasses',
   espresso2: 'a modern espresso machine',
-  airfryer: 'a modern air fryer',
+  airfryer: 'a modern countertop air fryer kitchen appliance, black plastic with a pull-out basket drawer and a control panel, no food',
   stroller2: 'a modern baby stroller',
   carseat: 'a baby car seat',
   crib: 'a portable travel crib',
@@ -41,7 +41,7 @@ Object.assign(PROMPTS, {
   blower: 'a cordless leaf blower',
   mower: 'a push lawn mower',
   trimmer: 'a cordless hedge trimmer',
-  sander: 'an orbital sander',
+  sander: 'a handheld electric random orbital sander power tool with a round sanding pad, like a DeWalt or Makita',
   shopvac: 'a wet dry shop vacuum',
   tilesaw: 'a wet tile saw',
   nailgun: 'a cordless nail gun',
@@ -56,13 +56,59 @@ export async function iconsDone(env: Env): Promise<Set<string>> {
   const r = await env.DB.prepare(`SELECT value FROM settings WHERE key = 'wanted_icons'`).first<{ value: string }>();
   return new Set<string>(r ? JSON.parse(r.value) : []);
 }
+// Vision check: Flux reads "emoji-style air fryer" as fries, "orbital sander" as logs. Ask Haiku whether the
+// picture is literally the object; retry with a more literal prompt; never publish a failed icon.
+export async function looksLike(env: Env, png: ArrayBuffer, label: string): Promise<boolean | null> {
+  if (!env.ANTHROPIC_API_KEY) return null;
+  const b = new Uint8Array(png); let bin = ''; for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode(...b.subarray(i, i + 0x8000));
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-haiku-5-5', max_tokens: 5, messages: [{ role: 'user', content: [
+        { type: 'image', source: { type: 'base64', media_type: 'image/png', data: btoa(bin) } },
+        { type: 'text', text: `Would a shopper instantly recognize this icon as "${label}" (the actual product itself, not food, wood, a symbol or a related object)? Answer only YES or NO.` }] }] }) });
+    if (!r.ok) return null;
+    const j: any = await r.json(); return /^\s*YES/i.test(j?.content?.[0]?.text || '');
+  } catch { return null; }
+}
 export async function makeWantedIcon(env: Env, key: string): Promise<boolean> {
   const w = WANTED_ALL.find(x => x.key === key); if (!w || !env.AI) return false;
-  const png = await drawIcon(env, (PROMPTS[key] || `a ${w.label}`) + ', object only, no people, no hands'); if (!png) return false;
+  const base = PROMPTS[key] || `a ${w.label}`;
+  const tries = [base, `${base} (${w.label}), the real product as sold in a store`, `a ${w.label}: product photo of the actual device/object`];
+  let png: ArrayBuffer | null = null, ok: boolean | null = false;
+  for (const t of tries) {
+    png = await drawIcon(env, t + ', the object itself only, no people, no hands, no food, no logs'); if (!png) continue;
+    ok = await looksLike(env, png, w.label); if (ok !== false) break; // null = checker unavailable → accept
+  }
+  if (!png || ok === false) { await markBad(env, key); return false; }
   const raw = `wanted/${key}-raw.png`; await env.PHOTOS.put(raw, png, { httpMetadata: { contentType: 'image/png' } });
   let out = png; try { const cut = await makeCutout(env, raw); if (cut) out = cut; } catch {}
   await env.PHOTOS.put(`wanted/${key}.png`, out, { httpMetadata: { contentType: 'image/png' } });
   const done = await iconsDone(env); done.add(key);
+  await env.DB.prepare(`UPDATE settings SET value = (SELECT json_group_array(value) FROM json_each(settings.value) WHERE value != ?) WHERE key = 'wanted_bad'`).bind(key).run().catch(() => {});
   await env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('wanted_icons', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(JSON.stringify([...done])).run();
   return true;
+}
+// failed 3 tries → listed in settings.wanted_bad (admin shows them; poster falls back to emoji)
+async function markBad(env: Env, key: string) {
+  const r = await env.DB.prepare(`SELECT value FROM settings WHERE key = 'wanted_bad'`).first<{ value: string }>();
+  const bad = new Set<string>(r ? JSON.parse(r.value) : []); bad.add(key);
+  await env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('wanted_bad', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(JSON.stringify([...bad])).run();
+}
+// audit existing icons: un-mark any that fail the check so the cron redraws them
+export async function auditIcons(env: Env, limit = 8): Promise<string[]> {
+  const done = await iconsDone(env);
+  const r = await env.DB.prepare(`SELECT value FROM settings WHERE key = 'wanted_audited'`).first<{ value: string }>();
+  const seen = new Set<string>(r ? JSON.parse(r.value) : []); const redo: string[] = [];
+  for (const key of [...done].filter(k => !seen.has(k)).slice(0, limit)) {
+    const w = WANTED_ALL.find(x => x.key === key); const o = await env.PHOTOS.get(`wanted/${key}-raw.png`) || await env.PHOTOS.get(`wanted/${key}.png`);
+    if (!w || !o) continue;
+    const ok = await looksLike(env, await o.arrayBuffer(), w.label); if (ok === null) break;
+    seen.add(key); if (!ok) { done.delete(key); redo.push(key); }
+  }
+  await env.DB.batch([
+    env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('wanted_icons', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(JSON.stringify([...done])),
+    env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('wanted_audited', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(JSON.stringify([...seen].filter(k => !redo.includes(k)))),
+  ]);
+  return redo;
 }
