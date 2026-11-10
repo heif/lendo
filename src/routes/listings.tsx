@@ -62,9 +62,13 @@ listings.get('/list', async (c) => {
       {/* done */}
       <section id="st-done" class="lf" hidden>
         <div class="lf-scroll">
-          <div class="tray" id="tray"></div>
-          <div class="dn-head" id="dnHead">Posted.</div>
-          <div class="dn-sub" id="dnSub">Neighbors can rent it now. Tell them.</div>
+          <div class="dn-ok">
+            <div class="dn-top">
+              <div class="dn-check" aria-hidden="true"><svg width="40" height="40" viewBox="0 0 40 40"><path d="M9 21l7 7L31 12" fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" /></svg></div>
+              <div><div class="dn-head" id="dnHead">Posted</div><div class="dn-sub" id="dnSub">Live on the map now</div></div>
+            </div>
+            <div class="dn-items" id="tray"></div>
+          </div>
           <div class="share">
             <div class="share-h">Share it. Post it.</div>
             <div class="flyer"><div class="flyer-h">FOR RENT ON MY BLOCK</div><div class="flyer-tray" id="shTray"></div><div class="flyer-l" id="shLine"></div><div class="flyer-u">lendo.co/u/{u.id.slice(0, 8)}…</div></div>

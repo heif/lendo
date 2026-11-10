@@ -99,3 +99,19 @@ html.camdark body,html.camdark .wrap{background:#1E3A2B}
 .xtra .xt b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(30,58,43,.45);color:#fff;font-size:13px;opacity:0}
 .xtra .xt:active b,.xtra .xt:hover b{opacity:1}
 .xtra .xadd{width:22px;height:22px;padding:0;border:1.5px dashed #B9B3A6;border-radius:5px;background:#fff;color:var(--ink);font-size:15px;font-weight:900;line-height:1}
+
+/* done screen: big green check + the posted items in one success card */
+.dn-ok{margin:4px 0 16px;padding:16px;border:2px solid #1F8A4C;border-radius:18px;background:#EAF6EE}
+.dn-top{display:flex;align-items:center;gap:14px}
+.dn-check{flex-shrink:0;width:68px;height:68px;border-radius:50%;background:#1F8A4C;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 6px rgba(31,138,76,.18);animation:dnpop .45s cubic-bezier(.2,.9,.3,1.4) both}
+.dn-check path{stroke-dasharray:40;stroke-dashoffset:40;animation:dndraw .35s .25s ease-out forwards}
+@keyframes dnpop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes dndraw{to{stroke-dashoffset:0}}
+.dn-ok .dn-head{font-size:40px;letter-spacing:-1.5px;margin:0;color:#145C33;animation:none}
+.dn-ok .dn-sub{margin:2px 0 0;font-size:15px;color:#2C4A37}
+.dn-items{display:flex;gap:12px;margin-top:8px;overflow-x:auto;padding:8px 8px 2px 0}
+.dn-item{position:relative;flex-shrink:0;width:96px}
+.dn-item img{width:96px;height:96px;object-fit:cover;border-radius:12px;display:block;border:2px solid var(--ink)}
+.dn-nm{margin-top:6px;font-size:14px;font-weight:800;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dn-pr{font-size:13px;font-weight:700;color:#D94300}
+.dn-tick{position:absolute;right:-6px;top:-6px;width:24px;height:24px;border-radius:50%;background:#1F8A4C;color:#fff;font-size:14px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid #fff}
