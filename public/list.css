@@ -149,3 +149,4 @@ canvas.story{width:132px;height:auto;aspect-ratio:9/16;border-radius:12px;border
 .dn-tick{position:static;width:20px;height:20px;font-size:12px;border:0;flex-shrink:0}
 /* review thumb: transparent cutout on white */
 .row-item .rt img.cut{object-fit:contain;background:#fff;border:1px solid #EEEBE4}
+.lf-tip{margin:-4px 0 12px;padding:9px 12px;border-radius:10px;background:#FFF4EC;border:1px solid #F6D2BD;font-size:13px;line-height:1.35;color:#4A463F}.lf-tip b{color:#D94300;font-weight:800}
