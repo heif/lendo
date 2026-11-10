@@ -74,18 +74,20 @@
   // Spread: items at (nearly) the same spot are pushed apart on screen so each shows as its own pin (no "2" bubbles).
   // Offsets are computed per zoom level and cached so pins don't jitter while the wiggle re-renders.
   var spreadKey = '', spreadPos = {};
+  function hid(s) { var h = 0; for (var k = 0; k < s.length; k++) h = (h * 31 + s.charCodeAt(k)) | 0; return Math.abs(h); }
   function spread(arr) {
     if (!map || !map.loaded || !map.getZoom) return;
-    var z = Math.round(map.getZoom() * 4) / 4, key = z + '|' + arr.map(function (it) { return it.id; }).join(',');
+    var z = Math.round(map.getZoom() * 4) / 4, key = z + '|' + arr.map(function (it) { return it.id; }).sort().join(',');
     if (key === spreadKey) return; spreadKey = key; spreadPos = {};
-    var pts = arr.filter(function (it) { return it.lat != null; }).map(function (it) { var p = map.project([it.lng, it.lat]); return { id: it.id, x: p.x, y: p.y, ox: p.x, oy: p.y }; });
+    // stable: same items → same arrangement regardless of load order (sorted by id; coincident pins fan out by id hash)
+    var pts = arr.filter(function (it) { return it.lat != null; }).slice().sort(function (a, b) { return a.id < b.id ? -1 : 1; }).map(function (it) { var p = map.project([it.lng, it.lat]); return { id: it.id, x: p.x, y: p.y, ox: p.x, oy: p.y }; });
     var R = 104, moved = false;
     for (var iter = 0; iter < 60; iter++) {
       moved = false;
       for (var i = 0; i < pts.length; i++) for (var j = i + 1; j < pts.length; j++) {
         var a = pts[i], b = pts[j], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
         if (d >= R) continue; moved = true;
-        if (d < 0.01) { var ang = ((i * 7 + j * 13) % 12) * 0.5236; dx = Math.cos(ang); dy = Math.sin(ang) * 0.6; d = 1; }
+        if (d < 0.01) { var ang = (hid(a.id + b.id) % 12) * 0.5236; dx = Math.cos(ang); dy = Math.sin(ang) * 0.6; d = 1; }
         var push = (R - d) / 2 / d; a.x -= dx * push; a.y -= dy * push; b.x += dx * push; b.y += dy * push;
       }
       if (!moved) break;
