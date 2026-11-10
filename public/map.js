@@ -41,6 +41,8 @@
     sorted.forEach(function (it) { var a = aisleOf(it); (groups[a] = groups[a] || []).push(it); });
     var names = Object.keys(groups).sort(function (a, b) { return a === 'Everything else' ? 1 : b === 'Everything else' ? -1 : groups[b].length - groups[a].length; });
     if (openAisle && !groups[openAisle]) openAisle = null;
+    // searching: one flat result grid, no category headers (the header would read as a different word than the search)
+    if (q.value.trim() && sorted.length) { grid.innerHTML = '<div class="ai-res">' + sorted.length + ' to rent</div><section class="aisle focus"><div class="ai-row">' + sorted.map(tile).join('') + '</div></section>'; return; }
     if (!names.length) { grid.innerHTML = '<div class="hint" style="padding:24px 16px">Nothing here yet. Be the first — <a href="/list">list something</a>.</div>'; return; }
     grid.innerHTML = (openAisle ? '<button type="button" class="ai-back" data-aisle="">‹ All categories</button>' : '') + (openAisle ? [openAisle] : names).map(function (n) {
       var list = groups[n], focus = n === openAisle;

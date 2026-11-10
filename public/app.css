@@ -408,3 +408,4 @@ html,body{overflow-x:hidden}
 
 /* ghosts shrink when zoomed out (map sets --gs) */
 .ghost.img img{transform:scale(var(--gs,1));transform-origin:50% 50%}
+.ai-res{padding:14px 16px 2px;font-size:13px;font-weight:800;color:#6F6A60}
