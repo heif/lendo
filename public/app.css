@@ -41,7 +41,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .scope-hood svg{position:absolute;right:9px;top:50%;margin-top:-3px}
 .scope-hood svg path{stroke:var(--ink)}
 .scope-hood::after{content:'';position:absolute;right:25px;top:7px;bottom:7px;width:1px;background:#DCD7CC}
-.scope-city{background:#fff;color:#6F6A60;border:1.5px solid #E6E2DA!important;align-items:center!important;max-width:88px;flex:0 1 auto}
+.scope-city{background:#fff;color:#6F6A60;border:1.5px solid #E6E2DA!important;align-items:center!important;flex:0 0 auto;max-width:none}
 .scope-globe{background:#fff;color:#6F6A60;border:1.5px solid #E6E2DA!important;width:34px;padding:0!important;align-items:center!important}
 .hdr .logo{font-size:46px;font-weight:900;letter-spacing:-2.3px}
 .hdr .logo .wave{font-size:31px;margin-right:6px}
@@ -208,7 +208,7 @@ html.mappage .hdr{flex-shrink:0;position:relative}
 .stars{display:flex;gap:6px}
 .stars button{width:40px;height:40px;border-radius:10px;border:1.5px solid var(--ink);background:#fff;font-size:18px}
 .stars button.on{background:var(--orange);color:#fff}
-@media (max-width:420px){.scope-globe{display:none}.hdr .logo{font-size:30px}.scope-hood{max-width:128px;min-width:88px}.scope-city{max-width:76px}}
+@media (max-width:420px){.scope-globe{display:none}.hdr .logo{font-size:30px}.scope-hood{max-width:128px;min-width:80px}}
 /* no double-tap zoom on controls (iOS) */
 button,.btn,.pm,.idea,.days button,.stars button{touch-action:manipulation}
 
@@ -323,7 +323,7 @@ body:has(.rentbar) .promo.pu{bottom:96px}
 .phm-add{width:84px;height:84px;border:1.5px dashed #B9B3A6;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:26px;font-weight:900;color:var(--ink);cursor:pointer;background:#fff;line-height:1}
 .phm-add small{font-size:10px;font-weight:800;color:#6F6A60}
 /* list view = prototype aisles */
-.aisles{position:absolute;inset:0;overflow-y:auto;background:var(--cream);z-index:450;padding:62px 0 90px;-webkit-overflow-scrolling:touch}
+.aisles{position:absolute;inset:0;overflow-y:auto;background:var(--cream);z-index:450;padding:112px 0 90px;-webkit-overflow-scrolling:touch}
 .mapwrap.listing .rent-out{z-index:460}
 .aisle{margin:4px 0 18px}
 .ai-h{width:100%;display:flex;align-items:baseline;gap:8px;padding:0 14px 4px;border:0;background:none;font-family:inherit;color:var(--ink);cursor:pointer;text-align:left}
