@@ -353,3 +353,5 @@ body:has(.rentbar) .promo.pu{bottom:96px}
 .medot{width:18px;height:18px;border-radius:50%;background:#1A73E8;border:3px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.12),0 0 0 14px rgba(26,115,232,.16)}
 body:has(.promo.pu:not([hidden])) .locbtn{bottom:96px}
 .mapwrap.listing .locbtn{display:none}
+.toast{position:absolute;left:12px;right:72px;bottom:96px;z-index:700;background:var(--ink);color:#fff;font-size:13px;font-weight:600;line-height:1.35;padding:10px 12px;border-radius:12px;box-shadow:0 6px 18px rgba(30,58,43,.25);animation:rise .2s ease-out both}
+.locbtn{touch-action:manipulation}

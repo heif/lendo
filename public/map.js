@@ -271,6 +271,7 @@
   $('toggle').addEventListener('click', function () { setList(!listMode); });
   // standard "my location": blue dot + accuracy halo, recenters on tap
   var meMk = null;
+  function toast(msg) { var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.querySelector('.mapwrap').appendChild(t); setTimeout(function () { t.remove(); }, 6500); t.addEventListener('click', function () { t.remove(); }); }
   $('locate').addEventListener('click', function () {
     var btn = this; if (!navigator.geolocation) return; btn.classList.add('busy');
     navigator.geolocation.getCurrentPosition(function (p) {
@@ -278,7 +279,12 @@
       var ll = [p.coords.longitude, p.coords.latitude];
       if (!meMk) { var el = document.createElement('div'); el.className = 'medot'; meMk = new mapboxgl.Marker({ element: el }).setLngLat(ll).addTo(map); } else meMk.setLngLat(ll);
       map.easeTo({ center: ll, zoom: Math.max(map.getZoom(), 15), duration: 800 });
-    }, function () { btn.classList.remove('busy'); }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 });
+    }, function (err) {
+      btn.classList.remove('busy');
+      // fall back to network location, and say why the precise one failed
+      if (CFG.ipLoc) map.easeTo({ center: CFG.ipLoc, zoom: Math.max(map.getZoom(), 13), duration: 800 });
+      toast(err && err.code === 1 ? 'Location is off for lendo.co. On iPhone: Settings › Privacy › Location Services › Safari Websites → While Using. Then tap again.' : 'Couldn’t get a GPS fix — showing roughly where you are.');
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
   });
   map.on('dragstart', function () { $('locate').classList.remove('on'); });
   // No home base: use device location only if it's inside a live city; otherwise stay in NYC and nudge the city switcher
