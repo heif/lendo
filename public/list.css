@@ -62,7 +62,7 @@ html.camdark body,html.camdark .wrap{background:#1E3A2B}
 .row-item .rt span{position:absolute;left:0;right:0;bottom:0;border-radius:0 0 10px 10px;background:rgba(30,58,43,.78);color:#fff;font-size:10px;font-weight:800;padding:3px 0}
 .row-item .mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
 .row-item .nm{width:100%;border:0;border-bottom:1px dashed #DCD7CC;font-size:17px!important;font-weight:700;background:transparent;padding:4px 0;height:auto}
-.pricerow{display:flex;align-items:center;gap:8px}
+.pricerow{display:flex;align-items:center;justify-content:center;gap:12px;margin:2px 0}
 .pricerow .wk{font-family:ui-monospace,Menlo,monospace;font-size:8px;letter-spacing:.6px;font-weight:700;color:#6F6A60;text-transform:uppercase;margin-right:auto}
 .pricerow .pm{width:36px;height:36px;border-radius:18px;border:1.5px solid #CFC9BC;background:#fff;font-size:22px;font-weight:700;color:var(--ink);line-height:1}
 .pricerow .badge{font-size:16px;font-weight:800;color:#fff;background:var(--orange);border:1.5px solid var(--ink);border-radius:6px;padding:2px 7px;white-space:nowrap}
@@ -93,12 +93,12 @@ html.camdark body,html.camdark .wrap{background:#1E3A2B}
 .aichip{font-size:10.5px;font-weight:800;color:#2E6B3F;background:var(--mint);border-radius:6px;padding:2px 7px;align-self:flex-start}
 .aichip.pend{color:var(--mute);background:var(--cream)}
 .rtcol{flex-shrink:0;width:72px;display:flex;flex-direction:column;gap:5px}
-.xtra{display:flex;flex-wrap:wrap;gap:4px}
-.xtra .xt{position:relative;width:22px;height:22px;padding:0;border:0;border-radius:5px;overflow:hidden;background:var(--cream)}
+.xtra{display:flex;flex-wrap:wrap;gap:5px;justify-content:center}
+.xtra .xt{position:relative;width:30px;height:30px;padding:0;border:0;border-radius:5px;overflow:hidden;background:var(--cream)}
 .xtra .xt img{width:100%;height:100%;object-fit:cover;display:block}
 .xtra .xt b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(30,58,43,.45);color:#fff;font-size:13px;opacity:0}
 .xtra .xt:active b,.xtra .xt:hover b{opacity:1}
-.xtra .xadd{width:22px;height:22px;padding:0;border:1.5px dashed #B9B3A6;border-radius:5px;background:#fff;color:var(--ink);font-size:15px;font-weight:900;line-height:1}
+.xtra .xadd{width:32px;height:32px;padding:0;border:1.5px dashed #B9B3A6;border-radius:7px;background:#fff;color:var(--ink);font-size:19px;font-weight:900;line-height:1}
 
 /* done screen: big green check + the posted items in one success card */
 .dn-ok{margin:4px 0 16px;padding:16px;border:2px solid #1F8A4C;border-radius:18px;background:#EAF6EE}
