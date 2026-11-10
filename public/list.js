@@ -98,7 +98,7 @@
         '<button type="button" class="del" data-act="del" aria-label="Remove this item"><svg width="18" height="20" viewBox="0 0 18 20" aria-hidden="true"><path d="M2 5h14M7 5V3h4v2M4 5l1 13h8l1-13" fill="none" stroke="#9B968C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>';
     }).join('') || '<div class="hint" style="padding:20px 0">Nothing yet.</div>';
     $('rows').querySelectorAll('textarea.note').forEach(grow);
-    $('listBtn').textContent = 'LIST ' + shots.length + (shots.length === 1 ? ' THING' : ' THINGS');
+    $('listBtn').textContent = shots.length === 1 ? 'LIST IT' : 'LIST ALL ' + shots.length;
     var pend = shots.some(function (s) { return s.pending; });
     $('listBtn').disabled = !shots.length || pend || shots.some(function (s) { return !s.name.trim(); });
     if (pend) $('listBtn').textContent = 'IDENTIFYING…';
