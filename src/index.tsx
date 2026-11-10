@@ -1,6 +1,6 @@
 import { iconsDone, makeWantedIcon, auditIcons } from './lib/wanted-icons';
 import { morningBundle } from './lib/alerts';
-import { backfillAvatars } from './lib/avatar';
+import { backfillAvatars, auditAvatars } from './lib/avatar';
 import { fixDemoLand } from './lib/demo-land';
 import { hoodAt } from './lib/hoods';
 import { WANTED_ALL } from './lib/places';
@@ -65,6 +65,7 @@ export default {
     // heavier jobs every 15 min only (cron runs every 5)
     if (new Date(_ev.scheduledTime).getUTCMinutes() % 15 >= 5) return;
     try { const rows = (await env.DB.prepare(`SELECT id, lat, lng FROM listings WHERE hood_id IS NULL AND lat IS NOT NULL AND demo = 0 LIMIT 200`).all<{ id: string; lat: number; lng: number }>()).results; for (const l of rows) { const h = await hoodAt(env, l.lat, l.lng); if (h) await env.DB.prepare('UPDATE listings SET hood_id = ? WHERE id = ?').bind(h.id, l.id).run(); } } catch (e) { console.warn('hood backfill', e); }
+    try { const b = await auditAvatars(env, 4); if (b) console.log(`avatar audit cleared ${b}`); } catch (e) { console.warn('avatar audit', e); }
     try { const a = await backfillAvatars(env, 3); if (a) console.log(`avatars backfilled ${a}`); } catch (e) { console.warn('avatar backfill', e); }
     try { const f = await fixDemoLand(env, 150); if (f.checked) console.log(`demo land: checked ${f.checked}, moved ${f.moved}`); } catch (e) { console.warn('demo land', e); }
   },

@@ -2,6 +2,7 @@
 //  cutout: Cloudflare Images background removal (segment=foreground) → sticker-style PNG
 //  ai:     Workers AI img2img → flat emoji-style redraw of the item
 import type { Env } from './env';
+import { artistPrompt, sameObject } from './vision';
 
 const PROMPT = 'a single flat vector emoji icon of this object, Apple iOS emoji style, simple shapes, soft shading, thick clean edges, centered, isolated on plain white background, no text, no people, no hands';
 const NEG = 'photo, realistic, photorealistic, background scene, room, floor, shadow on floor, text, watermark, blurry, multiple objects, person, hands';
@@ -93,14 +94,41 @@ export async function autoIcon(env: Env, listingId: string, photoKey: string, na
     const obj = await env.PHOTOS.get(photoKey);
     if (!obj || !env.AI) return;
     const photo = await obj.arrayBuffer();
-    const desc = await describeItem(env, photo, name + (description ? ' — ' + description.slice(0, 120) : ''));
-    const icon = await drawIcon(env, desc);
-    if (!icon) return;
-    const aiKey = `${listingId}/avatar-ai.png`;
-    await env.PHOTOS.put(aiKey, icon, { httpMetadata: { contentType: 'image/png' }, customMetadata: { desc } });
-    // transparent sticker (needs Images transformations on the zone)
-    let stickerKey: string | null = null;
-    try { const cut = await makeCutout(env, aiKey); if (cut) { stickerKey = `${listingId}/avatar.png`; await env.PHOTOS.put(stickerKey, cut, { httpMetadata: { contentType: 'image/png' } }); } } catch (e) { console.warn('cutout unavailable', (e as any)?.message); }
-    if (stickerKey) await env.DB.prepare('UPDATE listings SET avatar_key = ?, avatar_style = ? WHERE id = ? AND avatar_key IS NULL').bind(stickerKey, 'ai', listingId).run();
+    const desc = (await artistPrompt(env, photo, name)) || await describeItem(env, photo, name + (description ? ' — ' + description.slice(0, 120) : ''));
+    // draw, then check it's the same kind of object as the photo; 2 tries
+    let icon: ArrayBuffer | null = null;
+    for (let t = 0; t < 2; t++) {
+      const d = await drawIcon(env, t ? desc + ', the literal physical object exactly as in a product photo' : desc); if (!d) continue;
+      const ok = await sameObject(env, photo, d, name);
+      if (ok !== false) { icon = d; break; }
+    }
+    let stickerKey: string | null = null, style = 'ai';
+    if (icon) {
+      const aiKey = `${listingId}/avatar-ai.png`;
+      await env.PHOTOS.put(aiKey, icon, { httpMetadata: { contentType: 'image/png' }, customMetadata: { desc } });
+      try { const cut = await makeCutout(env, aiKey); if (cut) { stickerKey = `${listingId}/avatar.png`; await env.PHOTOS.put(stickerKey, cut, { httpMetadata: { contentType: 'image/png' } }); } } catch (e) { console.warn('cutout failed', e); }
+    } else {
+      // drawing kept coming out wrong → the real photo, cut out
+      try { const cut = await makeCutout(env, photoKey); if (cut) { stickerKey = `${listingId}/avatar-cutout.png`; style = 'cutout'; await env.PHOTOS.put(stickerKey, cut, { httpMetadata: { contentType: 'image/png' } }); } } catch (e) { console.warn('photo cutout failed', e); }
+    }
+    if (stickerKey) await env.DB.prepare('UPDATE listings SET avatar_key = ?, avatar_style = ? WHERE id = ? AND avatar_key IS NULL').bind(stickerKey, style, listingId).run();
   } catch (e) { console.warn('autoIcon failed', e); }
+}
+
+// one pass over real listings' existing drawn icons: wrong kind of object → clear it so the backfill redraws (checked)
+export async function auditAvatars(env: Env, limit = 4): Promise<number> {
+  const r = await env.DB.prepare(`SELECT value FROM settings WHERE key = 'avatar_audited'`).first<{ value: string }>();
+  const seen = new Set<string>(r ? JSON.parse(r.value) : []);
+  const rows = (await env.DB.prepare(`SELECT l.id, l.name, (SELECT r2_key FROM photos p WHERE p.listing_id = l.id ORDER BY pos LIMIT 1) k FROM listings l WHERE l.demo = 0 AND l.avatar_style = 'ai' AND l.avatar_key IS NOT NULL ORDER BY l.created_at DESC LIMIT 200`).all<{ id: string; name: string; k: string | null }>()).results.filter(x => !seen.has(x.id) && x.k).slice(0, limit);
+  let bad = 0;
+  for (const x of rows) {
+    const ph = await env.PHOTOS.get(x.k!), ic = await env.PHOTOS.get(`${x.id}/avatar-ai.png`);
+    if (!ph || !ic) { seen.add(x.id); continue; }
+    const ok = await sameObject(env, await ph.arrayBuffer(), await ic.arrayBuffer(), x.name);
+    if (ok === null) break;
+    seen.add(x.id);
+    if (!ok) { bad++; await env.PHOTOS.delete(`${x.id}/avatar-ai.png`); await env.DB.prepare('UPDATE listings SET avatar_key = NULL, avatar_style = NULL WHERE id = ?').bind(x.id).run(); }
+  }
+  await env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('avatar_audited', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(JSON.stringify([...seen])).run();
+  return bad;
 }
