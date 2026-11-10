@@ -1,5 +1,5 @@
 import { answerPending, actOn, intentContext, parseIntent } from '../lib/intent';
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import type Stripe from 'stripe';
 import type { Env, Rental, Vars } from '../lib/env';
 import { stripe } from '../lib/stripe';
@@ -42,6 +42,10 @@ webhooks.post('/webhooks/stripe', async (c) => {
 // Keywords: YES / NO (owner answers a held request), LATE, HERE, STOP, STOP NUDGES, START, LIST, HELP.
 // Anything else relays to the other party of the sender's most recent active rental.
 webhooks.post('/webhooks/blooio', async (c) => {
+  try { return await blooioInbound(c); }
+  catch (e: any) { await c.env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('last_inbound_err', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(`${Date.now()} ${e?.stack || e}`.slice(0, 1500)).run(); return c.json({ ok: false }, 500); }
+});
+async function blooioInbound(c: Context<{ Bindings: Env; Variables: Vars }>) {
   const raw = await c.req.text();
   if (c.env.BLOOIO_WEBHOOK_SECRET) {
     // v4: X-Blooio-Signature: t=<unix>,v1=<hex hmac-sha256 of "<t>.<raw body>">; also accept a bare hex (older docs)
@@ -60,6 +64,8 @@ webhooks.post('/webhooks/blooio', async (c) => {
   const ev = (c.req.header('x-blooio-event') || j.event || j.type || '').toString();
   if (ev && ev !== 'message.received') return c.json({ ok: true, ignored: ev });
   const m = parseInbound(j);
+  // debug breadcrumb: last inbound seen (event + sender suffix + time); no message text stored
+  c.executionCtx.waitUntil(c.env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('last_inbound', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(JSON.stringify({ t: Date.now(), ev, from: m ? String(m.from).slice(-4) : null })).run().then(() => {}));
   if (!m) return c.json({ ok: true, ignored: 'no sender' });
   const phone = normPhone(m.from) || m.from;
   const user = await userByPhone(c.env.DB, phone);
@@ -117,4 +123,4 @@ webhooks.post('/webhooks/blooio', async (c) => {
   if (kw === 'HERE' || kw === 'IM HERE') { await relay(c.env, r, user, "I'm here", 'text'); return c.json({ ok: true }); }
   if (text) await relay(c.env, r, user, text.slice(0, 500), 'text');
   return c.json({ ok: true });
-});
+}
