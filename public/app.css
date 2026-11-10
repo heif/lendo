@@ -363,3 +363,7 @@ body:has(.promo.pu:not([hidden])) .locbtn{bottom:96px}
 .aisles{padding-top:62px!important}
 .wsheet-em .wsimg{display:block;margin:6px auto;object-fit:contain}
 .wsheet-go{box-sizing:border-box;width:calc(100% - 6px);margin:0 auto;text-align:center}
+.days button.today small{color:var(--orange)}
+.days button.today.on{background:var(--orange);border-color:var(--ink);color:#fff}
+.days button.today.on small{color:#fff}
+.days button.today b{margin-top:6px}
