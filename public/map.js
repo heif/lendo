@@ -81,15 +81,25 @@
   var PIN_W = 84, PIN_H = 80, MAX_SHOWN = 140;
   function hid(s) { var h = 0; for (var k = 0; k < s.length; k++) h = (h * 31 + s.charCodeAt(k)) | 0; return Math.abs(h); }
   function worldPx(lng, lat, z) { var sc = 512 * Math.pow(2, z), sy = Math.sin(lat * Math.PI / 180); return [(lng + 180) / 360 * sc, (0.5 - Math.log((1 + sy) / (1 - sy)) / (4 * Math.PI)) * sc]; }
+  // Small knots of nearby items (≤ 8 within a pin's width of each other, e.g. one owner's things) fan out in a ring
+  // around their middle so each shows; bigger crowds stay put and the declutter picks which show.
   function computePos(z) {
-    POS = {}; var groups = {}, cosLat = Math.cos(map.getCenter().lat * Math.PI / 180), mpp = 78271.5 * cosLat / Math.pow(2, z);
-    items.forEach(function (it) { if (it.lat == null) return; var k = Math.round(it.lat * 2500) + ',' + Math.round(it.lng * 2500); (groups[k] = groups[k] || []).push(it); });
+    POS = {}; var cosLat = Math.cos(map.getCenter().lat * Math.PI / 180), mpp = 78271.5 * cosLat / Math.pow(2, z);
+    var arr = items.filter(function (it) { return it.lat != null; }).sort(function (a, b) { return a.id < b.id ? -1 : 1; });
+    var px = arr.map(function (it) { return worldPx(it.lng, it.lat, z); }), par = arr.map(function (_, i) { return i; }), grid = {};
+    function find(i) { while (par[i] !== i) { par[i] = par[par[i]]; i = par[i]; } return i; }
+    px.forEach(function (p, i) {
+      var gx = Math.floor(p[0] / PIN_W), gy = Math.floor(p[1] / PIN_W);
+      for (var dx = -1; dx <= 1; dx++) for (var dy = -1; dy <= 1; dy++) { var c = grid[(gx + dx) + ',' + (gy + dy)]; if (c) c.forEach(function (j) { if (Math.abs(px[j][0] - p[0]) < PIN_W && Math.abs(px[j][1] - p[1]) < PIN_W) par[find(i)] = find(j); }); }
+      (grid[gx + ',' + gy] = grid[gx + ',' + gy] || []).push(i);
+    });
+    var groups = {}; arr.forEach(function (_, i) { var r = find(i); (groups[r] = groups[r] || []).push(i); });
     Object.keys(groups).forEach(function (k) {
-      var g = groups[k], n = g.length; if (n === 1) { POS[g[0].id] = [g[0].lng, g[0].lat]; return; }
-      g.sort(function (a, b) { return a.id < b.id ? -1 : 1; });
-      var clat = 0, clng = 0; g.forEach(function (it) { clat += it.lat / n; clng += it.lng / n; });
-      var rpx = n === 2 ? 44 : Math.min(120, 46 / Math.sin(Math.PI / n)), rm = Math.min(rpx * mpp, 250), a0 = (hid(g[0].id) % 628) / 100;
-      g.forEach(function (it, i) { var a = a0 + 6.2832 * i / n; POS[it.id] = [clng + rm * Math.sin(a) / (111320 * cosLat), clat + rm * Math.cos(a) * 0.8 / 111320]; });
+      var g = groups[k], n = g.length;
+      if (n === 1 || n > 8) { g.forEach(function (i) { POS[arr[i].id] = [arr[i].lng, arr[i].lat]; }); return; }
+      var clat = 0, clng = 0; g.forEach(function (i) { clat += arr[i].lat / n; clng += arr[i].lng / n; });
+      var rpx = n === 2 ? 46 : Math.min(130, 48 / Math.sin(Math.PI / n)), rm = Math.min(rpx * mpp, 250), a0 = (hid(arr[g[0]].id) % 628) / 100;
+      g.forEach(function (i, t) { var a = a0 + 6.2832 * t / n; POS[arr[i].id] = [clng + rm * Math.sin(a) / (111320 * cosLat), clat + rm * Math.cos(a) / 111320]; });
     });
   }
   // Which pins show when they'd overlap: variety first (one per category in turn), most-rented categories and items
@@ -377,8 +387,8 @@
   function addHoods() {
     map.addSource('hoods', { type: 'geojson', data: '/api/hoods.geojson' });
     map.addLayer({ id: 'hoods-fill', type: 'fill', source: 'hoods', minzoom: 10, maxzoom: 15,
-      paint: { 'fill-color': ['case', ['==', ['get', 'n'], 0], S.hoods.emptyColor, S.hoods.fill], 'fill-opacity': ['case', ['==', ['get', 'n'], 0], S.hoods.emptyFillOpacity, S.hoods.fillOpacity] } }, 'clusters');
-    map.addLayer({ id: 'hoods-line', type: 'line', source: 'hoods', minzoom: 10, paint: { 'line-color': S.hoods.line, 'line-opacity': S.hoods.lineOpacity, 'line-width': 1, 'line-dasharray': [2, 2] } }, 'clusters');
+      paint: { 'fill-color': ['case', ['==', ['get', 'n'], 0], S.hoods.emptyColor, S.hoods.fill], 'fill-opacity': ['case', ['==', ['get', 'n'], 0], S.hoods.emptyFillOpacity, S.hoods.fillOpacity] } }, 'more');
+    map.addLayer({ id: 'hoods-line', type: 'line', source: 'hoods', minzoom: 10, paint: { 'line-color': S.hoods.line, 'line-opacity': S.hoods.lineOpacity, 'line-width': 1, 'line-dasharray': [2, 2] } }, 'more');
   }
 
   // ---- idle wiggle (prototype 'sway'): each item rocks ±1.6° on its own phase; paused while the map moves or the tab is hidden
