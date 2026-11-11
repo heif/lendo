@@ -62,7 +62,7 @@ export const homePage = async (c: Ctx, opt: { center?: number[]; zoom?: number; 
         <div id="map" role="application" aria-label="Map of things to rent"></div>
         <div class="mapctl">
           <button class="btn sm listtoggle" id="toggle" type="button"><svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 1.5h1M4 1.5h9M1 6h1M4 6h9M1 10.5h1M4 10.5h9" stroke="#1E3A2B" stroke-width="2" stroke-linecap="round" /></svg> List</button>
-          <span class="qwrap"><input id="q" type="search" placeholder="Rent a…" aria-label="Search" /><button type="button" class="qclr" id="qClr" aria-label="Clear search" hidden>×</button></span>
+          <span class="qwrap"><input id="q" type="search" placeholder="Rent a…" aria-label="Search" autocomplete="off" /><button type="button" class="qclr" id="qClr" aria-label="Clear search" hidden>×</button></span>
           <div class="alertchip" id="alertChip" hidden></div>
           <a class="rent-out" href="/list"><span class="ro-l">RENT OUT YOUR STUFF</span><span class="ro-s">RENT YOURS OUT</span></a>
         </div>
