@@ -14,7 +14,15 @@ export const loadUser: MiddlewareHandler<{ Bindings: Env; Variables: Vars }> = a
   if (sid) {
     const row = await c.env.DB.prepare('SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ? AND s.expires_at > ?')
       .bind(sid, now()).first<User>();
-    if (row) { row.admin = (c.env.ADMIN_PHONES || '').split(',').map(s => s.trim()).includes(row.phone); c.set('user', row); }
+    if (row) {
+      row.admin = (c.env.ADMIN_PHONES || '').split(',').map(s => s.trim()).includes(row.phone);
+      const n = await c.env.DB.prepare(`SELECT
+          (SELECT COUNT(*) FROM messages m JOIN rentals r ON r.id = m.rental_id LEFT JOIN thread_reads t ON t.rental_id = r.id AND t.user_id = ?1
+            WHERE (r.owner_id = ?1 OR r.renter_id = ?1) AND m.sender_id IS NOT NULL AND m.sender_id != ?1 AND m.created_at > COALESCE(t.seen_at, 0))
+        + (SELECT COUNT(*) FROM rentals WHERE owner_id = ?1 AND status = 'held') n`).bind(row.id).first<{ n: number }>().catch(() => null);
+      row.unread = n?.n || 0;
+      c.set('user', row);
+    }
   }
   await next();
 };

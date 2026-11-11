@@ -49,13 +49,13 @@ export const Layout: FC<LayoutProps> = (p) => {
               <summary aria-label="Menu">
                 {u ? (initial || <svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4.2" fill="#fff" /><path d="M3.5 21C4.5 15.5 8 13.5 12 13.5S19.5 15.5 20.5 21Z" fill="#fff" /></svg>)
                   : <svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4.2" fill="#1E3A2B" /><path d="M3.5 21C4.5 15.5 8 13.5 12 13.5S19.5 15.5 20.5 21Z" fill="#1E3A2B" /></svg>}
-                {p.badge ? <span class="badge">{p.badge}</span> : null}
+                {(p.badge ?? u?.unread) ? <span class="badge">{p.badge ?? u?.unread}</span> : null}
               </summary>
               <nav aria-label="Your account">
                 {u ? (
                   <>
                     <a href="/inbox">Inbox</a>
-                    <a href="/rentals">Your rentals</a>
+                    <a href="/rentals">Your rentals{u.unread ? <span class="badge-n" style="margin-left:6px">{u.unread}</span> : null}</a>
                     <a href="/alerts">Search alerts</a>
                     <a href="/listings">Your listings</a>
                     <a href="/saved">Saved</a>

@@ -39,7 +39,7 @@ export const homePage = async (c: Ctx, opt: { center?: number[]; zoom?: number; 
   const cq = (c.req.query('c') || '').split(',').map(parseFloat); // ?c=lng,lat deep link (shares, debugging)
   if (cq.length === 2 && cq.every(n => !isNaN(n)) && Math.abs(cq[1]) <= 90) center = cq;
   if (opt.center) center = opt.center;
-  const badge = u ? ((await c.env.DB.prepare(`SELECT COUNT(*) n FROM rentals WHERE owner_id = ? AND status = 'held'`).bind(u.id).first<{ n: number }>())?.n ?? 0) : 0;
+  const badge = u?.unread || 0;
   // Visitors outside a live city (by Cloudflare geo) start in NYC, the most active city, with a nudge to switch.
   const cf: any = (c.req.raw as any).cf || {};
   const vLat = parseFloat(cf.latitude), vLng = parseFloat(cf.longitude);

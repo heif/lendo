@@ -59,6 +59,10 @@ rentals.get('/r/:id', requireUser, async (c) => {
   const u = c.get('user')!;
   const r = await rentalById(c.env.DB, c.req.param('id'));
   if (!r || (r.owner_id !== u.id && r.renter_id !== u.id)) return c.notFound();
+  // opening the thread marks it read (and takes it off the profile-circle count)
+  const seen = await c.env.DB.prepare(`SELECT COUNT(*) n FROM messages WHERE rental_id = ? AND sender_id IS NOT NULL AND sender_id != ? AND created_at > COALESCE((SELECT seen_at FROM thread_reads WHERE user_id = ? AND rental_id = ?), 0)`).bind(r.id, u.id, u.id, r.id).first<{ n: number }>().catch(() => null);
+  await c.env.DB.prepare(`INSERT INTO thread_reads (user_id, rental_id, seen_at) VALUES (?,?,?) ON CONFLICT(user_id, rental_id) DO UPDATE SET seen_at = excluded.seen_at`).bind(u.id, r.id, Date.now()).run().catch(() => {});
+  if (seen?.n && u.unread) u.unread = Math.max(0, u.unread - seen.n);
   const isOwner = u.id === r.owner_id;
   const other = (await userById(c.env.DB, isOwner ? r.renter_id : r.owner_id))!;
   const owner = isOwner ? u : other;
@@ -367,7 +371,7 @@ rentals.get('/i/:id/ask', requireUser, async (c) => {
 // ---------- Your rentals + Inbox ----------
 rentals.get('/rentals', requireUser, async (c) => {
   const u = c.get('user')!;
-  const rows = await c.env.DB.prepare(`SELECT r.*, l.name item, o.name owner_name, n.name renter_name FROM rentals r JOIN listings l ON l.id = r.listing_id JOIN users o ON o.id = r.owner_id JOIN users n ON n.id = r.renter_id WHERE (r.owner_id = ? OR r.renter_id = ?) AND r.status != 'requested' ORDER BY r.updated_at DESC LIMIT 100`).bind(u.id, u.id).all<Rental & { item: string; owner_name: string | null; renter_name: string | null }>();
+  const rows = await c.env.DB.prepare(`SELECT r.*, l.name item, o.name owner_name, n.name renter_name, (SELECT COUNT(*) FROM messages m WHERE m.rental_id = r.id AND m.sender_id IS NOT NULL AND m.sender_id != ?3 AND m.created_at > COALESCE((SELECT seen_at FROM thread_reads t WHERE t.user_id = ?3 AND t.rental_id = r.id), 0)) unread FROM rentals r JOIN listings l ON l.id = r.listing_id JOIN users o ON o.id = r.owner_id JOIN users n ON n.id = r.renter_id WHERE (r.owner_id = ?1 OR r.renter_id = ?2) AND r.status != 'requested' ORDER BY r.updated_at DESC LIMIT 100`).bind(u.id, u.id, u.id).all<Rental & { item: string; owner_name: string | null; renter_name: string | null; unread: number }>().catch(() => ({ results: [] as any[] }));
   const ph = await firstPhotos(c.env.DB, [...new Set(rows.results.map(r => r.listing_id))]);
   const label = (r: Rental) => ({ held: 'waiting for YES', confirmed: 'confirmed · set pickup', picked_up: 'out', returned: 'returned · rate', closed: 'done', declined: 'declined', expired: 'expired', canceled: 'canceled', requested: '', inquiry: 'question' }[r.status]);
   return c.html(
@@ -381,7 +385,7 @@ rentals.get('/rentals', requireUser, async (c) => {
             <div style="font-size:13px">{r.status === 'inquiry' ? (r.owner_id === u.id ? `${firstName(r.renter_name)} asked` : `asked ${firstName(r.owner_name)}`) : <>{fmtRange(r.start_day, r.end_day)} · {r.owner_id === u.id ? `to ${firstName(r.renter_name)} · +${money(r.rent_cents)}` : `from ${firstName(r.owner_name)} · ${money(r.total_cents)}`}</>}</div>
             <div class="hint">{label(r)}</div>
           </div>
-          {r.status === 'held' && r.owner_id === u.id ? <span class="pill" style="background:var(--orange);color:#fff">YES?</span> : null}
+          {r.status === 'held' && r.owner_id === u.id ? <span class="pill" style="background:var(--orange);color:#fff">YES?</span> : r.unread ? <span class="badge-n">{r.unread}</span> : null}
         </a>
       )) : <div class="hint" style="padding:24px 16px">No rentals yet. <a href="/">Browse the map</a>.</div>}
     </Layout>
