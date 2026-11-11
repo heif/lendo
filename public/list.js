@@ -87,6 +87,7 @@
     clearTimeout(t._h); t._h = setTimeout(function () { t.hidden = true; }, 5000);
     t.lastChild.onclick = function () { t.hidden = true; undo(); };
   }
+  var GW = { A: 'Like new', B: 'Good', C: 'Fair', D: 'Worn', F: 'Rough' };
   function renderReview() {
     $('rvCount').textContent = shots.length + ' in ' + clock();
     $('rows').innerHTML = shots.map(function (s, i) {
@@ -94,7 +95,7 @@
         '<div class="rtcol"><button type="button" class="rt" data-act="retake"><img src="' + (s.cutUrl || s.url) + '" alt=""' + (s.cutUrl ? ' class="cut"' : '') + '><span>↻ Retake</span></button>' +
         '<div class="xtra">' + (s.extra || []).map(function (x, k) { return '<button type="button" class="xt" data-act="xdel" data-k="' + k + '" aria-label="Remove photo"><img src="' + x.url + '" alt=""><b>×</b></button>'; }).join('') + ((s.extra || []).length < 5 ? '<button type="button" class="xadd" data-act="xadd" aria-label="Add photos">+</button>' : '') + '</div></div>' +
         '<div class="mid"><div class="nmwrap"><input class="nm" data-act="name" value="' + esc(s.name) + '" placeholder="' + (s.pending ? 'Identifying…' : 'What is it?') + '" maxlength="80"></div>' +
-        (s.askLabel && !s.pending ? '<button type="button" class="asklabel" data-act="label">📷 Brand? Snap the logo or label</button>' : '') + '<div class="pricerow"><button type="button" class="pm" data-act="dn" aria-label="Lower">−</button><span class="badge">$' + s.price + '<small>/day</small></span><button type="button" class="pm" data-act="up" aria-label="Raise">+</button></div>' +
+        (s.askLabel && !s.pending ? '<button type="button" class="asklabel" data-act="label">📷 Brand? Snap the logo or label</button>' : '') + '<div class="pricerow"><button type="button" class="pm" data-act="dn" aria-label="Lower">−</button><span class="badge">$' + s.price + '<small>/day</small></span><button type="button" class="pm" data-act="up" aria-label="Raise">+</button></div>' + '<div class="grdrow"><button type="button" class="grdbtn" data-act="grade" aria-label="Condition, tap to change"><span class="grd g' + (s.grade || 'A') + '"><b>' + (s.grade || 'A') + '</b><small>GRADE</small><i>▾</i></span></button><span class="grdw">' + GW[s.grade || 'A'] + '</span></div>' +
         '<textarea class="note" data-act="note" rows="2" placeholder="✎ note · condition · what’s included" maxlength="400">' + esc(s.note) + '</textarea></div>' +
         '<button type="button" class="del" data-act="del" aria-label="Remove this item"><svg width="18" height="20" viewBox="0 0 18 20" aria-hidden="true"><path d="M2 5h14M7 5V3h4v2M4 5l1 13h8l1-13" fill="none" stroke="#9B968C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>';
     }).join('') || '<div class="hint" style="padding:20px 0">Nothing yet.</div>';
@@ -112,6 +113,7 @@
     if (act === 'xdel') { (shots[i].extra || []).splice(+b.dataset.k, 1); renderReview(); }
     if (act === 'dn') { shots[i].price = Math.max(MIN, shots[i].price - 1); shots[i].week = 0; shots[i].touched.price = true; renderReview(); }
     if (act === 'up') { shots[i].price += 1; shots[i].week = 0; shots[i].touched.price = true; renderReview(); }
+    if (act === 'grade') { var G = 'ABCDF', g = shots[i].grade || 'A'; shots[i].grade = G[(G.indexOf(g) + 1) % 5]; renderReview(); }
     if (act === 'del') { var gone = shots.splice(i, 1)[0]; renderReview(); undoToast('Removed ' + (gone.name || 'item'), function () { shots.splice(i, 0, gone); renderReview(); }); }
   });
   var labelFor = null;
@@ -121,7 +123,7 @@
   function grow(t) { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 160) + 'px'; }
   $('backCam').addEventListener('click', function () { show('cam'); });
   $('listBtn').addEventListener('click', function () {
-    var fd = new FormData(); shots.forEach(function (s, i) { (s.extra || []).forEach(function (x, k) { fd.append('photo_' + i + '_' + (k + 1), x.blob, 'p' + i + '_' + (k + 1) + '.jpg'); }); fd.append('name_' + i, s.name.trim()); if (s.ai && s.ai.name) fd.append('ai_' + i, s.ai.name); fd.append('price_' + i, s.price); fd.append('week_' + i, s.week || 0); fd.append('note_' + i, s.note); fd.append('photo_' + i, s.blob, 'p' + i + '.jpg'); });
+    var fd = new FormData(); shots.forEach(function (s, i) { (s.extra || []).forEach(function (x, k) { fd.append('photo_' + i + '_' + (k + 1), x.blob, 'p' + i + '_' + (k + 1) + '.jpg'); }); fd.append('name_' + i, s.name.trim()); if (s.ai && s.ai.name) fd.append('ai_' + i, s.ai.name); fd.append('price_' + i, s.price); fd.append('week_' + i, s.week || 0); fd.append('note_' + i, s.note); fd.append('grade_' + i, s.grade || 'A'); fd.append('photo_' + i, s.blob, 'p' + i + '.jpg'); });
     if (window._gps) { fd.append('lat', window._gps[0]); fd.append('lng', window._gps[1]); }
     $('listBtn').disabled = true; $('listBtn').textContent = 'LISTING…';
     fetch('/api/list', { method: 'POST', body: fd }).then(function (r) { if (r.status === 401) { location.href = '/login?next=/list'; return null; } return r.json(); }).then(function (j) { if (!j) return; renderDone(j); show('done'); }).catch(function () { $('listBtn').disabled = false; $('listBtn').textContent = 'TRY AGAIN'; });

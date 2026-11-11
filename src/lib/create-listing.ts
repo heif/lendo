@@ -1,5 +1,6 @@
 // One place that turns (name, price, photos, maybe GPS) into a live listing: location fallback chain, hood, emoji, icon job.
 import type { Env, User } from './env';
+import { isGrade } from './grade';
 import { checkListingPhoto } from './photo-check';
 import { assignSlug, assignHandle, assignCode } from './urls';
 import { id, now, fuzz, weekDefault } from './util';
@@ -9,7 +10,7 @@ import { assignHood } from './hoods';
 import { autoIcon } from './avatar';
 import { matchListing } from './alerts';
 
-export type NewListing = { name: string; priceCents: number; weekCents?: number | null; description?: string | null; lat?: number | null; lng?: number | null; photos: { bytes: ArrayBuffer; type: string }[] };
+export type NewListing = { name: string; priceCents: number; weekCents?: number | null; description?: string | null; lat?: number | null; lng?: number | null; photos: { bytes: ArrayBuffer; type: string }[]; grade?: string | null };
 
 export async function createListing(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }, u: User, n: NewListing): Promise<string> {
   const minP = parseInt(env.MIN_PRICE_CENTS, 10);
@@ -35,6 +36,7 @@ export async function createListing(env: Env, ctx: { waitUntil(p: Promise<unknow
   const name = n.name.trim().slice(0, 80);
   await env.DB.prepare('INSERT INTO listings (id, owner_id, name, description, price_cents, week_cents, status, hood, lat, lng, emoji, mapbox_id, geocoded_at, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
     .bind(lid, u.id, name, desc, price, week, 'live', hood, flat, flng, emojiFor(name, desc), mbId, geoAt, now()).run();
+  if (isGrade(n.grade) && n.grade !== 'A') await env.DB.prepare('UPDATE listings SET grade = ? WHERE id = ?').bind(n.grade, lid).run().catch(() => {});
   if (flat != null) { try { await assignHood(env, 'listings', lid, lat, lng); if (!u.hood_id) await assignHood(env, 'users', u.id, lat, lng); } catch (e) { console.warn('hood assign', e); } }
   let pos = 0, firstKey: string | null = null;
   for (const p of n.photos.slice(0, 6)) {

@@ -1,4 +1,5 @@
 import { Hono, type Context } from 'hono';
+import { Grade, GRADE_WORD, shownGrade } from '../lib/grade';
 type Ctx = Context<{ Bindings: Env; Variables: Vars }>;
 import { raw } from 'hono/html';
 import type { Env, Listing, Vars } from '../lib/env';
@@ -124,9 +125,11 @@ export const itemPage = async (c: Ctx, lid: string, pretty = false) => {
   const feePct = c.env.FEE_PCT;
   const review = await c.env.DB.prepare(`SELECT r.renter_review rv, u.name nm FROM rentals r JOIN users u ON u.id = r.renter_id WHERE r.owner_id = ? AND r.renter_review IS NOT NULL ORDER BY r.updated_at DESC LIMIT 1`).bind(owner.id).first<{ rv: string; nm: string }>();
   const saved = u ? !!(await c.env.DB.prepare('SELECT 1 FROM saved WHERE user_id = ? AND listing_id = ?').bind(u.id, it.id).first()) : false;
+  const gr = await shownGrade(c.env, it.id, it.grade);
   return c.html(
     <Layout title={it.name} headerCenter={<span />} user={u} flash={c.req.query('canceled') ? 'Checkout canceled — nothing was charged.' : null}>
       <div class={photos.length > 1 ? 'hero gal' : 'hero'}>
+        <Grade g={gr.letter} cls="onphoto" />
         {photos[0] ? <img id="heroImg" src={cutoutUrl(c.env, photos[0].r2_key)} alt={it.name} onerror={`this.onerror=null;this.src='/p/${photos[0].r2_key}'`} /> : it.avatar_key ? <img id="heroImg" class="trimme" crossorigin="anonymous" src={'/p/' + it.avatar_key} alt={it.name} /> : <div class="hint">no photo yet</div>}
         {photos.length > 1 ? <>
           <button type="button" class="gal-nav prev" id="galPrev" aria-label="Previous photo"><svg width="12" height="18" viewBox="0 0 12 18"><path d="M9 2L3 9l6 7" fill="none" stroke="#1E3A2B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
@@ -148,6 +151,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
           {it.status === 'paused' ? <span class="pill">paused</span> : it.status === 'review' ? <span class="pill">Posted · checking the photo</span> : null}
           {isOwner ? <a class="btn sm" href={'/listings/' + it.id + '/edit'} style="flex-shrink:0;margin-left:8px">✎ Edit</a> : null}
         </div>
+        <div class="hint" style="margin-top:2px">Condition {gr.letter} · {GRADE_WORD[gr.letter]} · {gr.customers ? `owner + ${gr.customers} customer${gr.customers === 1 ? '' : 's'}` : 'set by the owner'}</div>
         {it.description ? <p style="margin:4px 0 0;font-size:14px;line-height:1.4;color:var(--ink2);white-space:pre-wrap">{it.description}</p> : null}
         <a href={'/u/' + owner.id} class="owner-row owner-tight">
           <span class="owner-av">{(owner.name || 'N').charAt(0)}</span>

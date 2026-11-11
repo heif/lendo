@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { Grade, GRADES, GRADE_WORD, isGrade, shownGrade } from '../lib/grade';
 import { assignHandle, assignSlug, itemLink } from '../lib/urls';
 import { recordCorrection } from '../lib/identify';
 import { makeCutout } from '../lib/avatar';
@@ -143,7 +144,7 @@ listings.post('/api/list', async (c) => {
     const files = [f[`photo_${i}`], ...Array.from({ length: 5 }, (_, j) => f[`photo_${i}_${j + 1}`])].filter((x): x is File => x instanceof File);
     const photos = await Promise.all(files.slice(0, 6).map(async p => ({ bytes: await p.arrayBuffer(), type: p.type })));
     const wk = Math.round(parseFloat(String(f[`week_${i}`] || '0')) * 100);
-    const lid = await createListing(c.env, c.executionCtx, u, { name, priceCents: price, weekCents: wk > 0 ? wk : null, description: String(f[`note_${i}`] || ''), lat: isNaN(lat) ? null : lat, lng: isNaN(lng) ? null : lng, photos });
+    const lid = await createListing(c.env, c.executionCtx, u, { name, priceCents: price, weekCents: wk > 0 ? wk : null, description: String(f[`note_${i}`] || ''), lat: isNaN(lat) ? null : lat, lng: isNaN(lng) ? null : lng, photos, grade: String(f[`grade_${i}`] || 'A') });
     await assignHandle(c.env, u.id, u.name).catch(() => null); await assignSlug(c.env, lid, u.id, name).catch(() => null);
     out.push({ id: lid, name, url: await itemLink(c.env, lid) });
   }
@@ -232,6 +233,7 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
   const busy = await busyDays(c.env.DB, it.id, today, addDays(today, 13));
   const blocked = new Set((await c.env.DB.prepare('SELECT day FROM blocked_days WHERE listing_id = ? AND day >= ?').bind(it.id, today).all<{ day: string }>()).results.map(r => r.day));
   const days = Array.from({ length: 14 }, (_, i) => addDays(today, i));
+  const gr = await shownGrade(c.env, it.id, (it as any).grade);
   return c.html(
     <Layout title="Edit listing" user={u} back="/listings">
       <form method="post" action={'/listings/' + it.id + '/edit'} style="padding:12px 16px 40px">
@@ -250,6 +252,10 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
         <div style="display:flex;gap:10px">
           <label class="field" style="flex:1"><span>$ per day</span><input name="price" type="number" step="1" min={parseInt(c.env.MIN_PRICE_CENTS, 10) / 100} value={it.price_cents / 100} required /></label>
           <label class="field" style="flex:1"><span>$ per week</span><input name="week" type="number" step="1" min="0" value={(it.week_cents || 0) / 100} /></label>
+        </div>
+        <div class="field"><span>Condition</span>
+          {gr.customers ? <div class="row" style="gap:10px;margin-top:4px"><Grade g={gr.letter} /><span class="hint">{GRADE_WORD[gr.letter]} · set by customers now (average of yours + {gr.customers} customer grade{gr.customers === 1 ? '' : 's'})</span></div>
+            : <div class="grdpick" style="margin-top:4px">{GRADES.map(g => <label><input type="radio" name="grade" value={g} checked={g === gr.letter} /><Grade g={g} /></label>)}</div>}
         </div>
         <label class="field"><span>Note</span><textarea name="description" maxlength={600}>{it.description || ''}</textarea></label>
         <div class="m" style="font-size:11px;color:var(--mute);margin-top:8px">tap a day to block it</div>
@@ -309,6 +315,7 @@ listings.post('/listings/:id/edit', requireUser, async (c) => {
   const em = String(f.emoji || '').trim().slice(0, 8) || emojiFor(nm, ds);
   await c.env.DB.prepare('UPDATE listings SET name = ?, description = ?, price_cents = ?, week_cents = ?, emoji = ? WHERE id = ?')
     .bind(nm, ds, price, week, em, it.id).run();
+  if (isGrade(f.grade)) { const gr = await shownGrade(c.env, it.id, (it as any).grade); if (!gr.customers) await c.env.DB.prepare('UPDATE listings SET grade = ? WHERE id = ?').bind(f.grade, it.id).run().catch(() => {}); }
   const today = dayStr(new Date());
   await c.env.DB.prepare('DELETE FROM blocked_days WHERE listing_id = ? AND day >= ?').bind(it.id, today).run();
   const blocks = ([] as unknown[]).concat(f.block || []).map(String).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d));

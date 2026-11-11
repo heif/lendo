@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { Grade, GRADES, isGrade } from '../lib/grade';
 import { raw } from 'hono/html';
 import type { Env, Listing, Rental, Vars } from '../lib/env';
 import { Layout } from '../pages/layout';
@@ -180,6 +181,7 @@ f.addEventListener('change',ok);f.addEventListener('submit',function(){document.
             <b>How was {isOwner ? firstName(other.name) : 'the ' + it.name + ' and ' + firstName(other.name)}?</b>
             <div class="thumbs-pick" style="margin-top:8px">{[[5, '👍'], [1, '👎']].map(([n, e]) => <button type="button" data-n={String(n)} aria-label={n === 5 ? 'Thumbs up' : 'Thumbs down'} onclick="document.getElementById('stars').value=this.dataset.n;[].forEach.call(this.parentNode.children,function(b){b.classList.remove('on')});this.classList.add('on')">{e}</button>)}</div>
             <input type="hidden" name="stars" id="stars" />
+            {!isOwner ? <><div class="hint" style="margin-top:10px">Condition when you returned it</div><div class="grdpick" style="margin-top:4px">{GRADES.map(g => <label><input type="radio" name="grade" value={g} /><Grade g={g} cls="sm" /></label>)}</div></> : null}
             <input name="review" placeholder="One line others will see (optional)" maxlength={200} style="width:100%;height:42px;border-radius:10px;border:1.5px solid var(--line);padding:0 12px;margin-top:8px" />
             <button class="btn pri full" type="submit" style="margin-top:8px">Rate</button>
           </form>
@@ -284,6 +286,7 @@ rentals.post('/r/:id/rate', requireUser, async (c) => {
   const f = await c.req.parseBody();
   const stars = Math.min(5, Math.max(1, parseInt(String(f.stars || '0'), 10) || 0));
   if (stars) await rate(c.env, r, u, stars, String(f.review || '').trim().slice(0, 200));
+  if (u.id === r.renter_id && isGrade(f.grade)) await c.env.DB.prepare('UPDATE rentals SET grade = ? WHERE id = ?').bind(f.grade, r.id).run().catch(() => {});
   return c.redirect('/r/' + r.id);
 });
 

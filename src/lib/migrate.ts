@@ -4,8 +4,9 @@ import type { Env } from './env';
 import m0015 from '../../migrations/0015_alerts.sql';
 import m0016 from '../../migrations/0016_urls.sql';
 import m0017 from '../../migrations/0017_promise.sql';
+import m0018 from '../../migrations/0018_grade.sql';
 
-const PENDING: [string, string][] = [['0015_alerts.sql', m0015], ['0016_urls.sql', m0016], ['0017_promise.sql', m0017]];
+const PENDING: [string, string][] = [['0015_alerts.sql', m0015], ['0016_urls.sql', m0016], ['0017_promise.sql', m0017], ['0018_grade.sql', m0018]];
 
 export async function selfMigrate(env: Env): Promise<string[]> {
   const done = new Set((await env.DB.prepare('SELECT name FROM d1_migrations').all<{ name: string }>().catch(() => ({ results: [] as { name: string }[] }))).results.map(r => r.name));
