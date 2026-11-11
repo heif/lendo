@@ -1,4 +1,5 @@
 import { iconsDone, makeWantedIcon, auditIcons } from './lib/wanted-icons';
+import { weeklyOwnerText } from './lib/weekly';
 import { nudgePromises } from './lib/rentals';
 import { pretty } from './routes/pretty';
 import { backfillUrls } from './lib/urls';
@@ -68,6 +69,8 @@ export default {
         catch (e: any) { await env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('wanted_icons_err', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(`${w.key}: ${e?.message || e}`.slice(0, 500)).run(); }
       }
     } catch (e: any) { await env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('wanted_icons_err', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(`outer: ${e?.message || e}`.slice(0, 500)).run().catch(() => {}); }
+    // Mondays ~10am ET: weekly owner text
+    { const t = new Date(_ev.scheduledTime); if (t.getUTCDay() === 1 && t.getUTCHours() === 15 && t.getUTCMinutes() < 5) { try { const n = await weeklyOwnerText(env); if (n) console.log(`weekly texts ${n}`); } catch (e) { console.warn('weekly', e); } } }
     // ~8am ET: morning bundle of held search alerts
     { const t = new Date(_ev.scheduledTime); if (t.getUTCHours() === 13 && t.getUTCMinutes() < 5) { try { const n = await morningBundle(env); if (n) console.log(`alert bundles ${n}`); } catch (e) { console.warn('bundle', e); } } }
     // heavier jobs every 15 min only (cron runs every 5)
