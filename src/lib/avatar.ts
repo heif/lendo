@@ -27,7 +27,7 @@ export async function describeItem(env: Env, photo: ArrayBuffer, name: string): 
 }
 export async function drawIcon(env: Env, desc: string): Promise<ArrayBuffer | null> {
   const r: any = await env.AI!.run('@cf/black-forest-labs/flux-1-schnell' as any, {
-    prompt: `${desc}. Rendered as a single glossy 3D product icon of that exact real-world object (not a symbol, not food, not a pun): faithful to the described shape and proportions, simple rounded forms, soft gradients, subtle shading, slight glossy 3D look, clean silhouette, centered, isolated on a pure solid white background, no text, no ground shadow.`,
+    prompt: `${desc}. Use exactly those colors for the object, matching the real item; do not recolor it. Rendered as a single glossy 3D product icon of that exact real-world object (not a symbol, not food, not a pun): faithful to the described shape and proportions, simple rounded forms, soft gradients, subtle shading, slight glossy 3D look, clean silhouette, centered, isolated on a pure solid white background, no text, no ground shadow.`,
     steps: 6,
   } as any);
   if (r?.image) return Uint8Array.from(atob(r.image), ch => ch.charCodeAt(0)).buffer;
@@ -98,7 +98,7 @@ export async function autoIcon(env: Env, listingId: string, photoKey: string, na
     // draw, then check it's the same kind of object as the photo; 2 tries
     let icon: ArrayBuffer | null = null;
     for (let t = 0; t < 2; t++) {
-      const d = await drawIcon(env, t ? desc + ', the literal physical object exactly as in a product photo' : desc); if (!d) continue;
+      const d = await drawIcon(env, t ? desc + ', the literal physical object exactly as in a product photo, same colors as the real item' : desc); if (!d) continue;
       const ok = await sameObject(env, photo, d, name);
       if (ok !== false) { icon = d; break; }
     }
@@ -117,7 +117,7 @@ export async function autoIcon(env: Env, listingId: string, photoKey: string, na
 
 // one pass over real listings' existing drawn icons: wrong kind of object → clear it so the backfill redraws (checked)
 export async function auditAvatars(env: Env, limit = 4): Promise<number> {
-  const r = await env.DB.prepare(`SELECT value FROM settings WHERE key = 'avatar_audited'`).first<{ value: string }>();
+  const r = await env.DB.prepare(`SELECT value FROM settings WHERE key = 'avatar_audited_v3'`).first<{ value: string }>();
   const seen = new Set<string>(r ? JSON.parse(r.value) : []);
   const rows = (await env.DB.prepare(`SELECT l.id, l.name, (SELECT r2_key FROM photos p WHERE p.listing_id = l.id ORDER BY pos LIMIT 1) k FROM listings l WHERE l.demo = 0 AND l.avatar_style = 'ai' AND l.avatar_key IS NOT NULL ORDER BY l.created_at DESC LIMIT 200`).all<{ id: string; name: string; k: string | null }>()).results.filter(x => !seen.has(x.id) && x.k).slice(0, limit);
   let bad = 0;
@@ -129,6 +129,6 @@ export async function auditAvatars(env: Env, limit = 4): Promise<number> {
     seen.add(x.id);
     if (!ok) { bad++; await env.PHOTOS.delete(`${x.id}/avatar-ai.png`); await env.DB.prepare('UPDATE listings SET avatar_key = NULL, avatar_style = NULL WHERE id = ?').bind(x.id).run(); }
   }
-  await env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('avatar_audited', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(JSON.stringify([...seen])).run();
+  await env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('avatar_audited_v3', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(JSON.stringify([...seen])).run();
   return bad;
 }

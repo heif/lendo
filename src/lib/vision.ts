@@ -20,12 +20,12 @@ async function ask(env: Env, images: ArrayBuffer[], text: string, max = 80): Pro
 
 // "bullhorn" → "a handheld electric megaphone with a pistol grip, red and white body, wide flared white horn"
 export async function artistPrompt(env: Env, photo: ArrayBuffer, name: string): Promise<string | null> {
-  const t = await ask(env, [photo], `This is a photo of an item listed for rent as "${name}". Write a 15-25 word description of the physical object for an illustrator who has never seen it. Name the object unambiguously by what it physically is (e.g. "electric megaphone", never words that could be read as something else like "bullhorn" → bull horns). Include color(s), material and its most distinctive shape; if a brand is visible and has a signature look (Dyson\'s shape, a KitchenAid stand mixer, a Brompton fold), describe that look, but no logos or text. No background, no people. Output only the description.`, 90);
+  const t = await ask(env, [photo], `This is a photo of an item listed for rent as "${name}". Write a 15-25 word description of the physical object for an illustrator who has never seen it. Name the object unambiguously by what it physically is (e.g. "electric megaphone", never words that could be read as something else like "bullhorn" → bull horns). Start with its exact main color(s) as they look in the photo (e.g. "bright red", "matte black with silver trim", "pale wood") — this is required. Then material and its most distinctive shape; if a brand is visible and has a signature look (Dyson\'s shape, a KitchenAid stand mixer, a Brompton fold), describe that look, but no logos or text. No background, no people. Output only the description.`, 90);
   return t ? t.replace(/^["']|["'.]$/g, '') : null;
 }
 
 // true = same kind of object, false = wrong, null = couldn't check
 export async function sameObject(env: Env, photo: ArrayBuffer, icon: ArrayBuffer, name: string): Promise<boolean | null> {
-  const t = await ask(env, [photo, icon], `Image 1 is a photo of "${name}". Image 2 is an icon drawn to represent it on a map. Is image 2 clearly the same kind of physical object (not a pun, symbol, animal, food or a different object), with no person in it? Answer only YES or NO.`, 5);
+  const t = await ask(env, [photo, icon], `Image 1 is a photo of "${name}". Image 2 is an icon drawn to represent it on a map. Is image 2 clearly the same kind of physical object (not a pun, symbol, animal, food or a different object), in the same main color(s) as the object in image 1 (a red item must be red, a black item black), with no person in it? Answer only YES or NO.`, 5);
   return t == null ? null : /^\s*YES/i.test(t);
 }
