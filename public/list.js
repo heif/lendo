@@ -3,7 +3,7 @@
   var CFG = window.LENDO_LIST || {}, MIN = CFG.minPrice || 8;
   var $ = function (id) { return document.getElementById(id); };
   // [icon key (same drawn icons as the map's wanted ghosts), name, $/day]
-  var IDEAS = [['drill', 'Drill', 8], ['tent', 'Tent', 15], ['projector', 'Projector', 18], ['mixer2', 'Stand mixer', 10], ['speaker', 'Party speaker', 14], ['ladder', 'Ladder', 9], ['picnic', 'Picnic set', 8], ['bike', 'Bike', 20], ['camera', 'Camera', 25], ['guitar', 'Guitar', 12], ['stroller2', 'Stroller', 10], ['pwasher', 'Pressure washer', 22],
+  var IDEAS = [['drill', 'Drill', 8], ['tent', 'Tent', 15], ['projector', 'Projector', 18], ['mixer2', 'Stand mixer', 10], ['speaker', 'Party speaker', 14], ['ladder', 'Ladder', 9], ['bike', 'Bike', 20], ['camera', 'Camera', 25], ['guitar', 'Guitar', 12], ['stroller2', 'Stroller', 10], ['pwasher', 'Pressure washer', 22],
     ['escooter', 'Scooter', 15], ['skis', 'Skis', 20], ['luggage', 'Suitcase', 8], ['kayak', 'Kayak', 35], ['airfryer', 'Air fryer', 8], ['espresso2', 'Espresso machine', 15], ['toolbox', 'Tool kit', 10], ['saw', 'Saw', 12], ['mic', 'Karaoke mic', 10], ['pickle', 'Pickleball set', 9], ['sewing2', 'Sewing machine', 12], ['telescope', 'Telescope', 18]];
   var moreFor = null;
   function shrink(f, cb) { var img = new Image(); img.onload = function () { var s = Math.min(1, 1400 / Math.max(img.width, img.height)), c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); c.toBlob(function (b) { if (b) cb(b); }, 'image/jpeg', 0.86); URL.revokeObjectURL(img.src); }; img.src = URL.createObjectURL(f); }
