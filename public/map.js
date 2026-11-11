@@ -86,11 +86,11 @@
   function computePos(z) {
     POS = {}; var cosLat = Math.cos(map.getCenter().lat * Math.PI / 180), mpp = 78271.5 * cosLat / Math.pow(2, z);
     var arr = items.filter(function (it) { return it.lat != null; }).sort(function (a, b) { return a.id < b.id ? -1 : 1; });
-    var px = arr.map(function (it) { return worldPx(it.lng, it.lat, z); }), par = arr.map(function (_, i) { return i; }), grid = {};
+    var LINK = PIN_W * 1.5, px = arr.map(function (it) { return worldPx(it.lng, it.lat, z); }), par = arr.map(function (_, i) { return i; }), grid = {};
     function find(i) { while (par[i] !== i) { par[i] = par[par[i]]; i = par[i]; } return i; }
     px.forEach(function (p, i) {
-      var gx = Math.floor(p[0] / PIN_W), gy = Math.floor(p[1] / PIN_W);
-      for (var dx = -1; dx <= 1; dx++) for (var dy = -1; dy <= 1; dy++) { var c = grid[(gx + dx) + ',' + (gy + dy)]; if (c) c.forEach(function (j) { if (Math.abs(px[j][0] - p[0]) < PIN_W && Math.abs(px[j][1] - p[1]) < PIN_W) par[find(i)] = find(j); }); }
+      var gx = Math.floor(p[0] / LINK), gy = Math.floor(p[1] / LINK);
+      for (var dx = -1; dx <= 1; dx++) for (var dy = -1; dy <= 1; dy++) { var c = grid[(gx + dx) + ',' + (gy + dy)]; if (c) c.forEach(function (j) { if (Math.abs(px[j][0] - p[0]) < LINK && Math.abs(px[j][1] - p[1]) < LINK) par[find(i)] = find(j); }); }
       (grid[gx + ',' + gy] = grid[gx + ',' + gy] || []).push(i);
     });
     var groups = {}; arr.forEach(function (_, i) { var r = find(i); (groups[r] = groups[r] || []).push(i); });
