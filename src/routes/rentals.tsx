@@ -424,7 +424,7 @@ rentals.get('/inbox', requireUser, async (c) => {
   const fmtT = (t: number) => new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
   return c.html(
     <Layout title="Inbox" user={u}>
-      <div class="msgs" id="inbox" style="padding:12px 12px 90px">
+      <div class="msgs" id="inbox" style="padding:12px 12px 8px">
         {all.length ? all.map(m => (
           <div class={'msg' + (m.me ? ' me' : '')}>
             <div class="bub"><Linked t={m.body} /></div>
@@ -433,7 +433,7 @@ rentals.get('/inbox', requireUser, async (c) => {
         )) : <div class="hint" style="padding:16px 4px">Nothing here yet</div>}
         <div id="end" />
       </div>
-      <form method="post" action="/inbox" class="compose dock">
+      <form method="post" action="/inbox" class="compose">
         <input name="body" placeholder="Message Lendo (same as texting us)" required maxlength={500} autocomplete="off" />
         <button type="submit" aria-label="Send">↑</button>
       </form>
