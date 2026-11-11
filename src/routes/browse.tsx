@@ -111,7 +111,7 @@ browse.get('/', (c) => homePage(c));
 export const itemPage = async (c: Ctx, lid: string, pretty = false) => {
   const u = c.get('user');
   const it = await listingById(c.env.DB, lid);
-  if (!it || it.status === 'removed') return c.notFound();
+  if (!it || it.status === 'removed' || (it.status === 'review' && u?.id !== it.owner_id)) return c.notFound();
   const owner = (await userById(c.env.DB, it.owner_id))!;
   const photos = await photosFor(c.env.DB, it.id);
   const rep = await reputation(c.env.DB, owner.id);
@@ -145,7 +145,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
       <section class="sec" style="padding:12px 16px 14px">
         <div class="row" style="justify-content:space-between;align-items:flex-start">
           <h2 style="margin:0;font-size:20px;font-weight:800;line-height:1.25">{(() => { const f = (owner.name || 'Neighbor').split(' ')[0]; return f + (/s$/i.test(f) ? '’ ' : '’s ') + it.name.charAt(0).toLowerCase() + it.name.slice(1); })()}</h2>
-          {it.status === 'paused' ? <span class="pill">paused</span> : null}
+          {it.status === 'paused' ? <span class="pill">paused</span> : it.status === 'review' ? <span class="pill">Posted · checking the photo</span> : null}
           {isOwner ? <a class="btn sm" href={'/listings/' + it.id + '/edit'} style="flex-shrink:0;margin-left:8px">✎ Edit</a> : null}
         </div>
         {it.description ? <p style="margin:4px 0 0;font-size:14px;line-height:1.4;color:var(--ink2);white-space:pre-wrap">{it.description}</p> : null}

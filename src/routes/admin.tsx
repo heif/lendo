@@ -9,6 +9,9 @@ import { Layout } from '../pages/layout';
 import { requireUser } from '../lib/auth';
 import { identifyItem, loadPricing, suggestPrice, lastRaw, lastClaude } from '../lib/identify';
 import { money } from '../lib/util';
+import { listingById, userById } from '../lib/db';
+import { matchListing } from '../lib/alerts';
+import { textUser } from '../lib/blooio';
 
 export const admin = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -161,4 +164,45 @@ admin.post('/admin/pricing/rule/:cat', async (c) => {
   const day = Math.round(parseFloat(String(f.day || '0')) * 100), rate = parseFloat(String(f.rate || '0')), week = parseFloat(String(f.week || '0'));
   if (day > 0 && rate >= 0 && week > 0) await c.env.DB.prepare('UPDATE price_rules SET day_cents = ?, rate_pct = ?, week_pct = ? WHERE category = ?').bind(day, rate, week, c.req.param('cat')).run();
   return c.redirect('/admin/pricing');
+});
+
+// Photo check: listings held by the safety filter. OK → live (+ alerts); Remove → owner texted to add a new photo.
+admin.get('/admin/review', async (c) => {
+  const u = c.get('user')!;
+  const rows = (await c.env.DB.prepare(`SELECT l.id, l.name, l.owner_id, (SELECT r2_key FROM photos p WHERE p.listing_id = l.id ORDER BY pos LIMIT 1) k, (SELECT value FROM settings s WHERE s.key = 'flag_' || l.id) why FROM listings l WHERE l.status = 'review' ORDER BY l.created_at DESC LIMIT 100`).all<{ id: string; name: string; owner_id: string; k: string | null; why: string | null }>()).results;
+  return c.html(
+    <Layout title="Admin · photo check" user={u} back="/admin/pricing">
+      <div style="padding:12px 16px 40px">
+        <div class="hint" style="margin-bottom:10px">{rows.length} held</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">
+          {rows.map(r => (
+            <div class="card" style="padding:8px">
+              {r.k ? <img src={'/p/' + r.k} style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px" /> : null}
+              <div style="font-weight:800;margin-top:6px">{r.name}</div>
+              <div class="hint">{r.why || 'flagged'}</div>
+              <form method="post" action={'/admin/review/' + r.id} class="row" style="gap:6px;margin-top:6px">
+                <button class="btn pri sm" name="v" value="ok" type="submit">OK</button>
+                <button class="btn sm" name="v" value="rm" type="submit" style="color:var(--red)">Remove</button>
+              </form>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Layout>
+  );
+});
+admin.post('/admin/review/:id', async (c) => {
+  const lid = c.req.param('id'), v = String((await c.req.parseBody()).v || '');
+  const it = await listingById(c.env.DB, lid);
+  if (!it || it.status !== 'review') return c.redirect('/admin/review');
+  if (v === 'ok') {
+    await c.env.DB.prepare(`UPDATE listings SET status = 'live' WHERE id = ?`).bind(lid).run();
+    c.executionCtx.waitUntil(matchListing(c.env, lid).catch(() => {}));
+  } else if (v === 'rm') {
+    await c.env.DB.prepare(`UPDATE listings SET status = 'removed' WHERE id = ?`).bind(lid).run();
+    const owner = await userById(c.env.DB, it.owner_id);
+    if (owner) c.executionCtx.waitUntil(textUser(c.env, owner, `Lendo: the photo for your ${it.name} can't be posted. List it again with a photo of just the item ${c.env.APP_URL}/list`, 'rental').catch(() => {}));
+  }
+  await c.env.DB.prepare(`DELETE FROM settings WHERE key = ?`).bind('flag_' + lid).run();
+  return c.redirect('/admin/review');
 });

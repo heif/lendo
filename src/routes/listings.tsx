@@ -173,7 +173,7 @@ listings.get('/listings', requireUser, async (c) => {
           <div class="row" style="align-items:flex-start">
             <a href={'/i/' + it.id}>{avatarUrl(c.env, it.avatar_key, ph[it.id] || null) ? <img src={avatarUrl(c.env, it.avatar_key, ph[it.id] || null)!} alt="" style="width:72px;height:72px;object-fit:contain;border-radius:10px;background:#fff;border:1.5px solid var(--line)" /> : <div class="ph" style="width:72px;height:72px;border-radius:10px;background:var(--cream)"></div>}</a>
             <div style="flex:1;min-width:0">
-              <div class="row" style="justify-content:space-between"><a href={'/i/' + it.id} style="font-weight:800;text-decoration:none">{it.name}</a><span class="pill" style={it.status === 'live' ? 'background:var(--mint)' : ''}>{it.status}</span></div>
+              <div class="row" style="justify-content:space-between"><a href={'/i/' + it.id} style="font-weight:800;text-decoration:none">{it.name}</a><span class="pill" style={it.status === 'live' ? 'background:var(--mint)' : ''}>{it.status === 'review' ? 'posted' : it.status}</span></div>
               {it.lat == null ? <a href="/profile/edit" class="hint" style="color:var(--red);font-weight:700">⚠ Not on the map yet — set your home base</a> : null}
               <form method="post" action={'/listings/' + it.id + '/price'} class="row" style="margin-top:6px;gap:6px">
                 <button class="btn sm" name="delta" value="-100" type="submit" aria-label="Lower price $1">−</button>
@@ -184,7 +184,7 @@ listings.get('/listings', requireUser, async (c) => {
           </div>
           <div class="row" style="margin-top:10px;gap:6px;flex-wrap:wrap">
             <a class="btn sm" href={'/listings/' + it.id + '/edit'}>Edit</a>
-            <form method="post" action={'/listings/' + it.id + '/toggle'}><button class="btn sm" type="submit">{it.status === 'live' ? 'Pause' : 'Go live'}</button></form>
+            {it.status === 'review' ? <span class="pill">Posted · checking the photo</span> : <form method="post" action={'/listings/' + it.id + '/toggle'}><button class="btn sm" type="submit">{it.status === 'live' ? 'Pause' : 'Go live'}</button></form>}
             <form method="post" action={'/listings/' + it.id + '/remove'} onsubmit="return confirm('Remove this listing?')"><button class="btn sm" type="submit" style="color:var(--red)">Remove</button></form>
           </div>
         </div>
@@ -210,6 +210,7 @@ listings.post('/listings/:id/toggle', requireUser, async (c) => {
   const u = c.get('user')!;
   const it = await listingById(c.env.DB, c.req.param('id'));
   if (!it || it.owner_id !== u.id) return c.notFound();
+  if (it.status === 'review') return c.redirect('/listings');
   await c.env.DB.prepare('UPDATE listings SET status = ? WHERE id = ?').bind(it.status === 'live' ? 'paused' : 'live', it.id).run();
   return c.redirect('/listings');
 });
