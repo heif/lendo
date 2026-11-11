@@ -337,7 +337,7 @@
   function alertCard(on, cb) {
     var chip = $('alertChip');
     chip.innerHTML = (qNote ? '<div class="ac-h">' + qNote + '</div>' : '') +
-      '<button type="button" class="ac-pill' + (on ? ' on' : '') + '" role="switch" aria-checked="' + on + '"><span>🔔 Text alert when one’s listed</span><i class="ac-sw"><b></b></i></button>';
+      '<button type="button" class="ac-pill' + (on ? ' on' : '') + '" role="switch" aria-checked="' + on + '"><span>🔔 Text alert when ' + (qNote ? 'one’s' : 'a new one’s') + ' listed</span><i class="ac-sw"><b></b></i></button>';
     chip.hidden = false; chip.querySelector('.ac-pill').onclick = cb;
   }
   function alertChip(now) {
