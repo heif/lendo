@@ -174,7 +174,19 @@
   var SZ = S.sticker.size, DPR = Math.min(2, window.devicePixelRatio || 1);
   // Prototype pin: the item icon (transparent sticker) with a white outline + soft glow, orange price tag below.
   // Listings without a transparent icon get the round photo sticker.
+  // crop a cut-out to its visible pixels so every item fills the same box (cut-outs often carry big transparent margins)
+  function trimAlpha(img) {
+    try {
+      var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height, c = document.createElement('canvas'); c.width = w; c.height = h;
+      var x = c.getContext('2d'); x.drawImage(img, 0, 0); var d = x.getImageData(0, 0, w, h).data, x0 = w, y0 = h, x1 = -1, y1 = -1;
+      for (var y = 0; y < h; y += 2) for (var i = 0; i < w; i += 2) if (d[(y * w + i) * 4 + 3] > 24) { if (i < x0) x0 = i; if (i > x1) x1 = i; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      if (x1 < 0 || (x1 - x0 > w * 0.96 && y1 - y0 > h * 0.96)) return img;
+      x0 = Math.max(0, x0 - 2); y0 = Math.max(0, y0 - 2); x1 = Math.min(w - 1, x1 + 2); y1 = Math.min(h - 1, y1 + 2);
+      var o = document.createElement('canvas'); o.width = x1 - x0 + 1; o.height = y1 - y0 + 1; o.getContext('2d').drawImage(c, x0, y0, o.width, o.height, 0, 0, o.width, o.height); return o;
+    } catch (e) { return img; }
+  }
   function drawSticker(it, img, transparent) {
+    if (img && transparent) img = trimAlpha(img);
     var W = 104, H = SZ + 30, iconH = SZ + 6;
     var cv = document.createElement('canvas'); cv.width = W * DPR; cv.height = H * DPR;
     var g = cv.getContext('2d'); g.scale(DPR, DPR);
