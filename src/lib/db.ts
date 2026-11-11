@@ -55,6 +55,13 @@ export async function busyDays(db: D1Database, lid: string, from: string, to: st
     const e = new Date(shift(r.end_day, 1) + 'T00:00:00Z');
     while (d <= e) { out.add(d.toISOString().slice(0, 10)); d.setUTCDate(d.getUTCDate() + 1); }
   }
+  // extra days someone is asking for (card held, waiting for the owner) count as taken too
+  const xs = await db.prepare(`SELECT from_day, new_end FROM rental_extensions WHERE listing_id = ? AND status = 'held' AND new_end >= ? AND from_day <= ?`)
+    .bind(lid, shift(from, -1), shift(to, 1)).all<{ from_day: string; new_end: string }>().catch(() => ({ results: [] as { from_day: string; new_end: string }[] }));
+  for (const x of xs.results) {
+    let d = new Date(x.from_day + 'T00:00:00Z'); const e = new Date(shift(x.new_end, 1) + 'T00:00:00Z');
+    while (d <= e) { out.add(d.toISOString().slice(0, 10)); d.setUTCDate(d.getUTCDate() + 1); }
+  }
   for (const d of [...out]) if (d < from || d > to) out.delete(d);
   return out;
 }

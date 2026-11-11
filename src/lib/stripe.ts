@@ -98,5 +98,12 @@ export async function flushPendingPayouts(env: Env, owner: User): Promise<number
     await env.DB.prepare('UPDATE rentals SET paid_out = 1 WHERE id = ?').bind(r.id).run();
     n++;
   }
+  // extra days from extensions (captured, not yet sent)
+  const xs = await env.DB.prepare(`SELECT x.id, x.rental_id, x.rent_cents FROM rental_extensions x JOIN rentals r ON r.id = x.rental_id WHERE r.owner_id = ? AND x.status = 'confirmed' AND x.paid_out = 0 AND x.rent_cents > 0 AND x.total_cents >= 50 AND x.stripe_payment_intent IS NOT NULL`).bind(owner.id).all<{ id: string; rental_id: string; rent_cents: number }>().catch(() => ({ results: [] as { id: string; rental_id: string; rent_cents: number }[] }));
+  for (const x of xs.results) {
+    await s.transfers.create({ amount: x.rent_cents, currency: 'usd', destination: owner.stripe_account_id, transfer_group: x.rental_id, metadata: { rental_id: x.rental_id, ext_id: x.id } }, { idempotencyKey: `payout_${x.id}` });
+    await env.DB.prepare('UPDATE rental_extensions SET paid_out = 1 WHERE id = ?').bind(x.id).run();
+    n++;
+  }
   return n;
 }

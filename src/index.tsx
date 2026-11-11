@@ -1,4 +1,5 @@
 import { iconsDone, makeWantedIcon, auditIcons } from './lib/wanted-icons';
+import { expireExtensions } from './lib/extend';
 import { weeklyOwnerText } from './lib/weekly';
 import { nudgePromises } from './lib/rentals';
 import { pretty } from './routes/pretty';
@@ -55,6 +56,7 @@ export default {
     try { const m = await selfMigrate(env); if (m.length) console.log('self-migrated', m); } catch (e) { console.warn('self-migrate', e); }
     try { await backfillUrls(env, 150); } catch (e) { console.warn('urls', e); }
     try { await nudgePromises(env); } catch (e) { console.warn('promise nudge', e); }
+    try { await expireExtensions(env); } catch (e) { console.warn('ext expire', e); }
     const n = await expireHolds(env);
     if (n) console.log(`expired ${n} held requests`);
     try { const c = await chaseHolds(env); if (c) console.log(`chase: ${c} texts`); } catch (e) { console.warn('chase', e); }

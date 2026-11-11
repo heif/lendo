@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { acceptExt, askExtension, declineExt, extById, extendableDays, extPrice, EXT_MAX_DAYS, openExt } from '../lib/extend';
 import { Grade, GRADES, isGrade } from '../lib/grade';
 import { raw } from 'hono/html';
 import type { Env, Listing, Rental, Vars } from '../lib/env';
@@ -69,6 +70,10 @@ rentals.get('/r/:id', requireUser, async (c) => {
   const myRating = isOwner ? r.owner_rating : r.renter_rating;
   const spots = owner.pickup_spots ? (JSON.parse(owner.pickup_spots) as string[]) : [];
   const fmtT = (t: number) => new Date(t).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
+  const live = r.status === 'picked_up';
+  const ox = live ? await openExt(c.env, r.id) : null;
+  const extOk = live && !isOwner && !ox ? await extendableDays(c.env, r) : [];
+  const extCells = live && !isOwner && !ox ? Array.from({ length: Math.min(EXT_MAX_DAYS, Math.max(7, extOk.length + 1)) }, (_, i) => addDays(r.end_day, i + 1)) : [];
   return c.html(
     <Layout title={isOwner ? 'Rental of your ' + it.name : 'Your rental'} user={u} back="/rentals" flash={c.req.query('paid') ? (r.status === 'held' ? `Card held. Waiting for ${firstName(owner.name)}.` : null) : null}>
       <div style="padding:12px 12px 90px;display:flex;flex-direction:column;gap:10px">
@@ -98,6 +103,29 @@ rentals.get('/r/:id', requireUser, async (c) => {
             </details>
             <div class="hint" style="margin-top:8px">or reply YES / NO by text · expires {r.expires_at ? fmtT(r.expires_at) : 'in 24h'}</div>
           </div>
+        ) : null}
+
+        {/* extend: customer picks a later return day → card hold → owner YES */}
+        {ox && ox.status === 'held' ? (isOwner ? (
+          <div class="card" style="border:2px solid var(--ink)">
+            <b>{firstName(other.name)} wants to keep it until {fmtDay(ox.new_end)} · you'd earn {money(ox.rent_cents)} more</b>
+            <div class="row" style="margin-top:10px;gap:8px">
+              <form method="post" action={`/r/${r.id}/ext/${ox.id}/accept`} style="flex:1"><button class="btn pri full" type="submit">YES</button></form>
+              <form method="post" action={`/r/${r.id}/ext/${ox.id}/decline`}><button class="btn" type="submit">No</button></form>
+            </div>
+            <div class="hint" style="margin-top:8px">or reply YES / NO by text</div>
+          </div>
+        ) : <div class="card"><b>Asked {firstName(other.name)} to keep it until {fmtDay(ox.new_end)}</b><div class="hint">{money(ox.total_cents)} held on your card · charged only if {firstName(other.name)} says yes</div></div>) : null}
+        {extCells.length ? (
+          <form method="post" action={'/r/' + r.id + '/extend'} class="card" data-o={firstName(other.name)}>
+            <b>Need it longer?</b><div class="hint" style="margin-top:2px">Now due back {fmtDay(r.end_day)}{extOk.length ? '' : ' · booked right after, so it can’t be extended'}</div>
+            {extOk.length ? <>
+              <div class="days" style="margin-top:8px">{extCells.map(d => { const ok = extOk.includes(d), p = ok ? extPrice(c.env, r, it.price_cents, it.week_cents, d) : null; const dt = new Date(d + 'T00:00:00Z');
+                return <label style="display:block"><input type="radio" name="to" value={d} disabled={!ok} hidden data-p={p ? money(p.total) : ''} onchange="var f=this.form;[].forEach.call(f.querySelectorAll('.days button'),function(b){b.classList.remove('on')});this.nextElementSibling.classList.add('on');f.querySelector('.xgo').disabled=false;f.querySelector('.xgo').textContent='Ask ' + f.dataset.o + ' · +' + this.dataset.p" /><button type="button" class={ok ? '' : 'busy'} disabled={!ok} onclick="this.previousElementSibling.click()" style="width:100%"><small>{dt.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })}</small><b>{dt.getUTCDate()}</b></button></label>; })}</div>
+              <button class="btn pri full xgo" type="submit" disabled style="margin-top:10px">Pick a new return day</button>
+              <div class="hint" style="margin-top:6px">Card held now · charged only if {firstName(other.name)} says yes</div>
+            </> : null}
+          </form>
         ) : null}
 
         {/* customer cancel: free before YES, 50% back after YES */}
@@ -241,6 +269,23 @@ rentals.post('/r/:id/msg', requireUser, async (c) => {
     }
   }
   if (body) await relay(c.env, r, u, body, 'web');
+  return c.redirect('/r/' + r.id);
+});
+rentals.post('/r/:id/extend', requireUser, async (c) => {
+  const u = c.get('user')!; const r = await rentalById(c.env.DB, c.req.param('id'));
+  if (!r || r.renter_id !== u.id) return c.notFound();
+  const to = String((await c.req.parseBody()).to || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(to)) return c.redirect('/r/' + r.id);
+  const res = await askExtension(c.env, r, to);
+  if ('error' in res) return c.text(res.error, 409);
+  return c.redirect(res.url, 303);
+});
+rentals.post('/r/:id/ext/:xid/:v', requireUser, async (c) => {
+  const u = c.get('user')!; const r = await rentalById(c.env.DB, c.req.param('id'));
+  if (!r || r.owner_id !== u.id) return c.notFound();
+  const x = await extById(c.env, c.req.param('xid'));
+  if (!x || x.rental_id !== r.id || x.status !== 'held') return c.redirect('/r/' + r.id);
+  if (c.req.param('v') === 'accept') await acceptExt(c.env, x); else if (c.req.param('v') === 'decline') await declineExt(c.env, x, 'declined');
   return c.redirect('/r/' + r.id);
 });
 rentals.post('/r/:id/spot', requireUser, async (c) => {

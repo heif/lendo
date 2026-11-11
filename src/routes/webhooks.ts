@@ -1,4 +1,5 @@
 import { answerPending, actOn, intentContext, parseIntent } from '../lib/intent';
+import { acceptExt, declineExt, extById, extFromSession, heldExtForOwner, markExtHeld } from '../lib/extend';
 import { turnOff } from '../lib/alerts';
 import { Hono, type Context } from 'hono';
 import type Stripe from 'stripe';
@@ -21,7 +22,9 @@ webhooks.post('/webhooks/stripe', async (c) => {
   try { ev = await s.webhooks.constructEventAsync(raw, sig, c.env.STRIPE_WEBHOOK_SECRET); } catch (e) { return c.text('bad signature', 400); }
   if (ev.type === 'checkout.session.completed') {
     const cs = ev.data.object as Stripe.Checkout.Session;
-    const rid = cs.metadata?.rental_id || cs.client_reference_id;
+    const xid = extFromSession(cs);
+    const rid = xid ? null : cs.metadata?.rental_id || cs.client_reference_id;
+    if (xid) await markExtHeld(c.env, xid, typeof cs.payment_intent === 'string' ? cs.payment_intent : cs.payment_intent?.id ?? null, cs.id);
     if (rid) {
       const r = await rentalById(c.env.DB, rid);
       if (r) await markHeld(c.env, r, typeof cs.payment_intent === 'string' ? cs.payment_intent : cs.payment_intent?.id ?? null, cs.id);
@@ -29,6 +32,8 @@ webhooks.post('/webhooks/stripe', async (c) => {
   } else if (ev.type === 'checkout.session.expired') {
     const cs = ev.data.object as Stripe.Checkout.Session;
     const rid = cs.metadata?.rental_id;
+    const xid = extFromSession(cs);
+    if (xid) { const x = await extById(c.env, xid); if (x && x.status === 'requested') await declineExt(c.env, x, 'canceled'); }
     if (rid) { const r = await rentalById(c.env.DB, rid); if (r && r.status === 'requested') await decline(c.env, r, 'canceled'); }
   } else if (ev.type === 'payment_intent.canceled') {
     const pi = ev.data.object as Stripe.PaymentIntent;
@@ -113,6 +118,9 @@ async function blooioInbound(c: Context<{ Bindings: Env; Variables: Vars }>) {
       else await decline(c.env, held, 'declined');
       return c.json({ ok: true });
     }
+    // no pending rental request → an extension waiting for this owner?
+    const hx = await heldExtForOwner(c.env, user.id);
+    if (hx) { if (kw.startsWith('Y') || kw === 'ACCEPT') await acceptExt(c.env, hx); else await declineExt(c.env, hx, 'declined'); return c.json({ ok: true }); }
     // no pending request → fall through to relay
   }
 
