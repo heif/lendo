@@ -28,10 +28,16 @@ export const requireUser: MiddlewareHandler<{ Bindings: Env; Variables: Vars }> 
 };
 
 // Twilio Verify sends + checks the code itself (SMS to any phone; no 10DLC registration needed)
-const twilioOn = (env: Env) => !!(env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_VERIFY_SID);
+export const twilioBasic = (env: Env): string | null => {
+  const key = (env.TWILIO_API_KEY_SID || '').trim(), sec = (env.TWILIO_API_KEY_SECRET || '').trim();
+  if (key && sec) return 'Basic ' + btoa(`${key}:${sec}`);
+  const sid = (env.TWILIO_ACCOUNT_SID || '').trim(), tok = (env.TWILIO_AUTH_TOKEN || '').trim();
+  return sid && tok ? 'Basic ' + btoa(`${sid}:${tok}`) : null;
+};
+const twilioOn = (env: Env) => !!(twilioBasic(env) && (env.TWILIO_VERIFY_SID || '').trim());
 async function twilio(env: Env, path: string, body: Record<string, string>): Promise<any> {
-  const r = await fetch(`https://verify.twilio.com/v2/Services/${env.TWILIO_VERIFY_SID}/${path}`, { method: 'POST',
-    headers: { authorization: 'Basic ' + btoa(`${env.TWILIO_ACCOUNT_SID}:${env.TWILIO_AUTH_TOKEN}`), 'content-type': 'application/x-www-form-urlencoded' },
+  const r = await fetch(`https://verify.twilio.com/v2/Services/${(env.TWILIO_VERIFY_SID || '').trim()}/${path}`, { method: 'POST',
+    headers: { authorization: twilioBasic(env)!, 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams(body).toString() });
   const j: any = await r.json().catch(() => ({}));
   return r.ok ? j : { error: j?.message || `twilio ${r.status}` };

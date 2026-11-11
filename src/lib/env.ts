@@ -21,6 +21,8 @@ export type Env = {
   MAPBOX_SECRET_TOKEN?: string;
   TWILIO_ACCOUNT_SID?: string;    // login codes by SMS via Twilio Verify (works on Android / non-iMessage); unset → Blooio
   TWILIO_AUTH_TOKEN?: string;
+  TWILIO_API_KEY_SID?: string;    // optional instead of the auth token: an API key (SK…) + its secret
+  TWILIO_API_KEY_SECRET?: string;
   TWILIO_VERIFY_SID?: string;     // VA… service id
   ANTHROPIC_API_KEY?: string;     // plain-English texting (intent.ts)  // sk., never sent to the client
 };

@@ -1,5 +1,6 @@
 // Public read API — agents welcome. No auth for reads; writes come later (keys + scopes).
 import { Hono } from 'hono';
+import { twilioBasic } from '../lib/auth';
 import { saveSearch, turnOff } from '../lib/alerts';
 import type { Env, Listing, Vars } from '../lib/env';
 import { firstPhotos, listingById, photosFor, reputation, userById } from '../lib/db';
@@ -95,10 +96,10 @@ api.post('/api/alerts/:id/off', async (c) => {
 // public health check: schema version only, nothing sensitive
 api.get('/api/health', async (c) => {
   let twilio_auth: boolean | null = null;
-  if (c.env.TWILIO_ACCOUNT_SID && c.env.TWILIO_AUTH_TOKEN && c.env.TWILIO_VERIFY_SID) { try { twilio_auth = (await fetch(`https://verify.twilio.com/v2/Services/${c.env.TWILIO_VERIFY_SID}`, { headers: { authorization: 'Basic ' + btoa(`${c.env.TWILIO_ACCOUNT_SID}:${c.env.TWILIO_AUTH_TOKEN}`) } })).ok; } catch { twilio_auth = false; } }
+  if (twilioBasic(c.env) && c.env.TWILIO_VERIFY_SID) { try { twilio_auth = (await fetch(`https://verify.twilio.com/v2/Services/${c.env.TWILIO_VERIFY_SID.trim()}`, { headers: { authorization: twilioBasic(c.env)! } })).ok; } catch { twilio_auth = false; } }
   const mig = await c.env.DB.prepare(`SELECT name FROM d1_migrations ORDER BY id DESC LIMIT 1`).first<{ name: string }>().catch(() => null);
   const t = await c.env.DB.prepare(`SELECT COUNT(*) n FROM sqlite_master WHERE type = 'table' AND name = 'saved_searches'`).first<{ n: number }>();
-  return c.json({ ok: true, last_migration: mig?.name ?? null, alerts_tables: !!t?.n, twilio_auth, sms_fallback: !!(c.env.TWILIO_ACCOUNT_SID && c.env.TWILIO_AUTH_TOKEN && c.env.TWILIO_VERIFY_SID), twilio_sid_ok: /^VA[0-9a-f]{32}$/.test(c.env.TWILIO_VERIFY_SID || '') && /^AC[0-9a-f]{32}$/.test(c.env.TWILIO_ACCOUNT_SID || '') });
+  return c.json({ ok: true, last_migration: mig?.name ?? null, alerts_tables: !!t?.n, twilio_auth, twilio_via: c.env.TWILIO_API_KEY_SID ? 'api_key' : 'auth_token', token_len: (c.env.TWILIO_AUTH_TOKEN || '').length, token_trimmed_len: (c.env.TWILIO_AUTH_TOKEN || '').trim().length, sms_fallback: !!(twilioBasic(c.env) && c.env.TWILIO_VERIFY_SID), twilio_sid_ok: /^VA[0-9a-f]{32}$/.test(c.env.TWILIO_VERIFY_SID || '') && /^AC[0-9a-f]{32}$/.test(c.env.TWILIO_ACCOUNT_SID || '') });
 });
 api.get('/api/hood', async (c) => {
   const lat = parseFloat(c.req.query('lat') || ''), lng = parseFloat(c.req.query('lng') || '');

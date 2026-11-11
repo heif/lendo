@@ -1,5 +1,6 @@
 // Admin (allowlisted phones only): pricing rules + identification test.
 import { Hono } from 'hono';
+import { twilioBasic } from '../lib/auth';
 import type { Env, Vars } from '../lib/env';
 import { WANTED_ALL } from '../lib/places';
 import { iconsDone, makeWantedIcon } from '../lib/wanted-icons';
@@ -40,7 +41,7 @@ admin.get('/admin/debug', async (c) => {
   let ping = 'no ANTHROPIC_API_KEY';
   if (c.env.ANTHROPIC_API_KEY) { try { const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': c.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: 'claude-haiku-5-5', max_tokens: 5, messages: [{ role: 'user', content: 'Say OK' }] }) }); ping = r.status + ' ' + (await r.text()).slice(0, 300); } catch (e: any) { ping = 'ERR ' + (e?.message || e); } }
   let twilio = 'not set';
-  if (c.env.TWILIO_ACCOUNT_SID && c.env.TWILIO_AUTH_TOKEN && c.env.TWILIO_VERIFY_SID) { try { const r = await fetch(`https://verify.twilio.com/v2/Services/${c.env.TWILIO_VERIFY_SID}`, { headers: { authorization: 'Basic ' + btoa(`${c.env.TWILIO_ACCOUNT_SID}:${c.env.TWILIO_AUTH_TOKEN}`) } }); const j: any = await r.json().catch(() => ({})); twilio = r.status + ' ' + (j.friendly_name || j.message || ''); } catch (e: any) { twilio = 'ERR ' + (e?.message || e); } }
+  if (twilioBasic(c.env) && c.env.TWILIO_VERIFY_SID) { try { const r = await fetch(`https://verify.twilio.com/v2/Services/${c.env.TWILIO_VERIFY_SID.trim()}`, { headers: { authorization: twilioBasic(c.env)! } }); const j: any = await r.json().catch(() => ({})); twilio = r.status + ' ' + (j.friendly_name || j.message || ''); } catch (e: any) { twilio = 'ERR ' + (e?.message || e); } }
   const tables = (await c.env.DB.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`).all<{ name: string }>()).results.map(r => r.name);
   const mig = await c.env.DB.prepare(`SELECT name FROM d1_migrations ORDER BY id DESC LIMIT 1`).first<{ name: string }>().catch(() => null);
   return c.json({ twilio_ping: twilio, last_migration: mig?.name ?? null, has_alerts_tables: tables.includes('saved_searches'), claude_ping: ping, settings: Object.fromEntries(rows.map(r => [r.key, r.value])) });
