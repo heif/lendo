@@ -464,7 +464,7 @@
     im.onerror = function () { var q = FIT[w.key].q; FIT[w.key] = { url: w.icon, w: 44, h: 44 }; q.forEach(function (cb) { cb(FIT[w.key]); }); };
     im.src = w.icon;
   }
-  function ghostScale() { var z = map.getZoom(); map.getContainer().style.setProperty('--gs', z < 12.5 ? 0.58 : z < 13.5 ? 0.72 : z < 14.5 ? 0.86 : 1); }
+  function ghostScale() { var z = map.getZoom(); map.getContainer().style.setProperty('--gs', z < 12.5 ? 0.65 : z < 13.5 ? 0.81 : z < 14.5 ? 0.96 : 1.12); // +12% }
   map.on('zoom', ghostScale); map.on('load', ghostScale);
   function startWanted() {
     var marks = GMARKS, PROMO = !!CFG.wantedPromo, MOD = PROMO ? 5 : 1, MAX = PROMO ? 9 : 120;
