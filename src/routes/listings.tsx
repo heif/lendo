@@ -275,6 +275,11 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
 // photos: add (up to 6), remove, make cover — owner only
 async function ownListing(c: any) { const u = c.get('user')!; const it = await listingById(c.env.DB, c.req.param('id')); return it && it.owner_id === u.id ? it : null; }
 async function renumber(env: any, lid: string) { const rows = (await env.DB.prepare('SELECT id FROM photos WHERE listing_id = ? ORDER BY pos, id').bind(lid).all()).results as { id: string }[]; for (let i = 0; i < rows.length; i++) await env.DB.prepare('UPDATE photos SET pos = ? WHERE id = ?').bind(i, rows[i].id).run(); }
+// cover photo changed → redo the map icon from the new cover
+async function recoverIcon(c: any, lid: string, before: string | null) {
+  const ph = await photosFor(c.env.DB, lid); const k = ph[0]?.r2_key || null;
+  if (k && k !== before) c.executionCtx.waitUntil(autoIcon(c.env, lid, k));
+}
 listings.post('/listings/:id/photos', requireUser, async (c) => {
   const it = await ownListing(c); if (!it) return c.notFound();
   const f = await c.req.parseBody({ all: true });
@@ -286,18 +291,21 @@ listings.post('/listings/:id/photos', requireUser, async (c) => {
     await c.env.PHOTOS.put(key, await p.arrayBuffer(), { httpMetadata: { contentType: p.type || 'image/jpeg' } });
     await c.env.DB.prepare('INSERT INTO photos (id, listing_id, r2_key, pos) VALUES (?,?,?,?)').bind(id('ph'), it.id, key, pos++).run();
   }
+  if (!have) await recoverIcon(c, it.id, null);
   return c.redirect(`/listings/${it.id}/edit`);
 });
 listings.post('/listings/:id/photos/:pid/delete', requireUser, async (c) => {
   const it = await ownListing(c); if (!it) return c.notFound();
+  const cover0 = (await photosFor(c.env.DB, it.id))[0]?.r2_key || null;
   const ph = await c.env.DB.prepare('SELECT r2_key FROM photos WHERE id = ? AND listing_id = ?').bind(c.req.param('pid'), it.id).first<{ r2_key: string }>();
-  if (ph) { await c.env.DB.prepare('DELETE FROM photos WHERE id = ?').bind(c.req.param('pid')).run(); await c.env.PHOTOS.delete(ph.r2_key); await renumber(c.env, it.id); }
+  if (ph) { await c.env.DB.prepare('DELETE FROM photos WHERE id = ?').bind(c.req.param('pid')).run(); await c.env.PHOTOS.delete(ph.r2_key); await renumber(c.env, it.id); await recoverIcon(c, it.id, cover0); }
   return c.redirect(`/listings/${it.id}/edit`);
 });
 listings.post('/listings/:id/photos/:pid/cover', requireUser, async (c) => {
   const it = await ownListing(c); if (!it) return c.notFound();
+  const cover0 = (await photosFor(c.env.DB, it.id))[0]?.r2_key || null;
   await c.env.DB.prepare('UPDATE photos SET pos = -1 WHERE id = ? AND listing_id = ?').bind(c.req.param('pid'), it.id).run();
-  await renumber(c.env, it.id);
+  await renumber(c.env, it.id); await recoverIcon(c, it.id, cover0);
   return c.redirect(`/listings/${it.id}/edit`);
 });
 

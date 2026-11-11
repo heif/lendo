@@ -89,46 +89,25 @@ export async function backfillAvatars(env: Env, limit = 3): Promise<number> {
   return n;
 }
 
-export async function autoIcon(env: Env, listingId: string, photoKey: string, name: string, description?: string | null): Promise<void> {
+// Map icon = the real photo, cut out (never a drawing: drawings followed the AI's name, e.g. a teddy bear drawn as Mickey Mouse).
+export async function autoIcon(env: Env, listingId: string, photoKey: string, _name?: string, _description?: string | null): Promise<void> {
   try {
-    const obj = await env.PHOTOS.get(photoKey);
-    if (!obj || !env.AI) return;
-    const photo = await obj.arrayBuffer();
-    const desc = (await artistPrompt(env, photo, name)) || await describeItem(env, photo, name + (description ? ' — ' + description.slice(0, 120) : ''));
-    // draw, then check it's the same kind of object as the photo; 2 tries
-    let icon: ArrayBuffer | null = null;
-    for (let t = 0; t < 2; t++) {
-      const d = await drawIcon(env, t ? desc + ', the literal physical object exactly as in a product photo, same colors as the real item' : desc); if (!d) continue;
-      const ok = await sameObject(env, photo, d, name);
-      if (ok !== false) { icon = d; break; }
-    }
-    let stickerKey: string | null = null, style = 'ai';
-    if (icon) {
-      const aiKey = `${listingId}/avatar-ai.png`;
-      await env.PHOTOS.put(aiKey, icon, { httpMetadata: { contentType: 'image/png' }, customMetadata: { desc } });
-      try { const cut = await makeCutout(env, aiKey); if (cut) { stickerKey = `${listingId}/avatar.png`; await env.PHOTOS.put(stickerKey, cut, { httpMetadata: { contentType: 'image/png' } }); } } catch (e) { console.warn('cutout failed', e); }
-    } else {
-      // drawing kept coming out wrong → the real photo, cut out
-      try { const cut = await makeCutout(env, photoKey); if (cut) { stickerKey = `${listingId}/avatar-cutout.png`; style = 'cutout'; await env.PHOTOS.put(stickerKey, cut, { httpMetadata: { contentType: 'image/png' } }); } } catch (e) { console.warn('photo cutout failed', e); }
-    }
-    if (stickerKey) await env.DB.prepare('UPDATE listings SET avatar_key = ?, avatar_style = ? WHERE id = ? AND avatar_key IS NULL').bind(stickerKey, style, listingId).run();
-  } catch (e) { console.warn('autoIcon failed', e); }
+    const cut = await makeCutout(env, photoKey); if (!cut) return;
+    const key = `${listingId}/avatar-cutout.png`;
+    await env.PHOTOS.put(key, cut, { httpMetadata: { contentType: 'image/png' } });
+    await env.DB.prepare(`UPDATE listings SET avatar_key = ?, avatar_style = 'cutout' WHERE id = ?`).bind(key, listingId).run();
+  } catch (e) { console.warn('autoIcon (cutout) failed', e); }
 }
 
 // one pass over real listings' existing drawn icons: wrong kind of object → clear it so the backfill redraws (checked)
 export async function auditAvatars(env: Env, limit = 4): Promise<number> {
-  const r = await env.DB.prepare(`SELECT value FROM settings WHERE key = 'avatar_audited_v3'`).first<{ value: string }>();
-  const seen = new Set<string>(r ? JSON.parse(r.value) : []);
-  const rows = (await env.DB.prepare(`SELECT l.id, l.name, (SELECT r2_key FROM photos p WHERE p.listing_id = l.id ORDER BY pos LIMIT 1) k FROM listings l WHERE l.demo = 0 AND l.avatar_style = 'ai' AND l.avatar_key IS NOT NULL ORDER BY l.created_at DESC LIMIT 200`).all<{ id: string; name: string; k: string | null }>()).results.filter(x => !seen.has(x.id) && x.k).slice(0, limit);
-  let bad = 0;
+  const rows = (await env.DB.prepare(`SELECT l.id, (SELECT r2_key FROM photos p WHERE p.listing_id = l.id ORDER BY pos LIMIT 1) k FROM listings l WHERE l.demo = 0 AND l.avatar_style = 'ai' ORDER BY l.created_at DESC LIMIT ?`).bind(limit).all<{ id: string; k: string | null }>()).results;
+  let n = 0;
   for (const x of rows) {
-    const ph = await env.PHOTOS.get(x.k!), ic = await env.PHOTOS.get(`${x.id}/avatar-ai.png`);
-    if (!ph || !ic) { seen.add(x.id); continue; }
-    const ok = await sameObject(env, await ph.arrayBuffer(), await ic.arrayBuffer(), x.name);
-    if (ok === null) break;
-    seen.add(x.id);
-    if (!ok) { bad++; await env.PHOTOS.delete(`${x.id}/avatar-ai.png`); await env.DB.prepare('UPDATE listings SET avatar_key = NULL, avatar_style = NULL WHERE id = ?').bind(x.id).run(); }
+    if (!x.k) { await env.DB.prepare(`UPDATE listings SET avatar_key = NULL, avatar_style = NULL WHERE id = ?`).bind(x.id).run(); continue; }
+    try { await autoIcon(env, x.id, x.k); n++; } catch { /* next tick */ }
+    const still = await env.DB.prepare(`SELECT avatar_style FROM listings WHERE id = ?`).bind(x.id).first<{ avatar_style: string | null }>();
+    if (still?.avatar_style === 'ai') await env.DB.prepare(`UPDATE listings SET avatar_key = NULL, avatar_style = NULL WHERE id = ?`).bind(x.id).run(); // cutout failed → plain pin, never a drawing
   }
-  await env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('avatar_audited_v3', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(JSON.stringify([...seen])).run();
-  return bad;
+  return n;
 }

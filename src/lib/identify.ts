@@ -73,11 +73,27 @@ Reply with JSON only: {"name":"","brand":"<visible brand or null>","model":"<vis
   } catch (e: any) { lastClaude = lastRaw = 'claude ERR ' + (e?.message || e); return null; }
 }
 
+// second look: does the name actually fit what's in the photo? (catches a teddy bear named "Mickey Mouse", a wrong brand)
+async function nameFits(env: Env, photos: ArrayBuffer[], name: string, brand: string | null): Promise<boolean> {
+  if (!env.ANTHROPIC_API_KEY) return true;
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-haiku-5-5', max_tokens: 5, messages: [{ role: 'user', content: [...photos.map(img),
+        { type: 'text', text: `Someone labeled the item in this photo "${name}"${brand ? ` (brand: ${brand})` : ''}. Check it strictly against what is actually visible: is it the right kind of object, and is any named brand, character or product line clearly shown (logo, printed text, unmistakable design)? A plain teddy bear is not "Mickey Mouse"; unbranded headphones are not "Beats". Answer only YES if the label is accurate, or NO.` }] }] }) });
+    if (!r.ok) return true;
+    const j: any = await r.json(); return !/^\s*NO/i.test(String(j?.content?.[0]?.text || ''));
+  } catch { return true; }
+}
+
 export async function identifyItem(env: Env, photo: ArrayBuffer, hint?: string | null, label?: ArrayBuffer | null): Promise<Ident> {
   const photos = label ? [photo, label] : [photo], fixes = await corrections(env);
   let cj = await identifyClaude(env, photos, hint, 'claude-haiku-5-5', fixes);
   // unsure → a stronger model looks again (brand/model mistakes cost trust; ~2-3¢ only on these)
-  if (cj && cj.confidence !== 'high') { const cj2 = await identifyClaude(env, photos, hint, 'claude-sonnet-5-5', fixes); if (cj2 && cj2.name) cj = cj2; }
+  // confident → a quick second look checks the name against the photo; mismatch → Sonnet, told what was wrong
+  let wrong = '';
+  if (cj && cj.name && cj.confidence === 'high' && !(await nameFits(env, photos, String(cj.name), cj.brand || null))) wrong = `\nA first guess, "${cj.name}", was checked and does NOT match the photo. Don't repeat it; name only what is visible.`;
+  if (cj && (cj.confidence !== 'high' || wrong)) { const cj2 = await identifyClaude(env, photos, hint, 'claude-sonnet-5-5', fixes + wrong); if (cj2 && cj2.name) cj = cj2; }
   if (cj && cj.name) {
     const cat = CATS.includes(String(cj.category || '').trim()) ? String(cj.category).trim() : guessCategory(String(cj.name));
     const retail = typeof cj.retail_usd === 'number' ? cj.retail_usd : parseFloat(String(cj.retail_usd || '').replace(/[^0-9.]/g, '')) || null;
