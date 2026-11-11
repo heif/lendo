@@ -39,11 +39,13 @@ auth.post('/login', async (c) => {
     <Layout title="Enter code" user={null} back="/login">
       <form method="post" action="/login/verify" style="padding:20px 16px">
         <h2 style="margin:0 0 6px;font-size:24px;font-weight:900;letter-spacing:-.02em">Check your texts</h2>
-        <p class="hint" style="margin:0 0 10px">Sent to {prettyPhone(phone)}.{r.devCode ? <b> DEV MODE — code is {r.devCode}</b> : null}</p>
+        <p class="hint" style="margin:0 0 10px">Sent to {prettyPhone(phone)}{r.devCode ? <b> DEV MODE — code is {r.devCode}</b> : null}</p>
+        {r.note ? <p class="hint" style="margin:-4px 0 10px;color:#B33A00">{r.note}</p> : null}
         <input type="hidden" name="phone" value={phone} /><input type="hidden" name="next" value={next} />
         <label class="field"><span>6-digit code</span><input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength={6} required autofocus style="letter-spacing:.3em;font-size:22px!important;height:56px" /></label>
         <button class="btn pri full" type="submit">Continue</button>
       </form>
+      <form method="post" action="/login" style="padding:0 16px 10px"><input type="hidden" name="phone" value={phone} /><input type="hidden" name="next" value={next} /><button class="btn full" type="submit">Text me a new code</button></form>
       {smsFallback(c.env) && f.via !== 'sms' ? <form method="post" action="/login" style="padding:0 16px"><input type="hidden" name="phone" value={phone} /><input type="hidden" name="next" value={next} /><input type="hidden" name="via" value="sms" /><button class="btn full" type="submit">No text after a minute? Send it by SMS</button></form> : null}
     </Layout>
   );

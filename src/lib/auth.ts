@@ -64,8 +64,9 @@ async function viaTwilio(env: Env, phone: string): Promise<{ ok: boolean; error?
 export const smsFallback = twilioOn;
 
 // Blooio (iMessage) first; Twilio SMS when Blooio refuses, or when the person asks for SMS ("didn't get it")
-export async function startLogin(env: Env, phone: string, via: 'auto' | 'sms' = 'auto'): Promise<{ ok: boolean; devCode?: string; error?: string }> {
-  if (via === 'sms' && twilioOn(env)) return viaTwilio(env, phone);
+export async function startLogin(env: Env, phone: string, via: 'auto' | 'sms' = 'auto'): Promise<{ ok: boolean; devCode?: string; error?: string; note?: string }> {
+  // SMS asked for: if Twilio can't send, keep them on the code screen (the iMessage code still works)
+  if (via === 'sms' && twilioOn(env)) { const t = await viaTwilio(env, phone); return t.ok ? t : { ok: true, note: 'SMS isn’t available right now — use the code from your iMessage text' }; }
   const code = String(Math.floor(100000 + Math.random() * 900000));
   // the previous unexpired code stays valid (resend + autofill of the first text): kept as a 'prev:' row
   const old = await env.DB.prepare('SELECT code, expires_at FROM otp_codes WHERE phone = ?').bind(phone).first<{ code: string; expires_at: number }>();
@@ -75,7 +76,9 @@ export async function startLogin(env: Env, phone: string, via: 'auto' | 'sms' = 
   const r = await sendRaw(env, phone, `${code} is your Lendo code. Save contact + reply OK so rental texts reach you`);
   if (!r.ok) {
     await logFail(env, phone, 'blooio', r.error || 'unknown');
-    if (twilioOn(env)) return viaTwilio(env, phone);
+    // Blooio sometimes reports an error but delivers anyway: try SMS, and either way show the code screen
+    if (twilioOn(env)) { const t = await viaTwilio(env, phone); if (t.ok) return t; }
+    if (!(r.error || '').includes('conversation_awaiting_reply')) return { ok: true, note: 'If no text arrives in a minute, tap “Text me a new code”' };
     if ((r.error || '').includes('conversation_awaiting_reply')) return { ok: false, error: `Texts to this number are paused until you reply. Find the thread from ${env.LENDO_NUMBER} (check Unknown Senders), reply OK, then try again` };
     return { ok: false, error: r.error };
   }
