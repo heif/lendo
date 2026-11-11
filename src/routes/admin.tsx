@@ -206,3 +206,17 @@ admin.post('/admin/review/:id', async (c) => {
   await c.env.DB.prepare(`DELETE FROM settings WHERE key = ?`).bind('flag_' + lid).run();
   return c.redirect('/admin/review');
 });
+
+// Promo: owners with 10+ real listings (List 10 things, get $10) → FaceTime check, then pay next day.
+admin.get('/admin/promo', async (c) => {
+  const u = c.get('user')!;
+  const rows = (await c.env.DB.prepare(`SELECT u.id, u.name, u.phone, u.hood, COUNT(l.id) n FROM users u JOIN listings l ON l.owner_id = u.id WHERE l.status IN ('live','paused') AND l.demo = 0 AND u.demo = 0 GROUP BY u.id HAVING n >= 10 ORDER BY n DESC`).all<{ id: string; name: string | null; phone: string; hood: string | null; n: number }>()).results;
+  return c.html(
+    <Layout title="Admin · $10 promo" user={u} back="/admin/pricing">
+      <div style="padding:12px 16px 40px">
+        <div class="hint" style="margin-bottom:10px">{rows.length} owners with 10+ listed</div>
+        {rows.map(r => <div class="card row" style="justify-content:space-between;padding:10px;margin-bottom:6px"><a href={'/u/' + r.id} style="font-weight:800">{r.name || 'Neighbor'}</a><span class="hint">{r.hood || ''} · {r.n} listed · <a href={'facetime:' + r.phone}>FaceTime</a></span></div>)}
+      </div>
+    </Layout>
+  );
+});

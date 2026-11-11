@@ -256,6 +256,7 @@ export const personPage = async (c: Ctx, uid: string) => {
   const ph = await firstPhotos(c.env.DB, items.results.map(r => r.id));
   const reviews = await c.env.DB.prepare(`SELECT r.renter_rating st, r.renter_review rv, r.updated_at at, u.name nm, l.name item, 'as owner' tag FROM rentals r JOIN users u ON u.id = r.renter_id JOIN listings l ON l.id = r.listing_id WHERE r.owner_id = ? AND r.renter_rating IS NOT NULL
     UNION ALL SELECT r.owner_rating, r.owner_review, r.updated_at, u.name, l.name, 'as renter' FROM rentals r JOIN users u ON u.id = r.owner_id JOIN listings l ON l.id = r.listing_id WHERE r.renter_id = ? AND r.owner_rating IS NOT NULL ORDER BY at DESC LIMIT 20`).bind(who.id, who.id).all<{ st: number; rv: string | null; at: number; nm: string | null; item: string; tag: string }>();
+  const promoN = me ? ((await c.env.DB.prepare(`SELECT COUNT(*) n FROM listings WHERE owner_id = ? AND status IN ('live','paused') AND demo = 0`).bind(who.id).first<{ n: number }>())?.n ?? 0) : null;
   const avgAll = (() => { const n = rep.as_owner_n + rep.as_renter_n; if (!n) return null; return ((rep.as_owner_avg || 0) * rep.as_owner_n + (rep.as_renter_avg || 0) * rep.as_renter_n) / n; })();
   return c.html(
     <Layout title={me ? 'Profile' : (who.name || 'Neighbor')} user={u}>
@@ -273,6 +274,13 @@ export const personPage = async (c: Ctx, uid: string) => {
         </div>
         {me ? <a class="btn pri full" style="margin-top:14px" href="/list">LIST MORE STUFF</a> : null}
       </section>
+      {me && promoN !== null ? (
+        <section class="sec"><div class="card" style="padding:14px">
+          <b style="font-size:17px">List 10 things, get $10</b>
+          <div style="height:10px;border-radius:5px;background:#ECE8E0;margin:10px 0 8px;overflow:hidden"><i style={`display:block;height:100%;width:${Math.min(100, promoN * 10)}%;background:var(--orange)`} /></div>
+          <div class="hint">{promoN >= 10 ? '10 of 10 · Lendo will text you to set up a 2-min FaceTime to check the items · $10 sent next day' : `${promoN} of 10 · then a 2-min FaceTime to check the items · $10 sent next day`}</div>
+        </div></section>
+      ) : null}
       <section class="sec">
         <div class="m" style="font-size:11px;color:var(--mute)">things ({items.results.length})</div>
         <div class="itemgrid" style="padding:10px 0 0">
