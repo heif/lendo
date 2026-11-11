@@ -433,7 +433,7 @@ rentals.get('/inbox', requireUser, async (c) => {
         )) : <div class="hint" style="padding:16px 4px">Nothing here yet</div>}
         <div id="end" />
       </div>
-      <form method="post" action="/inbox" class="compose pin">
+      <form method="post" action="/inbox" class="compose dock">
         <input name="body" placeholder="Message Lendo (same as texting us)" required maxlength={500} autocomplete="off" />
         <button type="submit" aria-label="Send">↑</button>
       </form>
