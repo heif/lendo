@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && for f in public/*.js; do node --check $f || exit 1; done",
     "db:migrate:local": "wrangler d1 migrations apply lendo --local",
     "db:migrate": "wrangler d1 migrations apply lendo --remote",
     "cf-typegen": "wrangler types",
