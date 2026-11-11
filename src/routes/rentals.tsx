@@ -179,8 +179,8 @@ f.addEventListener('change',ok);f.addEventListener('submit',function(){document.
 
         {/* quick actions */}
         {!dead && stage >= 1 && stage < 3 ? (
-          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">
-            {[['Running late', 'Running ~10 min late'], ["I'm here", "I'm here"], ['Change time?', 'Could we change the pickup time?']].map(([l, m]) => (
+          <div style="display:grid;grid-template-columns:1fr;gap:6px">
+            {[["I'm here", "I'm here"]].map(([l, m]) => (
               <form method="post" action={'/r/' + r.id + '/msg'}><input type="hidden" name="body" value={m} /><button class="btn sm full" type="submit">{l}</button></form>
             ))}
           </div>

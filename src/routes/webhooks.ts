@@ -45,7 +45,7 @@ webhooks.post('/webhooks/stripe', async (c) => {
 });
 
 // ---------- Blooio inbound texts ----------
-// Keywords: YES / NO (owner answers a held request), LATE, HERE, STOP, STOP NUDGES, START, LIST, HELP.
+// Keywords: YES / NO (owner answers a held request), HERE, STOP, STOP NUDGES, START, LIST, HELP.
 // Anything else relays to the other party of the sender's most recent active rental.
 webhooks.post('/webhooks/blooio', async (c) => {
   try { return await blooioInbound(c); }
@@ -107,7 +107,7 @@ async function blooioInbound(c: Context<{ Bindings: Env; Variables: Vars }>) {
   }
   if (kw === 'SKIP') { await textUser(c.env, user, `Ok — the customer can text you to set a time`, 'rental'); return c.json({ ok: true }); }
   if (kw === 'LIST') { await textUser(c.env, user, `Point, tap, done: ${c.env.APP_URL}/list`, 'nudge'); return c.json({ ok: true }); }
-  if (kw === 'HELP') { await textUser(c.env, user, `Lendo: reply YES/NO to a request, LATE if you're running late, STOP to stop texts. Your rentals: ${c.env.APP_URL}/rentals`, 'rental'); return c.json({ ok: true }); }
+  if (kw === 'HELP') { await textUser(c.env, user, `Lendo: reply YES/NO to a request, STOP to stop texts. Your rentals: ${c.env.APP_URL}/rentals`, 'rental'); return c.json({ ok: true }); }
 
   // a parked plain-English action (price change, cancel) waiting for YES wins over an owner's pending request
   if ((kw === 'YES' || kw === 'Y' || kw === 'NO' || kw === 'N') && await answerPending(c.env, user, kw.startsWith('Y'))) return c.json({ ok: true });
@@ -125,7 +125,7 @@ async function blooioInbound(c: Context<{ Bindings: Env; Variables: Vars }>) {
   }
 
   const r = await activeRentalFor(c.env, user.id);
-  if (kw !== 'LATE' && kw !== 'HERE' && kw !== 'IM HERE' && text.length > 1 && c.env.ANTHROPIC_API_KEY) {
+  if (kw !== 'HERE' && kw !== 'IM HERE' && text.length > 1 && c.env.ANTHROPIC_API_KEY) {
     const ctx = await intentContext(c.env, user, r);
     const intent = await parseIntent(c.env, user, text, ctx);
     if (intent && await actOn(c.env, user, intent, ctx, text)) return c.json({ ok: true });
@@ -137,7 +137,6 @@ async function blooioInbound(c: Context<{ Bindings: Env; Variables: Vars }>) {
     await textUser(c.env, user, `No active rental on this number. Browse: ${c.env.APP_URL}/`, 'rental');
     return c.json({ ok: true });
   }
-  if (r && kw === 'LATE') { await relay(c.env, r, user, 'Running ~10 min late', 'text'); return c.json({ ok: true }); }
   if (r && (kw === 'HERE' || kw === 'IM HERE')) { await relay(c.env, r, user, "I'm here", 'text'); return c.json({ ok: true }); }
   if (tgt.status === 'inquiry') await c.env.DB.prepare('UPDATE rentals SET updated_at = ? WHERE id = ?').bind(Date.now(), tgt.id).run();
   if (text) await relay(c.env, tgt, user, text.slice(0, 500), 'text');
