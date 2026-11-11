@@ -28,7 +28,7 @@ listings.get('/list', async (c) => {
         <div class="lf-scroll">
           <div class="lf-h">What have you got?</div>
           <div id="ideas" class="ideas"></div>
-          <button type="button" class="btn full" id="moreIdeas" style="margin-top:8px">12 more ideas →</button>
+          <button type="button" class="btn full" id="moreIdeas" style="margin-top:8px">14 more ideas →</button>
         </div>
         <div class="lf-foot"><button type="button" class="cta" id="toCam">OPEN CAMERA</button></div>
       </section>
