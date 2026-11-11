@@ -122,12 +122,16 @@ async function blooioInbound(c: Context<{ Bindings: Env; Variables: Vars }>) {
     const intent = await parseIntent(c.env, user, text, ctx);
     if (intent && await actOn(c.env, user, intent, ctx, text)) return c.json({ ok: true });
   }
-  if (!r) {
+  // a newer pre-rental question thread wins for plain replies
+  const q = await activeRentalFor(c.env, user.id, ['inquiry']);
+  const tgt = q && (!r || q.updated_at > r.updated_at) ? q : r;
+  if (!tgt) {
     await textUser(c.env, user, `No active rental on this number. Browse: ${c.env.APP_URL}/`, 'rental');
     return c.json({ ok: true });
   }
-  if (kw === 'LATE') { await relay(c.env, r, user, 'Running ~10 min late', 'text'); return c.json({ ok: true }); }
-  if (kw === 'HERE' || kw === 'IM HERE') { await relay(c.env, r, user, "I'm here", 'text'); return c.json({ ok: true }); }
-  if (text) await relay(c.env, r, user, text.slice(0, 500), 'text');
+  if (r && kw === 'LATE') { await relay(c.env, r, user, 'Running ~10 min late', 'text'); return c.json({ ok: true }); }
+  if (r && (kw === 'HERE' || kw === 'IM HERE')) { await relay(c.env, r, user, "I'm here", 'text'); return c.json({ ok: true }); }
+  if (tgt.status === 'inquiry') await c.env.DB.prepare('UPDATE rentals SET updated_at = ? WHERE id = ?').bind(Date.now(), tgt.id).run();
+  if (text) await relay(c.env, tgt, user, text.slice(0, 500), 'text');
   return c.json({ ok: true });
 }

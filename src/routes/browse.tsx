@@ -153,11 +153,11 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
         </div>
         <div class="hint" style="margin-top:2px">Condition {gr.letter} · {GRADE_WORD[gr.letter]} · {gr.customers ? `owner + ${gr.customers} customer${gr.customers === 1 ? '' : 's'}` : 'set by the owner'}</div>
         {it.description ? <p style="margin:4px 0 0;font-size:14px;line-height:1.4;color:var(--ink2);white-space:pre-wrap">{it.description}</p> : null}
-        <a href={'/u/' + owner.id} class="owner-row owner-tight">
+        <div class="row" style="gap:8px;align-items:center"><a href={'/u/' + owner.id} class="owner-row owner-tight" style="flex:1;min-width:0">
           <span class="owner-av">{(owner.name || 'N').charAt(0)}</span>
           <span class="owner-txt"><b>{owner.name || 'Neighbor'}</b><small>{rep.as_owner_avg ? `${starStr(rep.as_owner_avg)} · ${rep.rentals} rentals` : 'new'} · {rep.listed} listed{owner.hood ? ' · ' + owner.hood : ''}</small></span>
           <svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2L8 8L2 14" fill="none" stroke="#1E3A2B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
-        </a>
+        </a>{!isOwner && !it.demo && it.status === 'live' ? <a class="chatbtn" href={'/i/' + it.id + '/ask'} aria-label={'Message ' + firstName(owner.name)}><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linejoin="round" /></svg></a> : null}</div>
         {!isOwner && it.status === 'live' ? (
           <form method="post" action={'/i/' + it.id + '/rent'} id="rentForm">
             <div class="quick" id="quick" style="display:flex;gap:8px;margin-top:14px">

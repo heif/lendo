@@ -4,7 +4,7 @@ import { raw } from 'hono/html';
 import type { Env, Listing, Rental, Vars } from '../lib/env';
 import { Layout } from '../pages/layout';
 import { requireUser } from '../lib/auth';
-import { busyDays, firstPhotos, listingById, photosFor, rentalById, userById } from '../lib/db';
+import { addMessage, busyDays, firstPhotos, listingById, photosFor, rentalById, userById } from '../lib/db';
 import { id, money, now, daysBetween, dayStr, addDays, fmtRange, rentFor, firstName, fmtDay } from '../lib/util';
 import { createCheckout, feeFor, connectOnboardingUrl, flushPendingPayouts, stripe } from '../lib/stripe';
 import { accept, decline, customerCancel, markHeld, pickedUp, rate, relay, returned } from '../lib/rentals';
@@ -76,11 +76,11 @@ rentals.get('/r/:id', requireUser, async (c) => {
           {photos[0] ? <img src={'/p/' + photos[0].r2_key} alt="" style="width:64px;height:64px;border-radius:12px;object-fit:cover;background:var(--cream)" /> : <div style="width:64px;height:64px;border-radius:12px;background:var(--cream)"></div>}
           <div style="min-width:0;line-height:1.3">
             <div style="font-size:16px;font-weight:800">{it.name}</div>
-            <div style="font-size:13px;font-weight:700;margin-top:2px">{fmtRange(r.start_day, r.end_day)} · {isOwner ? `you earn ${money(r.rent_cents)}` : `${money(r.total_cents)}${r.status === 'held' ? ' held' : ' paid'}`}</div>
+            <div style="font-size:13px;font-weight:700;margin-top:2px">{r.status === 'inquiry' ? (isOwner ? 'Question about your item' : 'Questions before renting') : <>{fmtRange(r.start_day, r.end_day)} · {isOwner ? `you earn ${money(r.rent_cents)}` : `${money(r.total_cents)}${r.status === 'held' ? ' held' : ' paid'}`}</>}</div>
             <div class="hint" style="margin-top:1px">{isOwner ? 'to ' : 'from '}<b>{other.name || 'Neighbor'}</b>{r.meet_spot ? ' · 📍 ' + r.meet_spot : spots.length ? ' · meet: ' + spots.join(' or ') : ''}</div>
           </div>
         </a>
-        {dead ? <div class="flash err" style="margin:0">{r.status === 'declined' ? `${firstName(owner.name)} couldn't do those days.` : r.status === 'expired' ? 'No answer in time.' : 'Canceled.'} Nothing was charged.</div> : (
+        {r.status === 'inquiry' ? (!isOwner ? <a class="btn pri full" href={'/i/' + it.id}>Rent it · {money(it.price_cents)}/day</a> : null) : dead ? <div class="flash err" style="margin:0">{r.status === 'declined' ? `${firstName(owner.name)} couldn't do those days.` : r.status === 'expired' ? 'No answer in time.' : 'Canceled.'} Nothing was charged.</div> : (
           <div class="steps">{STEPS.map((s, i) => <div><div class={'bar' + (i < stage ? ' done' : i === stage ? ' on' : '')}></div><div class={'lbl m' + (i <= stage ? ' on' : '')}>{s}</div></div>)}</div>
         )}
 
@@ -230,6 +230,16 @@ rentals.post('/r/:id/msg', requireUser, async (c) => {
   const u = c.get('user')!; const r = await rentalById(c.env.DB, c.req.param('id'));
   if (!r || (r.owner_id !== u.id && r.renter_id !== u.id)) return c.notFound();
   const body = String((await c.req.parseBody()).body || '').trim().slice(0, 500);
+  if (body && r.status === 'inquiry') {
+    await c.env.DB.prepare('UPDATE rentals SET updated_at = ? WHERE id = ?').bind(now(), r.id).run();
+    const first = !(await c.env.DB.prepare('SELECT 1 FROM messages WHERE rental_id = ? LIMIT 1').bind(r.id).first());
+    if (first && u.id === r.renter_id) {
+      const it = (await listingById(c.env.DB, r.listing_id))!; const owner = (await userById(c.env.DB, r.owner_id))!;
+      await addMessage(c.env, r.id, u.id, body, 'web');
+      await textUser(c.env, owner, `${firstName(u.name)} asked about your ${it.name}: "${body}" · reply here to answer ${c.env.APP_URL}/r/${r.id}`, 'rental', r.id);
+      return c.redirect('/r/' + r.id);
+    }
+  }
   if (body) await relay(c.env, r, u, body, 'web');
   return c.redirect('/r/' + r.id);
 });
@@ -290,12 +300,26 @@ rentals.post('/r/:id/rate', requireUser, async (c) => {
   return c.redirect('/r/' + r.id);
 });
 
+// ---------- Message the owner before renting: an 'inquiry' thread (same chat as rentals, same text relay) ----------
+rentals.get('/i/:id/ask', requireUser, async (c) => {
+  const u = c.get('user')!;
+  const it = await listingById(c.env.DB, c.req.param('id'));
+  if (!it || it.status !== 'live' || it.demo) return c.notFound();
+  if (it.owner_id === u.id) return c.redirect('/i/' + it.id);
+  const ex = await c.env.DB.prepare(`SELECT id FROM rentals WHERE listing_id = ? AND renter_id = ? AND status = 'inquiry' ORDER BY updated_at DESC LIMIT 1`).bind(it.id, u.id).first<{ id: string }>();
+  if (ex) return c.redirect('/r/' + ex.id);
+  const rid = id('r'), t = now(), d = dayStr(new Date());
+  await c.env.DB.prepare(`INSERT INTO rentals (id, listing_id, owner_id, renter_id, start_day, end_day, days, rent_cents, fee_cents, total_cents, credit_cents, status, created_at, updated_at) VALUES (?,?,?,?,?,?,0,0,0,0,0,'inquiry',?,?)`)
+    .bind(rid, it.id, it.owner_id, u.id, d, d, t, t).run();
+  return c.redirect('/r/' + rid);
+});
+
 // ---------- Your rentals + Inbox ----------
 rentals.get('/rentals', requireUser, async (c) => {
   const u = c.get('user')!;
   const rows = await c.env.DB.prepare(`SELECT r.*, l.name item, o.name owner_name, n.name renter_name FROM rentals r JOIN listings l ON l.id = r.listing_id JOIN users o ON o.id = r.owner_id JOIN users n ON n.id = r.renter_id WHERE (r.owner_id = ? OR r.renter_id = ?) AND r.status != 'requested' ORDER BY r.updated_at DESC LIMIT 100`).bind(u.id, u.id).all<Rental & { item: string; owner_name: string | null; renter_name: string | null }>();
   const ph = await firstPhotos(c.env.DB, [...new Set(rows.results.map(r => r.listing_id))]);
-  const label = (r: Rental) => ({ held: 'waiting for YES', confirmed: 'confirmed · set pickup', picked_up: 'out', returned: 'returned · rate', closed: 'done', declined: 'declined', expired: 'expired', canceled: 'canceled', requested: '' }[r.status]);
+  const label = (r: Rental) => ({ held: 'waiting for YES', confirmed: 'confirmed · set pickup', picked_up: 'out', returned: 'returned · rate', closed: 'done', declined: 'declined', expired: 'expired', canceled: 'canceled', requested: '', inquiry: 'question' }[r.status]);
   return c.html(
     <Layout title="Your rentals" user={u}>
       <div style="height:12px"></div>
@@ -304,7 +328,7 @@ rentals.get('/rentals', requireUser, async (c) => {
           {ph[r.listing_id] ? <img src={'/p/' + ph[r.listing_id]} alt="" /> : <div class="ph"></div>}
           <div style="min-width:0;flex:1">
             <div style="font-weight:800">{r.item}</div>
-            <div style="font-size:13px">{fmtRange(r.start_day, r.end_day)} · {r.owner_id === u.id ? `to ${firstName(r.renter_name)} · +${money(r.rent_cents)}` : `from ${firstName(r.owner_name)} · ${money(r.total_cents)}`}</div>
+            <div style="font-size:13px">{r.status === 'inquiry' ? (r.owner_id === u.id ? `${firstName(r.renter_name)} asked` : `asked ${firstName(r.owner_name)}`) : <>{fmtRange(r.start_day, r.end_day)} · {r.owner_id === u.id ? `to ${firstName(r.renter_name)} · +${money(r.rent_cents)}` : `from ${firstName(r.owner_name)} · ${money(r.total_cents)}`}</>}</div>
             <div class="hint">{label(r)}</div>
           </div>
           {r.status === 'held' && r.owner_id === u.id ? <span class="pill" style="background:var(--orange);color:#fff">YES?</span> : null}
