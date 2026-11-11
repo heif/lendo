@@ -63,3 +63,9 @@ export async function assignCode(env: Env, lid: string): Promise<string | null> 
   }
   return null;
 }
+
+// readable item link for texts and shares: lendo.co/<handle>/<slug> (falls back to /i/<id> until assigned)
+export async function itemLink(env: Env, lid: string): Promise<string> {
+  const r = await env.DB.prepare('SELECT l.slug, u.handle FROM listings l JOIN users u ON u.id = l.owner_id WHERE l.id = ?').bind(lid).first<{ slug: string | null; handle: string | null }>().catch(() => null);
+  return env.APP_URL + itemPath(r?.handle, r?.slug, lid);
+}

@@ -1,5 +1,6 @@
 // Rental state transitions + the texts they trigger. Used by web routes, Stripe webhook, Blooio webhook and cron.
 import type { Env, Rental, User } from './env';
+import { itemLink } from './urls';
 import { addMessage, busyDays, listingById, rentalById, setRentalStatus, userById } from './db';
 import { textUser } from './blooio';
 import { captureRental, feeFor, payoutRental, refundPart, releaseHold } from './stripe';
@@ -156,7 +157,7 @@ export async function chaseHolds(env: Env) {
       const alts = await similarNearby(env, r, listing);
       await env.DB.prepare('UPDATE rentals SET alts = ? WHERE id = ?').bind(JSON.stringify(alts.map(a => a.id)), r.id).run();
       if (alts.length) {
-        const lines = alts.map(a => `${a.name} ${money(a.price_cents)}/day ${env.APP_URL}/i/${a.id}`).join('\n');
+        const lines = (await Promise.all(alts.map(async a => `${a.name} ${money(a.price_cents)}/day ${await itemLink(env, a.id)}`))).join('\n');
         await textUser(env, renter, `${firstName(owner.name)} hasn't answered yet. Similar nearby, free those days:\n${lines}\nYour first request stays open too`, 'rental', r.id);
         sent++;
       }

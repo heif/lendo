@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { assignHandle, assignSlug, itemLink } from '../lib/urls';
 import { recordCorrection } from '../lib/identify';
 import { makeCutout } from '../lib/avatar';
 import { raw } from 'hono/html';
@@ -20,7 +21,7 @@ export const listings = new Hono<{ Bindings: Env; Variables: Vars }>();
 listings.get('/list', async (c) => {
   const u = c.get('user');
   if (!u) return c.redirect('/login?next=/list');
-  const cfg = JSON.stringify({ minPrice: parseInt(c.env.MIN_PRICE_CENTS, 10) / 100, hood: u.hood || '', shareUrl: `${c.env.APP_URL}/u/${u.id}` });
+  const cfg = JSON.stringify({ minPrice: parseInt(c.env.MIN_PRICE_CENTS, 10) / 100, hood: u.hood || '', shareUrl: c.env.APP_URL + ((u as any).handle ? '/' + (u as any).handle : '/u/' + u.id) });
   return c.html(
     <Layout title="Rent out your stuff" user={u} htmlClass="mappage" head={<link rel="stylesheet" href="/list.css" />}>
       {/* ideas */}
@@ -134,7 +135,7 @@ listings.post('/api/list', async (c) => {
   const f = await c.req.parseBody({ all: true });
   const lat = parseFloat(String(f.lat || '')), lng = parseFloat(String(f.lng || ''));
   const minP = parseInt(c.env.MIN_PRICE_CENTS, 10);
-  const out: { id: string; name: string }[] = [];
+  const out: { id: string; name: string; url?: string }[] = [];
   for (let i = 0; i < 30; i++) {
     const name = String(f[`name_${i}`] || '').trim(); if (!name) continue;
     const aiName = String(f[`ai_${i}`] || '').trim(); if (aiName) c.executionCtx.waitUntil(recordCorrection(c.env, aiName, name).catch(() => {}));
@@ -143,7 +144,8 @@ listings.post('/api/list', async (c) => {
     const photos = await Promise.all(files.slice(0, 6).map(async p => ({ bytes: await p.arrayBuffer(), type: p.type })));
     const wk = Math.round(parseFloat(String(f[`week_${i}`] || '0')) * 100);
     const lid = await createListing(c.env, c.executionCtx, u, { name, priceCents: price, weekCents: wk > 0 ? wk : null, description: String(f[`note_${i}`] || ''), lat: isNaN(lat) ? null : lat, lng: isNaN(lng) ? null : lng, photos });
-    out.push({ id: lid, name });
+    await assignHandle(c.env, u.id, u.name).catch(() => null); await assignSlug(c.env, lid, u.id, name).catch(() => null);
+    out.push({ id: lid, name, url: await itemLink(c.env, lid) });
   }
   return c.json({ listed: out, count: out.length });
 });
@@ -154,7 +156,7 @@ listings.get('/listings', requireUser, async (c) => {
   const earned = await c.env.DB.prepare(`SELECT COALESCE(SUM(rent_cents),0) s, COUNT(*) n FROM rentals WHERE owner_id = ? AND status IN ('confirmed','picked_up','returned','closed')`).bind(u.id).first<{ s: number; n: number }>();
   const just = c.req.query('just');
   const live = rows.results.filter(r => r.status === 'live').length;
-  const shareUrl = `${c.env.APP_URL}/u/${u.id}`;
+  const shareUrl = c.env.APP_URL + ((u as any).handle ? '/' + (u as any).handle : '/u/' + u.id);
   return c.html(
     <Layout title="Your listings" user={u} flash={just ? "It's live. Anyone nearby can rent it now." : null}>
       <div style="padding:12px 16px 0" class="row">

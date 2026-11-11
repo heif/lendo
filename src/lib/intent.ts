@@ -1,6 +1,7 @@
 // Plain-English texting: Claude turns a text into one of a few actions. Anything touching money or bookings
 // is parked in pending_actions and only runs after the sender replies YES.
 import type { Env, Listing, Rental, User } from './env';
+import { itemLink } from './urls';
 import { saveSearch, allowMore } from './alerts';
 import { listingById, userById } from './db';
 import { textUser } from './blooio';
@@ -76,7 +77,7 @@ export async function answerPending(env: Env, user: User, yes: boolean): Promise
     if (!it || it.owner_id !== user.id) return true;
     const week = Math.round(d.cents * 7 * 0.7);
     await env.DB.prepare('UPDATE listings SET price_cents = ?, week_cents = ? WHERE id = ?').bind(d.cents, week, it.id).run();
-    await textUser(env, user, `${it.name} is now ${money(d.cents)}/day ${env.APP_URL}/i/${it.id}`, 'rental');
+    await textUser(env, user, `${it.name} is now ${money(d.cents)}/day ${await itemLink(env, it.id)}`, 'rental');
   } else if (p.kind === 'cancel') {
     const r = await env.DB.prepare('SELECT * FROM rentals WHERE id = ? AND renter_id = ?').bind(d.rid, user.id).first<Rental>();
     if (r) { const res = await customerCancel(env, r); if (!res) await textUser(env, user, `Couldn't cancel that one — open it here ${env.APP_URL}/r/${r.id}`, 'rental', r.id); else if (res === 'released') await textUser(env, user, `Canceled — nothing charged`, 'rental', r.id); }

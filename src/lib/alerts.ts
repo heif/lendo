@@ -2,6 +2,7 @@
 // Delivery: 1 text per day; the first one asks "Want more alerts today? Reply YES" (then up to 5/day).
 // Anything held back goes out as one morning bundle (cron, ~8am ET).
 import type { Env, User } from './env';
+import { itemLink } from './urls';
 import { id, now, money } from './util';
 import { textUser } from './blooio';
 
@@ -53,7 +54,7 @@ export async function deliver(env: Env, u: User) {
   const cap = more ? MORE_CAP : 1;
   const items = await queued(env, u.id); if (!items.length || sent >= cap) return;
   const it = items[0];
-  let body = `${it.name} just listed${it.hood ? ' in ' + it.hood : ' near you'} · ${money(it.price_cents)}/day ${env.APP_URL}/i/${it.lid}`;
+  let body = `${it.name} just listed${it.hood ? ' in ' + it.hood : ' near you'} · ${money(it.price_cents)}/day ${await itemLink(env, it.lid)}`;
   if (sent === 0 && !more) {
     body += `\nWant more alerts today? Reply YES`;
     // park the YES only if nothing else is waiting on one (price change, cancel…)
@@ -84,7 +85,7 @@ export async function morningBundle(env: Env) {
     const items = await queued(env, u.id);
     if (items.length) {
       const top = items.slice(0, 5);
-      const lines = top.map(i => `${i.name} ${money(i.price_cents)}/day${i.hood ? ' · ' + i.hood : ''} ${env.APP_URL}/i/${i.lid}`);
+      const lines = await Promise.all(top.map(async i => `${i.name} ${money(i.price_cents)}/day${i.hood ? ' · ' + i.hood : ''} ${await itemLink(env, i.lid)}`));
       await textUser(env, u, `New since yesterday, matching your searches:\n${lines.join('\n')}${items.length > 5 ? `\n+${items.length - 5} more ${env.APP_URL}/alerts` : ''}\nTurn off: ${env.APP_URL}/alerts`, 'alert');
       n++;
     }
