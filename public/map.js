@@ -252,7 +252,7 @@
         var pb = map.getBounds(), w = pb.getEast() - pb.getWest(), h = pb.getNorth() - pb.getSouth();
         items = Object.keys(known).map(function (k) { return known[k]; }).filter(function (it) { return it.lng > pb.getWest() - w * .5 && it.lng < pb.getEast() + w * .5 && it.lat > pb.getSouth() - h * .5 && it.lat < pb.getNorth() + h * .5; })
           .sort(function (a, b2) { return Math.hypot(a.lat - cc.lat, (a.lng - cc.lng) * .76) - Math.hypot(b2.lat - cc.lat, (b2.lng - cc.lng) * .76); }).slice(0, 600);
-        $('toggle').hidden = !items.length && !listMode; if (!items.length && listMode && !qq) setList(false); itemsRev++; refresh(); if (!listMode) renderGrid(items); setKpi(j); if (!items.length && !centered && !qq) goNearest(); if (qq) searchFeedback(qq, items.length); centered = true; });
+        $('toggle').hidden = !items.length && !listMode && !qq; if (!items.length && listMode && !qq) setList(false); itemsRev++; refresh(); if (!listMode) renderGrid(items); setKpi(j); if (!items.length && !centered && !qq) goNearest(); if (qq) searchFeedback(qq, items.length); centered = true; });
   }
   // search with nothing in view: jump to the nearest match (once per search), else say so plainly
   var widened = '';
@@ -360,7 +360,7 @@
   // always-visible clear (iOS only shows its own while focused): clears the text and the results
   function syncClr() { $('qClr').hidden = !q.value; }
   q.addEventListener('input', syncClr);
-  $('qClr').addEventListener('click', function () { q.value = ''; syncClr(); $('alertChip').hidden = true; alertQ = ''; clearTimeout(alertT); load(); if (listMode) loadCityList(); q.blur(); });
+  $('qClr').addEventListener('click', function () { q.value = ''; syncClr(); $('toggle').hidden = false; $('alertChip').hidden = true; alertQ = ''; clearTimeout(alertT); load(); if (listMode) loadCityList(); q.blur(); });
   try { var q0 = new URLSearchParams(location.search).get('q') || CFG.q; if (q0) { q.value = q0.slice(0, 40); syncClr(); setTimeout(function () { load(); alertChip(); }, 400); } } catch (e) {}
   var LIST_IC = '<svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 1.5h1M4 1.5h9M1 6h1M4 6h9M1 10.5h1M4 10.5h9" stroke="#1E3A2B" stroke-width="2" stroke-linecap="round"/></svg> List',
       MAP_IC = '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6L9 4L15 6L21 4V18L15 20L9 18L3 20Z M9 4V18 M15 6V20" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linejoin="round"/></svg> Map';
