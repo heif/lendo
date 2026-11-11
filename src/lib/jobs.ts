@@ -1,5 +1,6 @@
 // One-shot admin jobs run by the cron (no login needed). Each runs once; result stored in settings as job_<name>.
 import type { Env, User } from './env';
+import { nearestHood } from './weekly';
 import { createListing } from './create-listing';
 import { textUser } from './blooio';
 import { itemLink } from './urls';
@@ -28,6 +29,14 @@ const JOBS: Record<string, (env: Env, ctx: ExecutionContext) => Promise<string>>
     await textUser(env, u, `Listed: Feather Chair wheelchair in Iowa City ${link}`, 'rental');
     return link;
   },
+};
+
+JOBS.feather_iac_hood = async (env) => {
+  const l = await env.DB.prepare(`SELECT id, lat, lng FROM listings WHERE name = 'Feather Chair wheelchair' ORDER BY created_at DESC LIMIT 1`).first<{ id: string; lat: number; lng: number }>();
+  if (!l) return 'none';
+  const nh = nearestHood(l.lat, l.lng);
+  await env.DB.prepare('UPDATE listings SET hood = ? WHERE id = ?').bind(nh ? nh.hood.name : 'Iowa City', l.id).run();
+  return nh ? nh.hood.name : 'Iowa City';
 };
 
 export async function runJobs(env: Env, ctx: ExecutionContext) {

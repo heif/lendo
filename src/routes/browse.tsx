@@ -147,7 +147,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
       </div>
       <section class="sec" style="padding:12px 16px 14px">
         <div class="row" style="justify-content:space-between;align-items:flex-start">
-          <h2 style="margin:0;font-size:20px;font-weight:800;line-height:1.25">{(() => { const f = (owner.name || 'Neighbor').split(' ')[0]; return f + (/s$/i.test(f) ? '’ ' : '’s ') + it.name.charAt(0).toLowerCase() + it.name.slice(1); })()}</h2>
+          <h2 style="margin:0;font-size:20px;font-weight:800;line-height:1.25">{(() => { const f = (owner.name || 'Neighbor').split(' ')[0]; const w0 = it.name.split(' ')[0]; const proper = /[A-Z]/.test(it.name.slice(1).split(' ').slice(1).join(' ')) || /[A-Z]/.test(w0.slice(1)) || new RegExp('(^|\\W)' + w0.replace(/\W/g, '') + ' [A-Z0-9]').test(it.description || ''); return f + (/s$/i.test(f) ? '’ ' : '’s ') + (proper ? it.name : it.name.charAt(0).toLowerCase() + it.name.slice(1)); })()}</h2>
           {it.status === 'paused' ? <span class="pill">paused</span> : it.status === 'review' ? <span class="pill">Posted · checking the photo</span> : null}
           {isOwner ? <a class="btn sm" href={'/listings/' + it.id + '/edit'} style="flex-shrink:0;margin-left:8px">✎ Edit</a> : null}
         </div>
@@ -179,7 +179,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
             <input type="hidden" name="start" id="start" /><input type="hidden" name="end" id="end" /><input type="hidden" name="from" id="meetFromVal" />
           </form>
         ) : null}
-        {(() => { const first = (owner.name || 'Neighbor').split(' ')[0]; const spots: string[] = owner.pickup_spots ? JSON.parse(owner.pickup_spots) : []; const spot = spots[0] || `${first}’s block`; const line = [owner.cross_streets, it.hood].filter(Boolean).join(' · ') || 'near you'; return (
+        {(() => { const first = (owner.name || 'Neighbor').split(' ')[0]; const spots: string[] = owner.pickup_spots ? JSON.parse(owner.pickup_spots) : []; const away = owner.lat != null && owner.lng != null && it.lat != null && it.lng != null && Math.hypot(owner.lat - it.lat, (owner.lng - it.lng) * 0.76) > 0.03; const spot = away ? `Near ${it.hood || 'the item'}` : spots[0] || `${first}’s block`; const line = away ? 'exact spot by text' : [owner.cross_streets, it.hood].filter(Boolean).join(' · ') || 'near you'; return (
           <div class="meet" id="meet">
             <div class="meet-top"><span class="meet-lbl">{first.toUpperCase()}’S MEETUP SPOT</span><span class="meet-note"><svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="#8A857B" stroke-width="2" /><path d="M12 10.5V17" stroke="#8A857B" stroke-width="2.4" stroke-linecap="round" /><circle cx="12" cy="7.2" r="1.4" fill="#8A857B" /></svg><span>You and {first}<br />confirm plans by text</span></span></div>
             <div class="meet-name"><svg width="14" height="16" viewBox="0 0 24 26" aria-hidden="true"><path d="M12 25C12 25 3 16 3 10A9 9 0 0 1 21 10C21 16 12 25 12 25Z" fill="#1E3A2B" /><circle cx="12" cy="10" r="3.4" fill="#fff" /></svg><span id="meetName">{spot}</span></div>

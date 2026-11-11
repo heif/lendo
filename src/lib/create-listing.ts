@@ -1,5 +1,6 @@
 // One place that turns (name, price, photos, maybe GPS) into a live listing: location fallback chain, hood, emoji, icon job.
 import type { Env, User } from './env';
+import { nearestHood } from './weekly';
 import { isGrade } from './grade';
 import { checkListingPhoto } from './photo-check';
 import { assignSlug, assignHandle, assignCode } from './urls';
@@ -27,7 +28,9 @@ export async function createListing(env: Env, ctx: { waitUntil(p: Promise<unknow
   }
   if (fromGps) {
     const g = await hoodFor(lat, lng);
-    if (g.hood) hood = g.hood;
+    const nh = nearestHood(lat, lng);
+    const farFromOwner = u.lat != null && u.lng != null && Math.hypot(u.lat - lat, (u.lng - lng) * 0.76) > 0.03;
+    if (g.hood) hood = g.hood; else if (nh) hood = nh.hood.name; else if (farFromOwner) hood = g.city;
     if (!u.lat) await env.DB.prepare('UPDATE users SET lat = ?, lng = ?, hood = COALESCE(hood, ?) WHERE id = ?').bind(lat, lng, g.hood, u.id).run();
   }
   const lid = id('l');
