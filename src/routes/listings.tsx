@@ -247,7 +247,6 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
         </div>
         <div style="display:flex;gap:10px;align-items:flex-end">
           <label class="field" style="flex:1"><span>Name</span><input name="name" value={it.name} required maxlength={80} /></label>
-          <label class="field" style="width:84px"><span>Map icon</span><input name="emoji" value={it.emoji || emojiFor(it.name, it.description)} maxlength={8} style="text-align:center;font-size:24px!important" /></label>
         </div>
         <div style="display:flex;gap:10px">
           <label class="field" style="flex:1"><span>$ per day</span><input name="price" type="number" step="1" min={parseInt(c.env.MIN_PRICE_CENTS, 10) / 100} value={it.price_cents / 100} required /></label>
@@ -312,7 +311,7 @@ listings.post('/listings/:id/edit', requireUser, async (c) => {
   const weekIn = parseFloat(String(f.week || ''));
   const week = !isNaN(weekIn) && weekIn > 0 ? Math.round(weekIn * 100) : weekDefault(price);
   const nm = String(f.name || it.name).trim().slice(0, 80), ds = String(f.description || '').trim().slice(0, 600) || null;
-  const em = String(f.emoji || '').trim().slice(0, 8) || emojiFor(nm, ds);
+  const em = nm === it.name && it.emoji ? it.emoji : emojiFor(nm, ds); // map icon is automatic, not owner-edited
   await c.env.DB.prepare('UPDATE listings SET name = ?, description = ?, price_cents = ?, week_cents = ?, emoji = ? WHERE id = ?')
     .bind(nm, ds, price, week, em, it.id).run();
   if (isGrade(f.grade)) { const gr = await shownGrade(c.env, it.id, (it as any).grade); if (!gr.customers) await c.env.DB.prepare('UPDATE listings SET grade = ? WHERE id = ?').bind(f.grade, it.id).run().catch(() => {}); }

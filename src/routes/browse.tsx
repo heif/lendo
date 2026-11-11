@@ -126,6 +126,7 @@ export const itemPage = async (c: Ctx, lid: string, pretty = false) => {
   const review = await c.env.DB.prepare(`SELECT r.renter_review rv, u.name nm FROM rentals r JOIN users u ON u.id = r.renter_id WHERE r.owner_id = ? AND r.renter_review IS NOT NULL ORDER BY r.updated_at DESC LIMIT 1`).bind(owner.id).first<{ rv: string; nm: string }>();
   const saved = u ? !!(await c.env.DB.prepare('SELECT 1 FROM saved WHERE user_id = ? AND listing_id = ?').bind(u.id, it.id).first()) : false;
   const gr = await shownGrade(c.env, it.id, it.grade);
+  const ir = await c.env.DB.prepare('SELECT COUNT(*) n, SUM(item_rating >= 3) up FROM rentals WHERE listing_id = ? AND item_rating IS NOT NULL').bind(it.id).first<{ n: number; up: number }>().catch(() => null);
   return c.html(
     <Layout title={it.name} headerCenter={<span />} user={u} flash={c.req.query('canceled') ? 'Checkout canceled — nothing was charged.' : null}>
       <div class={photos.length > 1 ? 'hero gal' : 'hero'}>
@@ -151,7 +152,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
           {it.status === 'paused' ? <span class="pill">paused</span> : it.status === 'review' ? <span class="pill">Posted · checking the photo</span> : null}
           {isOwner ? <a class="btn sm" href={'/listings/' + it.id + '/edit'} style="flex-shrink:0;margin-left:8px">✎ Edit</a> : null}
         </div>
-        <div class="hint" style="margin-top:2px">Condition {gr.letter} · {GRADE_WORD[gr.letter]} · {gr.customers ? `owner + ${gr.customers} customer${gr.customers === 1 ? '' : 's'}` : 'set by the owner'}</div>
+        <div class="hint" style="margin-top:2px">Condition {gr.letter} · {GRADE_WORD[gr.letter]} · {gr.customers ? `owner + ${gr.customers} customer${gr.customers === 1 ? '' : 's'}` : 'set by the owner'}{ir?.n ? ` · 👍 ${ir.up || 0} of ${ir.n}` : ''}</div>
         {it.description ? <p style="margin:4px 0 0;font-size:14px;line-height:1.4;color:var(--ink2);white-space:pre-wrap">{it.description}</p> : null}
         <div class="row" style="gap:8px;align-items:center"><a href={'/u/' + owner.id} class="owner-row owner-tight" style="flex:1;min-width:0">
           <span class="owner-av">{(owner.name || 'N').charAt(0)}</span>

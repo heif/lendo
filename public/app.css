@@ -455,3 +455,4 @@ button.grdbtn{background:none;border:0;padding:0 16px 0 0;cursor:pointer;display
 .chatbtn{width:44px;height:44px;flex-shrink:0;border-radius:22px;border:1.5px solid var(--ink);background:#fff;display:flex;align-items:center;justify-content:center}
 .field .grd{display:inline-flex;flex-direction:column;margin:0;font-size:inherit;letter-spacing:0;text-transform:none;color:var(--gc)}.field .grd b{font-size:26px}.field .grd small{font-size:7px}
 body:has(#sheet.on) .locbtn,body:has(#wsheet:not([hidden])) .locbtn{display:none}
+.ratrow{margin-top:10px}.ratrow>b{display:block;font-size:14px;margin-bottom:6px}
