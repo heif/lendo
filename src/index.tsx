@@ -1,4 +1,5 @@
 import { iconsDone, makeWantedIcon, auditIcons } from './lib/wanted-icons';
+import { nudgePromises } from './lib/rentals';
 import { pretty } from './routes/pretty';
 import { backfillUrls } from './lib/urls';
 import { selfMigrate } from './lib/migrate';
@@ -52,6 +53,7 @@ export default {
   async scheduled(_ev: ScheduledEvent, env: Env) {
     try { const m = await selfMigrate(env); if (m.length) console.log('self-migrated', m); } catch (e) { console.warn('self-migrate', e); }
     try { await backfillUrls(env, 150); } catch (e) { console.warn('urls', e); }
+    try { await nudgePromises(env); } catch (e) { console.warn('promise nudge', e); }
     const n = await expireHolds(env);
     if (n) console.log(`expired ${n} held requests`);
     try { const c = await chaseHolds(env); if (c) console.log(`chase: ${c} texts`); } catch (e) { console.warn('chase', e); }

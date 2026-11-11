@@ -382,11 +382,15 @@ browse.get('/about', (c) => {
 
 // ---------- Photos (R2) ----------
 browse.get('/p/:key{.+}', async (c) => {
-  const obj = await c.env.PHOTOS.get(c.req.param('key'));
+  const key = c.req.param('key');
+  // rental files (pickup/return photos, signed promise) only for the two people in that rental
+  const rm = key.match(/^rentals\/([^/]+)\//);
+  if (rm) { const u = c.get('user'); const r = u ? await c.env.DB.prepare('SELECT owner_id, renter_id FROM rentals WHERE id = ?').bind(rm[1]).first<{ owner_id: string; renter_id: string }>() : null; if (!r || (r.owner_id !== u!.id && r.renter_id !== u!.id)) return c.notFound(); }
+  const obj = await c.env.PHOTOS.get(key);
   if (!obj) return c.notFound();
   const h = new Headers();
   obj.writeHttpMetadata(h);
   h.set('etag', obj.httpEtag);
-  h.set('cache-control', 'public, max-age=31536000, immutable');
+  h.set('cache-control', rm ? 'private, max-age=3600' : 'public, max-age=31536000, immutable');
   return new Response(obj.body, { headers: h });
 });

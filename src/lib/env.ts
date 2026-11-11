@@ -43,6 +43,7 @@ export type Listing = {
 export type Rental = {
   id: string; listing_id: string; owner_id: string; renter_id: string; start_day: string; end_day: string; days: number;
   rent_cents: number; fee_cents: number; total_cents: number;
+  promise_at?: number | null; promise_sig?: string | null; promise_nudged?: number;
   status: 'requested' | 'held' | 'confirmed' | 'picked_up' | 'returned' | 'closed' | 'declined' | 'expired' | 'canceled';
   stripe_checkout_id: string | null; stripe_payment_intent: string | null; paid_out: number; meet_spot: string | null;
   pickup_photo_key: string | null; return_photo_key: string | null;

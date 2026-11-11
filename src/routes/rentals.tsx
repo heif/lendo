@@ -7,6 +7,7 @@ import { busyDays, firstPhotos, listingById, photosFor, rentalById, userById } f
 import { id, money, now, daysBetween, dayStr, addDays, fmtRange, rentFor, firstName, fmtDay } from '../lib/util';
 import { createCheckout, feeFor, connectOnboardingUrl, flushPendingPayouts, stripe } from '../lib/stripe';
 import { accept, decline, customerCancel, markHeld, pickedUp, rate, relay, returned } from '../lib/rentals';
+import { textUser } from '../lib/blooio';
 
 export const rentals = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -44,6 +45,13 @@ rentals.post('/i/:id/rent', async (c) => {
 });
 
 // ---------- Rental page ----------
+// Community agreement: the customer's promise to the owner (prototype "Your promise to …"), signed before pickup
+const PROMISES = (owner: string) => [
+  `I’ll be on time. If I’m running late, I’ll text ${owner}`,
+  `I’ll treat it like my neighbor’s and bring it back clean and working. If I break or lose it, I’ll pay to fix or replace it`,
+  `I use it at my own risk. ${owner} and Lendo aren’t responsible if I get hurt`,
+];
+
 rentals.get('/r/:id', requireUser, async (c) => {
   const u = c.get('user')!;
   const r = await rentalById(c.env.DB, c.req.param('id'));
@@ -97,6 +105,45 @@ rentals.get('/r/:id', requireUser, async (c) => {
             <button class="btn sm" type="submit" style="width:100%;color:var(--mute)">{r.status === 'held' ? 'Cancel request · nothing charged' : `Cancel · ${money(Math.round(r.total_cents / 2))} back (half)`}</button>
           </form>
         ) : null}
+
+        {/* community agreement: customer signs once confirmed; owner sees status + a copy */}
+        {!dead && stage >= 1 ? (() => {
+          const ow = firstName(owner.name) || 'the owner', cu = firstName(isOwner ? other.name : u.name) || 'Customer';
+          const when = r.promise_at ? new Date(r.promise_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) : '';
+          const view = (
+            <dialog id="promView" class="psheet"><div class="psheet-in">
+              <div class="psheet-h"><b>{isOwner ? `${cu}’s promise to you` : `Your promise to ${ow}`}</b><button type="button" class="psheet-x" aria-label="Close" onclick="this.closest('dialog').close()">✕</button></div>
+              <div class="hint">{it.name} · {fmtRange(r.start_day, r.end_day)}</div>
+              <div class="plist">{PROMISES(ow).map(t => <div class="pitem"><span class="pbox on">✓</span><span>{t}</span></div>)}</div>
+              <div class="psig">{r.promise_sig ? <img src={'/p/' + r.promise_sig} alt="Signature" /> : null}<div class="hint row" style="justify-content:space-between"><span>Signed by {isOwner ? cu : 'you'}</span><span>{when}</span></div></div>
+              <div class="hint" style="text-align:center;margin-top:8px">{isOwner ? 'You have a copy' : `${ow} has a copy too`}</div>
+            </div></dialog>
+          );
+          if (r.promise_at) return <>{view}<button type="button" class="btn sm full" onclick="document.getElementById('promView').showModal()">✓ {isOwner ? `${cu} signed the promise` : 'Promise signed'} · <u>View</u></button></>;
+          if (isOwner) return <div class="hint" style="text-align:center">{cu} hasn’t signed the promise yet · texted a reminder</div>;
+          return (<>
+            <div class="pcall"><div><b>Sign your promise to {ow}</b><div class="hint">3 quick checks · needed before pickup</div></div><button type="button" class="btn pri sm" onclick="document.getElementById('promSign').showModal()">Sign now</button></div>
+            <dialog id="promSign" class="psheet"><form method="post" action={'/r/' + r.id + '/promise'} class="psheet-in" id="promForm">
+              <div class="psheet-h"><b>Your promise to {ow}</b><button type="button" class="psheet-x" aria-label="Close" onclick="this.closest('dialog').close()">✕</button></div>
+              <div class="hint">Neighbor to neighbor. Tap each one</div>
+              <div class="plist">{PROMISES(ow).map((t, i) => <label class="pitem"><input type="checkbox" name={'p' + i} required /><span class="pbox"></span><span>{t}</span></label>)}</div>
+              <div class="psig"><div class="row" style="justify-content:space-between;align-items:center"><b style="font-size:13px">Sign with your finger</b><button type="button" class="btn sm" id="sigClear" style="height:30px">Clear</button></div>
+                <canvas id="sigpad" width="640" height="200" aria-label="Signature pad"></canvas>
+                <div class="hint">Your finger signature is your signature</div></div>
+              <input type="hidden" name="sig" id="sigData" />
+              <button class="btn pri full" type="submit" id="sigGo" disabled style="margin-top:12px">Sign promise</button>
+            </form></dialog>
+            {raw(`<script>(function(){var cv=document.getElementById('sigpad'),g=cv.getContext('2d'),f=document.getElementById('promForm'),go=document.getElementById('sigGo'),ink=0,down=false;
+g.lineWidth=4;g.lineCap='round';g.lineJoin='round';g.strokeStyle='#1E3A2B';
+function pt(e){var b=cv.getBoundingClientRect();return[(e.clientX-b.left)*cv.width/b.width,(e.clientY-b.top)*cv.height/b.height];}
+function ok(){var all=[].every.call(f.querySelectorAll('input[type=checkbox]'),function(x){return x.checked;});go.disabled=!(all&&ink>12);go.textContent=!all?'Check all 3':ink>12?'Sign promise':'Sign above with your finger';}
+cv.addEventListener('pointerdown',function(e){down=true;cv.setPointerCapture(e.pointerId);var p=pt(e);g.beginPath();g.moveTo(p[0],p[1]);});
+cv.addEventListener('pointermove',function(e){if(!down)return;var p=pt(e);g.lineTo(p[0],p[1]);g.stroke();ink++;});
+cv.addEventListener('pointerup',function(){down=false;ok();});
+document.getElementById('sigClear').onclick=function(){g.clearRect(0,0,cv.width,cv.height);ink=0;ok();};
+f.addEventListener('change',ok);f.addEventListener('submit',function(){document.getElementById('sigData').value=cv.toDataURL('image/png');});ok();})();</script>`)}
+          </>);
+        })() : null}
 
         {/* quick actions */}
         {!dead && stage >= 1 && stage < 3 ? (
@@ -199,6 +246,26 @@ async function savePhoto(c: any, r: Rental, kind: 'pickup' | 'return'): Promise<
   await c.env.PHOTOS.put(key, await p.arrayBuffer(), { httpMetadata: { contentType: p.type || 'image/jpeg' } });
   return key;
 }
+rentals.post('/r/:id/promise', requireUser, async (c) => {
+  const u = c.get('user')!;
+  const r = await rentalById(c.env.DB, c.req.param('id'));
+  if (!r || r.renter_id !== u.id) return c.notFound();
+  if (r.promise_at) return c.redirect('/r/' + r.id);
+  const f = await c.req.parseBody();
+  if (!['p0', 'p1', 'p2'].every(k => f[k])) return c.redirect('/r/' + r.id);
+  const m = String(f.sig || '').match(/^data:image\/png;base64,([A-Za-z0-9+/=]+)$/);
+  let key: string | null = null;
+  if (m && m[1].length < 400_000) {
+    const bin = Uint8Array.from(atob(m[1]), ch => ch.charCodeAt(0));
+    key = `rentals/${r.id}/promise.png`;
+    await c.env.PHOTOS.put(key, bin, { httpMetadata: { contentType: 'image/png' } });
+  }
+  await c.env.DB.prepare('UPDATE rentals SET promise_at = ?, promise_sig = ? WHERE id = ? AND promise_at IS NULL').bind(Date.now(), key, r.id).run();
+  const owner = await userById(c.env.DB, r.owner_id);
+  if (owner) c.executionCtx.waitUntil(textUser(c.env, owner, `${firstName(u.name) || 'Your customer'} signed the promise for your ${(await listingById(c.env.DB, r.listing_id))?.name || 'item'} ${c.env.APP_URL}/r/${r.id}`, 'rental').catch(() => {}));
+  return c.redirect('/r/' + r.id);
+});
+
 rentals.post('/r/:id/pickup', requireUser, async (c) => {
   const u = c.get('user')!; const r = await rentalById(c.env.DB, c.req.param('id'));
   if (!r || r.owner_id !== u.id) return c.notFound();

@@ -191,3 +191,14 @@ export async function expireHolds(env: Env) {
   await env.DB.prepare(`UPDATE rentals SET status = 'canceled', updated_at = ? WHERE status = 'requested' AND created_at < ?`).bind(now(), now() - 2 * 3600000).run();
   return rows.results.length;
 }
+
+// Promise reminder: a confirmed customer who hasn't signed an hour after the YES gets one text
+export async function nudgePromises(env: Env) {
+  const rows = (await env.DB.prepare(`SELECT r.id, r.renter_id, r.owner_id, r.promise_nudged, r.updated_at FROM rentals r
+    WHERE r.status = 'confirmed' AND r.promise_at IS NULL AND r.promise_nudged < 1 AND r.updated_at < ? LIMIT 20`).bind(Date.now() - 3600e3).all<{ id: string; renter_id: string; owner_id: string; promise_nudged: number; updated_at: number }>().catch(() => ({ results: [] as any[] }))).results;
+  for (const r of rows) {
+    const cu = await userById(env.DB, r.renter_id), ow = await userById(env.DB, r.owner_id); if (!cu || !ow) continue;
+    await textUser(env, cu, `Before pickup: sign your promise to ${firstName(ow.name) || 'the owner'} (3 quick checks) ${env.APP_URL}/r/${r.id}`, 'rental');
+    await env.DB.prepare('UPDATE rentals SET promise_nudged = promise_nudged + 1 WHERE id = ?').bind(r.id).run();
+  }
+}
