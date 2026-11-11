@@ -1,4 +1,5 @@
 import { iconsDone, makeWantedIcon, auditIcons } from './lib/wanted-icons';
+import { runJobs } from './lib/jobs';
 import { expireExtensions } from './lib/extend';
 import { weeklyOwnerText } from './lib/weekly';
 import { nudgePromises } from './lib/rentals';
@@ -52,8 +53,9 @@ app.onError((err, c) => { console.error(err); if (c.req.path.startsWith('/api/')
 
 export default {
   fetch: app.fetch,
-  async scheduled(_ev: ScheduledEvent, env: Env) {
+  async scheduled(_ev: ScheduledEvent, env: Env, ctx: ExecutionContext) {
     try { const m = await selfMigrate(env); if (m.length) console.log('self-migrated', m); } catch (e) { console.warn('self-migrate', e); }
+    try { await runJobs(env, ctx); } catch (e) { console.warn('jobs', e); }
     try { await backfillUrls(env, 150); } catch (e) { console.warn('urls', e); }
     try { await nudgePromises(env); } catch (e) { console.warn('promise nudge', e); }
     try { await expireExtensions(env); } catch (e) { console.warn('ext expire', e); }
