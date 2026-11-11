@@ -68,7 +68,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
   const owner = isOwner ? u : other;
   const it = (await listingById(c.env.DB, r.listing_id))!;
   const photos = await photosFor(c.env.DB, it.id);
-  const msgs = await c.env.DB.prepare('SELECT m.*, u.name sender_name FROM messages m LEFT JOIN users u ON u.id = m.sender_id WHERE m.rental_id = ? ORDER BY m.created_at').bind(r.id).all<{ id: string; sender_id: string | null; body: string; via: string; created_at: number; sender_name: string | null }>();
+  const msgs = await c.env.DB.prepare(`SELECT m.*, u.name sender_name FROM messages m LEFT JOIN users u ON u.id = m.sender_id WHERE m.rental_id = ?1 OR (?2 != 'inquiry' AND m.rental_id IN (SELECT id FROM rentals WHERE listing_id = ?3 AND renter_id = ?4 AND status = 'inquiry')) ORDER BY m.created_at`).bind(r.id, r.status, r.listing_id, r.renter_id).all<{ id: string; sender_id: string | null; body: string; via: string; created_at: number; sender_name: string | null }>();
   const STEPS = ['Requested', 'Confirmed', 'Pickup', 'Returned'];
   const stage = r.status === 'held' || r.status === 'requested' ? 0 : r.status === 'confirmed' ? 1 : r.status === 'picked_up' ? 2 : r.status === 'returned' || r.status === 'closed' ? 3 : -1;
   const dead = ['declined', 'expired', 'canceled'].includes(r.status);
@@ -371,7 +371,7 @@ rentals.get('/i/:id/ask', requireUser, async (c) => {
 // ---------- Your rentals + Inbox ----------
 rentals.get('/rentals', requireUser, async (c) => {
   const u = c.get('user')!;
-  const rows = await c.env.DB.prepare(`SELECT r.*, l.name item, o.name owner_name, n.name renter_name, (SELECT COUNT(*) FROM messages m WHERE m.rental_id = r.id AND m.sender_id IS NOT NULL AND m.sender_id != ?3 AND m.created_at > COALESCE((SELECT seen_at FROM thread_reads t WHERE t.user_id = ?3 AND t.rental_id = r.id), 0)) unread FROM rentals r JOIN listings l ON l.id = r.listing_id JOIN users o ON o.id = r.owner_id JOIN users n ON n.id = r.renter_id WHERE (r.owner_id = ?1 OR r.renter_id = ?2) AND r.status != 'requested' ORDER BY r.updated_at DESC LIMIT 100`).bind(u.id, u.id, u.id).all<Rental & { item: string; owner_name: string | null; renter_name: string | null; unread: number }>().catch(() => ({ results: [] as any[] }));
+  const rows = await c.env.DB.prepare(`SELECT r.*, l.name item, o.name owner_name, n.name renter_name, (SELECT COUNT(*) FROM messages m WHERE m.rental_id = r.id AND m.sender_id IS NOT NULL AND m.sender_id != ?3 AND m.created_at > COALESCE((SELECT seen_at FROM thread_reads t WHERE t.user_id = ?3 AND t.rental_id = r.id), 0)) unread, (SELECT COALESCE(SUM(x.rent_cents),0) FROM rental_extensions x WHERE x.rental_id = r.id AND x.status = 'confirmed') x_rent, (SELECT COALESCE(SUM(x.total_cents),0) FROM rental_extensions x WHERE x.rental_id = r.id AND x.status = 'confirmed') x_total FROM rentals r JOIN listings l ON l.id = r.listing_id JOIN users o ON o.id = r.owner_id JOIN users n ON n.id = r.renter_id WHERE (r.owner_id = ?1 OR r.renter_id = ?2) AND r.status != 'requested' AND NOT (r.status = 'inquiry' AND EXISTS (SELECT 1 FROM rentals x WHERE x.listing_id = r.listing_id AND x.renter_id = r.renter_id AND x.status NOT IN ('inquiry','requested') AND x.created_at > r.created_at)) ORDER BY r.updated_at DESC LIMIT 100`).bind(u.id, u.id, u.id).all<Rental & { item: string; owner_name: string | null; renter_name: string | null; unread: number; x_rent: number; x_total: number }>().catch(() => ({ results: [] as any[] }));
   const ph = await firstPhotos(c.env.DB, [...new Set(rows.results.map(r => r.listing_id))]);
   const label = (r: Rental) => ({ held: 'waiting for YES', confirmed: 'confirmed · set pickup', picked_up: 'out', returned: 'returned · rate', closed: 'done', declined: 'declined', expired: 'expired', canceled: 'canceled', requested: '', inquiry: 'question' }[r.status]);
   return c.html(
@@ -382,7 +382,7 @@ rentals.get('/rentals', requireUser, async (c) => {
           {ph[r.listing_id] ? <img src={'/p/' + ph[r.listing_id]} alt="" /> : <div class="ph"></div>}
           <div style="min-width:0;flex:1">
             <div style="font-weight:800">{r.item}</div>
-            <div style="font-size:13px">{r.status === 'inquiry' ? (r.owner_id === u.id ? `${firstName(r.renter_name)} asked` : `asked ${firstName(r.owner_name)}`) : <>{fmtRange(r.start_day, r.end_day)} · {r.owner_id === u.id ? `to ${firstName(r.renter_name)} · +${money(r.rent_cents)}` : `from ${firstName(r.owner_name)} · ${money(r.total_cents)}`}</>}</div>
+            <div style="font-size:13px">{r.status === 'inquiry' ? (r.owner_id === u.id ? `${firstName(r.renter_name)} asked` : `asked ${firstName(r.owner_name)}`) : <>{fmtRange(r.start_day, r.end_day)} · {r.owner_id === u.id ? `to ${firstName(r.renter_name)} · +${money(r.rent_cents + (r.x_rent || 0))}` : `from ${firstName(r.owner_name)} · ${money(r.total_cents + (r.x_total || 0))}`}</>}</div>
             <div class="hint">{label(r)}</div>
           </div>
           {r.status === 'held' && r.owner_id === u.id ? <span class="pill" style="background:var(--orange);color:#fff">YES?</span> : r.unread ? <span class="badge-n">{r.unread}</span> : null}
@@ -431,7 +431,7 @@ rentals.get('/inbox', requireUser, async (c) => {
       <div class="msgs" id="inbox" style="padding:12px 12px 8px">
         {all.length ? all.map(m => (
           <div class={'msg' + (m.me ? ' me' : '')}>
-            <div class="bub"><Linked t={m.body} /></div>
+            <div class="bub"><Linked t={m.me ? m.body : m.body.replace(/\s*\(Reply OK to get links \+ updates here\.?\)\s*$/, '')} /></div>
             <div class="meta">{m.me ? 'You' + (m.via === 'text' ? ' · by text' : '') : 'Lendo'} · {fmtT(m.at)}{m.rid ? <> · <a href={'/r/' + m.rid}>open</a></> : null}</div>
           </div>
         )) : <div class="hint" style="padding:16px 4px">Nothing here yet</div>}

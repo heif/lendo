@@ -30,7 +30,9 @@ export async function extendableDays(env: Env, r: Rental): Promise<string[]> {
 
 export function extPrice(env: Env, r: Rental, priceCents: number, weekCents: number | null, newEnd: string) {
   const days = daysBetween(addDays(r.end_day, 1), newEnd);
-  const rent = Math.max(0, rentFor(r.days + days, priceCents, weekCents) - rentFor(r.days, priceCents, weekCents));
+  const list = rentFor(r.days, priceCents, weekCents);
+  // owner gave this rental a lower price (or free) → the extra days follow the same rate
+  const rent = r.rent_cents < list ? Math.round((r.days ? r.rent_cents / r.days : 0) * days) : Math.max(0, rentFor(r.days + days, priceCents, weekCents) - list);
   const fee = rent > 0 ? feeFor(env, rent) : 0;
   return { days, rent, fee, total: rent + fee };
 }

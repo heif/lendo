@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { checkListingPhoto } from '../lib/photo-check';
 import { Grade, GRADES, GRADE_WORD, isGrade, shownGrade } from '../lib/grade';
 import { assignHandle, assignSlug, itemLink } from '../lib/urls';
 import { recordCorrection } from '../lib/identify';
@@ -292,6 +293,9 @@ listings.post('/listings/:id/photos', requireUser, async (c) => {
     await c.env.DB.prepare('INSERT INTO photos (id, listing_id, r2_key, pos) VALUES (?,?,?,?)').bind(id('ph'), it.id, key, pos++).run();
   }
   if (!have) await recoverIcon(c, it.id, null);
+  // new photos get the same safety check as at listing time
+  const added = (await photosFor(c.env.DB, it.id)).slice(have).map(p => p.r2_key);
+  if (added.length && it.status === 'live') c.executionCtx.waitUntil((async () => { for (const k of added) if (!(await checkListingPhoto(c.env, it.id, k))) break; })().catch(() => {}));
   return c.redirect(`/listings/${it.id}/edit`);
 });
 listings.post('/listings/:id/photos/:pid/delete', requireUser, async (c) => {

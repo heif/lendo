@@ -490,7 +490,7 @@
         for (var x = x0; x <= x1 && n < MAX; x++) for (var y = y0; y <= y1 && n < MAX; y++) {
           var h = h32(x, y); if (h % MOD !== 0) continue;
           var lng = (x + 0.15 + (h >>> 8 & 255) / 365) * CELL, lat = (y + 0.15 + (h >>> 16 & 255) / 365) * CELL;
-          if (near(lng, lat, 130)) continue;
+          if (near(lng, lat, 100)) continue; // ghosts may sit ~100px from real items
           if (onWater(lng, lat)) continue;
           var k = zb + ':' + x + ',' + y; keep[k] = 1; n++;
           if (marks[k]) { chosen[x + ',' + y] = marks[k]._wkey; continue; }
