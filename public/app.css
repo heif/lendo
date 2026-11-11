@@ -413,3 +413,12 @@ html,body{overflow-x:hidden}
 .qwrap input{flex:1 1 0;padding-right:38px!important}
 .qwrap input::-webkit-search-cancel-button{display:none}
 .qclr{position:absolute;right:7px;top:50%;margin-top:-14px;width:28px;height:28px;border-radius:14px;border:0;background:#E6E2D9;color:var(--ink);font-size:18px;font-weight:800;line-height:1;padding:0;cursor:pointer}
+
+/* search alert card (design Z): headline + green pill that is the on/off switch */
+.alertchip{border-radius:16px!important;padding:10px!important;min-width:260px;max-width:min(360px,calc(100% - 24px))!important;white-space:normal!important}
+.ac-h{font-size:16px;font-weight:900;letter-spacing:-.2px;margin:2px 4px 8px;line-height:1.2}
+.ac-pill{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;border:0;border-radius:12px;padding:9px 10px 9px 12px;background:#F0EDE6;font:inherit;font-size:14px;font-weight:700;color:var(--ink);cursor:pointer;text-align:left;text-decoration:none!important}
+.ac-pill.on{background:#EAF6EE}
+.ac-sw{position:relative;flex-shrink:0;width:36px;height:22px;border-radius:11px;background:#B9B3A6;transition:background .15s}
+.ac-sw b{position:absolute;left:2px;top:2px;width:18px;height:18px;border-radius:9px;background:#fff;transition:left .15s}
+.ac-pill.on .ac-sw{background:#1F8A4C}.ac-pill.on .ac-sw b{left:16px}

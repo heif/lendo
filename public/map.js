@@ -332,17 +332,28 @@
   q.addEventListener('input', function () { clearTimeout(t); t = setTimeout(load, 300); });
   // saved-search alert: on automatically after a search settles; visible Turn off
   var alertT, alertQ = '', alertId = null, qNote = '';
+  // Search alert card under the search box: optional "No ladder for rent nearby yet" headline + a green pill
+  // "🔔 Text alert when one's listed [switch]". On automatically (logged in); the whole pill toggles it.
+  function alertCard(on, cb) {
+    var chip = $('alertChip');
+    chip.innerHTML = (qNote ? '<div class="ac-h">' + qNote + '</div>' : '') +
+      '<button type="button" class="ac-pill' + (on ? ' on' : '') + '" role="switch" aria-checked="' + on + '"><span>🔔 Text alert when one’s listed</span><i class="ac-sw"><b></b></i></button>';
+    chip.hidden = false; chip.querySelector('.ac-pill').onclick = cb;
+  }
   function alertChip(now) {
     var qq = q.value.trim(), chip = $('alertChip'); clearTimeout(alertT); if (now !== true) qNote = '';
     if (qq.length < 3) { chip.hidden = true; return; }
     alertT = setTimeout(function () {
-      if (qq === alertQ && !chip.hidden && now !== true) return; alertQ = qq; var pre = qNote ? '<b>' + qNote + '</b><br>' : ''; var cc = map.getCenter(), hood = ($('scHoodN') || {}).title || '';
-      var esc = function (x) { return x.replace(/[<>&"]/g, ''); };
-      if (!CFG.user) { chip.innerHTML = pre + '🔔 <a href="/login?next=' + encodeURIComponent('/?q=' + qq) + '">Text me when a ' + esc(qq) + ' is listed</a>'; chip.hidden = false; return; }
-      fetch('/api/alerts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ q: qq, lat: cc.lat, lng: cc.lng, hood: hood }) })
-        .then(function (r) { return r.json(); }).then(function (j) { if (!j.id) return; alertId = j.id;
-          chip.innerHTML = pre + '🔔 Alert on' + (pre ? ' — you’ll get a text when one’s listed' : ' for <b>' + esc(qq) + '</b>') + ' · <button type="button" id="alertOff">Turn off</button>'; chip.hidden = false;
-          $('alertOff').onclick = function () { fetch('/api/alerts/' + alertId + '/off', { method: 'POST' }); chip.innerHTML = 'Alert off · <a href="/alerts">All alerts</a>'; }; });
+      if (qq === alertQ && !chip.hidden && now !== true) return; alertQ = qq;
+      var cc = map.getCenter(), hood = ($('scHoodN') || {}).title || '';
+      if (!CFG.user) { alertCard(false, function () { location.href = '/login?next=' + encodeURIComponent('/?q=' + qq); }); return; }
+      function save() {
+        return fetch('/api/alerts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ q: qq, lat: cc.lat, lng: cc.lng, hood: hood }) })
+          .then(function (r) { return r.json(); }).then(function (j) { if (j.id) alertId = j.id; return !!j.id; }).catch(function () { return false; });
+      }
+      var on = true;
+      function toggle() { on = !on; alertCard(on, toggle); if (on) save(); else if (alertId) fetch('/api/alerts/' + alertId + '/off', { method: 'POST' }); }
+      save().then(function (ok) { if (ok && q.value.trim() === qq) alertCard(true, toggle); });
     }, now === true ? 0 : 1500);
   }
   q.addEventListener('input', alertChip);
