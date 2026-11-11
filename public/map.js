@@ -78,7 +78,7 @@
   // Recomputed only when the item set or the zoom band changes; panning changes nothing, so pins never jump or flicker.
   var GMARKS = {};                       // ghost markers by cell key (shared with walkers)
   var POS = {}, SHOW = [], HIDE = [], itemsRev = 0, layoutKey = '', OBST = [];
-  var PIN_W = 84, PIN_H = 80, MAX_SHOWN = 140;
+  var PIN_W = 76, PIN_H = 76, MAX_SHOWN = 140;
   function hid(s) { var h = 0; for (var k = 0; k < s.length; k++) h = (h * 31 + s.charCodeAt(k)) | 0; return Math.abs(h); }
   function worldPx(lng, lat, z) { var sc = 512 * Math.pow(2, z), sy = Math.sin(lat * Math.PI / 180); return [(lng + 180) / 360 * sc, (0.5 - Math.log((1 + sy) / (1 - sy)) / (4 * Math.PI)) * sc]; }
   // Small knots of nearby items (≤ 8 within a pin's width of each other, e.g. one owner's things) fan out in a ring
@@ -113,13 +113,24 @@
     if (sel && byId[sel] && POS[sel]) queue.push(byId[sel]);
     sticky.forEach(function (id) { if (byId[id] && POS[id]) queue.push(byId[id]); });
     for (var r = 0, more = true; more; r++) { more = false; order.forEach(function (c) { var it = cats[c].list[r]; if (it) { queue.push(it); more = true; } }); }
-    var cell = {}, seen = {}; SHOW = []; HIDE = [];
-    queue.forEach(function (it) {
+    // pass 1 skips an item if the same kind of thing already shows nearby (variety of items, not just categories);
+    // pass 2 fills whatever room is left
+    var cell = {}, kinds = {}, seen = {}, later = [], NEAR = PIN_W * 4; SHOW = []; HIDE = [];
+    function fits(p) {
+      var gx = Math.floor(p[0] / PIN_W), gy = Math.floor(p[1] / PIN_H);
+      for (var dx = -1; dx <= 1; dx++) for (var dy = -1; dy <= 1; dy++) { var c2 = cell[(gx + dx) + ',' + (gy + dy)]; if (c2) for (var i = 0; i < c2.length; i++) if (Math.abs(c2[i][0] - p[0]) < PIN_W && Math.abs(c2[i][1] - p[1]) < PIN_H) return false; }
+      return true;
+    }
+    function sameKindNear(it, p) { var k = kinds[it.name.toLowerCase()]; if (k) for (var i = 0; i < k.length; i++) if (Math.abs(k[i][0] - p[0]) < NEAR && Math.abs(k[i][1] - p[1]) < NEAR) return true; return false; }
+    function take(it, p) { SHOW.push(it); var gx = Math.floor(p[0] / PIN_W), gy = Math.floor(p[1] / PIN_H); (cell[gx + ',' + gy] = cell[gx + ',' + gy] || []).push(p); var n = it.name.toLowerCase(); (kinds[n] = kinds[n] || []).push(p); }
+    queue.forEach(function (it, qi) {
       if (seen[it.id]) return; seen[it.id] = 1;
-      var p = worldPx(POS[it.id][0], POS[it.id][1], z), gx = Math.floor(p[0] / PIN_W), gy = Math.floor(p[1] / PIN_H), ok = SHOW.length < MAX_SHOWN;
-      for (var dx = -1; dx <= 1 && ok; dx++) for (var dy = -1; dy <= 1 && ok; dy++) { var c2 = cell[(gx + dx) + ',' + (gy + dy)]; if (c2) for (var i = 0; i < c2.length; i++) if (Math.abs(c2[i][0] - p[0]) < PIN_W && Math.abs(c2[i][1] - p[1]) < PIN_H) { ok = false; break; } }
-      if (ok) { SHOW.push(it); (cell[gx + ',' + gy] = cell[gx + ',' + gy] || []).push(p); } else HIDE.push(it);
+      var p = worldPx(POS[it.id][0], POS[it.id][1], z), keep = it.id === sel || qi <= sticky.length;   // selected + already-showing pins skip the variety test
+      if (SHOW.length >= MAX_SHOWN || !fits(p)) HIDE.push(it);
+      else if (!keep && sameKindNear(it, p)) later.push([it, p]);
+      else take(it, p);
     });
+    later.forEach(function (x) { if (SHOW.length < MAX_SHOWN && fits(x[1])) take(x[0], x[1]); else HIDE.push(x[0]); });
   }
   function pinsGeo() {
     return { type: 'FeatureCollection', features: SHOW.map(function (it) {
