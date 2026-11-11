@@ -456,3 +456,7 @@ button.grdbtn{background:none;border:0;padding:0 16px 0 0;cursor:pointer;display
 .field .grd{display:inline-flex;flex-direction:column;margin:0;font-size:inherit;letter-spacing:0;text-transform:none;color:var(--gc)}.field .grd b{font-size:26px}.field .grd small{font-size:7px}
 body:has(#sheet.on) .locbtn,body:has(#wsheet:not([hidden])) .locbtn{display:none}
 .ratrow{margin-top:10px}.ratrow>b{display:block;font-size:14px;margin-bottom:6px}
+/* badge caption says CONDITION: wider badge so it never bleeds */
+.grd{width:58px}.grd small{font-size:6.5px;letter-spacing:.02em}
+.grd.sm{width:48px}.grd.sm small{font-size:5.2px}
+.field .grd small{font-size:6.5px}

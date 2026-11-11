@@ -17,4 +17,4 @@ export async function shownGrade(env: Env, lid: string, ownerGrade: string | nul
 }
 
 export const Grade = (p: { g: string; arrow?: boolean; cls?: string }) =>
-  <span class={'grd g' + p.g + (p.cls ? ' ' + p.cls : '')} aria-label={`Condition ${p.g}, ${GRADE_WORD[p.g] || ''}`}><b>{p.g}</b><small>GRADE</small>{p.arrow ? <i>▾</i> : null}</span>;
+  <span class={'grd g' + p.g + (p.cls ? ' ' + p.cls : '')} aria-label={`Condition ${p.g}, ${GRADE_WORD[p.g] || ''}`}><b>{p.g}</b><small>CONDITION</small>{p.arrow ? <i>▾</i> : null}</span>;
