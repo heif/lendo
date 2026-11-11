@@ -353,7 +353,9 @@
       }
       var on = true;
       function toggle() { on = !on; alertCard(on, toggle); if (on) save(); else if (alertId) fetch('/api/alerts/' + alertId + '/off', { method: 'POST' }); }
-      save().then(function (ok) { if (ok && q.value.trim() === qq) alertCard(true, toggle); });
+      // show it on right away; if saving fails, flip it off (tap retries)
+      alertCard(true, toggle);
+      save().then(function (ok) { if (!ok && q.value.trim() === qq) { on = false; alertCard(false, toggle); } });
     }, now === true ? 0 : 1500);
   }
   q.addEventListener('input', alertChip);

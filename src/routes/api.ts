@@ -1,6 +1,6 @@
 // Public read API — agents welcome. No auth for reads; writes come later (keys + scopes).
 import { Hono } from 'hono';
-import { twilioBasic } from '../lib/auth';
+import { loadUser, twilioBasic } from '../lib/auth';
 import { saveSearch, turnOff } from '../lib/alerts';
 import type { Env, Listing, Vars } from '../lib/env';
 import { firstPhotos, listingById, photosFor, reputation, userById } from '../lib/db';
@@ -10,6 +10,9 @@ import { CITIES, WANTED_ALL, short, hoodDisplay } from '../lib/places';
 import { iconsDone } from '../lib/wanted-icons';
 
 export const api = new Hono<{ Bindings: Env; Variables: Vars }>();
+// api routes mount before the global loadUser, so the ones that need the session load it here
+api.use('/api/alerts', loadUser);
+api.use('/api/alerts/*', loadUser);
 
 api.use('/api/*', async (c, next) => { await next(); c.header('access-control-allow-origin', '*'); c.header('cache-control', 'no-store'); });
 
