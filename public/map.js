@@ -375,7 +375,10 @@
       .then(function (r) { return r.json(); }).then(function (j) { cityItems = j.listings; j.listings.forEach(function (it) { known[it.id] = it; }); if (listMode) renderGrid(cityItems); })
       .catch(function () { renderGrid(items); });
   }
-  function setList(on) { listMode = on; grid.style.display = on ? 'block' : 'none'; $('toggle').innerHTML = on ? MAP_IC : LIST_IC; document.querySelector('.mapwrap').classList.toggle('listing', on); if (on) loadCityList(); }
+  function closeCards() { if (sel) { sel = null; refresh(); } sheet.classList.remove('on'); var ws = $('wsheet'); if (ws) ws.hidden = true; }
+  // leaving the map (list view, another page, back/forward cache) never keeps a card open
+  window.addEventListener('pagehide', closeCards); window.addEventListener('pageshow', function (e) { if (e.persisted) closeCards(); });
+  function setList(on) { closeCards(); listMode = on; grid.style.display = on ? 'block' : 'none'; $('toggle').innerHTML = on ? MAP_IC : LIST_IC; document.querySelector('.mapwrap').classList.toggle('listing', on); if (on) loadCityList(); }
   $('toggle').addEventListener('click', function () { setList(!listMode); });
   // standard "my location": blue dot + accuracy halo, recenters on tap
   var meMk = null;
