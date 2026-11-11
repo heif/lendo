@@ -100,6 +100,7 @@ async function blooioInbound(c: Context<{ Bindings: Env; Variables: Vars }>) {
     await textUser(c.env, user, `Alerts off. Turn any back on at ${c.env.APP_URL}/alerts`, 'rental');
     return c.json({ ok: true });
   }
+  if (kw === 'SKIP') { await textUser(c.env, user, `Ok — the customer can text you to set a time`, 'rental'); return c.json({ ok: true }); }
   if (kw === 'LIST') { await textUser(c.env, user, `Point, tap, done: ${c.env.APP_URL}/list`, 'nudge'); return c.json({ ok: true }); }
   if (kw === 'HELP') { await textUser(c.env, user, `Lendo: reply YES/NO to a request, LATE if you're running late, STOP to stop texts. Your rentals: ${c.env.APP_URL}/rentals`, 'rental'); return c.json({ ok: true }); }
 

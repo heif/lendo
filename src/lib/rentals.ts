@@ -53,8 +53,9 @@ export async function accept(env: Env, r0: Rental, rentCents?: number): Promise<
   await addMessage(env, r.id, null, `${firstName(owner.name)} said yes · ${paidLine} · set a pickup time`, 'system');
   const spot = owner.pickup_spots ? ` Meet: ${(JSON.parse(owner.pickup_spots) as string[]).join(' or ')}` : '';
   const gift = r.rent_cents === 0 ? ` ${firstName(owner.name)} is lending it to you free!` : r0.rent_cents > r.rent_cents ? ` ${firstName(owner.name)} gave you a discount` : '';
-  await textUser(env, renter, `${firstName(owner.name)} said yes!${gift} ${paidLine[0].toUpperCase() + paidLine.slice(1)}.${spot} Set a pickup time — reply here or tap ${url}`, 'money', r.id);
-  await textUser(env, owner, r.rent_cents === 0 ? `Done — lending it free. Set a pickup time with ${firstName(renter.name)} — reply here or tap ${url}` : `Done. ${firstName(renter.name)} paid. Set a pickup time with them — reply here or tap ${url}`, 'rental', r.id);
+  // owner is asked for a pickup time right after YES (no pickup hours); their reply relays to the customer, SKIP leaves it to the customer
+  await textUser(env, renter, `${firstName(owner.name)} said yes!${gift} ${paidLine[0].toUpperCase() + paidLine.slice(1)}.${spot} ${firstName(owner.name)} will text a pickup time ${url}`, 'money', r.id);
+  await textUser(env, owner, `${r.rent_cents === 0 ? 'Done — lending it free' : `Done. ${firstName(renter.name)} paid`}. When can ${firstName(renter.name)} pick it up? Reply a time (like "after 6"), or SKIP`, 'rental', r.id);
   if (!owner.stripe_account_id && r.rent_cents > 0) {
     await textUser(env, owner, `Where should your ${money(r.rent_cents)} go? Add a debit card or bank, takes 30 sec: ${env.APP_URL}/payout`, 'money', r.id);
   }
