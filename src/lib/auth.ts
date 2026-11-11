@@ -28,10 +28,11 @@ export const requireUser: MiddlewareHandler<{ Bindings: Env; Variables: Vars }> 
 };
 
 // Twilio Verify sends + checks the code itself (SMS to any phone; no 10DLC registration needed)
+const clean = (v?: string) => (v || '').replace(/^[\s"'`]+|[\s"'`]+$/g, '');  // pasted values sometimes keep quotes or spaces
 export const twilioBasic = (env: Env): string | null => {
-  const key = (env.TWILIO_API_KEY_SID || '').trim(), sec = (env.TWILIO_API_KEY_SECRET || '').trim();
+  const key = clean(env.TWILIO_API_KEY_SID), sec = clean(env.TWILIO_API_KEY_SECRET);
   if (key && sec) return 'Basic ' + btoa(`${key}:${sec}`);
-  const sid = (env.TWILIO_ACCOUNT_SID || '').trim(), tok = (env.TWILIO_AUTH_TOKEN || '').trim();
+  const sid = clean(env.TWILIO_ACCOUNT_SID), tok = clean(env.TWILIO_AUTH_TOKEN);
   return sid && tok ? 'Basic ' + btoa(`${sid}:${tok}`) : null;
 };
 const twilioOn = (env: Env) => !!(twilioBasic(env) && (env.TWILIO_VERIFY_SID || '').trim());
