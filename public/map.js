@@ -73,39 +73,69 @@
   try { navigator.sendBeacon && navigator.sendBeacon('/api/map-load', ''); } catch (e) {}   // §6 cost guard
 
   var items = [], sel = null, listMode = false, t, iconCache = {}, loading = {};
-  // Spread: items at (nearly) the same spot are pushed apart on screen so each shows as its own pin (no "2" bubbles).
-  // Offsets are computed per zoom level and cached so pins don't jitter while the wiggle re-renders.
-  var spreadKey = '', spreadPos = {};
+  // ================= Map drawing: ONE pass, one source of positions =================
+  //   items → POS (co-located items fan out, ≤250 m) → SHOW / HIDE (declutter) → 'pins' + 'more' sources → ghosts, walkers
+  // Recomputed only when the item set or the zoom band changes; panning changes nothing, so pins never jump or flicker.
+  var GMARKS = {};                       // ghost markers by cell key (shared with walkers)
+  var POS = {}, SHOW = [], HIDE = [], itemsRev = 0, layoutKey = '', OBST = [];
+  var PIN_W = 84, PIN_H = 80, MAX_SHOWN = 140;
   function hid(s) { var h = 0; for (var k = 0; k < s.length; k++) h = (h * 31 + s.charCodeAt(k)) | 0; return Math.abs(h); }
-  function spread(arr) {
-    if (!map || !map.loaded || !map.getZoom) return;
-    var z = Math.round(map.getZoom() * 4) / 4, key = z + '|' + arr.map(function (it) { return it.id; }).sort().join(',');
-    if (key === spreadKey) return; spreadKey = key; spreadPos = {};
-    // stable: same items → same arrangement regardless of load order (sorted by id; coincident pins fan out by id hash)
-    var pts = arr.filter(function (it) { return it.lat != null; }).slice().sort(function (a, b) { return a.id < b.id ? -1 : 1; }).map(function (it) { var p = map.project([it.lng, it.lat]); return { id: it.id, x: p.x, y: p.y, ox: p.x, oy: p.y }; });
-    var R = 104, moved = false;
-    for (var iter = 0; iter < 60; iter++) {
-      moved = false;
-      for (var i = 0; i < pts.length; i++) for (var j = i + 1; j < pts.length; j++) {
-        var a = pts[i], b = pts[j], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
-        if (d >= R) continue; moved = true;
-        if (d < 0.01) { var ang = (hid(a.id + b.id) % 12) * 0.5236; dx = Math.cos(ang); dy = Math.sin(ang) * 0.6; d = 1; }
-        var push = (R - d) / 2 / d; a.x -= dx * push; a.y -= dy * push; b.x += dx * push; b.y += dy * push;
-      }
-      if (!moved) break;
-    }
-    // never push a pin more than ~250 m from its real spot: zoomed out, co-located pins just stack/fan slightly
-    var mpp = 78271.5 * Math.cos(map.getCenter().lat * Math.PI / 180) / Math.pow(2, map.getZoom()), maxD = Math.max(10, 250 / mpp);
-    pts.forEach(function (p) { var dx = p.x - p.ox, dy = p.y - p.oy, d = Math.hypot(dx, dy); if (d > maxD) { p.x = p.ox + dx * maxD / d; p.y = p.oy + dy * maxD / d; } });
-    pts.forEach(function (p) { if (Math.abs(p.x - p.ox) > 0.5 || Math.abs(p.y - p.oy) > 0.5) { var ll = map.unproject([p.x, p.y]); spreadPos[p.id] = [ll.lng, ll.lat]; } });
+  function worldPx(lng, lat, z) { var sc = 512 * Math.pow(2, z), sy = Math.sin(lat * Math.PI / 180); return [(lng + 180) / 360 * sc, (0.5 - Math.log((1 + sy) / (1 - sy)) / (4 * Math.PI)) * sc]; }
+  function computePos(z) {
+    POS = {}; var groups = {}, cosLat = Math.cos(map.getCenter().lat * Math.PI / 180), mpp = 78271.5 * cosLat / Math.pow(2, z);
+    items.forEach(function (it) { if (it.lat == null) return; var k = Math.round(it.lat * 2500) + ',' + Math.round(it.lng * 2500); (groups[k] = groups[k] || []).push(it); });
+    Object.keys(groups).forEach(function (k) {
+      var g = groups[k], n = g.length; if (n === 1) { POS[g[0].id] = [g[0].lng, g[0].lat]; return; }
+      g.sort(function (a, b) { return a.id < b.id ? -1 : 1; });
+      var clat = 0, clng = 0; g.forEach(function (it) { clat += it.lat / n; clng += it.lng / n; });
+      var rpx = n === 2 ? 44 : Math.min(120, 46 / Math.sin(Math.PI / n)), rm = Math.min(rpx * mpp, 250), a0 = (hid(g[0].id) % 628) / 100;
+      g.forEach(function (it, i) { var a = a0 + 6.2832 * i / n; POS[it.id] = [clng + rm * Math.sin(a) / (111320 * cosLat), clat + rm * Math.cos(a) * 0.8 / 111320]; });
+    });
   }
-  var toGeo = function (arr) {
-    try { spread(arr); } catch (e) {}
-    return { type: 'FeatureCollection', features: arr.filter(function (it) { return it.lat != null; }).map(function (it) {
-      return { type: 'Feature', id: it.id, geometry: { type: 'Point', coordinates: spreadPos[it.id] || [it.lng, it.lat] },
+  // Which pins show when they'd overlap: variety first (one per category in turn), most-rented categories and items
+  // lead; pins already showing keep their place so nothing swaps while you look at it.
+  function pickShown(z, sticky) {
+    var cats = {}, order = [];
+    items.forEach(function (it) { if (!POS[it.id]) return; var c = aisleOf(it); if (!cats[c]) { cats[c] = { n: 0, list: [] }; order.push(c); } cats[c].n += it.rentals || 0; cats[c].list.push(it); });
+    order.sort(function (a, b) { return cats[b].n - cats[a].n || (a < b ? -1 : 1); });
+    order.forEach(function (c) { cats[c].list.sort(function (a, b) { return (b.rentals || 0) - (a.rentals || 0) || hid(a.id) - hid(b.id); }); });
+    var queue = [], byId = {}; items.forEach(function (it) { byId[it.id] = it; });
+    if (sel && byId[sel] && POS[sel]) queue.push(byId[sel]);
+    sticky.forEach(function (id) { if (byId[id] && POS[id]) queue.push(byId[id]); });
+    for (var r = 0, more = true; more; r++) { more = false; order.forEach(function (c) { var it = cats[c].list[r]; if (it) { queue.push(it); more = true; } }); }
+    var cell = {}, seen = {}; SHOW = []; HIDE = [];
+    queue.forEach(function (it) {
+      if (seen[it.id]) return; seen[it.id] = 1;
+      var p = worldPx(POS[it.id][0], POS[it.id][1], z), gx = Math.floor(p[0] / PIN_W), gy = Math.floor(p[1] / PIN_H), ok = SHOW.length < MAX_SHOWN;
+      for (var dx = -1; dx <= 1 && ok; dx++) for (var dy = -1; dy <= 1 && ok; dy++) { var c2 = cell[(gx + dx) + ',' + (gy + dy)]; if (c2) for (var i = 0; i < c2.length; i++) if (Math.abs(c2[i][0] - p[0]) < PIN_W && Math.abs(c2[i][1] - p[1]) < PIN_H) { ok = false; break; } }
+      if (ok) { SHOW.push(it); (cell[gx + ',' + gy] = cell[gx + ',' + gy] || []).push(p); } else HIDE.push(it);
+    });
+  }
+  function pinsGeo() {
+    return { type: 'FeatureCollection', features: SHOW.map(function (it) {
+      return { type: 'Feature', id: it.id, geometry: { type: 'Point', coordinates: POS[it.id] },
         properties: { id: it.id, sel: sel === it.id, rot: wiggleRot(it.id), name: it.name, price: fmt(it.price_cents), price_cents: it.price_cents, week_cents: it.week_cents || 0, photo: it.photo || '', avatar: it.avatar_key || '', emoji: it.emoji || '📦', hood: it.hood || '', icon: iconCache[it.id] ? 'l_' + it.id : 'pin-default' } };
     }) };
-  };
+  }
+  function moreGeo() { return { type: 'FeatureCollection', features: HIDE.map(function (it) { return { type: 'Feature', geometry: { type: 'Point', coordinates: POS[it.id] }, properties: {} }; }) }; }
+  function drawPins() { var src = map.getSource('pins'); if (src) src.setData(pinsGeo()); }
+  // screen points of everything walkers must stay off (pins + ghosts); rebuilt after each layout / map move
+  function buildObst() {
+    OBST = SHOW.map(function (it) { var q = map.project(POS[it.id]); return [q.x, q.y - 40, 52, 50]; });
+    Object.keys(GMARKS).forEach(function (k) { var q = map.project(GMARKS[k].getLngLat()); OBST.push([q.x, q.y, 40, 36]); });
+  }
+  function refresh(force) {
+    if (!map.getSource('pins')) return;
+    var z = Math.round(map.getZoom() * 2) / 2, key = z + '|' + itemsRev + '|' + (sel || '');
+    if (force || key !== layoutKey) {
+      var sameBand = layoutKey.split('|')[0] === String(z), sticky = sameBand ? SHOW.map(function (it) { return it.id; }) : [];
+      if (!sameBand || layoutKey.split('|')[1] !== String(itemsRev)) computePos(z);
+      pickShown(z, sticky); layoutKey = key;
+      var m = map.getSource('more'); if (m) m.setData(moreGeo());
+      SHOW.forEach(ensureIcon);
+    }
+    drawPins(); if (window.__placeWanted) window.__placeWanted(); buildObst();
+  }
 
   function wholeStars(avg) { var up = (avg - 1) / 4; return up >= .9 ? 5 : up >= .75 ? 4 : up >= .55 ? 3 : up >= .35 ? 2 : 1; }
   function fillCard(it) {
@@ -117,7 +147,7 @@
     $('shOwner').innerHTML = '<span class="av">' + esc(own.charAt(0)) + '</span>' + esc(own) + (it.owner_rating ? ' <span class="pill stars">' + '★★★★★'.slice(0, wholeStars(it.owner_rating)) + '</span>' : ' <span class="pill new">new</span>') + (it.rentals ? ' <span class="n">' + it.rentals + ' rental' + (it.rentals === 1 ? '' : 's') + '</span>' : '');
     $('shWhere').textContent = (it.hood || 'near you') + (it.owner_xs ? ' · ' + it.owner_xs : '');
   }
-  $('shClose').addEventListener('click', function () { sel = null; refreshSource(); sheet.classList.remove('on'); });
+  $('shClose').addEventListener('click', function () { sel = null; refresh(); sheet.classList.remove('on'); });
 
   // ---- sticker icons: round photo + price tag, drawn on canvas, added on demand per visible listing ----
   var SZ = S.sticker.size, DPR = Math.min(2, window.devicePixelRatio || 1);
@@ -168,27 +198,21 @@
     if (iconCache[it.id] || loading[it.id]) return;
     loading[it.id] = true;
     var src = it.avatar_key ? '/p/' + it.avatar_key : it.photo ? '/p/' + it.photo : null;
-    var done = function (img) { try { addIcon('l_' + it.id, drawSticker(it, img, !!it.avatar_key)); iconCache[it.id] = true; } catch (e) { console.warn('icon', e); } loading[it.id] = false; refreshSource(); };
+    var done = function (img) { try { addIcon('l_' + it.id, drawSticker(it, img, !!it.avatar_key)); iconCache[it.id] = true; } catch (e) { console.warn('icon', e); } loading[it.id] = false; clearTimeout(iconT); iconT = setTimeout(drawPins, 80); };
     if (!src) return done(null);
     var img = new Image(); img.onload = function () { done(img); }; img.onerror = function () { done(null); }; img.src = src;
   }
-  function loadVisibleIcons() {
-    var b = map.getBounds();
-    items.forEach(function (it) { if (it.lat != null && b.contains([it.lng, it.lat])) ensureIcon(it); });
-  }
-  var rsT; function refreshSource() { clearTimeout(rsT); rsT = setTimeout(function () { var src = map.getSource('listings'); if (src) src.setData(toGeo(items)); }, 60); }
+  var iconT;
 
   map.on('load', function () {
     window.applyLendoStyle && window.applyLendoStyle(map);
     addIcon('pin-default', drawSticker({ price_cents: 0, emoji: '📦' }, null, false));
-    map.addSource('listings', { type: 'geojson', data: toGeo([]), cluster: true, clusterRadius: 36, clusterMaxZoom: 12, promoteId: 'id' });
-    map.addLayer({ id: 'clusters', type: 'circle', source: 'listings', filter: ['has', 'point_count'],
-      paint: { 'circle-color': S.cluster.fill, 'circle-stroke-color': S.cluster.stroke, 'circle-stroke-width': 2.5, 'circle-radius': ['step', ['get', 'point_count'], 9, 5, 12, 20, 15, 80, 19] } });
-    // zoomed-out clusters are plain orange dots sized by count (no number); zoomed in, every item is its own pin
-    map.addLayer({ id: 'cluster-count', type: 'symbol', source: 'listings', filter: ['==', 1, 2], layout: { 'text-field': '' } });
-    map.addLayer({ id: 'pins', type: 'symbol', source: 'listings', filter: ['!', ['has', 'point_count']],
-      layout: { 'icon-image': ['get', 'icon'], 'icon-rotate': ['get', 'rot'], 'icon-size': ['case', ['get', 'sel'], 1.15, 1], 'icon-anchor': 'bottom', 'icon-allow-overlap': false, 'icon-ignore-placement': false, 'icon-padding': 0, /* dense areas: pins that would overlap hide until you zoom in (list shows all) */ 'symbol-sort-key': ['case', ['get', 'sel'], 0, 1] },
-      paint: { 'icon-opacity': 1 } });
+    map.addSource('more', { type: 'geojson', data: moreGeo() });
+    map.addSource('pins', { type: 'geojson', data: pinsGeo(), promoteId: 'id' });
+    // items that don't fit as a pin right now: small orange dots (tap to zoom in)
+    map.addLayer({ id: 'more', type: 'circle', source: 'more', paint: { 'circle-color': S.cluster.fill, 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 2.5, 15, 4.5], 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.2, 'circle-opacity': 0.9 } });
+    map.addLayer({ id: 'pins', type: 'symbol', source: 'pins',
+      layout: { 'icon-image': ['get', 'icon'], 'icon-rotate': ['get', 'rot'], 'icon-size': ['case', ['get', 'sel'], 1.15, 1], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'symbol-sort-key': ['case', ['get', 'sel'], 1, 0] } });
     if (HOOD_LAYER) addHoods();
     load(); updateHood();
     if (WALKERS) startWalkers();
@@ -207,7 +231,7 @@
         var pb = map.getBounds(), w = pb.getEast() - pb.getWest(), h = pb.getNorth() - pb.getSouth();
         items = Object.keys(known).map(function (k) { return known[k]; }).filter(function (it) { return it.lng > pb.getWest() - w * .5 && it.lng < pb.getEast() + w * .5 && it.lat > pb.getSouth() - h * .5 && it.lat < pb.getNorth() + h * .5; })
           .sort(function (a, b2) { return Math.hypot(a.lat - cc.lat, (a.lng - cc.lng) * .76) - Math.hypot(b2.lat - cc.lat, (b2.lng - cc.lng) * .76); }).slice(0, 600);
-        $('toggle').hidden = !items.length && !listMode; if (!items.length && listMode && !qq) setList(false); refreshSource(); if (!listMode) renderGrid(items); setKpi(j); loadVisibleIcons(); if (window.__placeWanted) window.__placeWanted(); if (!items.length && !centered && !qq) goNearest(); if (qq) searchFeedback(qq, items.length); centered = true; });
+        $('toggle').hidden = !items.length && !listMode; if (!items.length && listMode && !qq) setList(false); itemsRev++; refresh(); if (!listMode) renderGrid(items); setKpi(j); if (!items.length && !centered && !qq) goNearest(); if (qq) searchFeedback(qq, items.length); centered = true; });
   }
   // search with nothing in view: jump to the nearest match (once per search), else say so plainly
   var widened = '';
@@ -227,7 +251,7 @@
     var c = map.getCenter();
     fetch('/api/listings?near=' + c.lng + ',' + c.lat + '&limit=1').then(function (r) { return r.json(); }).then(function (j) { var it = j.listings && j.listings[0]; if (it && it.lat != null) map.easeTo({ center: [it.lng, it.lat], zoom: Math.max(map.getZoom(), 14.5), duration: 900 }); }).catch(function () {});
   }
-  map.on('zoomend', refreshSource);
+  map.on('zoomend', function () { refresh(); });
   var moveT; map.on('moveend', function () { clearTimeout(moveT); moveT = setTimeout(function () { load(); updateHood(); }, 300); });
   // scope pills: hood ▾ → places picker; city → that city's view; globe → everywhere
   var PL = null, plCity = 'nyc', curCity = null;
@@ -276,16 +300,13 @@
 
   // selection + sheet
   map.on('click', 'pins', function (e) {
-    var f = e.features[0], p = f.properties; var it = items.filter(function (x) { return x.id === p.id; })[0] || p;
-    sel = p.id; refreshSource();
+    var p = e.features[0].properties; var it = items.filter(function (x) { return x.id === p.id; })[0] || p;
+    sel = p.id; refresh();
     fillCard(it); sheet.classList.add('on');
   });
-  map.on('click', 'clusters', function (e) {
-    var f = map.queryRenderedFeatures(e.point, { layers: ['clusters'] })[0];
-    map.getSource('listings').getClusterExpansionZoom(f.properties.cluster_id, function (err, z) { if (!err) map.easeTo({ center: f.geometry.coordinates, zoom: z + 0.5 }); });
-  });
-  map.on('click', function (e) { if (map.queryRenderedFeatures(e.point, { layers: ['pins', 'clusters'] }).length) return; sel = null; refreshSource(); sheet.classList.remove('on'); });
-  ['pins', 'clusters'].forEach(function (l) { map.on('mouseenter', l, function () { map.getCanvas().style.cursor = 'pointer'; }); map.on('mouseleave', l, function () { map.getCanvas().style.cursor = ''; }); });
+  map.on('click', 'more', function (e) { map.easeTo({ center: e.lngLat, zoom: Math.min(17, map.getZoom() + 1.5), duration: 600 }); });
+  map.on('click', function (e) { if (map.queryRenderedFeatures(e.point, { layers: ['pins', 'more'] }).length) return; if (sel) { sel = null; refresh(); } sheet.classList.remove('on'); });
+  ['pins', 'more'].forEach(function (l) { map.on('mouseenter', l, function () { map.getCanvas().style.cursor = 'pointer'; }); map.on('mouseleave', l, function () { map.getCanvas().style.cursor = ''; }); });
 
   q.addEventListener('input', function () { clearTimeout(t); t = setTimeout(load, 300); });
   // saved-search alert: on automatically after a search settles; visible Turn off
@@ -365,7 +386,7 @@
   function wiggleRot(id) { if (!(id in wigPhase)) wigPhase[id] = [Math.random() * 6.283, 2.2 + Math.floor(Math.random() * 4) * 0.45]; var w = wigPhase[id], t = (performance.now() - wigT0) / 1000; return Math.sin(t * 6.283 / w[1] + w[0]) * 3.5; }
   function startWiggle() {
     var busy = false; map.on('movestart', function () { busy = true; }); map.on('moveend', function () { busy = false; });
-    setInterval(function () { if (busy || document.hidden || !items.length || items.length > 150) return; var src = map.getSource('listings'); if (src) src.setData(toGeo(items)); }, 80);
+    setInterval(function () { if (busy || document.hidden || !SHOW.length) return; drawPins(); }, 90);
   }
 
   // desktop: poster sits beside the tapped marker (right side, or left if no room), clamped to the map; phones keep bottom-center
@@ -403,16 +424,16 @@
     im.onerror = function () { var q = FIT[w.key].q; FIT[w.key] = { url: w.icon, w: 44, h: 44 }; q.forEach(function (cb) { cb(FIT[w.key]); }); };
     im.src = w.icon;
   }
-  var GMARKS = {};
   function ghostScale() { var z = map.getZoom(); map.getContainer().style.setProperty('--gs', z < 12.5 ? 0.58 : z < 13.5 ? 0.72 : z < 14.5 ? 0.86 : 1); }
   map.on('zoom', ghostScale); map.on('load', ghostScale);
   function startWanted() {
-    var marks = GMARKS, PROMO = !!CFG.wantedPromo, MOD = PROMO ? 5 : 1, MAX = PROMO ? 9 : 400;
+    var marks = GMARKS, PROMO = !!CFG.wantedPromo, MOD = PROMO ? 5 : 1, MAX = PROMO ? 9 : 120;
     // cell size scales with zoom (≈ 80px on screen) so density looks the same at any zoom; quantized per zoom band so
     // ghosts hold still while panning
     function cellDeg() { var zb = Math.round(map.getZoom()); return (PROMO ? 0.0045 : 0.0030) * Math.pow(2, 14.5 - zb); }
     function h32(a, b) { var h = (a * 374761393 + b * 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return (h ^ (h >>> 16)) >>> 0; }
-    function near(lng, lat, px) { var p = map.project([lng, lat]); for (var i = 0; i < items.length; i++) { var it = items[i]; if (it.lat == null) continue; var q = map.project([it.lng, it.lat]); if (Math.abs(q.x - p.x) < px && Math.abs(q.y - p.y) < px) return true; } return false; }
+    var ipts = [];   // screen points of every real item, projected once per placement
+    function near(lng, lat, px) { var p = map.project([lng, lat]); for (var i = 0; i < ipts.length; i++) if (Math.abs(ipts[i].x - p.x) < px && Math.abs(ipts[i].y - 30 - p.y) < px) return true; return false; }
     var waterLayers = null;
     function onWater(lng, lat) {
       if (waterLayers === null) waterLayers = (map.getStyle().layers || []).map(function (l) { return l.id; }).filter(function (id) { return /^water(-|$)|^waterway/.test(id); });
@@ -420,7 +441,8 @@
       try { var p = map.project([lng, lat]); return map.queryRenderedFeatures([[p.x - 14, p.y - 14], [p.x + 14, p.y + 14]], { layers: waterLayers }).length > 0; } catch (e) { return false; }
     }
     function place() {
-      var z = map.getZoom(), want = ((PL && PL.wanted) || []).filter(function (w) { return w.icon; });; // only drawn, vision-checked icons — no emoji stand-ins
+      var z = map.getZoom(), want = ((PL && PL.wanted) || []).filter(function (w) { return w.icon; }); // only drawn, vision-checked icons — no emoji stand-ins
+      ipts = items.filter(function (it) { return POS[it.id]; }).map(function (it) { return map.project(POS[it.id]); });
       var keep = {}, chosen = {}, CELL = cellDeg(), zb = Math.round(z);
       Object.keys(marks).forEach(function (k) { if (k.indexOf(zb + ':') === 0) chosen[k.slice(k.indexOf(':') + 1)] = marks[k]._wkey; });
       if (z >= (PROMO ? 13.2 : 11.5) && want.length) {
@@ -447,7 +469,7 @@
       }
       Object.keys(marks).forEach(function (k) { if (!keep[k]) { marks[k].remove(); delete marks[k]; } });
     }
-    window.__placeWanted = place; map.on('moveend', place); map.on('load', place); loadPlaces(place); setTimeout(place, 1500);
+    window.__placeWanted = place; map.on('moveend', function () { place(); buildObst(); }); loadPlaces(function () { if (map.getSource('pins')) { place(); buildObst(); } });
   }
 
   // ---- §2 walkers (prototype details): tiny 12×19 figures, singles/pairs/trios walking out along a short straight
@@ -465,15 +487,9 @@
         '<path d="M3.4 3.4Q3.8 0.9 6 1Q8.2 0.9 8.6 3.4Q7.4 2.3 6 2.4Q4.6 2.3 3.4 3.4Z" fill="' + pick(HAIR) + '"/>' +
         '<circle cx="7.3" cy="4" r="0.45" fill="#1E3A2B"/></g></g>';
     }
-    var gPts = null; map.on('moveend', function () { gPts = null; }); map.on('zoomend', function () { gPts = null; });
-    function nearGhost(p) {
-      if (!gPts) { gPts = []; Object.keys(GMARKS).forEach(function (k) { var m = GMARKS[k]; if (m && m.getLngLat) { var q = map.project(m.getLngLat()); gPts.push([q.x, q.y]); } }); setTimeout(function () { gPts = null; }, 1500); }
-      for (var i = 0; i < gPts.length; i++) if (Math.abs(gPts[i][0] - p.x) < 40 && Math.abs(gPts[i][1] - p.y + 8) < 36) return true;
-      return false;
-    }
-    function nearPin(lng, lat, px) {
-      var p = map.project([lng, lat]); if (nearGhost(p)) return true;
-      for (var i = 0; i < items.length; i++) { var it = items[i]; if (it.lat == null) continue; var q = map.project([it.lng, it.lat]); if (Math.abs(q.x - p.x) < px + 14 && q.y - p.y > -50 && q.y - p.y < px * 1.6 + 60) return true; /* pin = icon above + price tag below its point */ }
+    function nearPin(lng, lat, pad) {
+      var p = map.project([lng, lat]);
+      for (var i = 0; i < OBST.length; i++) { var o = OBST[i]; if (Math.abs(o[0] - p.x) < o[2] + pad && Math.abs(o[1] - p.y) < o[3] + pad) return true; }
       return false;
     }
     var walkers = [], moving = false, hidden = document.hidden;
@@ -483,7 +499,7 @@
       // anywhere in the visible map (not tied to items), away from pins
       var b = map.getBounds(), w = b.getEast() - b.getWest(), h = b.getNorth() - b.getSouth();
       var base = { lng: b.getWest() + w * (0.05 + Math.random() * 0.9), lat: b.getSouth() + h * (0.05 + Math.random() * 0.9) };
-      if (nearPin(base.lng, base.lat, 90)) return;
+      if (nearPin(base.lng, base.lat, 30)) return;
       var n = Math.random() < 0.55 ? 1 : Math.random() < 0.75 ? 2 : 3, wpx = 12 + (n - 1) * 9;
       var el = document.createElement('div'); el.className = 'walker'; el.style.width = wpx + 'px';
       var inner = '';
@@ -510,11 +526,11 @@
           if (w.t <= 0) { w.t = 0; w.dir = 1; w.face.style.transform = 'scaleX(' + (w.b[0] >= w.a[0] ? 1 : -1) + ')'; }
           var cur = [w.a[0] + (w.b[0] - w.a[0]) * w.t, w.a[1] + (w.b[1] - w.a[1]) * w.t];
           w.m.setLngLat(cur);
-          w.el.style.opacity = nearPin(cur[0], cur[1], 64) ? '0' : '';
+          w.el.style.opacity = nearPin(cur[0], cur[1], 0) ? '0' : '';
           if (Date.now() - w.born > w.life) w.done = true;
         });
         walkers = walkers.filter(function (w) { if (w.done) w.m.remove(); return !w.done; });
-        var want = Math.min(MAX_WALKERS, 6 + Math.round(items.length * 0.5));
+        var want = Math.min(MAX_WALKERS, 6 + Math.round(SHOW.length * 0.5));
         if (walkers.length < want && Math.random() < 0.1) spawn();
       }
       requestAnimationFrame(tick);
