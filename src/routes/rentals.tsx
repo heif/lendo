@@ -222,7 +222,7 @@ f.addEventListener('change',ok);f.addEventListener('submit',function(){document.
         <div class="msgs">
           {msgs.results.map(m => {
             const me = m.sender_id === u.id, sys = !m.sender_id;
-            return <div class={'msg' + (me ? ' me' : sys ? ' sys' : '')}><div class="bub">{m.body}</div><div class="meta">{sys ? '' : (me ? 'You' : firstName(m.sender_name)) + (m.via === 'text' ? ' · by text' : '') + ' · '}{fmtT(m.created_at)}</div></div>;
+            return <div class={'msg' + (me ? ' me' : sys ? ' sys' : '')}><div class="bub"><Linked t={m.body} /></div><div class="meta">{sys ? '' : (me ? 'You' : firstName(m.sender_name)) + (m.via === 'text' ? ' · by text' : '') + ' · '}{fmtT(m.created_at)}</div></div>;
           })}
         </div>
       </div>
@@ -411,6 +411,9 @@ rentals.post('/alerts/:id/toggle', requireUser, async (c) => {
   return c.redirect('/alerts');
 });
 
+// URLs in a message → tappable links (text stays escaped by JSX)
+const Linked = ({ t }: { t: string }) => <>{t.split(/(https?:\/\/[^\s)]+)/g).map((part, i) => i % 2 ? <a href={part.replace(/[.,!?]+$/, '')} class="msglink">{part.replace(/^https?:\/\//, '').replace(/[.,!?]+$/, '')}</a> : part)}</>;
+
 // Inbox = the chat with Lendo: what we text you + what you send back, oldest at top, newest at the bottom, box at the bottom.
 rentals.get('/inbox', requireUser, async (c) => {
   const u = c.get('user')!;
@@ -424,7 +427,7 @@ rentals.get('/inbox', requireUser, async (c) => {
       <div class="msgs" id="inbox" style="padding:12px 12px 16px;min-height:calc(100vh - 140px);display:flex;flex-direction:column;justify-content:flex-end">
         {all.length ? all.map(m => (
           <div class={'msg' + (m.me ? ' me' : '')}>
-            <div class="bub">{m.body}</div>
+            <div class="bub"><Linked t={m.body} /></div>
             <div class="meta">{m.me ? 'You' + (m.via === 'text' ? ' · by text' : '') : 'Lendo'} · {fmtT(m.at)}{m.rid ? <> · <a href={'/r/' + m.rid}>open</a></> : null}</div>
           </div>
         )) : <div class="hint" style="padding:16px 4px">Nothing here yet</div>}

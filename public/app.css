@@ -460,3 +460,5 @@ body:has(#sheet.on) .locbtn,body:has(#wsheet:not([hidden])) .locbtn{display:none
 .grd{width:58px}.grd small{font-size:6.5px;letter-spacing:.02em}
 .grd.sm{width:48px}.grd.sm small{font-size:5.2px}
 .field .grd small{font-size:6.5px}
+.msglink{color:#D94300;font-weight:700;text-decoration:underline;text-underline-offset:2px;word-break:break-all}
+.msg.me .msglink{color:#fff}
