@@ -7,8 +7,9 @@ import m0017 from '../../migrations/0017_promise.sql';
 import m0018 from '../../migrations/0018_grade.sql';
 import m0019 from '../../migrations/0019_extend.sql';
 import m0020 from '../../migrations/0020_item_rating.sql';
+import m0021 from '../../migrations/0021_inbound.sql';
 
-const PENDING: [string, string][] = [['0015_alerts.sql', m0015], ['0016_urls.sql', m0016], ['0017_promise.sql', m0017], ['0018_grade.sql', m0018], ['0019_extend.sql', m0019], ['0020_item_rating.sql', m0020]];
+const PENDING: [string, string][] = [['0015_alerts.sql', m0015], ['0016_urls.sql', m0016], ['0017_promise.sql', m0017], ['0018_grade.sql', m0018], ['0019_extend.sql', m0019], ['0020_item_rating.sql', m0020], ['0021_inbound.sql', m0021]];
 
 export async function selfMigrate(env: Env): Promise<string[]> {
   const done = new Set((await env.DB.prepare('SELECT name FROM d1_migrations').all<{ name: string }>().catch(() => ({ results: [] as { name: string }[] }))).results.map(r => r.name));

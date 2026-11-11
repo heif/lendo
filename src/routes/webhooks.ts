@@ -3,7 +3,7 @@ import { acceptExt, declineExt, extById, extFromSession, heldExtForOwner, markEx
 import { turnOff } from '../lib/alerts';
 import { Hono, type Context } from 'hono';
 import type Stripe from 'stripe';
-import type { Env, Rental, Vars } from '../lib/env';
+import type { Env, Rental, User, Vars } from '../lib/env';
 import { stripe } from '../lib/stripe';
 import { parseInbound, textUser } from '../lib/blooio';
 import { rentalById, userByPhone } from '../lib/db';
@@ -81,6 +81,13 @@ async function blooioInbound(c: Context<{ Bindings: Env; Variables: Vars }>) {
     // unknown number: invite them in
     return c.json({ ok: true, unknown: true });
   }
+  return handleText(c, user, text, 'text');
+}
+
+// One brain for everything a person sends Lendo — by text or typed in the web inbox.
+export async function handleText(c: Context<{ Bindings: Env; Variables: Vars }>, user: User, text: string, via: 'text' | 'web') {
+  const kw = text.toUpperCase().replace(/[^A-Z ]/g, '').trim();
+  await c.env.DB.prepare('INSERT INTO inbound_texts (id, user_id, body, via, created_at) VALUES (?,?,?,?,?)').bind(crypto.randomUUID(), user.id, text.slice(0, 500), via, Date.now()).run().catch(() => {});
   if (!user.replied) { await c.env.DB.prepare('UPDATE users SET replied = 1 WHERE id = ?').bind(user.id).run(); user.replied = 1; }
   if (kw === 'OK' || kw === 'OKAY' || kw === 'K') {
     const r0 = await activeRentalFor(c.env, user.id);

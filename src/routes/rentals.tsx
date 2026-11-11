@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { handleText } from './webhooks';
 import { acceptExt, askExtension, declineExt, extById, extendableDays, extPrice, EXT_MAX_DAYS, openExt } from '../lib/extend';
 import { Grade, GRADES, isGrade } from '../lib/grade';
 import { raw } from 'hono/html';
@@ -410,23 +411,38 @@ rentals.post('/alerts/:id/toggle', requireUser, async (c) => {
   return c.redirect('/alerts');
 });
 
+// Inbox = the chat with Lendo: what we text you + what you send back, oldest at top, newest at the bottom, box at the bottom.
 rentals.get('/inbox', requireUser, async (c) => {
   const u = c.get('user')!;
-  const texts = await c.env.DB.prepare('SELECT * FROM outbound_texts WHERE user_id = ? ORDER BY created_at DESC LIMIT 100').bind(u.id).all<{ id: string; body: string; category: string; rental_id: string | null; created_at: number }>();
+  const out = (await c.env.DB.prepare(`SELECT body, category, rental_id, created_at FROM outbound_texts WHERE user_id = ? AND category != 'login' ORDER BY created_at DESC LIMIT 100`).bind(u.id).all<{ body: string; category: string; rental_id: string | null; created_at: number }>()).results;
+  const inn = (await c.env.DB.prepare(`SELECT body, via, created_at FROM inbound_texts WHERE user_id = ? ORDER BY created_at DESC LIMIT 100`).bind(u.id).all<{ body: string; via: string; created_at: number }>().catch(() => ({ results: [] as { body: string; via: string; created_at: number }[] }))).results;
+  const all = [...out.map(t => ({ me: false, body: t.body, rid: t.rental_id, at: t.created_at, via: '' })), ...inn.map(t => ({ me: true, body: t.body, rid: null as string | null, at: t.created_at, via: t.via }))]
+    .sort((a, b) => a.at - b.at).slice(-150);
   const fmtT = (t: number) => new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
   return c.html(
     <Layout title="Inbox" user={u}>
-      <div style="padding:12px 16px 4px" class="hint">What we text you</div>
-      <div class="msgs" style="padding:8px 12px 40px">
-        {texts.results.length ? texts.results.map(t => (
-          <div class="msg">
-            <div class="bub" style={t.category === 'login' ? 'opacity:.6' : ''}>{t.body}</div>
-            <div class="meta">{fmtT(t.created_at)} · <span class="m">{t.category}</span>{t.rental_id ? <> · <a href={'/r/' + t.rental_id}>open</a></> : null}</div>
+      <div class="msgs" id="inbox" style="padding:12px 12px 16px;min-height:calc(100vh - 140px);display:flex;flex-direction:column;justify-content:flex-end">
+        {all.length ? all.map(m => (
+          <div class={'msg' + (m.me ? ' me' : '')}>
+            <div class="bub">{m.body}</div>
+            <div class="meta">{m.me ? 'You' + (m.via === 'text' ? ' · by text' : '') : 'Lendo'} · {fmtT(m.at)}{m.rid ? <> · <a href={'/r/' + m.rid}>open</a></> : null}</div>
           </div>
-        )) : <div class="hint" style="padding:16px 4px">Nothing here yet.</div>}
+        )) : <div class="hint" style="padding:16px 4px">Nothing here yet</div>}
+        <div id="end" />
       </div>
+      <form method="post" action="/inbox" class="compose">
+        <input name="body" placeholder="Message Lendo (same as texting us)" required maxlength={500} autocomplete="off" />
+        <button type="submit" aria-label="Send">↑</button>
+      </form>
+      <script dangerouslySetInnerHTML={{ __html: `window.scrollTo(0, document.body.scrollHeight)` }} />
     </Layout>
   );
+});
+rentals.post('/inbox', requireUser, async (c) => {
+  const u = c.get('user')!;
+  const body = String((await c.req.parseBody()).body || '').trim().slice(0, 500);
+  if (body) await handleText(c, u, body, 'web');
+  return c.redirect('/inbox#end');
 });
 
 // ---------- Owner payouts (Stripe Connect Express) ----------
