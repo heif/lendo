@@ -453,3 +453,4 @@ button.grdbtn{background:none;border:0;padding:0 16px 0 0;cursor:pointer;display
 .grdpick{display:flex;gap:6px;flex-wrap:wrap}.grdpick label{cursor:pointer}.grdpick input{display:none}.grdpick:has(input:checked) input:not(:checked)+.grd{opacity:.35}.grdpick input:checked+.grd{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--gc)}
 
 .chatbtn{width:44px;height:44px;flex-shrink:0;border-radius:22px;border:1.5px solid var(--ink);background:#fff;display:flex;align-items:center;justify-content:center}
+.field .grd{display:inline-flex;flex-direction:column;margin:0;font-size:inherit;letter-spacing:0;text-transform:none;color:var(--gc)}.field .grd b{font-size:26px}.field .grd small{font-size:7px}

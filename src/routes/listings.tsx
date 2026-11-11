@@ -154,7 +154,7 @@ listings.get('/listings', requireUser, async (c) => {
   const u = c.get('user')!;
   const rows = await c.env.DB.prepare(`SELECT * FROM listings WHERE owner_id = ? AND status != 'removed' ORDER BY created_at DESC`).bind(u.id).all<Listing>();
   const ph = await firstPhotos(c.env.DB, rows.results.map(r => r.id));
-  const earned = await c.env.DB.prepare(`SELECT COALESCE(SUM(rent_cents),0) s, COUNT(*) n FROM rentals WHERE owner_id = ? AND status IN ('confirmed','picked_up','returned','closed')`).bind(u.id).first<{ s: number; n: number }>();
+  const earned = await c.env.DB.prepare(`SELECT COALESCE(SUM(rent_cents),0) + COALESCE((SELECT SUM(x.rent_cents) FROM rental_extensions x JOIN rentals r2 ON r2.id = x.rental_id WHERE r2.owner_id = ? AND x.status = 'confirmed'),0) s, COUNT(*) n FROM rentals WHERE owner_id = ? AND status IN ('confirmed','picked_up','returned','closed')`).bind(u.id, u.id).first<{ s: number; n: number }>();
   const just = c.req.query('just');
   const live = rows.results.filter(r => r.status === 'live').length;
   const shareUrl = c.env.APP_URL + ((u as any).handle ? '/' + (u as any).handle : '/u/' + u.id);
@@ -174,7 +174,7 @@ listings.get('/listings', requireUser, async (c) => {
           <div class="row" style="align-items:flex-start">
             <a href={'/i/' + it.id}>{avatarUrl(c.env, it.avatar_key, ph[it.id] || null) ? <img src={avatarUrl(c.env, it.avatar_key, ph[it.id] || null)!} alt="" style="width:72px;height:72px;object-fit:contain;border-radius:10px;background:#fff;border:1.5px solid var(--line)" /> : <div class="ph" style="width:72px;height:72px;border-radius:10px;background:var(--cream)"></div>}</a>
             <div style="flex:1;min-width:0">
-              <div class="row" style="justify-content:space-between"><a href={'/i/' + it.id} style="font-weight:800;text-decoration:none">{it.name}</a><span class="pill" style={it.status === 'live' ? 'background:var(--mint)' : ''}>{it.status === 'review' ? 'posted' : it.status}</span></div>
+              <div class="row" style="justify-content:space-between"><a href={'/i/' + it.id} style="font-weight:800;text-decoration:none">{it.name}</a>{it.status === 'review' ? null : <span class="pill" style={it.status === 'live' ? 'background:var(--mint)' : ''}>{it.status}</span>}</div>
               {it.lat == null ? <a href="/profile/edit" class="hint" style="color:var(--red);font-weight:700">⚠ Not on the map yet — set your home base</a> : null}
               <form method="post" action={'/listings/' + it.id + '/price'} class="row" style="margin-top:6px;gap:6px">
                 <button class="btn sm" name="delta" value="-100" type="submit" aria-label="Lower price $1">−</button>

@@ -71,6 +71,8 @@ rentals.get('/r/:id', requireUser, async (c) => {
   const spots = owner.pickup_spots ? (JSON.parse(owner.pickup_spots) as string[]) : [];
   const fmtT = (t: number) => new Date(t).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
   const live = r.status === 'picked_up';
+  const xs = await c.env.DB.prepare(`SELECT COALESCE(SUM(rent_cents),0) rent, COALESCE(SUM(total_cents),0) total FROM rental_extensions WHERE rental_id = ? AND status = 'confirmed'`).bind(r.id).first<{ rent: number; total: number }>().catch(() => null);
+  const xRent = xs?.rent || 0, xTotal = xs?.total || 0;
   const ox = live ? await openExt(c.env, r.id) : null;
   const extOk = live && !isOwner && !ox ? await extendableDays(c.env, r) : [];
   const extCells = live && !isOwner && !ox ? Array.from({ length: Math.min(EXT_MAX_DAYS, Math.max(7, extOk.length + 1)) }, (_, i) => addDays(r.end_day, i + 1)) : [];
@@ -81,7 +83,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
           {photos[0] ? <img src={'/p/' + photos[0].r2_key} alt="" style="width:64px;height:64px;border-radius:12px;object-fit:cover;background:var(--cream)" /> : <div style="width:64px;height:64px;border-radius:12px;background:var(--cream)"></div>}
           <div style="min-width:0;line-height:1.3">
             <div style="font-size:16px;font-weight:800">{it.name}</div>
-            <div style="font-size:13px;font-weight:700;margin-top:2px">{r.status === 'inquiry' ? (isOwner ? 'Question about your item' : 'Questions before renting') : <>{fmtRange(r.start_day, r.end_day)} · {isOwner ? `you earn ${money(r.rent_cents)}` : `${money(r.total_cents)}${r.status === 'held' ? ' held' : ' paid'}`}</>}</div>
+            <div style="font-size:13px;font-weight:700;margin-top:2px">{r.status === 'inquiry' ? (isOwner ? 'Question about your item' : 'Questions before renting') : <>{fmtRange(r.start_day, r.end_day)} · {isOwner ? `you earn ${money(r.rent_cents + xRent)}` : `${money(r.total_cents + xTotal)}${r.status === 'held' ? ' held' : ' paid'}`}</>}</div>
             <div class="hint" style="margin-top:1px">{isOwner ? 'to ' : 'from '}<b>{other.name || 'Neighbor'}</b>{r.meet_spot ? ' · 📍 ' + r.meet_spot : spots.length ? ' · meet: ' + spots.join(' or ') : ''}</div>
           </div>
         </a>
@@ -149,6 +151,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
             </div></dialog>
           );
           if (r.promise_at) return <>{view}<button type="button" class="btn sm full" onclick="document.getElementById('promView').showModal()">✓ {isOwner ? `${cu} signed the promise` : 'Promise signed'} · <u>View</u></button></>;
+          if (r.status !== 'confirmed') return null; // only matters before pickup
           if (isOwner) return <div class="hint" style="text-align:center">{cu} hasn’t signed the promise yet · texted a reminder</div>;
           return (<>
             <div class="pcall"><div><b>Sign your promise to {ow}</b><div class="hint">3 quick checks · needed before pickup</div></div><button type="button" class="btn pri sm" onclick="document.getElementById('promSign').showModal()">Sign now</button></div>
