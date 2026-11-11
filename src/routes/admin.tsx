@@ -6,7 +6,7 @@ import { iconsDone, makeWantedIcon } from '../lib/wanted-icons';
 import { fixDemoLand } from '../lib/demo-land';
 import { Layout } from '../pages/layout';
 import { requireUser } from '../lib/auth';
-import { identifyItem, loadPricing, suggestPrice, lastRaw } from '../lib/identify';
+import { identifyItem, loadPricing, suggestPrice, lastRaw, lastClaude } from '../lib/identify';
 import { money } from '../lib/util';
 
 export const admin = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -27,7 +27,7 @@ admin.post('/api/identify', async (c) => {
   c.executionCtx.waitUntil(c.env.PHOTOS.put(`${tmp}.jpg`, bytes, { httpMetadata: { contentType: p.type || 'image/jpeg' } }).then(() => {}));
   const lf = f.label; const label = lf instanceof File ? await lf.arrayBuffer() : null;
   const id = await identifyItem(c.env, bytes, hint, label);
-  c.executionCtx.waitUntil(c.env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('last_identify', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(JSON.stringify({ at: new Date().toISOString(), key: !!c.env.ANTHROPIC_API_KEY, name: id.name, brand: id.brand ?? null, raw: lastRaw.slice(0, 600) })).run());
+  c.executionCtx.waitUntil(c.env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('last_identify', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(JSON.stringify({ at: new Date().toISOString(), key: !!c.env.ANTHROPIC_API_KEY, name: id.name, brand: id.brand ?? null, via: id.brand !== undefined ? 'claude' : 'fallback', claude: lastClaude.slice(0, 500), raw: lastRaw.slice(0, 400) })).run());
   const { rules, settings } = await loadPricing(c.env);
   const pr = suggestPrice(rules, settings, id.category, id.retail_usd);
   return c.json({ ...id, cut: `/api/cuttmp/${tmp.slice(4)}`, price_cents: pr.day_cents, week_cents: pr.week_cents, basis: pr.basis, category_label: pr.rule.label, ...(c.req.query('raw') && c.get('user')!.admin ? { raw: lastRaw } : {}) });

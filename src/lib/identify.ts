@@ -28,6 +28,7 @@ export function suggestPrice(rules: PriceRule[], settings: Record<string, string
 const CATS = ['power_tools', 'hand_tools', 'ladders', 'cleaning', 'camping', 'sports', 'bikes', 'water', 'winter', 'av', 'cameras', 'gaming', 'music', 'kitchen', 'party', 'furniture', 'baby', 'luggage', 'fashion', 'pets', 'garden', 'electronics', 'mobility', 'other'];
 
 export let lastRaw = '';
+export let lastClaude = ''; // Claude's own result/error, kept even when the fallback model runs
 // Brand rules: name the brand when it changes what a customer expects (quality, compatibility, price) — Dyson,
 // DeWalt (battery platform), Canon (lens mount), Pyle vs. a toy megaphone, Vitamix, Peloton, Patagonia, Thule,
 // Nintendo. Skip it for commodity items where brand doesn't matter (folding chairs, ladders, a hammer, a sled).
@@ -66,10 +67,10 @@ ${DESC_RULES}
 Look-alikes: tell similar products apart by concrete details (e.g. AirPods Max = mesh canopy headband + aluminum cups + Digital Crown; Beats = plastic band with "b" logo). If you can't tell which of two, set "confidence":"low", leave brand/model null and use the generic name ("Over-ear headphones") — a wrong brand is worse than none.
 brand_matters: true if the brand/model changes what a renter expects for this kind of item (per the brand rule), else false.${fixes}
 Reply with JSON only: {"name":"","brand":"<visible brand or null>","model":"<visible model or null>","brand_matters":true,"description":"","category":"<one of: ${CATS.join(', ')}>","retail_usd":<new retail price of this brand/model in USD>,"confidence":"high|medium|low"}` }] }] }) });
-    if (!r.ok) { lastRaw = 'claude ' + r.status + ' ' + (await r.text().catch(() => '')).slice(0, 300); return null; }
-    const j: any = await r.json(); const t = String(j?.content?.[0]?.text || ''); lastRaw = t;
+    if (!r.ok) { lastClaude = lastRaw = 'claude ' + r.status + ' ' + (await r.text().catch(() => '')).slice(0, 300); return null; }
+    const j: any = await r.json(); const t = String(j?.content?.[0]?.text || ''); lastClaude = lastRaw = t;
     const m = t.match(/\{[\s\S]*\}/); return m ? JSON.parse(m[0]) : null;
-  } catch (e: any) { lastRaw = 'claude ERR ' + (e?.message || e); return null; }
+  } catch (e: any) { lastClaude = lastRaw = 'claude ERR ' + (e?.message || e); return null; }
 }
 
 export async function identifyItem(env: Env, photo: ArrayBuffer, hint?: string | null, label?: ArrayBuffer | null): Promise<Ident> {
