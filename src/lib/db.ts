@@ -46,13 +46,16 @@ export async function busyDays(db: D1Database, lid: string, from: string, to: st
   const out = new Set<string>();
   const b = await db.prepare('SELECT day FROM blocked_days WHERE listing_id = ? AND day BETWEEN ? AND ?').bind(lid, from, to).all<{ day: string }>();
   for (const r of b.results) out.add(r.day);
+  // buffer day: one free day on each side of every rental, so a return and the next pickup never land on the same day
+  const shift = (day: string, n: number) => { const d = new Date(day + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
   const rs = await db.prepare(`SELECT start_day, end_day FROM rentals WHERE listing_id = ? AND status IN ('held','confirmed','picked_up') AND end_day >= ? AND start_day <= ?`)
-    .bind(lid, from, to).all<{ start_day: string; end_day: string }>();
+    .bind(lid, shift(from, -1), shift(to, 1)).all<{ start_day: string; end_day: string }>();
   for (const r of rs.results) {
-    let d = new Date(r.start_day + 'T00:00:00Z');
-    const e = new Date(r.end_day + 'T00:00:00Z');
+    let d = new Date(shift(r.start_day, -1) + 'T00:00:00Z');
+    const e = new Date(shift(r.end_day, 1) + 'T00:00:00Z');
     while (d <= e) { out.add(d.toISOString().slice(0, 10)); d.setUTCDate(d.getUTCDate() + 1); }
   }
+  for (const d of [...out]) if (d < from || d > to) out.delete(d);
   return out;
 }
 
