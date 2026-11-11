@@ -66,7 +66,7 @@ export async function looksLike(env: Env, png: ArrayBuffer, label: string): Prom
       headers: { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: 'claude-haiku-5-5', max_tokens: 5, messages: [{ role: 'user', content: [
         { type: 'image', source: { type: 'base64', media_type: 'image/png', data: btoa(bin) } },
-        { type: 'text', text: `Would a shopper instantly recognize this icon as "${label}" (the actual product itself, not food, wood, a symbol or a related object, and with no person, baby, face or body part in it)? Answer only YES or NO.` }] }] }) });
+        { type: 'text', text: `Would a shopper instantly recognize this icon as "${label}" (the actual product itself, not food, wood, a symbol or a related object) AND contain no person at all — no rider, no silhouette, no figure, no face, hands or other body part? Answer only YES or NO.` }] }] }) });
     if (!r.ok) return null;
     const j: any = await r.json(); return /^\s*YES/i.test(j?.content?.[0]?.text || '');
   } catch { return null; }
@@ -96,11 +96,21 @@ async function markBad(env: Env, key: string) {
   await env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('wanted_bad', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(JSON.stringify([...bad])).run();
 }
 // audit existing icons: un-mark any that fail the check so the cron redraws them
+// bump to re-check every icon with the current rules (v2: no people / silhouettes / riders)
+const AUDIT_V = '2';
 export async function auditIcons(env: Env, limit = 8): Promise<string[]> {
+  const v = await env.DB.prepare(`SELECT value FROM settings WHERE key = 'wanted_audit_v'`).first<{ value: string }>();
+  if (v?.value !== AUDIT_V) await env.DB.batch([
+    env.DB.prepare(`DELETE FROM settings WHERE key = 'wanted_audited'`),
+    env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('wanted_audit_v', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(AUDIT_V),
+  ]);
   const done = await iconsDone(env);
   const r = await env.DB.prepare(`SELECT value FROM settings WHERE key = 'wanted_audited'`).first<{ value: string }>();
   const seen = new Set<string>(r ? JSON.parse(r.value) : []); const redo: string[] = [];
-  for (const key of [...done].filter(k => !seen.has(k)).slice(0, limit)) {
+  // things people ride or wear get checked first (most likely to come out with a person in them)
+  const RISKY = ['snowboard', 'surf', 'skis', 'skateboard', 'paddle', 'kayak', 'bike', 'escooter', 'rollerskates', 'skates', 'scuba', 'parachute', 'wheelchair', 'crutch', 'sled', 'hockey', 'lacrosse', 'boxing', 'yogamat', 'exbike', 'massage', 'gown', 'heels', 'tophat', 'jacket', 'boots', 'backpack', 'stroller2', 'vr'];
+  const order = [...done].filter(k => !seen.has(k)).sort((a, b) => (RISKY.includes(a) ? 0 : 1) - (RISKY.includes(b) ? 0 : 1));
+  for (const key of order.slice(0, limit)) {
     const w = WANTED_ALL.find(x => x.key === key); const o = await env.PHOTOS.get(`wanted/${key}-raw.png`) || await env.PHOTOS.get(`wanted/${key}.png`);
     if (!w || !o) continue;
     const ok = await looksLike(env, await o.arrayBuffer(), w.label); if (ok === null) break;
