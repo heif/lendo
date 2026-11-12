@@ -515,6 +515,5 @@ img.uav{background:#ddd}
 @keyframes pfspin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.pf-ring,.pf-ring .pf-sat>*{animation:none}}
 /* 10+ things listed: the count bounces around the screen like a pinball, then fades */
-#pinball{position:fixed;left:0;top:0;z-index:60;pointer-events:none;font-size:96px;font-weight:900;line-height:1;color:var(--orange);-webkit-text-stroke:3px var(--ink);text-shadow:4px 5px 0 var(--ink);will-change:transform}
-#pinball.hit{animation:pbhit .18s ease-out}
+.pinball{position:fixed;left:0;top:0;z-index:60;pointer-events:none;font-size:72px;font-weight:900;line-height:1;color:var(--orange);-webkit-text-stroke:3px var(--ink);text-shadow:4px 5px 0 var(--ink);will-change:transform}
 @keyframes pbhit{50%{filter:brightness(1.4)}}

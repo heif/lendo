@@ -323,15 +323,16 @@ export const personPage = async (c: Ctx, uid: string) => {
       </section>
       <script src="/trim.js"></script>
       {nItems >= 10 ? <>
-        <div id="pinball" aria-hidden="true">{nItems}</div>
-        {raw(`<script>(function(){var el=document.getElementById('pinball');if(!el||matchMedia('(prefers-reduced-motion: reduce)').matches){if(el)el.remove();return}
-var W=innerWidth,H=innerHeight,w=el.offsetWidth,h=el.offsetHeight,x=Math.random()*(W-w),y=H*0.15,vx=(Math.random()<.5?-1:1)*(7+Math.random()*4),vy=-6,t0=performance.now(),G=0.35;
-function f(t){W=innerWidth;H=innerHeight;vy+=G;x+=vx;y+=vy;
-if(x<0){x=0;vx=-vx*0.98;kick()}if(x>W-w){x=W-w;vx=-vx*0.98;kick()}
-if(y>H-h){y=H-h;vy=-Math.max(Math.abs(vy)*0.92,10+Math.random()*4)}if(y<0){y=0;vy=Math.abs(vy)}
-el.style.transform='translate('+x+'px,'+y+'px) rotate('+(x*0.6)+'deg)';
-var age=t-t0;if(age>9000)el.style.opacity=Math.max(0,1-(age-9000)/1200);if(age<10300)requestAnimationFrame(f);else el.remove()}
-function kick(){el.classList.remove('hit');void el.offsetWidth;el.classList.add('hit')}
+        {raw(`<script>(function(){if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+var N=${Math.min(nItems, 40)},TXT=${JSON.stringify(String(nItems))},balls=[],t0=performance.now(),G=0.35;
+for(var i=0;i<N;i++){var el=document.createElement('div');el.className='pinball';el.setAttribute('aria-hidden','true');el.textContent=TXT;document.body.appendChild(el);
+balls.push({el:el,w:el.offsetWidth,h:el.offsetHeight,x:Math.random()*(innerWidth-el.offsetWidth),y:-el.offsetHeight-Math.random()*innerHeight*0.6,vx:(Math.random()<.5?-1:1)*(4+Math.random()*7),vy:Math.random()*4,r:Math.random()*360,vr:(Math.random()-.5)*12})}
+function f(t){var W=innerWidth,H=innerHeight,walls=t-t0<5000,live=0;
+balls.forEach(function(b){if(b.gone)return;b.vy+=G;b.x+=b.vx;b.y+=b.vy;b.r+=b.vr;
+if(walls){if(b.x<0){b.x=0;b.vx=-b.vx*0.98}if(b.x>W-b.w){b.x=W-b.w;b.vx=-b.vx*0.98}if(b.y>H-b.h){b.y=H-b.h;b.vy=-Math.max(Math.abs(b.vy)*0.92,10+Math.random()*5)}}
+else if(b.x<-b.w-20||b.x>W+20||b.y>H+20){b.gone=true;b.el.remove();return}
+b.el.style.transform='translate('+b.x+'px,'+b.y+'px) rotate('+b.r+'deg)';live++});
+if(live)requestAnimationFrame(f)}
 requestAnimationFrame(f)})()</script>`)}
       </> : null}
     </Layout>
