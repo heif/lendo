@@ -27,7 +27,7 @@ const PHOTO_JS = `window.lendoPhoto=window.lendoPhoto||function(inp){var f=inp.f
 export const PhotoField = (p: { name: string | null; photo?: string | null; label: string }) => (
   <label class="field photofield">
     <span>{p.label}</span>
-    <div class="row" style="gap:12px;align-items:center">
+    <div class="row pf-photo" style="gap:12px;align-items:center">
       <span id="pfPrev"><Avatar name={p.name} photo={p.photo} size={64} /></span>
       {p.photo
         ? <span class="pf-editbtn" aria-label="Change photo"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linejoin="round" /><path d="M13.5 6.5l4 4" stroke="#1E3A2B" stroke-width="2.2" /></svg></span>

@@ -540,3 +540,8 @@ img.uav{background:#ddd}
 
 .pf-editbtn{width:40px;height:40px;border-radius:20px;border:1.5px solid var(--ink);background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .sp-sug button small{color:var(--mute);font-weight:600;margin-left:4px}
+/* photo field: pencil badge sits on the photo's corner (and isn't styled as a field label) */
+.photofield .pf-photo{position:relative;width:max-content}
+.photofield .pf-photo>span{margin:0;font-size:inherit;font-weight:inherit;color:inherit;letter-spacing:0;text-transform:none}
+.photofield .pf-editbtn{display:flex;position:absolute;left:44px;bottom:-4px;width:30px;height:30px;border-radius:15px;padding:0;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.photofield .pf-editbtn svg{width:15px;height:15px}
