@@ -31,7 +31,7 @@ export type User = {
   id: string; phone: string; name: string | null; hood: string | null; cross_streets: string | null;
   lat: number | null; lng: number | null; pickup_spots: string | null; stripe_account_id: string | null;
   stripe_customer_id: string | null; nudges: number; texts: number; replied: number; address: string | null; mapbox_id: string | null; geocoded_at: number | null; hood_id: string | null; created_at: number; alert_day?: string | null; alert_sent?: number; alert_more?: number;
-  promo_cents: number; promo_claimed_at: number | null; demo: number; photo_key?: string | null;
+  promo_cents: number; promo_claimed_at: number | null; demo: number; photo_key?: string | null; ig?: string | null; x?: string | null; linkedin?: string | null;
   admin?: boolean; // set by loadUser from ADMIN_PHONES
   unread?: number; // set by loadUser: new messages from people + requests waiting for a YES
 };

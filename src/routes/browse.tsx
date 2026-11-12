@@ -1,4 +1,5 @@
 import { Hono, type Context } from 'hono';
+import { SOCIALS, SocialIcons, socialHandle } from '../lib/socials';
 import { Avatar, PhotoField, saveUserPhoto } from '../lib/userphoto';
 import { shortName } from '../lib/util';
 import { Grade, GRADE_WORD, shownGrade } from '../lib/grade';
@@ -283,6 +284,7 @@ export const personPage = async (c: Ctx, uid: string) => {
           <div style="flex:1;min-width:0">
             <div class="pf-name">{who.name || 'Neighbor'}</div>
             <div class="pf-sub">{who.hood || ''}{who.hood ? <br /> : null}Lendo since {since}</div>
+            <SocialIcons u={who} />
             {me && (who as any).handle ? <div class="pf-links"><span class="pf-link">lendo.co/{(who as any).handle}</span><button type="button" class="pf-share" onclick={`var u=location.origin+location.pathname;navigator.share?navigator.share({text:'My stuff for rent on Lendo',url:u}):(navigator.clipboard.writeText(u),toast('Link copied'))`}>Share my page ↗</button></div> : null}
           </div>
           {me ? <a class="pf-editbtn" href="/profile/edit" aria-label="Edit profile"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linejoin="round" /><path d="M13.5 6.5l4 4" stroke="#1E3A2B" stroke-width="2.2" /></svg></a> : null}
@@ -365,6 +367,9 @@ if(!m.length){box.hidden=true;return}box.innerHTML=m.map(function(h){return '<bu
 box.addEventListener('click',function(e){var b=e.target.closest('button');if(b){inp.value=b.dataset.v;box.hidden=true}});
 document.addEventListener('click',function(e){if(!box.contains(e.target)&&e.target!==inp)box.hidden=true})})()</script>`)}
         <input type="hidden" name="lat" id="lat" value={u.lat ?? ''} /><input type="hidden" name="lng" id="lng" value={u.lng ?? ''} />
+        <div class="field"><span>Your Instagram, X, LinkedIn (optional — shown as icons on your profile)</span>
+          {SOCIALS.map(sc => <div class="soc-in"><span class="soc-ic">{sc.svg}</span><b>{sc.pre}</b><input name={'soc_' + sc.k} value={(u as any)[sc.k] || ''} placeholder="yourname" maxlength={120} autocomplete="off" autocapitalize="off" /></div>)}
+        </div>
         <button type="button" class="btn sm" onclick="navigator.geolocation.getCurrentPosition(function(p){lat.value=p.coords.latitude;lng.value=p.coords.longitude;toast('Location set')})">📍 Use my location as home base</button>
         <div style="margin-top:16px"><button class="btn pri full" type="submit">Save</button></div>
         
@@ -385,6 +390,7 @@ browse.post('/profile/edit', async (c) => {
   const u = c.get('user');
   if (!u) return c.redirect('/login');
   const f = await c.req.parseBody();
+  await c.env.DB.prepare('UPDATE users SET ig = ?, x = ?, linkedin = ? WHERE id = ?').bind(socialHandle('ig', f.soc_ig), socialHandle('x', f.soc_x), socialHandle('linkedin', f.soc_linkedin), u.id).run().catch(e => console.warn('socials', e));
   if (f.photo) await saveUserPhoto(c.env, u.id, f.photo).catch(e => console.warn('photo save', e));
   const hNew = String(f.handle || '').trim().toLowerCase();
   if (hNew && hNew !== (u as any).handle) {
