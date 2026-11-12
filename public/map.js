@@ -362,10 +362,17 @@
   var alertT, alertQ = '', alertId = null, qNote = '';
   // Search alert card under the search box: optional "No ladder for rent nearby yet" headline + a green pill
   // "🔔 Text alert when one's listed [switch]". On automatically (logged in); the whole pill toggles it.
+  // "a scooter" / "an easel" / "another scooter" (when there are already results)
+  function alertNoun(raw, more) {
+    var w = String(raw || '').trim().toLowerCase().replace(/[<>&"]/g, '').slice(0, 40);
+    if (/[^s]s$/.test(w) && w.length > 4 && !/(ss|us|is)$/.test(w)) w = w.replace(/ies$/, 'y').replace(/s$/, '');
+    if (!w) return more ? 'another one' : 'one';
+    return (more ? 'another ' : (/^[aeiou]/.test(w) ? 'an ' : 'a ')) + w;
+  }
   function alertCard(on, cb) {
     var chip = $('alertChip');
     chip.innerHTML = (qNote ? '<div class="ac-h">' + qNote + '</div>' : '') +
-      '<button type="button" class="ac-pill' + (on ? ' on' : '') + '" role="switch" aria-checked="' + on + '"><span>🔔 Text alert when ' + (qNote ? 'one’s' : 'a new one’s') + ' listed</span><i class="ac-sw"><b></b></i></button>';
+      '<button type="button" class="ac-pill' + (on ? ' on' : '') + '" role="switch" aria-checked="' + on + '"><span>🔔 Text alert when ' + alertNoun(q.value, !qNote) + ' is listed</span><i class="ac-sw"><b></b></i></button>';
     chip.hidden = false; chip.querySelector('.ac-pill').onclick = cb;
   }
   function alertChip(now) {
