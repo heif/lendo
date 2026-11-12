@@ -268,7 +268,7 @@ export const personPage = async (c: Ctx, uid: string) => {
   const since = new Date(who.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   const nItems = items.results.length;
   return c.html(
-    <Layout title={who.name || 'Neighbor'} user={u} flash={just ? "It's live. Anyone nearby can rent it now" : null}>
+    <Layout title={who.name || 'Neighbor'} headerCenter={<span />} user={u} flash={just ? "It's live. Anyone nearby can rent it now" : null}>
       <section class="sec" style="border-bottom:0">
         <div class="pf-head">
           {(() => {
