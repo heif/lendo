@@ -544,6 +544,10 @@
       for (var i = 0; i < OBST.length; i++) { var o = OBST[i]; if (Math.abs(o[0] - p.x) < o[2] + pad && Math.abs(o[1] - p.y) < o[3] + pad) return true; }
       return false;
     }
+    // never on water (rivers, harbor, pools): check the rendered map at that spot
+    function onWater(lng, lat) {
+      try { var q = map.project([lng, lat]); return map.queryRenderedFeatures([q.x, q.y]).some(function (f) { var sl = f.sourceLayer || '', id = (f.layer && f.layer.id) || ''; return sl === 'water' || sl === 'waterway' || /water/.test(id); }); } catch (e) { return false; }
+    }
     var walkers = [], moving = false, hidden = document.hidden;
     map.on('movestart', function () { moving = true; }); map.on('moveend', function () { moving = false; });
     document.addEventListener('visibilitychange', function () { hidden = document.hidden; });
@@ -561,6 +565,7 @@
       var ang = (Math.random() < 0.5 ? 29 : 119) * Math.PI / 180 + (Math.random() - 0.5) * 0.2, len = 0.0008 + Math.random() * 0.0012;
       var a = [base.lng, base.lat], bb = [a[0] + Math.sin(ang) * len, a[1] + Math.cos(ang) * len * 0.76];
       var b2 = bb; a = a; var bnd = b2;
+      if (onWater(a[0], a[1]) || onWater(bnd[0], bnd[1]) || onWater((a[0] + bnd[0]) / 2, (a[1] + bnd[1]) / 2)) return;
       var wlk = { el: el, face: el.firstChild, a: a, b: bnd, t: Math.random(), dir: 1, speed: 0.000045 + Math.random() * 0.00002, m: new mapboxgl.Marker({ element: el, anchor: 'bottom' }).setLngLat(a).addTo(map), born: Date.now(), life: 40000 + Math.random() * 50000 };
       wlk.face.style.transform = 'scaleX(' + (bnd[0] >= a[0] ? 1 : -1) + ')';
       walkers.push(wlk);
