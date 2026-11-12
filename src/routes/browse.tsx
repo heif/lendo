@@ -122,7 +122,7 @@ export const itemPage = async (c: Ctx, lid: string, pretty = false) => {
   const today = dayStr(new Date());
   const to = addDays(today, 13);
   const busy = await busyDays(c.env.DB, it.id, today, to);
-  const credit = u && (u.promo_cents || 0) > 0 && !((await c.env.DB.prepare(`SELECT COUNT(*) n FROM rentals WHERE renter_id = ? AND status IN ('held','confirmed','picked_up','returned','closed')`).bind(u.id).first<{ n: number }>())?.n) ? u.promo_cents : 0;
+  const credit = u && (u.promo_cents || 0) > 0 && !((await c.env.DB.prepare(`SELECT COUNT(*) n FROM rentals WHERE renter_id = ? AND credit_cents > 0 AND status IN ('held','confirmed','picked_up','returned','closed')`).bind(u.id).first<{ n: number }>())?.n) ? u.promo_cents : 0;
   const days = Array.from({ length: 14 }, (_, i) => addDays(today, i));
   const isOwner = u?.id === it.owner_id;
   const feePct = c.env.FEE_PCT;

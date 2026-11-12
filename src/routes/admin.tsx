@@ -1,5 +1,6 @@
 // Admin (allowlisted phones only): pricing rules + identification test.
 import { Hono } from 'hono';
+import { stripe } from '../lib/stripe';
 import { twilioBasic } from '../lib/auth';
 import type { Env, Vars } from '../lib/env';
 import { WANTED_ALL } from '../lib/places';
@@ -214,13 +215,37 @@ admin.post('/admin/review/:id', async (c) => {
 // Promo: owners with 10+ real listings (List 10 things, get $10) → FaceTime check, then pay next day.
 admin.get('/admin/promo', async (c) => {
   const u = c.get('user')!;
-  const rows = (await c.env.DB.prepare(`SELECT u.id, u.name, u.phone, u.hood, COUNT(l.id) n FROM users u JOIN listings l ON l.owner_id = u.id WHERE l.status IN ('live','paused') AND l.demo = 0 AND u.demo = 0 GROUP BY u.id HAVING n >= 10 ORDER BY n DESC`).all<{ id: string; name: string | null; phone: string; hood: string | null; n: number }>()).results;
+  const rows = (await c.env.DB.prepare(`SELECT u.id, u.name, u.phone, u.hood, u.stripe_account_id acct, COUNT(l.id) n, (SELECT value FROM settings s WHERE s.key = 'promo10_' || u.id) done FROM users u JOIN listings l ON l.owner_id = u.id WHERE l.status IN ('live','paused') AND l.demo = 0 AND u.demo = 0 GROUP BY u.id HAVING n >= 10 ORDER BY done IS NOT NULL, n DESC`).all<{ id: string; name: string | null; phone: string; hood: string | null; acct: string | null; n: number; done: string | null }>()).results;
   return c.html(
-    <Layout title="Admin · $10 promo" user={u} back="/admin/pricing">
+    <Layout title="Admin · $10 promo" user={u} back="/admin">
       <div style="padding:12px 16px 40px">
-        <div class="hint" style="margin-bottom:10px">{rows.length} owners with 10+ listed</div>
-        {rows.map(r => <div class="card row" style="justify-content:space-between;padding:10px;margin-bottom:6px"><a href={'/u/' + r.id} style="font-weight:800">{r.name || 'Neighbor'}</a><span class="hint">{r.hood || ''} · {r.n} listed · <a href={'facetime:' + r.phone}>FaceTime</a></span></div>)}
+        <div class="hint" style="margin-bottom:10px">{rows.length} owners with 10+ listed · after the FaceTime check, tap Done: $10 cash goes to their payout account and $10 rental credit to their account</div>
+        {rows.map(r => <div class="card" style="padding:10px;margin-bottom:6px">
+          <div class="row" style="justify-content:space-between"><a href={'/u/' + r.id} style="font-weight:800">{r.name || 'Neighbor'}</a><span class="hint">{r.hood || ''} · {r.n} listed · <a href={'facetime:' + r.phone}>FaceTime</a></span></div>
+          {r.done ? <div class="hint" style="margin-top:6px">✓ {r.done}</div>
+            : <form method="post" action={'/admin/promo/' + r.id} style="margin-top:8px" onsubmit="return confirm('Checked on FaceTime? This sends $10 cash and adds a $10 rental credit')"><button class="btn pri sm" type="submit" style="width:auto">Done · send $10 + $10 credit</button>{r.acct ? null : <span class="hint" style="margin-left:8px">no payout account yet: cash waits</span>}</form>}
+        </div>)}
       </div>
     </Layout>
   );
+});
+admin.post('/admin/promo/:uid', async (c) => {
+  const uid = c.req.param('uid'), key = 'promo10_' + uid;
+  // claim first so a double tap can't pay twice
+  const claim = await c.env.DB.prepare(`INSERT OR IGNORE INTO settings (key, value) VALUES (?, 'working')`).bind(key).run();
+  if (!claim.meta.changes) return c.redirect('/admin/promo');
+  const who = await userById(c.env.DB, uid);
+  if (!who) { await c.env.DB.prepare('DELETE FROM settings WHERE key = ?').bind(key).run(); return c.redirect('/admin/promo'); }
+  // $10 rental credit (replaces the $5 phone-bar credit, used once)
+  await c.env.DB.prepare('UPDATE users SET promo_cents = MAX(COALESCE(promo_cents, 0), 1000) WHERE id = ?').bind(uid).run();
+  // $10 cash to their Stripe payout account, if they have one
+  let cash = 'cash waits for a payout account';
+  const s = stripe(c.env);
+  if (s && who.stripe_account_id) {
+    try { await s.transfers.create({ amount: 1000, currency: 'usd', destination: who.stripe_account_id, metadata: { promo: 'list10', user_id: uid } }, { idempotencyKey: 'promo10_' + uid }); cash = '$10 cash sent'; }
+    catch (e: any) { cash = 'cash failed: ' + String(e?.message || e).slice(0, 80); }
+  }
+  await c.env.DB.prepare('UPDATE settings SET value = ? WHERE key = ?').bind(`${new Date().toISOString().slice(0, 10)} · ${cash} · $10 credit added`, key).run();
+  c.executionCtx.waitUntil(textUser(c.env, who, cash === '$10 cash sent' ? `Lendo: $10 sent for listing 10 things, plus $10 toward your next rental` : `Lendo: $10 toward your next rental is on your account. Set up payouts to get your $10 cash ${c.env.APP_URL}/payout`, 'money').catch(() => {}));
+  return c.redirect('/admin/promo');
 });
