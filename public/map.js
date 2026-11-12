@@ -289,6 +289,22 @@
   // scope pills: hood ▾ → places picker; city → that city's view; globe → everywhere
   var PL = null, plCity = 'nyc', curCity = null;
   function loadPlaces(cb) { if (PL) return cb(PL); fetch('/api/places').then(function (r) { return r.json(); }).then(function (j) { PL = j; cb(j); }).catch(function () {}); }
+  // City count bounces across the screen once (<4s) when you land in a city, and again whenever a new thing gets listed there (checked every 30s)
+  var bounceCity = null, bounceN = {};
+  function cityCount(id, cb) { fetch('/api/city-count?city=' + id, { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) { cb(j.n || 0); }).catch(function () {}); }
+  function checkCityBounce(force) {
+    loadPlaces(function () {
+      var c = map.getCenter(), ct = cityOf(c.lng, c.lat); if (!ct || !window.lendoBounce) return;
+      var fresh = ct.id !== bounceCity; bounceCity = ct.id;
+      cityCount(ct.id, function (n) {
+        var prev = bounceN[ct.id]; bounceN[ct.id] = n;
+        if (n && (fresh || (prev != null && n > prev))) window.lendoBounce(n.toLocaleString(), 1, 3500);
+      });
+    });
+  }
+  map.on('load', function () { setTimeout(checkCityBounce, 900); });
+  map.on('moveend', function () { var c = map.getCenter(), ct = cityOf(c.lng, c.lat); if (ct && ct.id !== bounceCity) checkCityBounce(); });
+  setInterval(function () { if (!document.hidden && bounceCity) checkCityBounce(); }, 30000);
   function cityOf(lng, lat) { if (!PL) return null; for (var i = 0; i < PL.cities.length; i++) { var ct = PL.cities[i]; if (Math.abs(lng - ct.lng) < 0.45 && Math.abs(lat - ct.lat) < 0.3) return ct; } return null; }
   var plSort = 'az', plOwners = {};
   function renderPlaces() {

@@ -156,3 +156,11 @@ api.get('/api/places/owners', async (c) => {
 });
 
 api.get('/api/health', (c) => c.json({ ok: true, ts: Date.now() }));
+
+// live count of things in one city (map bounce + realtime "new one listed"); not cached
+api.get('/api/city-count', async (c) => {
+  const ct = CITIES.find(x => x.id === c.req.query('city'));
+  if (!ct) return c.json({ n: 0 });
+  const r = await c.env.DB.prepare(`SELECT COUNT(*) n FROM listings WHERE status = 'live' AND lng BETWEEN ? AND ? AND lat BETWEEN ? AND ?`).bind(ct.bbox[0], ct.bbox[2], ct.bbox[1], ct.bbox[3]).first<{ n: number }>();
+  return c.json({ city: ct.id, n: r?.n || 0 }, 200, { 'cache-control': 'no-store' });
+});

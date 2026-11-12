@@ -104,7 +104,7 @@ export const homePage = async (c: Ctx, opt: { center?: number[]; zoom?: number; 
         <div id="grid" class="aisles" style="display:none"></div>
       </div>
       {raw(`<script>window.LENDO_MAP=${cfg};</script>`)}
-      {mapbox ? <><script src="/map-style.js"></script><script src="/map.js"></script></> : <script src="/map-leaflet.js"></script>}
+      {mapbox ? <><script src="/pinball.js"></script><script src="/map-style.js"></script><script src="/map.js"></script></> : <script src="/map-leaflet.js"></script>}
     </Layout>
   );
 };
@@ -323,23 +323,8 @@ export const personPage = async (c: Ctx, uid: string) => {
       </section>
       <script src="/trim.js"></script>
       {nItems >= 10 ? <>
-        {raw(`<script>(function(){if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-var N=${Math.min(nItems, 40)},TXT=${JSON.stringify(String(nItems))},balls=[],t0=performance.now(),G=0.35;
-for(var i=0;i<N;i++){var el=document.createElement('div');el.className='pinball';el.setAttribute('aria-hidden','true');el.textContent=TXT;document.body.appendChild(el);
-var w=el.offsetWidth,h=el.offsetHeight,W0=innerWidth,H0=innerHeight,side=i%4,x,y,vx,vy,sp=9+Math.random()*6;
-if(side===0){x=Math.random()*(W0-w);y=-h-Math.random()*80;vx=(Math.random()-.5)*8;vy=sp*0.6}
-else if(side===1){x=W0+Math.random()*80;y=Math.random()*(H0*0.7);vx=-sp;vy=-4-Math.random()*6}
-else if(side===2){x=Math.random()*(W0-w);y=H0+Math.random()*80;vx=(Math.random()-.5)*8;vy=-sp*1.9}
-else{x=-w-Math.random()*80;y=Math.random()*(H0*0.7);vx=sp;vy=-4-Math.random()*6}
-balls.push({el:el,w:w,h:h,x:x,y:y,vx:vx,vy:vy,r:Math.random()*360,vr:(Math.random()-.5)*12,in:false})}
-function f(t){var W=innerWidth,H=innerHeight,walls=t-t0<5000,live=0;
-balls.forEach(function(b){if(b.gone)return;b.vy+=G;b.x+=b.vx;b.y+=b.vy;b.r+=b.vr;
-if(!b.in&&b.x>=0&&b.x<=W-b.w&&b.y>=0&&b.y<=H-b.h)b.in=true;
-if(walls&&b.in){if(b.y<0){b.y=0;b.vy=Math.abs(b.vy)}if(b.x<0){b.x=0;b.vx=-b.vx*0.98}if(b.x>W-b.w){b.x=W-b.w;b.vx=-b.vx*0.98}if(b.y>H-b.h){b.y=H-b.h;b.vy=-Math.max(Math.abs(b.vy)*0.92,10+Math.random()*5)}}
-else if(!walls&&(b.x<-b.w-20||b.x>W+20||b.y>H+20||b.y<-b.h-200)){b.gone=true;b.el.remove();return}
-b.el.style.transform='translate('+b.x+'px,'+b.y+'px) rotate('+b.r+'deg)';live++});
-if(live)requestAnimationFrame(f)}
-requestAnimationFrame(f)})()</script>`)}
+        <script src="/pinball.js"></script>
+        {raw(`<script>lendoBounce(${JSON.stringify(String(nItems))}, ${Math.min(nItems, 40)}, 5000)</script>`)}
       </> : null}
     </Layout>
   );
