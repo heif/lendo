@@ -500,7 +500,7 @@ img.uav{background:#ddd}
 .sp-sug button{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:10px 12px;font-size:14px;cursor:pointer}.sp-sug button:last-child{border-bottom:0}
 .sp-h{font-size:11px;font-weight:900;letter-spacing:.06em;color:var(--mute);margin:10px 0 6px}
 .sp-ideas-list{display:flex;flex-wrap:wrap;gap:6px}
-.sp-idea{background:#fff;border:1.5px dashed var(--ink);border-radius:16px;padding:5px 11px;font-size:13px;font-weight:700;cursor:pointer;color:var(--ink)}
+.sp-idea{background:#ECE7DD;border:0;border-radius:16px;padding:6px 12px;font-size:13px;font-weight:700;cursor:pointer;color:var(--ink)}
 .pf-orbit{position:relative;width:150px;height:150px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 .pf-sat{position:absolute;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:28px;text-decoration:none;z-index:2}
 .pf-sat img{max-width:44px;max-height:44px;object-fit:contain;filter:drop-shadow(0 1px 2px rgba(30,58,43,.35))}
@@ -537,3 +537,5 @@ img.uav{background:#ddd}
 .pitem .pnm{font-size:14px}
 .pitem .pedit{display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;border:1.5px solid var(--ink);border-radius:15px;background:#fff;margin-top:5px}
 .pf-links{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;margin-top:4px}.pf-links .pf-link{margin-top:0}.pf-share{background:none;border:0;padding:0;font-size:12.5px;font-weight:800;color:var(--orange);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+
+.pf-editbtn{width:40px;height:40px;border-radius:20px;border:1.5px solid var(--ink);background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}

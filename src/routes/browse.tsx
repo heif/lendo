@@ -283,9 +283,9 @@ export const personPage = async (c: Ctx, uid: string) => {
           <div style="flex:1;min-width:0">
             <div class="pf-name">{who.name || 'Neighbor'}</div>
             <div class="pf-sub">{who.hood || ''}{who.hood ? <br /> : null}Lendo since {since}</div>
-            {me && (who as any).handle ? <div class="pf-links"><a class="pf-link" href="/profile/edit#handle">lendo.co/{(who as any).handle} · change</a><button type="button" class="pf-share" onclick={`var u=location.origin+location.pathname;navigator.share?navigator.share({text:'My stuff for rent on Lendo',url:u}):(navigator.clipboard.writeText(u),toast('Link copied'))`}>Share my page ↗</button></div> : null}
+            {me && (who as any).handle ? <div class="pf-links"><span class="pf-link">lendo.co/{(who as any).handle}</span><button type="button" class="pf-share" onclick={`var u=location.origin+location.pathname;navigator.share?navigator.share({text:'My stuff for rent on Lendo',url:u}):(navigator.clipboard.writeText(u),toast('Link copied'))`}>Share my page ↗</button></div> : null}
           </div>
-          {me ? <a class="btn sm" href="/profile/edit" style="width:auto">Edit</a> : null}
+          {me ? <a class="pf-editbtn" href="/profile/edit" aria-label="Edit profile"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linejoin="round" /><path d="M13.5 6.5l4 4" stroke="#1E3A2B" stroke-width="2.2" /></svg></a> : null}
         </div>
         {me ? <div class="pf-earn"><span><b>{money(earned?.s || 0)}</b> earned · {earned?.n || 0} rental{earned?.n === 1 ? '' : 's'}</span><a href="/payout">Get paid</a></div> : null}
         {me ? <a class="btn pri full" style="margin-top:12px" href="/list">LIST MORE STUFF</a> : null}
@@ -350,7 +350,7 @@ browse.get('/profile/edit', async (c) => {
         <label class="field" id="handle"><span>Your Lendo link (you can change it)</span><div style="display:flex;align-items:center;gap:2px"><b style="font-size:16px;color:#6F6A60">lendo.co/</b><input name="handle" value={(u as any).handle || ''} placeholder="yourname" pattern="[a-z0-9][a-z0-9-]{1,23}" maxlength={24} autocapitalize="none" autocomplete="off" style="flex:1" /></div></label>
         <label class="field" style="position:relative"><span>Pickup address (private — renters only see cross streets)</span><input name="address" id="addr" value={u.address || ''} placeholder="Street address" maxlength={160} autocomplete="off" /><div id="addrSug" class="card" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:50;padding:4px;margin-top:4px"></div></label>
         <label class="field"><span>Cross streets (public)</span><input name="cross_streets" value={u.cross_streets || ''} placeholder="W 22nd & 9th Ave" maxlength={80} /></label>
-        <div class="field"><span>Meetup spots (customers see these)</span>
+        <div class="field"><span>Meetup spot (customers see it)</span>
           <input type="hidden" name="pickup_spots_json" id="spotsVal" />
           <div id="spotsPick" class="spotpick" />
         </div>
@@ -391,7 +391,7 @@ browse.post('/profile/edit', async (c) => {
     if (!r?.meta.changes) return c.redirect('/profile/edit?err=taken');
   }
   let spots: string[] = [];
-  try { const j = JSON.parse(String(f.pickup_spots_json || '[]')); if (Array.isArray(j)) spots = j.map(s => String(s).trim().slice(0, 80)).filter(Boolean).slice(0, 6); } catch { /* keep empty */ }
+  try { const j = JSON.parse(String(f.pickup_spots_json || '[]')); if (Array.isArray(j)) spots = j.map(s => String(s).trim().slice(0, 80)).filter(Boolean).slice(0, 1); /* one meetup spot per owner */ } catch { /* keep empty */ }
   let lat = parseFloat(String(f.lat || '')), lng = parseFloat(String(f.lng || ''));
   const xs = String(f.cross_streets || '').trim(), hd = String(f.hood || '').trim(), addr = String(f.address || '').trim().slice(0, 160);
   let mapboxId: string | null = u.mapbox_id, geocodedAt: number | null = u.geocoded_at, hoodOut = hd || null;

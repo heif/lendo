@@ -3,22 +3,20 @@
 (function () {
   window.lendoSpots = function (o) {
     var root = document.getElementById(o.root), hid = document.getElementById(o.input), tok = o.token, near = o.center; // [lng,lat] or null
-    var picked = (o.initial || []).slice(0, 6), sess = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2)), t;
-    root.innerHTML = '<div class="sp-chips"></div><div class="sp-search"><input type="text" placeholder="Add a spot: café, lobby, park, corner…" autocomplete="off"><div class="sp-sug" hidden></div></div><div class="sp-ideas"><div class="sp-h">Ideas near you</div><div class="sp-ideas-list"></div></div>';
+    var picked = (o.initial || []).slice(0, 1), sess = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2)), t;
+    root.innerHTML = '<div class="sp-chips"></div><div class="sp-search"><input type="text" placeholder="Search a café or address…" autocomplete="off"><div class="sp-sug" hidden></div></div><div class="sp-ideas"><div class="sp-h">Cafés near you</div><div class="sp-ideas-list"></div></div>';
     var chips = root.querySelector('.sp-chips'), inp = root.querySelector('input'), sug = root.querySelector('.sp-sug'), ideas = root.querySelector('.sp-ideas-list');
     function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
-    function save() { hid.value = JSON.stringify(picked); chips.innerHTML = picked.length ? picked.map(function (s, i) { return '<span class="sp-chip">📍 ' + esc(s) + '<button type="button" data-i="' + i + '" aria-label="Remove">×</button></span>'; }).join('') : '<span class="hint">No meetup spots yet — pick one or two</span>'; renderIdeas(); }
-    function add(s) { s = String(s).trim(); if (!s || picked.indexOf(s) >= 0 || picked.length >= 6) return; picked.push(s); save(); }
+    function save() { hid.value = JSON.stringify(picked); chips.innerHTML = picked.length ? picked.map(function (s, i) { return '<span class="sp-chip">📍 ' + esc(s) + '<button type="button" data-i="' + i + '" aria-label="Remove">×</button></span>'; }).join('') : '<span class="hint">No meetup spot yet — pick a café</span>'; renderIdeas(); }
+    function add(s) { s = String(s).trim(); if (!s) return; picked = [s]; save(); /* one spot: a new pick replaces it */ }
     chips.addEventListener('click', function (e) { var b = e.target.closest('button[data-i]'); if (b) { picked.splice(+b.dataset.i, 1); save(); } });
     var IDEAS = [];
-    function renderIdeas() { var l = IDEAS.filter(function (s) { return picked.indexOf(s) < 0; }).slice(0, 8); ideas.innerHTML = l.map(function (s) { return '<button type="button" class="sp-idea">+ ' + esc(s) + '</button>'; }).join(''); root.querySelector('.sp-ideas').hidden = !l.length; }
+    function renderIdeas() { var l = IDEAS.filter(function (s) { return picked.indexOf(s) < 0; }).slice(0, 6); ideas.innerHTML = l.map(function (s) { return '<button type="button" class="sp-idea">+ ' + esc(s) + '</button>'; }).join(''); root.querySelector('.sp-ideas').hidden = !l.length; }
     ideas.addEventListener('click', function (e) { var b = e.target.closest('.sp-idea'); if (b) add(b.textContent.replace(/^\+ /, '')); });
     // quick ideas without any lookup
-    if (o.cross) IDEAS.push('Corner of ' + o.cross);
-    IDEAS.push('My building lobby');
     // nearby public places (Mapbox category search), named with their street
-    if (tok && near) ['cafe', 'library', 'park'].forEach(function (cat) {
-      fetch('https://api.mapbox.com/search/searchbox/v1/category/' + cat + '?access_token=' + tok + '&proximity=' + near[0] + ',' + near[1] + '&limit=3&language=en')
+    if (tok && near) ['cafe'].forEach(function (cat) {
+      fetch('https://api.mapbox.com/search/searchbox/v1/category/' + cat + '?access_token=' + tok + '&proximity=' + near[0] + ',' + near[1] + '&limit=6&language=en')
         .then(function (r) { return r.json(); }).then(function (j) {
           (j.features || []).forEach(function (f) { var p = f.properties || {}; var nm = p.name + (p.address ? ' · ' + p.address : ''); if (p.name && IDEAS.indexOf(nm) < 0) IDEAS.push(nm); });
           renderIdeas();
