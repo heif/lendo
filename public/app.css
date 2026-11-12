@@ -486,3 +486,4 @@ img.uav{background:#ddd}
 .pitem .grd.tiny b{font-size:13px;margin:0}.pitem .grd.tiny small{display:none}
 .prev{border-bottom:1px solid var(--line);padding:8px 2px}.prev:last-child{border-bottom:0}
 .prev .q{font-size:14.5px}.prev .w{font-size:12px;color:var(--mute);margin-top:2px}
+.askbtn{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:7px 14px;border:1.5px solid var(--ink);border-radius:18px;background:#fff;font-weight:800;font-size:14px;color:var(--ink);text-decoration:none}
