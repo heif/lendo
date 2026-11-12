@@ -322,6 +322,18 @@ export const personPage = async (c: Ctx, uid: string) => {
         </div>
       </section>
       <script src="/trim.js"></script>
+      {nItems >= 10 ? <>
+        <div id="pinball" aria-hidden="true">{nItems}</div>
+        {raw(`<script>(function(){var el=document.getElementById('pinball');if(!el||matchMedia('(prefers-reduced-motion: reduce)').matches){if(el)el.remove();return}
+var W=innerWidth,H=innerHeight,w=el.offsetWidth,h=el.offsetHeight,x=Math.random()*(W-w),y=H*0.15,vx=(Math.random()<.5?-1:1)*(7+Math.random()*4),vy=-6,t0=performance.now(),G=0.35;
+function f(t){W=innerWidth;H=innerHeight;vy+=G;x+=vx;y+=vy;
+if(x<0){x=0;vx=-vx*0.98;kick()}if(x>W-w){x=W-w;vx=-vx*0.98;kick()}
+if(y>H-h){y=H-h;vy=-Math.max(Math.abs(vy)*0.92,10+Math.random()*4)}if(y<0){y=0;vy=Math.abs(vy)}
+el.style.transform='translate('+x+'px,'+y+'px) rotate('+(x*0.6)+'deg)';
+var age=t-t0;if(age>9000)el.style.opacity=Math.max(0,1-(age-9000)/1200);if(age<10300)requestAnimationFrame(f);else el.remove()}
+function kick(){el.classList.remove('hit');void el.offsetWidth;el.classList.add('hit')}
+requestAnimationFrame(f)})()</script>`)}
+      </> : null}
     </Layout>
   );
 };
