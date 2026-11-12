@@ -291,7 +291,7 @@ export const personPage = async (c: Ctx, uid: string) => {
         {me ? <a class="btn pri full" style="margin-top:12px" href="/list">LIST MORE STUFF</a> : null}
         {me && promoN !== null ? (
           <div class="card" style="padding:14px;margin-top:14px">
-            <b style="font-size:17px">List 10 things, get $10</b>
+            <b style="font-size:17px">List 10 things, get $10 cash AND a $10 free rental</b>
             <div style="height:10px;border-radius:5px;background:#ECE8E0;margin:10px 0 8px;overflow:hidden"><i style={`display:block;height:100%;width:${Math.min(100, promoN * 10)}%;background:var(--orange)`} /></div>
             <div class="hint">{promoN >= 10 ? '10 of 10 · Lendo will text you to set up a 2-min FaceTime to check the items · $10 sent next day' : `${promoN} of 10 · then a 2-min FaceTime to check the items · $10 sent next day`}</div>
           </div>
