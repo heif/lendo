@@ -518,3 +518,9 @@ img.uav{background:#ddd}
 .pinball{position:fixed;left:0;top:0;z-index:60;pointer-events:none;font-size:72px;font-weight:900;line-height:1;color:var(--orange);-webkit-text-stroke:3px var(--ink);text-shadow:4px 5px 0 var(--ink);will-change:transform}
 @keyframes pbhit{50%{filter:brightness(1.4)}}
 .pinball.solo{font-size:84px}
+/* alert switch says ON / OFF inside the track */
+.ac-sw{width:52px;height:28px;border-radius:14px}
+.ac-sw b{width:22px;height:22px;border-radius:11px;top:3px;left:3px}
+.ac-pill.on .ac-sw b{left:27px}
+.ac-sw em{position:absolute;top:0;line-height:28px;font-style:normal;font-size:11px;font-weight:900;letter-spacing:.03em;color:#fff;right:7px}
+.ac-pill.on .ac-sw em{left:8px;right:auto}
