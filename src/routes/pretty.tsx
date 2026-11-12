@@ -7,6 +7,12 @@ import { homePage, itemPage, personPage } from './browse';
 export const pretty = new Hono<{ Bindings: Env; Variables: Vars }>();
 const thing = (s: string) => s.replace(/-/g, ' ').replace(/s$/, ''); // "ladders" → "ladder" search
 
+// a handle someone used to have → their current one
+async function newHandle(c: any, old: string): Promise<string | null> {
+  const r = await c.env.DB.prepare('SELECT u.handle FROM old_handles o JOIN users u ON u.id = o.user_id WHERE o.handle = ?').bind(old).first().catch(() => null) as { handle: string | null } | null;
+  return r?.handle && r.handle !== old ? r.handle : null;
+}
+
 pretty.get('/:a{[a-z0-9][a-z0-9-]{0,39}}', async (c) => {
   const a = c.req.param('a');
   if (isCode(a)) {
@@ -16,7 +22,9 @@ pretty.get('/:a{[a-z0-9][a-z0-9-]{0,39}}', async (c) => {
   const city = cityBySlug(a);
   if (city) return homePage(c, { center: [city.lng, city.lat], zoom: city.id === 'nyc' ? 12 : 13 });
   const u = await c.env.DB.prepare('SELECT id FROM users WHERE handle = ?').bind(a).first<{ id: string }>().catch(() => null);
-  return u ? personPage(c, u.id) : c.notFound();
+  if (u) return personPage(c, u.id);
+  const nh = await newHandle(c, a);
+  return nh ? c.redirect('/' + nh, 301) : c.notFound();
 });
 
 pretty.get('/:a{[a-z0-9][a-z0-9-]{0,39}}/:b{[a-z0-9][a-z0-9-]{0,59}}', async (c) => {
@@ -28,7 +36,9 @@ pretty.get('/:a{[a-z0-9][a-z0-9-]{0,39}}/:b{[a-z0-9][a-z0-9-]{0,59}}', async (c)
     return homePage(c, { center: [city.lng, city.lat], zoom: city.id === 'nyc' ? 12.5 : 13, q: thing(b) });
   }
   const r = await c.env.DB.prepare(`SELECT l.id FROM listings l JOIN users u ON u.id = l.owner_id WHERE u.handle = ? AND l.slug = ? AND l.status != 'removed'`).bind(a, b).first<{ id: string }>().catch(() => null);
-  return r ? itemPage(c, r.id, true) : c.notFound();
+  if (r) return itemPage(c, r.id, true);
+  const nh = await newHandle(c, a);
+  return nh ? c.redirect(`/${nh}/${b}`, 301) : c.notFound();
 });
 
 pretty.get('/:a{[a-z0-9][a-z0-9-]{0,39}}/:b{[a-z0-9][a-z0-9-]{0,59}}/:t{[a-z0-9][a-z0-9-]{0,59}}', async (c) => {

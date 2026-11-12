@@ -39,6 +39,14 @@ JOBS.feather_iac_hood = async (env) => {
   return nh ? nh.hood.name : 'Iowa City';
 };
 
+// Scott changed lendo.co/scott → /heif before old links were kept: point the old one at him
+JOBS.old_handle_scott = async (env) => {
+  const cur = await env.DB.prepare(`SELECT 1 FROM users WHERE handle = 'scott'`).first();
+  if (cur) return 'scott is in use';
+  await env.DB.prepare(`INSERT OR IGNORE INTO old_handles (handle, user_id, created_at) VALUES ('scott', 'u_7g0ZlRhw9WBH', ?)`).bind(Date.now()).run();
+  return 'ok';
+};
+
 export async function runJobs(env: Env, ctx: ExecutionContext) {
   for (const [name, fn] of Object.entries(JOBS)) {
     const key = 'job_' + name;

@@ -10,8 +10,9 @@ import m0020 from '../../migrations/0020_item_rating.sql';
 import m0021 from '../../migrations/0021_inbound.sql';
 import m0022 from '../../migrations/0022_reads.sql';
 import m0023 from '../../migrations/0023_user_photo.sql';
+import m0024 from '../../migrations/0024_old_handles.sql';
 
-const PENDING: [string, string][] = [['0015_alerts.sql', m0015], ['0016_urls.sql', m0016], ['0017_promise.sql', m0017], ['0018_grade.sql', m0018], ['0019_extend.sql', m0019], ['0020_item_rating.sql', m0020], ['0021_inbound.sql', m0021], ['0022_reads.sql', m0022], ['0023_user_photo.sql', m0023]];
+const PENDING: [string, string][] = [['0015_alerts.sql', m0015], ['0016_urls.sql', m0016], ['0017_promise.sql', m0017], ['0018_grade.sql', m0018], ['0019_extend.sql', m0019], ['0020_item_rating.sql', m0020], ['0021_inbound.sql', m0021], ['0022_reads.sql', m0022], ['0023_user_photo.sql', m0023], ['0024_old_handles.sql', m0024]];
 
 export async function selfMigrate(env: Env): Promise<string[]> {
   const done = new Set((await env.DB.prepare('SELECT name FROM d1_migrations').all<{ name: string }>().catch(() => ({ results: [] as { name: string }[] }))).results.map(r => r.name));

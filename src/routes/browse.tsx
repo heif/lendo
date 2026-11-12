@@ -272,11 +272,11 @@ export const personPage = async (c: Ctx, uid: string) => {
         <div class="pf-head">
           {(() => {
             // their things orbit the photo (up to 8)
-            const orb = items.results.slice(0, 8), R = 40; // well inside the edge: items sit in front of the photo
+            const orb = items.results.slice(0, 8), R = 55; // ~35% of each item overlaps the photo
             return <div class="pf-orbit">
               <Avatar name={who.name} photo={who.photo_key} size={96} />
-              {orb.map((it, i) => { const a = (-90 + i * (360 / Math.max(orb.length, 6))) * Math.PI / 180; const src = it.avatar_key || ph[it.id];
-                return <a class={'pf-sat' + (it.avatar_key ? '' : ' ph')} href={'/i/' + it.id} style={`left:${(75 + Math.cos(a) * R - 22).toFixed(1)}px;top:${(75 + Math.sin(a) * R - 22).toFixed(1)}px`} title={it.name}>{src ? <img src={'/p/' + src} alt="" data-trim={it.avatar_key ? '1' : undefined} /> : <span>{it.emoji || '📦'}</span>}</a>; })}
+              <div class="pf-ring">{orb.map((it, i) => { const a = (-90 + i * (360 / Math.max(orb.length, 6))) * Math.PI / 180; const src = it.avatar_key || ph[it.id];
+                return <a class={'pf-sat' + (it.avatar_key ? '' : ' ph')} href={'/i/' + it.id} style={`left:${(75 + Math.cos(a) * R - 22).toFixed(1)}px;top:${(75 + Math.sin(a) * R - 22).toFixed(1)}px`} title={it.name}>{src ? <img src={'/p/' + src} alt="" data-trim={it.avatar_key ? '1' : undefined} /> : <span>{it.emoji || '📦'}</span>}</a>; })}</div>
             </div>;
           })()}
           <div style="flex:1;min-width:0">
@@ -376,7 +376,11 @@ browse.post('/profile/edit', async (c) => {
   const hNew = String(f.handle || '').trim().toLowerCase();
   if (hNew && hNew !== (u as any).handle) {
     if (!handleOk(hNew)) return c.redirect('/profile/edit?err=handle');
+    const taken = await c.env.DB.prepare('SELECT 1 FROM old_handles WHERE handle = ? AND user_id != ?').bind(hNew, u.id).first().catch(() => null);
+    if (taken) return c.redirect('/profile/edit?err=taken');
     const r = await c.env.DB.prepare('UPDATE users SET handle = ? WHERE id = ? AND NOT EXISTS (SELECT 1 FROM users WHERE handle = ?)').bind(hNew, u.id, hNew).run().catch(() => null);
+    // the old link keeps working
+    if (r?.meta.changes && (u as any).handle) await c.env.DB.prepare('INSERT OR REPLACE INTO old_handles (handle, user_id, created_at) VALUES (?,?,?)').bind((u as any).handle, u.id, Date.now()).run().catch(() => {});
     if (!r?.meta.changes) return c.redirect('/profile/edit?err=taken');
   }
   let spots: string[] = [];
