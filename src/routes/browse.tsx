@@ -149,7 +149,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
       </div>
       <section class="sec" style="padding:12px 16px 14px">
         <div class="row" style="justify-content:space-between;align-items:flex-start">
-          <h2 style="margin:0;font-size:20px;font-weight:800;line-height:1.25">{(() => { const f = (owner.name || 'Neighbor').split(' ')[0]; const w0 = it.name.split(' ')[0]; const proper = /[A-Z]/.test(it.name.slice(1).split(' ').slice(1).join(' ')) || /[A-Z]/.test(w0.slice(1)) || new RegExp('(^|\\W)' + w0.replace(/\W/g, '') + ' [A-Z0-9]').test(it.description || ''); return f + (/s$/i.test(f) ? '’ ' : '’s ') + (proper ? it.name : it.name.charAt(0).toLowerCase() + it.name.slice(1)); })()}</h2>
+          <h2 style="margin:0;font-size:20px;font-weight:800;line-height:1.25">{(() => { const f = (owner.name || 'Neighbor').split(' ')[0]; const nm = it.name.charAt(0).toUpperCase() + it.name.slice(1); return f + (/s$/i.test(f) ? '’ ' : '’s ') + nm; })()}</h2>
           {it.status === 'paused' ? <span class="pill">paused</span> : it.status === 'review' ? <span class="pill">Posted · checking the photo</span> : null}
           {isOwner ? <a class="btn sm" href={'/listings/' + it.id + '/edit'} style="flex-shrink:0;margin-left:8px">✎ Edit</a> : null}
         </div>
