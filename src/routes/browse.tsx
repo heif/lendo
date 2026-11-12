@@ -307,7 +307,7 @@ export const personPage = async (c: Ctx, uid: string) => {
                 <span class="ptag">{money(it.price_cents)}<small>/day</small></span>
                 <div class="pnm">{it.name}</div>
                 {me && it.status !== 'live' ? <div class="pstat">{it.status === 'review' ? 'Checking the photo' : 'Paused'}</div> : null}
-                {me ? <object><a class="pedit" href={'/listings/' + it.id + '/edit'}>Edit</a></object> : null}
+                {me ? <object><a class="pedit" href={'/listings/' + it.id + '/edit'} aria-label={'Edit ' + it.name}><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linejoin="round" /><path d="M13.5 6.5l4 4" stroke="#1E3A2B" stroke-width="2.2" /></svg></a></object> : null}
               </a>
             ))}
           </div></div> : null}

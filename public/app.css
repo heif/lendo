@@ -531,3 +531,8 @@ img.uav{background:#ddd}
 .pitem .pedit{display:inline-block;margin-top:4px;font-size:12px;font-weight:800;color:var(--ink);text-decoration:underline;text-underline-offset:2px}
 .pitem.off .pic{opacity:.5}
 .pitem.just .pic{outline:3px solid var(--orange);outline-offset:2px;border-radius:12px}
+
+/* profile tiles: names and prices 15% bigger; edit is a pencil */
+.pitem .ptag{font-size:15px}.pitem .ptag small{font-size:10.5px}
+.pitem .pnm{font-size:14px}
+.pitem .pedit{display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;border:1.5px solid var(--ink);border-radius:15px;background:#fff;margin-top:5px}
