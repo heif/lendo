@@ -202,7 +202,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
         </div>
       ) : isOwner ? <div class="rentbar"><a class="btn full" href={'/listings/' + it.id + '/edit'}>This is yours — edit it</a></div> : null}
       {raw(`<script>
-(function(){var P=${it.price_cents},W=${it.week_cents || 0},F=${parseFloat(feePct)},CR=${credit};var s=null,e=null,TODAY=(bs[0]&&bs[0].classList.contains('today'))?bs[0].dataset.day:null;var bs=[].slice.call(document.querySelectorAll('#days button'));
+(function(){var P=${it.price_cents},W=${it.week_cents || 0},F=${parseFloat(feePct)},CR=${credit};var bs=[].slice.call(document.querySelectorAll('#days button'));var s=null,e=null,TODAY=(bs[0]&&bs[0].classList.contains('today'))?bs[0].dataset.day:null;
 function price(n){if(!W)return n*P;var r=Math.floor(n/7)*W+(n%7)*P;return Math.min(r,Math.ceil(n/7)*W)}
 function fmt(c){var d=c/100;return '$'+(Number.isInteger(d)?d:d.toFixed(2))}
 function paint(){bs.forEach(function(b){var d=b.dataset.day;b.classList.toggle('on',!!s&&!!e&&d>=s&&d<=e||d===s)});var btn=document.getElementById('rentBtn');if(s&&e){var n=Math.round((Date.parse(e)-Date.parse(s))/864e5)+1;var r=price(n);btn.disabled=false;var wk=W&&r<n*P;btn.textContent='RENT '+(n===1&&s===TODAY?'TODAY':n===7&&wk?'1 WEEK':n+(n===1?' DAY':' DAYS'))+' · '+fmt(Math.max(Math.round(r*(1+F/100))-CR,Math.min(50,Math.round(r*(1+F/100)))))+(CR?' · $5 OFF':wk?' · WEEK RATE':'');document.querySelectorAll('#quick button').forEach(function(x){x.classList.toggle('pri',(x.dataset.q==='7'&&n===7)||(x.dataset.q==='1'&&n===1))});document.getElementById('start').value=s;document.getElementById('end').value=e}else{btn.disabled=true;btn.textContent='PICK DAYS TO RENT'}}
