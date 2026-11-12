@@ -325,7 +325,7 @@ browse.get('/u/:id', async (c) => {
 browse.get('/profile/edit', async (c) => {
   const u = c.get('user');
   if (!u) return c.redirect('/login?next=/profile/edit');
-  const spots = u.pickup_spots ? (JSON.parse(u.pickup_spots) as string[]).join(', ') : '';
+  const spotsArr: string[] = (() => { try { return u.pickup_spots ? JSON.parse(u.pickup_spots) : []; } catch { return []; } })();
   return c.html(
     <Layout title="Edit profile" user={u} back={'/u/' + u.id} flashErr={c.req.query('err') === 'taken' ? 'That link is taken — try another' : c.req.query('err') === 'handle' ? 'Links use 2–24 lowercase letters, numbers or dashes' : undefined}>
       <form method="post" action="/profile/edit" enctype="multipart/form-data" style="padding:12px 16px 40px">
@@ -334,8 +334,14 @@ browse.get('/profile/edit', async (c) => {
         <label class="field" id="handle"><span>Your Lendo link (you can change it)</span><div style="display:flex;align-items:center;gap:2px"><b style="font-size:16px;color:#6F6A60">lendo.co/</b><input name="handle" value={(u as any).handle || ''} placeholder="yourname" pattern="[a-z0-9][a-z0-9-]{1,23}" maxlength={24} autocapitalize="none" autocomplete="off" style="flex:1" /></div></label>
         <label class="field" style="position:relative"><span>Pickup address (private — renters only see cross streets)</span><input name="address" id="addr" value={u.address || ''} placeholder="Street address" maxlength={160} autocomplete="off" /><div id="addrSug" class="card" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:50;padding:4px;margin-top:4px"></div></label>
         <label class="field"><span>Cross streets (public)</span><input name="cross_streets" value={u.cross_streets || ''} placeholder="W 22nd & 9th Ave" maxlength={80} /></label>
-        <label class="field"><span>Meetup spots (comma separated)</span><input name="pickup_spots" value={spots} placeholder="Lobby, Joe Coffee on 9th" maxlength={200} /></label>
-        <label class="field"><span>Neighborhood</span><input name="hood" value={u.hood || ''} placeholder="Chelsea" maxlength={60} /></label>
+        <div class="field"><span>Meetup spots (customers see these)</span>
+          <input type="hidden" name="pickup_spots_json" id="spotsVal" />
+          <div id="spotsPick" class="spotpick" />
+        </div>
+        <script src="/spots.js"></script>
+        {raw(`<script>lendoSpots({root:'spotsPick',input:'spotsVal',token:${JSON.stringify(c.env.MAPBOX_PUBLIC_TOKEN || '')},center:${u.lat != null && u.lng != null ? JSON.stringify([u.lng, u.lat]) : 'null'},cross:${JSON.stringify(u.cross_streets || '')},initial:${JSON.stringify(spotsArr).replace(/</g, '\\u003c')}})</script>`)}
+        <label class="field"><span>Neighborhood</span><input name="hood" value={u.hood || ''} placeholder="Start typing… Chelsea" maxlength={60} list="hoodList" autocomplete="off" /></label>
+        <datalist id="hoodList">{CITIES.flatMap(ct => ct.hoods.map(h => <option value={h.name}>{ct.name}</option>))}</datalist>
         <input type="hidden" name="lat" id="lat" value={u.lat ?? ''} /><input type="hidden" name="lng" id="lng" value={u.lng ?? ''} />
         <button type="button" class="btn sm" onclick="navigator.geolocation.getCurrentPosition(function(p){lat.value=p.coords.latitude;lng.value=p.coords.longitude;toast('Location set')})">📍 Use my location as home base</button>
         <div style="margin-top:16px"><button class="btn pri full" type="submit">Save</button></div>
@@ -357,14 +363,15 @@ browse.post('/profile/edit', async (c) => {
   const u = c.get('user');
   if (!u) return c.redirect('/login');
   const f = await c.req.parseBody();
-  if (f.photo) await saveUserPhoto(c.env, u.id, f.photo);
+  if (f.photo) await saveUserPhoto(c.env, u.id, f.photo).catch(e => console.warn('photo save', e));
   const hNew = String(f.handle || '').trim().toLowerCase();
   if (hNew && hNew !== (u as any).handle) {
     if (!handleOk(hNew)) return c.redirect('/profile/edit?err=handle');
     const r = await c.env.DB.prepare('UPDATE users SET handle = ? WHERE id = ? AND NOT EXISTS (SELECT 1 FROM users WHERE handle = ?)').bind(hNew, u.id, hNew).run().catch(() => null);
     if (!r?.meta.changes) return c.redirect('/profile/edit?err=taken');
   }
-  const spots = String(f.pickup_spots || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 6);
+  let spots: string[] = [];
+  try { const j = JSON.parse(String(f.pickup_spots_json || '[]')); if (Array.isArray(j)) spots = j.map(s => String(s).trim().slice(0, 80)).filter(Boolean).slice(0, 6); } catch { /* keep empty */ }
   let lat = parseFloat(String(f.lat || '')), lng = parseFloat(String(f.lng || ''));
   const xs = String(f.cross_streets || '').trim(), hd = String(f.hood || '').trim(), addr = String(f.address || '').trim().slice(0, 160);
   let mapboxId: string | null = u.mapbox_id, geocodedAt: number | null = u.geocoded_at, hoodOut = hd || null;

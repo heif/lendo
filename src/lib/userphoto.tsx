@@ -2,7 +2,7 @@
 import type { Env } from './env';
 
 export async function saveUserPhoto(env: Env, uid: string, f: unknown): Promise<string | null> {
-  if (!(f instanceof File) || !f.size || f.size > 12e6 || !/^image\//.test(f.type)) return null;
+  if (!(f instanceof File) || !f.size || f.size > 30e6 || !/^image\//.test(f.type)) return null;
   const key = `users/${uid}/${crypto.randomUUID().slice(0, 8)}.${f.type.includes('png') ? 'png' : 'jpg'}`;
   await env.PHOTOS.put(key, await f.arrayBuffer(), { httpMetadata: { contentType: f.type } });
   const old = await env.DB.prepare('SELECT photo_key FROM users WHERE id = ?').bind(uid).first<{ photo_key: string | null }>().catch(() => null);
@@ -20,6 +20,9 @@ export const Avatar = (p: { name: string | null; photo?: string | null; size?: n
     : <span class={'uav ' + (p.cls || '')} style={st}>{(p.name || 'N').trim().charAt(0).toUpperCase()}</span>;
 };
 
+// shrink to a 512px JPEG in the browser before upload (big iPhone photos / HEIC), and preview it
+const PHOTO_JS = `window.lendoPhoto=window.lendoPhoto||function(inp){var f=inp.files[0];if(!f)return;var rd=new FileReader();rd.onload=function(){var im=new Image();im.onload=function(){var s=Math.min(1,512/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);var d=c.toDataURL('image/jpeg',0.85);document.getElementById('pfPrev').innerHTML='<img class="uav" src="'+d+'" style="width:64px;height:64px;border-radius:32px;object-fit:cover">';c.toBlob(function(b){try{var dt=new DataTransfer();dt.items.add(new File([b],'me.jpg',{type:'image/jpeg'}));inp.files=dt.files}catch(e){}},'image/jpeg',0.85)};im.src=rd.result};rd.readAsDataURL(f)}`;
+
 // the photo picker block used in forms (circle preview + file input)
 export const PhotoField = (p: { name: string | null; photo?: string | null; label: string }) => (
   <label class="field photofield">
@@ -27,7 +30,8 @@ export const PhotoField = (p: { name: string | null; photo?: string | null; labe
     <div class="row" style="gap:12px;align-items:center">
       <span id="pfPrev"><Avatar name={p.name} photo={p.photo} size={64} /></span>
       <span class="btn sm" style="width:auto">{p.photo ? 'Change photo' : 'Add a photo'}</span>
-      <input type="file" name="photo" accept="image/*" hidden onchange="var f=this.files[0];if(f){var u=URL.createObjectURL(f);document.getElementById('pfPrev').innerHTML='<img class=uav src='+u+' style=width:64px;height:64px;border-radius:32px;object-fit:cover>'}" />
+      <input type="file" name="photo" accept="image/*" hidden onchange="lendoPhoto(this)" />
+      <script dangerouslySetInnerHTML={{ __html: PHOTO_JS }} />
     </div>
   </label>
 );

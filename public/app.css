@@ -491,3 +491,13 @@ img.uav{background:#ddd}
 .dmeter b{font-size:13px}.dbar{height:7px;background:#ECE8E0;border-radius:4px;margin:6px 0 6px;overflow:hidden}.dbar i{display:block;height:100%;background:var(--orange);transition:width .2s}
 .dk{color:#8a8478;line-height:1.75}.dk.ok{color:var(--ink);font-weight:700}
 .pf-link{display:inline-block;margin-top:4px;font-size:12.5px;font-weight:700;color:var(--ink);text-decoration:underline;text-underline-offset:2px}
+.spotpick{margin-top:6px}
+.sp-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.sp-chip{display:inline-flex;align-items:center;gap:4px;background:var(--ink);color:#fff;border-radius:16px;padding:5px 6px 5px 11px;font-size:13px;font-weight:700}
+.sp-chip button{background:rgba(255,255,255,.2);border:0;color:#fff;width:20px;height:20px;border-radius:10px;font-size:14px;line-height:1;cursor:pointer}
+.sp-search{position:relative}.sp-search input{width:100%}
+.sp-sug{position:absolute;left:0;right:0;top:100%;z-index:30;background:#fff;border:1.5px solid var(--ink);border-radius:12px;margin-top:4px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.12)}
+.sp-sug button{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:10px 12px;font-size:14px;cursor:pointer}.sp-sug button:last-child{border-bottom:0}
+.sp-h{font-size:11px;font-weight:900;letter-spacing:.06em;color:var(--mute);margin:10px 0 6px}
+.sp-ideas-list{display:flex;flex-wrap:wrap;gap:6px}
+.sp-idea{background:#fff;border:1.5px dashed var(--ink);border-radius:16px;padding:5px 11px;font-size:13px;font-weight:700;cursor:pointer;color:var(--ink)}
