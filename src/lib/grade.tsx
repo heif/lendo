@@ -18,3 +18,18 @@ export async function shownGrade(env: Env, lid: string, ownerGrade: string | nul
 
 export const Grade = (p: { g: string; arrow?: boolean; cls?: string }) =>
   <span class={'grd g' + p.g + (p.cls ? ' ' + p.cls : '')} aria-label={`Condition ${p.g}, ${GRADE_WORD[p.g] || ''}`}><b>{p.g}</b><small>CONDITION</small>{p.arrow ? <i>▾</i> : null}</span>;
+
+// shown grade for many listings at once (owner grade averaged with customer grades)
+export async function shownGrades(env: Env, ls: { id: string; grade?: string | null }[]): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  if (!ls.length) return out;
+  const rows = (await env.DB.prepare(`SELECT listing_id, grade FROM rentals WHERE grade IS NOT NULL AND listing_id IN (${ls.map(() => '?').join(',')})`).bind(...ls.map(l => l.id)).all<{ listing_id: string; grade: string }>().catch(() => ({ results: [] as { listing_id: string; grade: string }[] }))).results;
+  for (const l of ls) {
+    const og = isGrade(l.grade) ? l.grade! : 'A';
+    const cs = rows.filter(r => r.listing_id === l.id && isGrade(r.grade));
+    if (!cs.length) { out[l.id] = og; continue; }
+    const avg = (PTS[og] + cs.reduce((a, r) => a + PTS[r.grade], 0)) / (cs.length + 1);
+    out[l.id] = GRADES[4 - Math.round(avg)] ?? 'A';
+  }
+  return out;
+}

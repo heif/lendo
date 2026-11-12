@@ -47,7 +47,7 @@ export const Layout: FC<LayoutProps> = (p) => {
             <span class="sp"></span>
             <details class={'acct' + (u ? ' in' : '')}>
               <summary aria-label="Menu">
-                {u ? (initial || <svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4.2" fill="#fff" /><path d="M3.5 21C4.5 15.5 8 13.5 12 13.5S19.5 15.5 20.5 21Z" fill="#fff" /></svg>)
+                {u ? (u.photo_key ? <img src={'/p/' + u.photo_key} alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover" /> : initial || <svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4.2" fill="#fff" /><path d="M3.5 21C4.5 15.5 8 13.5 12 13.5S19.5 15.5 20.5 21Z" fill="#fff" /></svg>)
                   : <svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4.2" fill="#1E3A2B" /><path d="M3.5 21C4.5 15.5 8 13.5 12 13.5S19.5 15.5 20.5 21Z" fill="#1E3A2B" /></svg>}
                 {(p.badge ?? u?.unread) ? <span class="badge">{p.badge ?? u?.unread}</span> : null}
               </summary>

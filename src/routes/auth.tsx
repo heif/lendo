@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { PhotoField, saveUserPhoto } from '../lib/userphoto';
 import type { Env, Vars } from '../lib/env';
 import { Layout } from '../pages/layout';
 import { startLogin, finishLogin, logout, smsFallback } from '../lib/auth';
@@ -76,11 +77,12 @@ auth.get('/welcome', async (c) => {
   const next = safeNext(c.req.query('next'));
   return c.html(
     <Layout title="Welcome" user={u} back={null}>
-      <form method="post" action="/welcome" style="padding:20px 16px">
+      <form method="post" action="/welcome" enctype="multipart/form-data" style="padding:20px 16px">
         <div class="flash" style="margin:0 0 14px;display:flex;align-items:center;gap:10px"><span style="flex:1">📱 Reply <b>OK</b> to the text so rental texts reach you</span><a class="btn sm" href="/lendo.vcf" style="width:auto;white-space:nowrap">Save contact</a></div>
         <h2 style="margin:0 0 6px;font-size:24px;font-weight:900;letter-spacing:-.02em">What should neighbors call you?</h2>
         <input type="hidden" name="next" value={next} />
-        <label class="field"><span>First name + last initial</span><input name="name" placeholder="Fiona S." required maxlength={40} autofocus /></label>
+        <label class="field"><span>Your name</span><input name="name" placeholder="Fiona Smith" required maxlength={40} autofocus /></label>
+        <PhotoField name={null} label="Your photo (optional)" />
         <label class="field"><span>Neighborhood (optional)</span><input name="hood" placeholder="Chelsea" maxlength={60} /></label>
         <button class="btn pri full" type="submit">Done</button>
       </form>
@@ -94,6 +96,7 @@ auth.post('/welcome', async (c) => {
   const f = await c.req.parseBody();
   await c.env.DB.prepare('UPDATE users SET name = ?, hood = COALESCE(NULLIF(?, \'\'), hood) WHERE id = ?')
     .bind(String(f.name || '').trim().slice(0, 40) || 'Neighbor', String(f.hood || '').trim().slice(0, 60), u.id).run();
+  if (f.photo) await saveUserPhoto(c.env, u.id, f.photo).catch(() => null);
   return c.redirect(safeNext(String(f.next || '/')));
 });
 

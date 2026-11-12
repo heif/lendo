@@ -1,6 +1,7 @@
 import { Hono, type Context } from 'hono';
+import { Avatar, PhotoField, saveUserPhoto } from '../lib/userphoto';
 import { shortName } from '../lib/util';
-import { Grade, GRADE_WORD, shownGrade } from '../lib/grade';
+import { Grade, GRADE_WORD, shownGrade, shownGrades } from '../lib/grade';
 type Ctx = Context<{ Bindings: Env; Variables: Vars }>;
 import { raw } from 'hono/html';
 import type { Env, Listing, Vars } from '../lib/env';
@@ -96,7 +97,7 @@ export const homePage = async (c: Ctx, opt: { center?: number[]; zoom?: number; 
           </a>
           {!u ? <form class="promo incard" data-promo autocomplete="on" aria-label="Get $5 off this rental" hidden>
             <label class="sr">Phone number</label>
-            <input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Phone # for $5 off this" maxlength={14} />
+            <input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Phone #" maxlength={14} />
             <button type="submit" disabled>$5 OFF</button>
           </form> : null}
         </div>
@@ -149,14 +150,14 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
       </div>
       <section class="sec" style="padding:12px 16px 14px">
         <div class="row" style="justify-content:space-between;align-items:flex-start">
-          <h2 style="margin:0;font-size:20px;font-weight:800;line-height:1.25">{(() => { const f = (owner.name || 'Neighbor').split(' ')[0]; const nm = it.name.charAt(0).toUpperCase() + it.name.slice(1); return f + (/s$/i.test(f) ? '’ ' : '’s ') + nm; })()}</h2>
+          <h2 style="margin:0;font-size:20px;font-weight:800;line-height:1.25">{(() => { const f = (owner.name || 'Neighbor').split(' ')[0]; const nm = it.name.charAt(0).toUpperCase() + it.name.slice(1); return <><span style="font-weight:500">{f + (/s$/i.test(f) ? '’ ' : '’s ')}</span>{nm}</>; })()}</h2>
           {it.status === 'paused' ? <span class="pill">paused</span> : it.status === 'review' ? <span class="pill">Posted · checking the photo</span> : null}
           {isOwner ? <a class="btn sm" href={'/listings/' + it.id + '/edit'} style="flex-shrink:0;margin-left:8px">✎ Edit</a> : null}
         </div>
         <div class="hint" style="margin-top:2px">Condition {gr.letter} · {GRADE_WORD[gr.letter]} · {gr.customers ? `owner + ${gr.customers} customer${gr.customers === 1 ? '' : 's'}` : 'set by the owner'}{ir?.n ? ` · 👍 ${ir.up || 0} of ${ir.n}` : ''}</div>
         {it.description ? <p style="margin:4px 0 0;font-size:14px;line-height:1.4;color:var(--ink2);white-space:pre-wrap">{it.description}</p> : null}
         <div class="row" style="gap:8px;align-items:center"><a href={'/u/' + owner.id} class="owner-row owner-tight" style="flex:1;min-width:0">
-          <span class="owner-av">{(owner.name || 'N').charAt(0)}</span>
+          <Avatar name={owner.name} photo={owner.photo_key} size={32} />
           <span class="owner-txt"><b>{shortName(owner.name)}</b><small>{rep.as_owner_avg ? `${starStr(rep.as_owner_avg)} · ${rep.rentals} rentals` : 'new'} · {rep.listed} listed{owner.hood ? ' · ' + owner.hood : ''}</small></span>
           <svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2L8 8L2 14" fill="none" stroke="#1E3A2B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
         </a>{!isOwner && !it.demo && it.status === 'live' ? <a class="chatbtn" href={'/i/' + it.id + '/ask'} aria-label={'Message ' + firstName(owner.name)}><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linejoin="round" /></svg></a> : null}</div>
@@ -257,47 +258,58 @@ export const personPage = async (c: Ctx, uid: string) => {
   const items = await c.env.DB.prepare(`SELECT * FROM listings WHERE owner_id = ? AND status = 'live' ORDER BY created_at DESC`).bind(who.id).all<Listing>();
   const ph = await firstPhotos(c.env.DB, items.results.map(r => r.id));
   const reviews = await c.env.DB.prepare(`SELECT r.renter_rating st, r.renter_review rv, r.updated_at at, u.name nm, l.name item, 'as owner' tag FROM rentals r JOIN users u ON u.id = r.renter_id JOIN listings l ON l.id = r.listing_id WHERE r.owner_id = ? AND r.renter_rating IS NOT NULL
-    UNION ALL SELECT r.owner_rating, r.owner_review, r.updated_at, u.name, l.name, 'as renter' FROM rentals r JOIN users u ON u.id = r.owner_id JOIN listings l ON l.id = r.listing_id WHERE r.renter_id = ? AND r.owner_rating IS NOT NULL ORDER BY at DESC LIMIT 20`).bind(who.id, who.id).all<{ st: number; rv: string | null; at: number; nm: string | null; item: string; tag: string }>();
+    UNION ALL SELECT r.owner_rating, r.owner_review, r.updated_at, u.name, l.name, 'as renter' FROM rentals r JOIN users u ON u.id = r.owner_id JOIN listings l ON l.id = r.listing_id WHERE r.renter_id = ? AND r.owner_rating IS NOT NULL ORDER BY at DESC LIMIT 50`).bind(who.id, who.id).all<{ st: number; rv: string | null; at: number; nm: string | null; item: string; tag: string }>();
   const promoN = me ? ((await c.env.DB.prepare(`SELECT COUNT(*) n FROM listings WHERE owner_id = ? AND status IN ('live','paused') AND demo = 0`).bind(who.id).first<{ n: number }>())?.n ?? 0) : null;
-  const avgAll = (() => { const n = rep.as_owner_n + rep.as_renter_n; if (!n) return null; return ((rep.as_owner_avg || 0) * rep.as_owner_n + (rep.as_renter_avg || 0) * rep.as_renter_n) / n; })();
+  const grades = await shownGrades(c.env, items.results);
+  // 👍 count across everything neighbors said about them (as owner and as customer)
+  const th = await c.env.DB.prepare(`SELECT SUM(st >= 3) up, COUNT(*) n FROM (SELECT renter_rating st FROM rentals WHERE owner_id = ?1 AND renter_rating IS NOT NULL UNION ALL SELECT owner_rating FROM rentals WHERE renter_id = ?1 AND owner_rating IS NOT NULL)`).bind(who.id).first<{ up: number; n: number }>().catch(() => null);
+  const since = new Date(who.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  const nItems = items.results.length;
   return c.html(
     <Layout title={me ? 'Profile' : (who.name || 'Neighbor')} user={u}>
-      <section class="sec">
-        <div class="row" style="justify-content:space-between;align-items:flex-start">
-          <div>
-            <div style="font-size:24px;font-weight:900;letter-spacing:-.02em">{who.name || 'Neighbor'}</div>
-            <div class="hint" style="margin-top:4px">📍 {who.hood || 'NYC'} · since {new Date(who.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} · ✓ phone</div>
+      <section class="sec" style="border-bottom:0">
+        <div class="pf-head">
+          <Avatar name={who.name} photo={who.photo_key} size={64} />
+          <div style="flex:1;min-width:0">
+            <div class="pf-name">{who.name || 'Neighbor'}</div>
+            <div class="pf-sub">{who.hood || ''}{who.hood ? <br /> : null}Lendo since {since}</div>
           </div>
-          {me ? <a class="btn sm" href="/profile/edit">Edit</a> : null}
-        </div>
-        <div style="margin-top:14px;display:flex;gap:18px;align-items:baseline">
-          <div><div class="price" style="font-size:44px;line-height:1">{avgAll ? starStr(avgAll) : 'new'}</div><div class="hint">{rep.rentals} rentals · renting and renting out</div></div>
-          <div><div class="price" style="font-size:44px;line-height:1">{rep.listed}</div><div class="hint">things listed</div></div>
+          {me ? <a class="btn sm" href="/profile/edit" style="width:auto">Edit</a> : null}
         </div>
         {me ? <a class="btn pri full" style="margin-top:14px" href="/list">LIST MORE STUFF</a> : null}
-      </section>
-      {me && promoN !== null ? (
-        <section class="sec"><div class="card" style="padding:14px">
-          <b style="font-size:17px">List 10 things, get $10</b>
-          <div style="height:10px;border-radius:5px;background:#ECE8E0;margin:10px 0 8px;overflow:hidden"><i style={`display:block;height:100%;width:${Math.min(100, promoN * 10)}%;background:var(--orange)`} /></div>
-          <div class="hint">{promoN >= 10 ? '10 of 10 · Lendo will text you to set up a 2-min FaceTime to check the items · $10 sent next day' : `${promoN} of 10 · then a 2-min FaceTime to check the items · $10 sent next day`}</div>
-        </div></section>
-      ) : null}
-      <section class="sec">
-        <div class="m" style="font-size:11px;color:var(--mute)">things ({items.results.length})</div>
-        <div class="itemgrid" style="padding:10px 0 0">
-          {items.results.map(it => <a class="itemcard" href={'/i/' + it.id}>{ph[it.id] ? <img src={'/p/' + ph[it.id]} alt="" /> : <div class="ph">no photo</div>}<div class="b"><div class="pr">{money(it.price_cents)}<span style="font-size:11px;font-weight:700">/day</span></div><div class="nm">{it.name}</div></div></a>)}
-        </div>
-      </section>
-      <section class="sec" style="border-bottom:0">
-        <div class="m" style="font-size:11px;color:var(--mute)">reviews ({reviews.results.length})</div>
-        {reviews.results.length ? reviews.results.map(r => (
-          <div class="card" style="margin-top:8px">
-            <div class="row" style="justify-content:space-between"><b>{firstName(r.nm)}</b><span class="hint">{r.tag} · {r.item}</span></div>
-            <div style="font-size:18px">{r.st >= 3 ? '👍' : '👎'}</div>
-            {r.rv ? <div style="font-size:14px;margin-top:4px">{r.rv}</div> : null}
+        {me && promoN !== null ? (
+          <div class="card" style="padding:14px;margin-top:14px">
+            <b style="font-size:17px">List 10 things, get $10</b>
+            <div style="height:10px;border-radius:5px;background:#ECE8E0;margin:10px 0 8px;overflow:hidden"><i style={`display:block;height:100%;width:${Math.min(100, promoN * 10)}%;background:var(--orange)`} /></div>
+            <div class="hint">{promoN >= 10 ? '10 of 10 · Lendo will text you to set up a 2-min FaceTime to check the items · $10 sent next day' : `${promoN} of 10 · then a 2-min FaceTime to check the items · $10 sent next day`}</div>
           </div>
-        )) : <div class="hint" style="margin-top:8px">No reviews yet.</div>}
+        ) : null}
+        <div class="pfcard">
+          <div class="pfband">{nItems ? `${nItems} thing${nItems === 1 ? '' : 's'} to rent` : 'Nothing listed yet'}</div>
+          {nItems ? <div class="pfbody"><div class="pgrid">
+            {items.results.map(it => (
+              <a class="pitem" href={'/i/' + it.id}>
+                <div class="pic">
+                  {it.avatar_key ? <img src={'/p/' + it.avatar_key} alt="" loading="lazy" /> : ph[it.id] ? <img class="ph" src={'/p/' + ph[it.id]} alt="" loading="lazy" /> : <span style="font-size:44px">{it.emoji || '📦'}</span>}
+                  <Grade g={grades[it.id] || 'A'} cls="tiny" />
+                </div>
+                <span class="ptag">{money(it.price_cents)}<small>/day</small></span>
+                <div class="pnm">{it.name}</div>
+              </a>
+            ))}
+          </div></div> : null}
+        </div>
+        <div class="pfcard">
+          <div class="pfband">{th?.n ? `👍 ${th.up || 0} of ${th.n} neighbor${th.n === 1 ? '' : 's'}` : 'No reviews yet'}</div>
+          {reviews.results.length ? <div class="pfbody">
+            {reviews.results.map(r => (
+              <div class="prev">
+                <div class="q">{r.st >= 3 ? '👍' : '👎'} {r.rv ? `“${r.rv}”` : (r.st >= 3 ? 'Thumbs up' : 'Thumbs down')}</div>
+                <div class="w">{firstName(r.nm)} · {r.item} · {new Date(r.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+              </div>
+            ))}
+          </div> : null}
+        </div>
       </section>
     </Layout>
   );
@@ -314,8 +326,9 @@ browse.get('/profile/edit', async (c) => {
   const spots = u.pickup_spots ? (JSON.parse(u.pickup_spots) as string[]).join(', ') : '';
   return c.html(
     <Layout title="Edit profile" user={u} back={'/u/' + u.id} flashErr={c.req.query('err') === 'taken' ? 'That link is taken — try another' : c.req.query('err') === 'handle' ? 'Links use 2–24 lowercase letters, numbers or dashes' : undefined}>
-      <form method="post" action="/profile/edit" style="padding:12px 16px 40px">
-        <label class="field"><span>Your name (first name + last initial)</span><input name="name" value={u.name || ''} placeholder="Fiona S." required maxlength={40} /></label>
+      <form method="post" action="/profile/edit" enctype="multipart/form-data" style="padding:12px 16px 40px">
+        <PhotoField name={u.name} photo={u.photo_key} label="Your photo (optional)" />
+        <label class="field"><span>Your name</span><input name="name" value={u.name || ''} placeholder="Fiona Smith" required maxlength={40} /></label>
         <label class="field"><span>Your Lendo link</span><div style="display:flex;align-items:center;gap:2px"><b style="font-size:16px;color:#6F6A60">lendo.co/</b><input name="handle" value={(u as any).handle || ''} placeholder="yourname" pattern="[a-z0-9][a-z0-9-]{1,23}" maxlength={24} autocapitalize="none" autocomplete="off" style="flex:1" /></div></label>
         <label class="field" style="position:relative"><span>Pickup address (private — renters only see cross streets)</span><input name="address" id="addr" value={u.address || ''} placeholder="Street address" maxlength={160} autocomplete="off" /><div id="addrSug" class="card" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:50;padding:4px;margin-top:4px"></div></label>
         <label class="field"><span>Cross streets (public)</span><input name="cross_streets" value={u.cross_streets || ''} placeholder="W 22nd & 9th Ave" maxlength={80} /></label>
@@ -342,6 +355,7 @@ browse.post('/profile/edit', async (c) => {
   const u = c.get('user');
   if (!u) return c.redirect('/login');
   const f = await c.req.parseBody();
+  if (f.photo) await saveUserPhoto(c.env, u.id, f.photo);
   const hNew = String(f.handle || '').trim().toLowerCase();
   if (hNew && hNew !== (u as any).handle) {
     if (!handleOk(hNew)) return c.redirect('/profile/edit?err=handle');
