@@ -548,3 +548,4 @@ img.uav{background:#ddd}
 .pf-soc{display:flex;gap:10px;margin-top:6px}.pf-soc a{display:flex;width:30px;height:30px;align-items:center;justify-content:center;border-radius:15px;background:#fff;border:1.5px solid var(--line)}
 .soc-in{display:flex;align-items:center;gap:4px;margin-top:6px}.soc-in b{font-size:13px;color:#6F6A60;white-space:nowrap}.soc-in input{flex:1;min-width:0}
 .field .soc-in .soc-ic{display:flex;margin:0;width:24px;justify-content:center}
+.pf-share{display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;border:1.5px solid var(--ink);border-radius:15px;background:#fff;text-decoration:none}

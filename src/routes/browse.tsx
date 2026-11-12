@@ -285,7 +285,7 @@ export const personPage = async (c: Ctx, uid: string) => {
             <div class="pf-name">{who.name || 'Neighbor'}</div>
             <div class="pf-sub">{who.hood || ''}{who.hood ? <br /> : null}Lendo since {since}</div>
             <SocialIcons u={who} />
-            {me && (who as any).handle ? <div class="pf-links"><span class="pf-link">lendo.co/{(who as any).handle}</span><button type="button" class="pf-share" onclick={`var u=location.origin+location.pathname;navigator.share?navigator.share({text:'My stuff for rent on Lendo',url:u}):(navigator.clipboard.writeText(u),toast('Link copied'))`}>Share my page ↗</button></div> : null}
+            {me && (who as any).handle ? <div class="pf-links"><span class="pf-link">lendo.co/{(who as any).handle}</span><button type="button" class="pf-share" onclick={`var u=location.origin+location.pathname;navigator.share?navigator.share({text:'My stuff for rent on Lendo',url:u}):(navigator.clipboard.writeText(u),toast('Link copied'))`} aria-label="Share my page"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7.5 7.5L12 3l4.5 4.5" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /><path d="M6 11H5v10h14V11h-1" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg></button></div> : null}
           </div>
           {me ? <a class="pf-editbtn" href="/profile/edit" aria-label="Edit profile"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linejoin="round" /><path d="M13.5 6.5l4 4" stroke="#1E3A2B" stroke-width="2.2" /></svg></a> : null}
         </div>
