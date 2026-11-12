@@ -283,11 +283,11 @@ export const personPage = async (c: Ctx, uid: string) => {
           <div style="flex:1;min-width:0">
             <div class="pf-name">{who.name || 'Neighbor'}</div>
             <div class="pf-sub">{who.hood || ''}{who.hood ? <br /> : null}Lendo since {since}</div>
-            {me && (who as any).handle ? <a class="pf-link" href="/profile/edit#handle">lendo.co/{(who as any).handle} · change</a> : null}
+            {me && (who as any).handle ? <div class="pf-links"><a class="pf-link" href="/profile/edit#handle">lendo.co/{(who as any).handle} · change</a><button type="button" class="pf-share" onclick={`var u=location.origin+location.pathname;navigator.share?navigator.share({text:'My stuff for rent on Lendo',url:u}):(navigator.clipboard.writeText(u),toast('Link copied'))`}>Share my page ↗</button></div> : null}
           </div>
           {me ? <a class="btn sm" href="/profile/edit" style="width:auto">Edit</a> : null}
         </div>
-        {me ? <div class="pf-earn"><span><b>{money(earned?.s || 0)}</b> earned · {earned?.n || 0} rental{earned?.n === 1 ? '' : 's'}</span><a href="/payout">Get paid</a><button type="button" onclick={`var u=location.origin+location.pathname;navigator.share?navigator.share({text:'My stuff for rent on Lendo',url:u}):(navigator.clipboard.writeText(u),toast('Link copied'))`}>Share ↗</button></div> : null}
+        {me ? <div class="pf-earn"><span><b>{money(earned?.s || 0)}</b> earned · {earned?.n || 0} rental{earned?.n === 1 ? '' : 's'}</span><a href="/payout">Get paid</a></div> : null}
         {me ? <a class="btn pri full" style="margin-top:12px" href="/list">LIST MORE STUFF</a> : null}
         {me && promoN !== null ? (
           <div class="card" style="padding:14px;margin-top:14px">
