@@ -276,7 +276,7 @@ export const personPage = async (c: Ctx, uid: string) => {
             return <div class="pf-orbit">
               <Avatar name={who.name} photo={who.photo_key} size={96} />
               {orb.map((it, i) => { const a = (-90 + i * (360 / Math.max(orb.length, 6))) * Math.PI / 180; const src = it.avatar_key || ph[it.id];
-                return <a class={'pf-sat' + (it.avatar_key ? '' : ' ph')} href={'/i/' + it.id} style={`left:${(70 + Math.cos(a) * R - 15).toFixed(1)}px;top:${(70 + Math.sin(a) * R - 15).toFixed(1)}px`} title={it.name}>{src ? <img src={'/p/' + src} alt="" loading="lazy" /> : <span>{it.emoji || '📦'}</span>}</a>; })}
+                return <a class={'pf-sat' + (it.avatar_key ? '' : ' ph')} href={'/i/' + it.id} style={`left:${(70 + Math.cos(a) * R - 15).toFixed(1)}px;top:${(70 + Math.sin(a) * R - 15).toFixed(1)}px`} title={it.name}>{src ? <img src={'/p/' + src} alt="" data-trim={it.avatar_key ? '1' : undefined} /> : <span>{it.emoji || '📦'}</span>}</a>; })}
             </div>;
           })()}
           <div style="flex:1;min-width:0">
@@ -300,7 +300,7 @@ export const personPage = async (c: Ctx, uid: string) => {
             {items.results.map(it => (
               <a class="pitem" href={'/i/' + it.id}>
                 <div class="pic">
-                  {it.avatar_key ? <img src={'/p/' + it.avatar_key} alt="" loading="lazy" /> : ph[it.id] ? <img class="ph" src={'/p/' + ph[it.id]} alt="" loading="lazy" /> : <span style="font-size:44px">{it.emoji || '📦'}</span>}
+                  {it.avatar_key ? <img src={'/p/' + it.avatar_key} alt="" data-trim="1" /> : ph[it.id] ? <img class="ph" src={'/p/' + ph[it.id]} alt="" loading="lazy" /> : <span style="font-size:44px">{it.emoji || '📦'}</span>}
                   <Grade g={grades[it.id] || 'A'} cls="tiny" />
                 </div>
                 <span class="ptag">{money(it.price_cents)}<small>/day</small></span>
@@ -321,6 +321,7 @@ export const personPage = async (c: Ctx, uid: string) => {
           </div> : null}
         </div>
       </section>
+      <script src="/trim.js"></script>
     </Layout>
   );
 };
