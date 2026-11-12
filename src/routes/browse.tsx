@@ -270,7 +270,15 @@ export const personPage = async (c: Ctx, uid: string) => {
     <Layout title={me ? 'Profile' : (who.name || 'Neighbor')} user={u}>
       <section class="sec" style="border-bottom:0">
         <div class="pf-head">
-          <Avatar name={who.name} photo={who.photo_key} size={64} />
+          {(() => {
+            // their things orbit the photo (up to 8)
+            const orb = items.results.slice(0, 8), R = 62;
+            return <div class="pf-orbit">
+              <Avatar name={who.name} photo={who.photo_key} size={96} />
+              {orb.map((it, i) => { const a = (-90 + i * (360 / Math.max(orb.length, 6))) * Math.PI / 180; const src = it.avatar_key || ph[it.id];
+                return <a class={'pf-sat' + (it.avatar_key ? '' : ' ph')} href={'/i/' + it.id} style={`left:${(70 + Math.cos(a) * R - 15).toFixed(1)}px;top:${(70 + Math.sin(a) * R - 15).toFixed(1)}px`} title={it.name}>{src ? <img src={'/p/' + src} alt="" loading="lazy" /> : <span>{it.emoji || '📦'}</span>}</a>; })}
+            </div>;
+          })()}
           <div style="flex:1;min-width:0">
             <div class="pf-name">{who.name || 'Neighbor'}</div>
             <div class="pf-sub">{who.hood || ''}{who.hood ? <br /> : null}Lendo since {since}</div>
