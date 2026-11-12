@@ -377,6 +377,7 @@ rentals.get('/rentals', requireUser, async (c) => {
   const label = (r: Rental) => ({ held: 'waiting for YES', confirmed: 'confirmed · set pickup', picked_up: 'out', returned: 'returned · rate', closed: 'done', declined: 'declined', expired: 'expired', canceled: 'canceled', requested: '', inquiry: 'question' }[r.status]);
   return c.html(
     <Layout title="Your rentals" user={u}>
+      <div style="padding:10px 16px 0;display:flex;justify-content:flex-end"><a class="btn sm" href="/payout" style="width:auto">💸 Get paid</a></div>
       <div style="height:12px"></div>
       {rows.results.length ? rows.results.map(r => (
         <a class="inboxrow" href={'/r/' + r.id}>

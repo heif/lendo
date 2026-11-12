@@ -55,13 +55,12 @@ export const Layout: FC<LayoutProps> = (p) => {
                 {u ? (
                   <>
                     <a href="/inbox">Inbox</a>
-                    <a href="/rentals">Your rentals{u.unread ? <span class="badge-n" style="margin-left:6px">{u.unread}</span> : null}</a>
-                    <a href="/alerts">Search alerts</a>
-                    <a href="/saved">Saved</a>
                     <a href={'/u/' + u.id}>{(() => { const f = (u.name || '').trim().split(/\s+/)[0] || 'Your'; return f === 'Your' ? 'Your Stuff' : f + (/s$/i.test(f) ? '’' : '’s') + ' Stuff'; })()}</a>
-                    <a href="/payout">Get paid</a>
-                    {u.admin ? <><a href="/admin/pricing">Admin · pricing</a><a href="/admin/wanted">Admin · wanted items</a></> : null}
+                    <a href="/rentals">Your rentals{u.unread ? <span class="badge-n" style="margin-left:6px">{u.unread}</span> : null}</a>
+                    <a href="/saved">Saved</a>
+                    <a href="/alerts">Search alerts</a>
                     <a href="/about">Why Lendo</a>
+                    {u.admin ? <a href="/admin">Admin</a> : null}
                     <a class="list" href="/list">Rent out your stuff</a>
                     <a href="/logout" style="color:#8A857B;font-weight:600">Log out</a>
                   </>

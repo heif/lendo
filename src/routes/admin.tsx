@@ -37,7 +37,11 @@ admin.post('/api/identify', async (c) => {
   return c.json({ ...id, cut: `/api/cuttmp/${tmp.slice(4)}`, price_cents: pr.day_cents, week_cents: pr.week_cents, basis: pr.basis, category_label: pr.rule.label, ...(c.req.query('raw') && c.get('user')!.admin ? { raw: lastRaw } : {}) });
 });
 
-admin.get('/admin', (c) => c.redirect('/admin/pricing'));
+admin.get('/admin', (c) => {
+  const u = c.get('user')!;
+  const links: [string, string][] = [['/admin/review', 'Photo check'], ['/admin/promo', '$10 promo'], ['/admin/pricing', 'Pricing'], ['/admin/wanted', 'Wanted items'], ['/admin/debug', 'Debug']];
+  return c.html(<Layout title="Admin" user={u}><div style="padding:12px 16px 40px;display:grid;gap:8px">{links.map(([h, t]) => <a class="card" href={h} style="font-weight:800;text-decoration:none;color:var(--ink)">{t} →</a>)}</div></Layout>);
+});
 // what the background pieces last did (identify, inbound texts, icons) + a live Claude ping
 admin.get('/admin/debug', async (c) => {
   const rows = (await c.env.DB.prepare(`SELECT key, value FROM settings WHERE key IN ('last_identify','last_inbound','last_inbound_err','wanted_icons_err','wanted_bad','login_fails')`).all<{ key: string; value: string }>()).results;
