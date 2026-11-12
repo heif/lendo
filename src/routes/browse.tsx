@@ -272,7 +272,7 @@ export const personPage = async (c: Ctx, uid: string) => {
         <div class="pf-head">
           {(() => {
             // their things orbit the photo (up to 8)
-            const orb = items.results.slice(0, 8), R = 50; // centers on the circle's edge so items overlap it
+            const orb = items.results.slice(0, 8), R = 40; // well inside the edge: items sit in front of the photo
             return <div class="pf-orbit">
               <Avatar name={who.name} photo={who.photo_key} size={96} />
               {orb.map((it, i) => { const a = (-90 + i * (360 / Math.max(orb.length, 6))) * Math.PI / 180; const src = it.avatar_key || ph[it.id];
