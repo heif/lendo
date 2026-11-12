@@ -1,7 +1,7 @@
 import { Hono, type Context } from 'hono';
 import { Avatar, PhotoField, saveUserPhoto } from '../lib/userphoto';
 import { shortName } from '../lib/util';
-import { Grade, GRADE_WORD, shownGrade, shownGrades } from '../lib/grade';
+import { Grade, GRADE_WORD, shownGrade } from '../lib/grade';
 type Ctx = Context<{ Bindings: Env; Variables: Vars }>;
 import { raw } from 'hono/html';
 import type { Env, Listing, Vars } from '../lib/env';
@@ -199,7 +199,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
           {u ? <form method="post" action={'/i/' + it.id + '/save'}><button class="btn" type="submit" aria-label={saved ? 'Unsave' : 'Save'}>{saved ? '♥' : '♡'}</button></form> : null}
           {it.demo ? <button class="btn pri" style="flex:1" id="rentBtn" type="button" onclick="document.getElementById('demoNote').hidden=false;this.textContent='DEMO LISTING'">RENT IT</button> : <button class="btn pri" style="flex:1" id="rentBtn" disabled form="rentForm" type="submit">PICK DAYS TO RENT</button>}
         </div>
-      ) : isOwner ? <div class="rentbar"><a class="btn full" href="/listings">This is yours — manage it</a></div> : null}
+      ) : isOwner ? <div class="rentbar"><a class="btn full" href={'/listings/' + it.id + '/edit'}>This is yours — edit it</a></div> : null}
       {raw(`<script>
 (function(){var P=${it.price_cents},W=${it.week_cents || 0},F=${parseFloat(feePct)},CR=${credit};var s=null,e=null,TODAY=(bs[0]&&bs[0].classList.contains('today'))?bs[0].dataset.day:null;var bs=[].slice.call(document.querySelectorAll('#days button'));
 function price(n){if(!W)return n*P;var r=Math.floor(n/7)*W+(n%7)*P;return Math.min(r,Math.ceil(n/7)*W)}
@@ -256,18 +256,19 @@ export const personPage = async (c: Ctx, uid: string) => {
   if (!who) return c.notFound();
   const me = u?.id === who.id;
   const rep = await reputation(c.env.DB, who.id);
-  const items = await c.env.DB.prepare(`SELECT * FROM listings WHERE owner_id = ? AND status = 'live' ORDER BY created_at DESC`).bind(who.id).all<Listing>();
+  const items = await c.env.DB.prepare(`SELECT * FROM listings WHERE owner_id = ? AND ${me ? "status != 'removed'" : "status = 'live'"} ORDER BY created_at DESC`).bind(who.id).all<Listing>();
+  const earned = me ? await c.env.DB.prepare(`SELECT COALESCE(SUM(rent_cents),0) + COALESCE((SELECT SUM(x.rent_cents) FROM rental_extensions x JOIN rentals r2 ON r2.id = x.rental_id WHERE r2.owner_id = ?1 AND x.status = 'confirmed'),0) s, COUNT(*) n FROM rentals WHERE owner_id = ?1 AND status IN ('confirmed','picked_up','returned','closed')`).bind(who.id).first<{ s: number; n: number }>().catch(() => null) : null;
+  const just = me ? c.req.query('just') : null;
   const ph = await firstPhotos(c.env.DB, items.results.map(r => r.id));
   const reviews = await c.env.DB.prepare(`SELECT r.renter_rating st, r.renter_review rv, r.updated_at at, u.name nm, l.name item, 'as owner' tag FROM rentals r JOIN users u ON u.id = r.renter_id JOIN listings l ON l.id = r.listing_id WHERE r.owner_id = ? AND r.renter_rating IS NOT NULL
     UNION ALL SELECT r.owner_rating, r.owner_review, r.updated_at, u.name, l.name, 'as renter' FROM rentals r JOIN users u ON u.id = r.owner_id JOIN listings l ON l.id = r.listing_id WHERE r.renter_id = ? AND r.owner_rating IS NOT NULL ORDER BY at DESC LIMIT 50`).bind(who.id, who.id).all<{ st: number; rv: string | null; at: number; nm: string | null; item: string; tag: string }>();
   const promoN = me ? ((await c.env.DB.prepare(`SELECT COUNT(*) n FROM listings WHERE owner_id = ? AND status IN ('live','paused') AND demo = 0`).bind(who.id).first<{ n: number }>())?.n ?? 0) : null;
-  const grades = await shownGrades(c.env, items.results);
   // 👍 count across everything neighbors said about them (as owner and as customer)
   const th = await c.env.DB.prepare(`SELECT SUM(st >= 3) up, COUNT(*) n FROM (SELECT renter_rating st FROM rentals WHERE owner_id = ?1 AND renter_rating IS NOT NULL UNION ALL SELECT owner_rating FROM rentals WHERE renter_id = ?1 AND owner_rating IS NOT NULL)`).bind(who.id).first<{ up: number; n: number }>().catch(() => null);
   const since = new Date(who.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   const nItems = items.results.length;
   return c.html(
-    <Layout title={me ? 'Profile' : (who.name || 'Neighbor')} user={u}>
+    <Layout title={me ? 'Profile' : (who.name || 'Neighbor')} user={u} flash={just ? "It's live. Anyone nearby can rent it now" : null}>
       <section class="sec" style="border-bottom:0">
         <div class="pf-head">
           {(() => {
@@ -286,7 +287,8 @@ export const personPage = async (c: Ctx, uid: string) => {
           </div>
           {me ? <a class="btn sm" href="/profile/edit" style="width:auto">Edit</a> : null}
         </div>
-        {me ? <a class="btn pri full" style="margin-top:14px" href="/list">LIST MORE STUFF</a> : null}
+        {me ? <div class="pf-earn"><span><b>{money(earned?.s || 0)}</b> earned · {earned?.n || 0} rental{earned?.n === 1 ? '' : 's'}</span><a href="/payout">Get paid</a><button type="button" onclick={`var u=location.origin+location.pathname;navigator.share?navigator.share({text:'My stuff for rent on Lendo',url:u}):(navigator.clipboard.writeText(u),toast('Link copied'))`}>Share ↗</button></div> : null}
+        {me ? <a class="btn pri full" style="margin-top:12px" href="/list">LIST MORE STUFF</a> : null}
         {me && promoN !== null ? (
           <div class="card" style="padding:14px;margin-top:14px">
             <b style="font-size:17px">List 10 things, get $10</b>
@@ -298,13 +300,14 @@ export const personPage = async (c: Ctx, uid: string) => {
           <div class="pfband">{nItems ? `${nItems} thing${nItems === 1 ? '' : 's'} to rent` : 'Nothing listed yet'}</div>
           {nItems ? <div class="pfbody"><div class="pgrid">
             {items.results.map(it => (
-              <a class="pitem" href={'/i/' + it.id}>
+              <a class={'pitem' + (it.id === just ? ' just' : '') + (me && it.status !== 'live' ? ' off' : '')} href={'/i/' + it.id}>
                 <div class="pic">
                   {it.avatar_key ? <img src={'/p/' + it.avatar_key} alt="" data-trim="1" /> : ph[it.id] ? <img class="ph" src={'/p/' + ph[it.id]} alt="" loading="lazy" /> : <span style="font-size:44px">{it.emoji || '📦'}</span>}
-                  <Grade g={grades[it.id] || 'A'} cls="tiny" />
                 </div>
                 <span class="ptag">{money(it.price_cents)}<small>/day</small></span>
                 <div class="pnm">{it.name}</div>
+                {me && it.status !== 'live' ? <div class="pstat">{it.status === 'review' ? 'Checking the photo' : 'Paused'}</div> : null}
+                {me ? <object><a class="pedit" href={'/listings/' + it.id + '/edit'}>Edit</a></object> : null}
               </a>
             ))}
           </div></div> : null}

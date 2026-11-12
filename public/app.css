@@ -524,3 +524,10 @@ img.uav{background:#ddd}
 .ac-pill.on .ac-sw b{left:27px}
 .ac-sw em{position:absolute;top:0;line-height:28px;font-style:normal;font-size:11px;font-weight:900;letter-spacing:.03em;color:#fff;right:7px}
 .ac-pill.on .ac-sw em{left:8px;right:auto}
+.pf-earn{display:flex;align-items:center;gap:10px;margin-top:14px;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:9px 12px;font-size:14px}
+.pf-earn span{flex:1}.pf-earn b{font-size:17px}
+.pf-earn a,.pf-earn button{font-weight:800;font-size:13px;color:var(--ink);background:none;border:0;padding:0;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.pitem .pstat{display:inline-block;margin-top:3px;font-size:11px;font-weight:800;background:#ECE8E0;border-radius:8px;padding:1px 7px}
+.pitem .pedit{display:inline-block;margin-top:4px;font-size:12px;font-weight:800;color:var(--ink);text-decoration:underline;text-underline-offset:2px}
+.pitem.off .pic{opacity:.5}
+.pitem.just .pic{outline:3px solid var(--orange);outline-offset:2px;border-radius:12px}
