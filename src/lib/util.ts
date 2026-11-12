@@ -89,3 +89,10 @@ export function wholeStars(avg: number | null | undefined): number {
   return up >= 0.9 ? 5 : up >= 0.75 ? 4 : up >= 0.55 ? 3 : up >= 0.35 ? 2 : 1;
 }
 export const starStr = (avg: number | null | undefined) => { const n = wholeStars(avg); return n ? '★'.repeat(n) : ''; };
+
+// Naming (decided 2026-11-12): first name on map cards, item titles and texts; first + last initial on owner strips; full name on the profile
+export function shortName(name: string | null, fallback = 'Neighbor'): string {
+  const p = (name || '').trim().split(/\s+/).filter(Boolean);
+  if (!p.length) return fallback;
+  return p.length > 1 ? `${p[0]} ${p[p.length - 1].charAt(0).toUpperCase()}.` : p[0];
+}

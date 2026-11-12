@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { shortName } from '../lib/util';
 import { handleText } from './webhooks';
 import { acceptExt, askExtension, declineExt, extById, extendableDays, extPrice, EXT_MAX_DAYS, openExt } from '../lib/extend';
 import { Grade, GRADES, isGrade } from '../lib/grade';
@@ -89,7 +90,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
           <div style="min-width:0;line-height:1.3">
             <div style="font-size:16px;font-weight:800">{it.name}</div>
             <div style="font-size:13px;font-weight:700;margin-top:2px">{r.status === 'inquiry' ? (isOwner ? 'Question about your item' : 'Questions before renting') : <>{fmtRange(r.start_day, r.end_day)} · {isOwner ? `you earn ${money(r.rent_cents + xRent)}` : `${money(r.total_cents + xTotal)}${r.status === 'held' ? ' held' : ' paid'}`}</>}</div>
-            <div class="hint" style="margin-top:1px">{isOwner ? 'to ' : 'from '}<b>{other.name || 'Neighbor'}</b>{r.meet_spot ? ' · 📍 ' + r.meet_spot : spots.length ? ' · meet: ' + spots.join(' or ') : ''}</div>
+            <div class="hint" style="margin-top:1px">{isOwner ? 'to ' : 'from '}<b>{shortName(other.name)}</b>{r.meet_spot ? ' · 📍 ' + r.meet_spot : spots.length ? ' · meet: ' + spots.join(' or ') : ''}</div>
           </div>
         </a>
         {r.status === 'inquiry' ? (!isOwner ? <a class="btn pri full" href={'/i/' + it.id}>Rent it · {money(it.price_cents)}/day</a> : null) : dead ? <div class="flash err" style="margin:0">{r.status === 'declined' ? `${firstName(owner.name)} couldn't do those days.` : r.status === 'expired' ? 'No answer in time.' : 'Canceled.'} Nothing was charged.</div> : (
