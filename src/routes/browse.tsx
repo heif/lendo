@@ -356,8 +356,14 @@ browse.get('/profile/edit', async (c) => {
         </div>
         <script src="/spots.js"></script>
         {raw(`<script>lendoSpots({root:'spotsPick',input:'spotsVal',token:${JSON.stringify(c.env.MAPBOX_PUBLIC_TOKEN || '')},center:${u.lat != null && u.lng != null ? JSON.stringify([u.lng, u.lat]) : 'null'},cross:${JSON.stringify(u.cross_streets || '')},initial:${JSON.stringify(spotsArr).replace(/</g, '\\u003c')}})</script>`)}
-        <label class="field"><span>Neighborhood</span><input name="hood" value={u.hood || ''} placeholder="Start typing… Chelsea" maxlength={60} list="hoodList" autocomplete="off" /></label>
-        <datalist id="hoodList">{CITIES.flatMap(ct => ct.hoods.map(h => <option value={h.name}>{ct.name}</option>))}</datalist>
+        <div class="field"><span>Neighborhood</span><div class="sp-search"><input name="hood" id="hoodIn" value={u.hood || ''} placeholder="Start typing… Chelsea" maxlength={60} autocomplete="off" /><div class="sp-sug" id="hoodSug" hidden /></div></div>
+        {raw(`<script>(function(){var H=${JSON.stringify(CITIES.flatMap(ct => ct.hoods.map(h => [h.name, ct.name]))).replace(/</g, '\\u003c')},inp=document.getElementById('hoodIn'),box=document.getElementById('hoodSug');
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+inp.addEventListener('input',function(){var q=inp.value.trim().toLowerCase();if(!q){box.hidden=true;return}
+var m=H.filter(function(h){return h[0].toLowerCase().indexOf(q)===0}).concat(H.filter(function(h){var n=h[0].toLowerCase();return n.indexOf(q)>0})).slice(0,6);
+if(!m.length){box.hidden=true;return}box.innerHTML=m.map(function(h){return '<button type="button" data-v="'+esc(h[0])+'">'+esc(h[0])+' <small>'+esc(h[1])+'</small></button>'}).join('');box.hidden=false});
+box.addEventListener('click',function(e){var b=e.target.closest('button');if(b){inp.value=b.dataset.v;box.hidden=true}});
+document.addEventListener('click',function(e){if(!box.contains(e.target)&&e.target!==inp)box.hidden=true})})()</script>`)}
         <input type="hidden" name="lat" id="lat" value={u.lat ?? ''} /><input type="hidden" name="lng" id="lng" value={u.lng ?? ''} />
         <button type="button" class="btn sm" onclick="navigator.geolocation.getCurrentPosition(function(p){lat.value=p.coords.latitude;lng.value=p.coords.longitude;toast('Location set')})">📍 Use my location as home base</button>
         <div style="margin-top:16px"><button class="btn pri full" type="submit">Save</button></div>
