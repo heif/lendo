@@ -87,6 +87,7 @@ listings.get('/list', async (c) => {
       </section>
       {raw(`<script>window.LENDO_LIST=${cfg};</script>`)}
       <script src="/qrgen.js"></script>
+      <script src="/details.js"></script>
       <script src="/list.js"></script>
     </Layout>
   );
@@ -257,7 +258,10 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
           {gr.customers ? <div class="row" style="gap:10px;margin-top:4px"><Grade g={gr.letter} /><span class="hint">{GRADE_WORD[gr.letter]} · set by customers now (average of yours + {gr.customers} customer grade{gr.customers === 1 ? '' : 's'})</span></div>
             : <div class="grdpick" style="margin-top:4px">{GRADES.map(g => <label><input type="radio" name="grade" value={g} checked={g === gr.letter} /><Grade g={g} /></label>)}</div>}
         </div>
-        <label class="field"><span>Note</span><textarea name="description" maxlength={600}>{it.description || ''}</textarea></label>
+        <label class="field"><span>Description</span><textarea name="description" id="desc" maxlength={600} placeholder="Model · what’s included · condition · good for">{it.description || ''}</textarea></label>
+        <div class="dmeter" id="dmeter"></div>
+        <script src="/details.js"></script>
+        <script dangerouslySetInnerHTML={{ __html: `lendoDetailsBind(document.getElementById('desc'), document.getElementById('dmeter'))` }} />
         <div class="m" style="font-size:11px;color:var(--mute);margin-top:8px">tap a day to block it</div>
         <div class="days">
           {days.map(d => {

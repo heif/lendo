@@ -274,6 +274,7 @@ export const personPage = async (c: Ctx, uid: string) => {
           <div style="flex:1;min-width:0">
             <div class="pf-name">{who.name || 'Neighbor'}</div>
             <div class="pf-sub">{who.hood || ''}{who.hood ? <br /> : null}Lendo since {since}</div>
+            {me && (who as any).handle ? <a class="pf-link" href="/profile/edit#handle">lendo.co/{(who as any).handle} · change</a> : null}
           </div>
           {me ? <a class="btn sm" href="/profile/edit" style="width:auto">Edit</a> : null}
         </div>
@@ -330,7 +331,7 @@ browse.get('/profile/edit', async (c) => {
       <form method="post" action="/profile/edit" enctype="multipart/form-data" style="padding:12px 16px 40px">
         <PhotoField name={u.name} photo={u.photo_key} label="Your photo (optional)" />
         <label class="field"><span>Your name</span><input name="name" value={u.name || ''} placeholder="Fiona Smith" required maxlength={40} /></label>
-        <label class="field"><span>Your Lendo link</span><div style="display:flex;align-items:center;gap:2px"><b style="font-size:16px;color:#6F6A60">lendo.co/</b><input name="handle" value={(u as any).handle || ''} placeholder="yourname" pattern="[a-z0-9][a-z0-9-]{1,23}" maxlength={24} autocapitalize="none" autocomplete="off" style="flex:1" /></div></label>
+        <label class="field" id="handle"><span>Your Lendo link (you can change it)</span><div style="display:flex;align-items:center;gap:2px"><b style="font-size:16px;color:#6F6A60">lendo.co/</b><input name="handle" value={(u as any).handle || ''} placeholder="yourname" pattern="[a-z0-9][a-z0-9-]{1,23}" maxlength={24} autocapitalize="none" autocomplete="off" style="flex:1" /></div></label>
         <label class="field" style="position:relative"><span>Pickup address (private — renters only see cross streets)</span><input name="address" id="addr" value={u.address || ''} placeholder="Street address" maxlength={160} autocomplete="off" /><div id="addrSug" class="card" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:50;padding:4px;margin-top:4px"></div></label>
         <label class="field"><span>Cross streets (public)</span><input name="cross_streets" value={u.cross_streets || ''} placeholder="W 22nd & 9th Ave" maxlength={80} /></label>
         <label class="field"><span>Meetup spots (comma separated)</span><input name="pickup_spots" value={spots} placeholder="Lobby, Joe Coffee on 9th" maxlength={200} /></label>
