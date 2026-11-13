@@ -16,7 +16,9 @@ export const loadUser: MiddlewareHandler<{ Bindings: Env; Variables: Vars }> = a
     const row = await c.env.DB.prepare('SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ? AND s.expires_at > ?')
       .bind(sid, now()).first<User>();
     if (row) {
-      row.admin = (c.env.ADMIN_PHONES || '').split(',').map(s => s.trim()).includes(row.phone);
+      const owner = (c.env.ADMIN_PHONES || '').split(',').map(s => s.trim()).includes(row.phone);
+      row.admin_level = owner ? 'owner' : row.admin_role === 'full' || row.admin_role === 'view' ? row.admin_role : null;
+      row.admin = !!row.admin_level;
       const n = await c.env.DB.prepare(`SELECT
           (SELECT COUNT(*) FROM messages m JOIN rentals r ON r.id = m.rental_id LEFT JOIN thread_reads t ON t.rental_id = r.id AND t.user_id = ?1
             WHERE (r.owner_id = ?1 OR r.renter_id = ?1) AND m.sender_id IS NOT NULL AND m.sender_id != ?1 AND m.created_at > COALESCE(t.seen_at, 0))

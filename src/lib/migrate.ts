@@ -14,8 +14,9 @@ import m0024 from '../../migrations/0024_old_handles.sql';
 import m0025 from '../../migrations/0025_socials.sql';
 import m0026 from '../../migrations/0026_tax.sql';
 import m0027 from '../../migrations/0027_events.sql';
+import m0028 from '../../migrations/0028_admin_role.sql';
 
-const PENDING: [string, string][] = [['0015_alerts.sql', m0015], ['0016_urls.sql', m0016], ['0017_promise.sql', m0017], ['0018_grade.sql', m0018], ['0019_extend.sql', m0019], ['0020_item_rating.sql', m0020], ['0021_inbound.sql', m0021], ['0022_reads.sql', m0022], ['0023_user_photo.sql', m0023], ['0024_old_handles.sql', m0024], ['0025_socials.sql', m0025], ['0026_tax.sql', m0026], ['0027_events.sql', m0027]];
+const PENDING: [string, string][] = [['0015_alerts.sql', m0015], ['0016_urls.sql', m0016], ['0017_promise.sql', m0017], ['0018_grade.sql', m0018], ['0019_extend.sql', m0019], ['0020_item_rating.sql', m0020], ['0021_inbound.sql', m0021], ['0022_reads.sql', m0022], ['0023_user_photo.sql', m0023], ['0024_old_handles.sql', m0024], ['0025_socials.sql', m0025], ['0026_tax.sql', m0026], ['0027_events.sql', m0027], ['0028_admin_role.sql', m0028]];
 
 export async function selfMigrate(env: Env): Promise<string[]> {
   const done = new Set((await env.DB.prepare('SELECT name FROM d1_migrations').all<{ name: string }>().catch(() => ({ results: [] as { name: string }[] }))).results.map(r => r.name));

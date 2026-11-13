@@ -1,3 +1,4 @@
+import type { MiddlewareHandler } from 'hono';
 // Admin (allowlisted phones only): pricing rules + identification test.
 import { Hono } from 'hono';
 import { logEvent } from '../lib/log';
@@ -18,9 +19,16 @@ import { textUser } from '../lib/blooio';
 
 export const admin = new Hono<{ Bindings: Env; Variables: Vars }>();
 
-const isAdmin = (env: Env, phone: string) => (env.ADMIN_PHONES || '').split(',').map(s => s.trim()).includes(phone);
-admin.use('/admin', requireUser, async (c, next) => { if (!isAdmin(c.env, c.get('user')!.phone)) return c.notFound(); await next(); });
-admin.use('/admin/*', requireUser, async (c, next) => { if (!isAdmin(c.env, c.get('user')!.phone)) return c.notFound(); await next(); });
+/* admin levels: owner (ADMIN_PHONES) does everything incl. /admin/access; 'full' everything else; 'view' sees, can't change (no POST) */
+const gate: MiddlewareHandler<{ Bindings: Env; Variables: Vars }> = async (c, next) => {
+  const u = c.get('user')!, lv = u.admin_level;
+  if (!lv) return c.notFound();
+  if (c.req.path.startsWith('/admin/access') && lv !== 'owner') return c.notFound();
+  if (c.req.method !== 'GET' && lv === 'view') return c.text('View-only admin access', 403);
+  await next();
+};
+admin.use('/admin', requireUser, gate);
+admin.use('/admin/*', requireUser, gate);
 admin.use('/api/identify', requireUser);
 registerDash(admin);
 

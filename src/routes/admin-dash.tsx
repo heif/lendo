@@ -3,6 +3,7 @@ import type { Hono } from 'hono';
 import type { Env, Vars } from '../lib/env';
 import { Layout } from '../pages/layout';
 import { money } from '../lib/util';
+import { logEvent } from '../lib/log';
 
 type A = Hono<{ Bindings: Env; Variables: Vars }>;
 const DAY = 86400000;
@@ -25,14 +26,15 @@ const NAV_CSS = `.adn{position:sticky;top:0;z-index:20;background:var(--cream,#F
 .adn a{padding:5px 9px;border-radius:8px;font-size:12.5px;font-weight:700;text-decoration:none;color:var(--ink);opacity:.7}.adn a:hover{opacity:1;background:rgba(30,58,43,.06)}
 .adn a.on{opacity:1;background:var(--ink);color:#fff}.adn i{width:1px;align-self:stretch;margin:4px 5px;background:rgba(30,58,43,.18)}
 .adn sup{font-size:10px;font-weight:800;color:#fff;background:#FF4F00;border-radius:999px;padding:0 5px;margin-left:3px;vertical-align:2px}`;
-const NAV: ([string, string, ('review' | 'error')?] | null)[] = [['/admin', 'Home'], ['/admin/log', 'Log'], ['/admin/rentals', 'Rentals'], ['/admin/users', 'Users'], ['/admin/texts', 'Texts'], ['/admin/searches', 'Searches'], ['/admin/log?kind=error', 'Errors', 'error'], null, ['/admin/review', 'Photos', 'review'], ['/admin/promo', 'Promo'], ['/admin/pricing', 'Pricing'], ['/admin/wanted', 'Wanted'], ['/admin/debug', 'System']];
+const NAV: ([string, string, ('review' | 'error')?] | null)[] = [['/admin', 'Home'], ['/admin/log', 'Log'], ['/admin/rentals', 'Rentals'], ['/admin/users', 'Users'], ['/admin/texts', 'Texts'], ['/admin/searches', 'Searches'], ['/admin/log?kind=error', 'Errors', 'error'], null, ['/admin/review', 'Photos', 'review'], ['/admin/promo', 'Promo'], ['/admin/pricing', 'Pricing'], ['/admin/wanted', 'Wanted'], ['/admin/debug', 'System'], ['/admin/access', 'Access']];
 export async function AdminNav({ c, path }: { c: any; path: string }) {
   const [rv, er] = await Promise.all([
     c.env.DB.prepare(`SELECT COUNT(*) n FROM listings WHERE status = 'review'`).first().catch(() => null),
     c.env.DB.prepare(`SELECT COUNT(*) n FROM events WHERE kind = 'error' AND at > ?`).bind(Date.now() - DAY).first().catch(() => null),
   ]);
   const badge = { review: (rv as any)?.n || 0, error: (er as any)?.n || 0 };
-  return <nav class="adn"><style dangerouslySetInnerHTML={{ __html: NAV_CSS }} /><div>{NAV.map(n => n ? <a href={n[0]} class={n[0] === path ? 'on' : ''}>{n[1]}{n[2] && badge[n[2]] ? <sup>{badge[n[2]]}</sup> : null}</a> : <i />)}</div><script dangerouslySetInnerHTML={{ __html: `(function(){var a=document.querySelector('.adn a.on');if(a)a.parentNode.scrollLeft=a.offsetLeft-60})()` }} /></nav>;
+  const viewOnly = c.get('user')?.admin_level === 'view';
+  return <nav class="adn">{viewOnly ? <p class="hint" style="margin:0 0 4px;font-size:12px">View-only access · buttons won't save</p> : null}<style dangerouslySetInnerHTML={{ __html: NAV_CSS }} /><div>{NAV.filter(n => !n || n[0] !== '/admin/access' || c.get('user')?.admin_level === 'owner').map(n => n ? <a href={n[0]} class={n[0] === path ? 'on' : ''}>{n[1]}{n[2] && badge[n[2]] ? <sup>{badge[n[2]]}</sup> : null}</a> : <i />)}</div><script dangerouslySetInnerHTML={{ __html: `(function(){var a=document.querySelector('.adn a.on');if(a)a.parentNode.scrollLeft=a.offsetLeft-60})()` }} /></nav>;
 }
 function Shell(p: { c: any; title: string; path: string; children: any }) {
   return <Layout title={'Admin · ' + p.title} user={p.c.get('user')}>
@@ -57,6 +59,41 @@ const one = async <T,>(c: any, sql: string, ...b: unknown[]) => (await c.env.DB.
 const all = async <T,>(c: any, sql: string, ...b: unknown[]) => ((await c.env.DB.prepare(sql).bind(...b).all().catch(() => ({ results: [] }))).results) as T[];
 
 export function registerDash(admin: A) {
+  // ---------- Access: owner grants view / full admin to users ----------
+  admin.get('/admin/access', async (c) => {
+    const owners = (c.env.ADMIN_PHONES || '').split(',').map(x => x.trim()).filter(Boolean);
+    const users = await all<{ id: string; name: string | null; phone: string; admin_role: string | null }>(c, `SELECT id, name, phone, admin_role FROM users WHERE demo = 0 ORDER BY admin_role IS NULL, name`);
+    const granted = users.filter(u => u.admin_role), others = users.filter(u => !u.admin_role && !owners.includes(u.phone));
+    const ownerRows = users.filter(u => owners.includes(u.phone));
+    const ROLE = { view: 'View only — sees everything, changes nothing', full: 'Full — everything except this page' } as Record<string, string>;
+    return c.html(<Shell c={c} title="Access" path="/admin/access">
+      <h3>Who has admin</h3>
+      <div class="ad-wrap"><table class="ad-t"><tr><th>Name</th><th>Phone</th><th>Access</th><th></th></tr>
+        {ownerRows.map(u => <tr><td><b>{u.name || '—'}</b></td><td>{u.phone}</td><td>Owner (set in Cloudflare)</td><td></td></tr>)}
+        {granted.map(u => <tr><td><b>{u.name || '—'}</b> <a class="hint" href={'/admin/log?user=' + u.id}>log</a></td><td>{u.phone}</td><td>
+          <form method="post" action="/admin/access" class="row" style="gap:6px"><input type="hidden" name="uid" value={u.id} />
+            <select name="role" onchange="this.form.submit()" style="height:32px;border-radius:8px;border:1px solid #ddd;font:inherit;font-size:13px">{['view', 'full'].map(r => <option value={r} selected={u.admin_role === r}>{ROLE[r]}</option>)}</select></form></td>
+          <td><form method="post" action="/admin/access"><input type="hidden" name="uid" value={u.id} /><input type="hidden" name="role" value="" /><button class="btn sm" type="submit">Remove</button></form></td></tr>)}
+      </table></div>
+      <h3>Add someone</h3>
+      <form method="post" action="/admin/access" class="ad-f">
+        <select name="uid" required><option value="">Pick a user…</option>{others.map(u => <option value={u.id}>{(u.name || '—') + ' · ' + u.phone}</option>)}</select>
+        <select name="role">{['view', 'full'].map(r => <option value={r}>{ROLE[r]}</option>)}</select>
+        <button class="btn pri sm" type="submit">Give access</button>
+      </form>
+      <p class="hint">Admin pages show every user's phone number and texts. View-only can't press buttons that change things (photo check, promo payouts, pricing, wanted). Every change here is in the log</p>
+    </Shell>);
+  });
+  admin.post('/admin/access', async (c) => {
+    const f = await c.req.parseBody(), uid = String(f.uid || ''), role = String(f.role || '');
+    if (!uid || !['', 'view', 'full'].includes(role)) return c.redirect('/admin/access');
+    const was = await one<{ admin_role: string | null; name: string | null }>(c, `SELECT admin_role, name FROM users WHERE id = ?`, uid);
+    if (!was) return c.redirect('/admin/access');
+    await c.env.DB.prepare('UPDATE users SET admin_role = ? WHERE id = ?').bind(role || null, uid).run();
+    await logEvent(c.env.DB, role ? 'admin.access_granted' : 'admin.access_removed', { user: uid, data: { by: c.get('user')!.id, was: was.admin_role, now: role || null } });
+    return c.redirect('/admin/access');
+  });
+
   // ---------- Dashboard ----------
   admin.get('/admin', async (c) => {
     const t = Date.now(), d1 = t - DAY, d7 = t - 7 * DAY;
