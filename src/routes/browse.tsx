@@ -12,7 +12,7 @@ import { cutoutUrl } from '../lib/cutout';
 import { CITIES } from '../lib/places';
 import { counts, firstPhotos, listingById, photosFor, reputation, userById, busyDays } from '../lib/db';
 import { money, fmtDay, dayStr, addDays, firstName, fuzz , starStr } from '../lib/util';
-import { feeFor } from '../lib/stripe';
+import { taxRateFor } from '../lib/money';
 import { geocodePlace } from '../lib/geo';
 import { assignHood, loadHoods } from '../lib/hoods';
 import { handleOk } from '../lib/urls';
@@ -126,7 +126,6 @@ export const itemPage = async (c: Ctx, lid: string, pretty = false) => {
   const credit = u && (u.promo_cents || 0) > 0 && !((await c.env.DB.prepare(`SELECT COUNT(*) n FROM rentals WHERE renter_id = ? AND credit_cents > 0 AND status IN ('held','confirmed','picked_up','returned','closed')`).bind(u.id).first<{ n: number }>())?.n) ? u.promo_cents : 0;
   const days = Array.from({ length: 14 }, (_, i) => addDays(today, i));
   const isOwner = u?.id === it.owner_id;
-  const feePct = c.env.FEE_PCT;
   const review = await c.env.DB.prepare(`SELECT r.renter_review rv, u.name nm FROM rentals r JOIN users u ON u.id = r.renter_id WHERE r.owner_id = ? AND r.renter_review IS NOT NULL ORDER BY r.updated_at DESC LIMIT 1`).bind(owner.id).first<{ rv: string; nm: string }>();
   const saved = u ? !!(await c.env.DB.prepare('SELECT 1 FROM saved WHERE user_id = ? AND listing_id = ?').bind(u.id, it.id).first()) : false;
   const gr = await shownGrade(c.env, it.id, it.grade);
@@ -206,11 +205,11 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
         </div>
       ) : isOwner ? <div class="rentbar"><a class="btn full" href={'/listings/' + it.id + '/edit'}>This is yours — edit it</a></div> : null}
       {raw(`<script>
-(function(){var P=${it.price_cents},W=${it.week_cents || 0},F=${parseFloat(feePct)},CR=${credit};var bs=[].slice.call(document.querySelectorAll('#days button'));var s=null,e=null,TODAY=(bs[0]&&bs[0].classList.contains('today'))?bs[0].dataset.day:null;
+(function(){var P=${it.price_cents},W=${it.week_cents || 0},TX=${taxRateFor(it.lat, it.lng)},CR=${credit};var bs=[].slice.call(document.querySelectorAll('#days button'));var s=null,e=null,TODAY=(bs[0]&&bs[0].classList.contains('today'))?bs[0].dataset.day:null;
 function price(n){if(!W)return n*P;var r=Math.floor(n/7)*W+(n%7)*P;return Math.min(r,Math.ceil(n/7)*W)}
 function fmt(c){var d=c/100;return '$'+(Number.isInteger(d)?d:d.toFixed(2))}
-function paint(){bs.forEach(function(b){var d=b.dataset.day;b.classList.toggle('on',!!s&&!!e&&d>=s&&d<=e||d===s)});var btn=document.getElementById('rentBtn');if(s&&e){var n=Math.round((Date.parse(e)-Date.parse(s))/864e5)+1;var r=price(n);btn.disabled=false;var wk=W&&r<n*P;btn.textContent='RENT '+(n===1&&s===TODAY?'TODAY':n===7&&wk?'1 WEEK':n+(n===1?' DAY':' DAYS'))+' · '+fmt(Math.round(r*F/100)+Math.max(0,r-CR))+(CR?' · $'+(Math.min(CR,r)/100)+' OFF':wk?' · WEEK RATE':'');document.querySelectorAll('#quick button').forEach(function(x){x.classList.toggle('pri',(x.dataset.q==='7'&&n===7)||(x.dataset.q==='1'&&n===1))});document.getElementById('start').value=s;document.getElementById('end').value=e;charges(n,r)}else{btn.disabled=true;btn.textContent='PICK DAYS TO RENT';charges(0,0)}}
-function charges(n,r){var el=document.getElementById('charges');if(!el)return;if(!n){el.hidden=true;return}var fee=Math.round(r*F/100),tot=r+fee,cr=CR?Math.min(CR,r):0,full=n*P;var rows=[[(W&&r<full?(n===7?'1 week':n+' days')+' <s>'+fmt(full)+'</s>':fmt(P)+' × '+n+(n===1?' day':' days')),fmt(r)],['${parseFloat(feePct)}% fee (will stay low)',fmt(fee)]];if(cr)rows.splice(1,0,['Credit (off the rent)','−'+fmt(cr)]);el.innerHTML=rows.map(function(x){return '<div class="chg"><span>'+x[0]+'</span><span>'+x[1]+'</span></div>'}).join('')+'<div class="chg tot"><span>Total</span><span>'+fmt(tot-cr)+'</span></div><div class="chg-note">Card held now · charged only if the owner says yes</div>';el.hidden=false}
+function paint(){bs.forEach(function(b){var d=b.dataset.day;b.classList.toggle('on',!!s&&!!e&&d>=s&&d<=e||d===s)});var btn=document.getElementById('rentBtn');if(s&&e){var n=Math.round((Date.parse(e)-Date.parse(s))/864e5)+1;var r=price(n);btn.disabled=false;var wk=W&&r<n*P;btn.textContent='RENT '+(n===1&&s===TODAY?'TODAY':n===7&&wk?'1 WEEK':n+(n===1?' DAY':' DAYS'))+' · '+fmt(Math.max(0,r-CR)+Math.round(Math.max(0,r-CR)*TX))+(CR?' · $'+(Math.min(CR,r)/100)+' OFF':wk?' · WEEK RATE':'');document.querySelectorAll('#quick button').forEach(function(x){x.classList.toggle('pri',(x.dataset.q==='7'&&n===7)||(x.dataset.q==='1'&&n===1))});document.getElementById('start').value=s;document.getElementById('end').value=e;charges(n,r)}else{btn.disabled=true;btn.textContent='PICK DAYS TO RENT';charges(0,0)}}
+function charges(n,r){var el=document.getElementById('charges');if(!el)return;if(!n){el.hidden=true;return}var cr=CR?Math.min(CR,r):0,tax=Math.round((r-cr)*TX),full=n*P;var rows=[[(W&&r<full?(n===7?'1 week':n+' days')+' <s>'+fmt(full)+'</s>':fmt(P)+' × '+n+(n===1?' day':' days')),fmt(r)]];if(cr)rows.push(['Credit (off the rent)','−'+fmt(cr)]);if(tax)rows.push(['Sales tax ('+(+(TX*100).toFixed(3))+'%)',fmt(tax)]);var tot=r-cr+tax;el.innerHTML=rows.map(function(x){return '<div class="chg"><span>'+x[0]+'</span><span>'+x[1]+'</span></div>'}).join('')+'<div class="chg tot"><span>Total</span><span>'+fmt(tot)+'</span></div><div class="chg-note">Card held now · charged only if the owner says yes</div>';el.hidden=false}
 var pend=false;
 document.querySelectorAll('#quick button').forEach(function(q){q.addEventListener('click',function(){var n=+q.dataset.q,free=bs.filter(function(x){return !x.disabled});for(var i=0;i<free.length;i++){var ok=true,a=free[i].dataset.day,z=null;for(var k=0;k<n;k++){var dd=new Date(Date.parse(a)+k*864e5).toISOString().slice(0,10);var m=bs.filter(function(x){return x.dataset.day===dd})[0];if(!m||m.disabled){ok=false;break}z=dd}if(ok){s=a;e=z;pend=false;break}}document.querySelectorAll('#quick button').forEach(function(x){x.classList.toggle('pri',x===q)});paint()})});
 bs.forEach(function(b){b.addEventListener('click',function(){var d=b.dataset.day;document.querySelectorAll('#quick button').forEach(function(x){x.classList.remove('pri')});if(b.disabled)return;if(!pend){s=d;e=d;pend=true}else{if(d<s){s=d;e=d;pend=true}else{var ok=true;bs.forEach(function(x){if(x.disabled&&x.dataset.day>s&&x.dataset.day<d)ok=false});if(!ok){s=d;e=d;pend=true}else{e=d;pend=false}}}paint()})});
@@ -263,7 +262,7 @@ export const personPage = async (c: Ctx, uid: string) => {
   const me = u?.id === who.id;
   const rep = await reputation(c.env.DB, who.id);
   const items = await c.env.DB.prepare(`SELECT * FROM listings WHERE owner_id = ? AND ${me ? "status != 'removed'" : "status = 'live'"} ORDER BY created_at DESC`).bind(who.id).all<Listing>();
-  const earned = me ? await c.env.DB.prepare(`SELECT COALESCE(SUM(rent_cents),0) + COALESCE((SELECT SUM(x.rent_cents) FROM rental_extensions x JOIN rentals r2 ON r2.id = x.rental_id WHERE r2.owner_id = ?1 AND x.status = 'confirmed'),0) s, COUNT(*) n FROM rentals WHERE owner_id = ?1 AND status IN ('confirmed','picked_up','returned','closed')`).bind(who.id).first<{ s: number; n: number }>().catch(() => null) : null;
+  const earned = me ? await c.env.DB.prepare(`SELECT COALESCE(SUM(COALESCE(payout_cents, rent_cents)),0) + COALESCE((SELECT SUM(COALESCE(x.payout_cents, x.rent_cents)) FROM rental_extensions x JOIN rentals r2 ON r2.id = x.rental_id WHERE r2.owner_id = ?1 AND x.status = 'confirmed'),0) s, COUNT(*) n FROM rentals WHERE owner_id = ?1 AND status IN ('confirmed','picked_up','returned','closed')`).bind(who.id).first<{ s: number; n: number }>().catch(() => null) : null;
   const just = me ? c.req.query('just') : null;
   const ph = await firstPhotos(c.env.DB, items.results.map(r => r.id));
   const reviews = await c.env.DB.prepare(`SELECT r.renter_rating st, r.renter_review rv, r.updated_at at, u.name nm, l.name item, 'as owner' tag FROM rentals r JOIN users u ON u.id = r.renter_id JOIN listings l ON l.id = r.listing_id WHERE r.owner_id = ? AND r.renter_rating IS NOT NULL
@@ -447,7 +446,7 @@ browse.get('/about', (c) => {
       </figure>
       <section class="sec" style="border-bottom:0;font-size:15px;line-height:1.5;padding-top:0">
         {G.map(t => <p>{t}</p>)}
-        <p><b>{c.env.FEE_PCT}% fee (will stay low).</b></p>
+        <p><b>{c.env.FEE_PCT}% fee, paid by the owner out of the rent (will stay low).</b></p>
         <a class="btn pri full" href="/list" style="margin-top:12px">Rent out your stuff</a>
       </section>
     </Layout>

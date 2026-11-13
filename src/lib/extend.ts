@@ -5,10 +5,11 @@ import Stripe from 'stripe';
 import type { Env, Rental } from './env';
 import { addMessage, listingById, rentalById, userById } from './db';
 import { textUser } from './blooio';
-import { feeFor, stripe } from './stripe';
+import { stripe } from './stripe';
+import { payoutOf, quote } from './money';
 import { addDays, daysBetween, firstName, fmtDay, id, money, now, rentFor } from './util';
 
-export type Ext = { id: string; rental_id: string; listing_id: string; from_day: string; new_end: string; days: number; rent_cents: number; fee_cents: number; total_cents: number; status: 'requested' | 'held' | 'confirmed' | 'declined' | 'expired' | 'canceled'; stripe_checkout_id: string | null; stripe_payment_intent: string | null; paid_out: number; expires_at: number | null; created_at: number; updated_at: number };
+export type Ext = { id: string; rental_id: string; listing_id: string; from_day: string; new_end: string; days: number; rent_cents: number; fee_cents: number; total_cents: number; tax_cents?: number; payout_cents?: number | null; status: 'requested' | 'held' | 'confirmed' | 'declined' | 'expired' | 'canceled'; stripe_checkout_id: string | null; stripe_payment_intent: string | null; paid_out: number; expires_at: number | null; created_at: number; updated_at: number };
 const HOLD_HOURS = 24;
 export const EXT_MAX_DAYS = 14;
 
@@ -33,8 +34,8 @@ export function extPrice(env: Env, r: Rental, priceCents: number, weekCents: num
   const list = rentFor(r.days, priceCents, weekCents);
   // owner gave this rental a lower price (or free) → the extra days follow the same rate
   const rent = r.rent_cents < list ? Math.round((r.days ? r.rent_cents / r.days : 0) * days) : Math.max(0, rentFor(r.days + days, priceCents, weekCents) - list);
-  const fee = rent > 0 ? feeFor(env, rent) : 0;
-  return { days, rent, fee, total: rent + fee };
+  const q = quote(env, rent, 0, r.tax_rate || 0); /* same tax rate as the rental; fee comes out of the owner's side */
+  return { days, rent, tax: q.tax, fee: q.fee, total: q.total, payout: q.payout };
 }
 
 // customer asks → Checkout (card hold). Returns a URL to send them to.
@@ -47,8 +48,8 @@ export async function askExtension(env: Env, r: Rental, newEnd: string): Promise
   const it = (await listingById(env.DB, r.listing_id))!;
   const p = extPrice(env, r, it.price_cents, it.week_cents, newEnd);
   const xid = id('x'), t = now();
-  await env.DB.prepare(`INSERT INTO rental_extensions (id, rental_id, listing_id, from_day, new_end, days, rent_cents, fee_cents, total_cents, status, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,'requested',?,?)`)
-    .bind(xid, r.id, r.listing_id, addDays(r.end_day, 1), newEnd, p.days, p.rent, p.fee, p.total, t, t).run();
+  await env.DB.prepare(`INSERT INTO rental_extensions (id, rental_id, listing_id, from_day, new_end, days, rent_cents, fee_cents, total_cents, tax_cents, payout_cents, status, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,'requested',?,?)`)
+    .bind(xid, r.id, r.listing_id, addDays(r.end_day, 1), newEnd, p.days, p.rent, p.fee, p.total, p.tax, p.payout, t, t).run();
   const s = stripe(env);
   if (!s || p.total < 50) { await markExtHeld(env, xid, null, null); return { url: `/r/${r.id}?ext=1` }; }
   const session = await s.checkout.sessions.create({
@@ -56,7 +57,7 @@ export async function askExtension(env: Env, r: Rental, newEnd: string): Promise
     client_reference_id: xid,
     line_items: [
       { quantity: 1, price_data: { currency: 'usd', unit_amount: p.rent, product_data: { name: `${it.name} · ${p.days} more day${p.days === 1 ? '' : 's'}` } } },
-      { quantity: 1, price_data: { currency: 'usd', unit_amount: p.fee, product_data: { name: `Lendo fee (${env.FEE_PCT}% — will stay low)` } } },
+      ...(p.tax > 0 ? [{ quantity: 1, price_data: { currency: 'usd', unit_amount: p.tax, product_data: { name: `Sales tax (${+(r.tax_rate * 100).toFixed(3)}%)` } } }] : []),
     ],
     payment_intent_data: { capture_method: 'manual', metadata: { ext_id: xid, rental_id_ext: r.id }, description: `Lendo extension ${xid} of ${r.id}` },
     metadata: { ext_id: xid },
@@ -78,7 +79,7 @@ export async function markExtHeld(env: Env, xid: string, pi: string | null, cs: 
   const r = (await rentalById(env.DB, x.rental_id))!;
   const [owner, cust, it] = await Promise.all([userById(env.DB, r.owner_id), userById(env.DB, r.renter_id), listingById(env.DB, r.listing_id)]);
   await addMessage(env, r.id, null, `${firstName(cust!.name)} asked to keep it until ${fmtDay(x.new_end)} (+${x.days} day${x.days === 1 ? '' : 's'})`, 'system');
-  await textUser(env, owner!, `${firstName(cust!.name)} wants to keep your ${it!.name} until ${fmtDay(x.new_end)} · you'd earn ${money(x.rent_cents)} more. Reply YES or NO`, 'rental', r.id);
+  await textUser(env, owner!, `${firstName(cust!.name)} wants to keep your ${it!.name} until ${fmtDay(x.new_end)} · you'd earn ${money(payoutOf(x))} more. Reply YES or NO`, 'rental', r.id);
 }
 
 // owner YES → capture, move the return day, pay the owner the extra rent
@@ -106,9 +107,9 @@ export async function acceptExt(env: Env, x: Ext): Promise<boolean> {
   await env.DB.prepare('UPDATE rentals SET end_day = ?, days = days + ?, updated_at = ? WHERE id = ?').bind(x.new_end, x.days, now(), r.id).run();
   const [owner, cust, it] = await Promise.all([userById(env.DB, r.owner_id), userById(env.DB, r.renter_id), listingById(env.DB, r.listing_id)]);
   // extra rent → owner (same rule as rentals: only when there's something to send and they're connected; else flushed later by hand)
-  if (s && owner!.stripe_account_id && x.rent_cents > 0 && x.total_cents >= 50) {
+  if (s && owner!.stripe_account_id && payoutOf(x) > 0 && x.total_cents >= 50) {
     try {
-      await s.transfers.create({ amount: x.rent_cents, currency: 'usd', destination: owner!.stripe_account_id, transfer_group: r.id, metadata: { rental_id: r.id, ext_id: x.id } }, { idempotencyKey: `payout_${x.id}` });
+      await s.transfers.create({ amount: payoutOf(x), currency: 'usd', destination: owner!.stripe_account_id, transfer_group: r.id, metadata: { rental_id: r.id, ext_id: x.id } }, { idempotencyKey: `payout_${x.id}` });
       await env.DB.prepare('UPDATE rental_extensions SET paid_out = 1 WHERE id = ?').bind(x.id).run();
     } catch (e) { console.error('ext payout failed', e); }
   }

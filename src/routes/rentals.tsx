@@ -10,7 +10,9 @@ import { Layout } from '../pages/layout';
 import { requireUser } from '../lib/auth';
 import { addMessage, busyDays, firstPhotos, listingById, photosFor, rentalById, userById } from '../lib/db';
 import { id, money, now, daysBetween, dayStr, addDays, fmtRange, rentFor, firstName, fmtDay } from '../lib/util';
-import { createCheckout, feeFor, connectOnboardingUrl, flushPendingPayouts, stripe } from '../lib/stripe';
+import { createCheckout, connectOnboardingUrl, flushPendingPayouts, stripe } from '../lib/stripe';
+import { payoutOf, quote, taxRateFor } from '../lib/money';
+import { selfMigrate } from '../lib/migrate';
 import { accept, decline, customerCancel, markHeld, pickedUp, rate, relay, returned } from '../lib/rentals';
 import { textUser } from '../lib/blooio';
 
@@ -33,14 +35,16 @@ rentals.post('/i/:id/rent', async (c) => {
   if (busy.size) return c.text('Some of those days just got booked. Pick again.', 409);
   const days = daysBetween(start, end);
   const rent = rentFor(days, it.price_cents, it.week_cents);
-  const fee = feeFor(c.env, rent);
   const rid = id('r');
   const t = now();
-  // promo credit ($5 phone bar, or $10 from the list-10 promo): used once, off the rent only (the 15% fee is always paid)
+  // promo credit ($5 phone bar, or $10 from the list-10 promo): used once, off the rent only. Tax is on the rent after credit; Lendo's fee comes out of the owner's payout
   const prior = await c.env.DB.prepare(`SELECT COUNT(*) n FROM rentals WHERE renter_id = ? AND credit_cents > 0 AND status IN ('held','confirmed','picked_up','returned','closed')`).bind(u.id).first<{ n: number }>();
-  const credit = (u.promo_cents || 0) > 0 && !(prior?.n) ? Math.min(u.promo_cents, rent) : 0;
-  await c.env.DB.prepare(`INSERT INTO rentals (id, listing_id, owner_id, renter_id, start_day, end_day, days, rent_cents, fee_cents, total_cents, credit_cents, status, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-    .bind(rid, it.id, it.owner_id, u.id, start, end, days, rent, fee, rent + fee - Math.max(0, credit), Math.max(0, credit), 'requested', t, t).run();
+  const rate = taxRateFor(it.lat, it.lng);
+  const q = quote(c.env, rent, (u.promo_cents || 0) > 0 && !(prior?.n) ? u.promo_cents : 0, rate);
+  const ins = () => c.env.DB.prepare(`INSERT INTO rentals (id, listing_id, owner_id, renter_id, start_day, end_day, days, rent_cents, fee_cents, total_cents, credit_cents, tax_cents, tax_rate, payout_cents, status, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    .bind(rid, it.id, it.owner_id, u.id, start, end, days, q.rent, q.fee, q.total, q.credit, q.tax, rate, q.payout, 'requested', t, t).run();
+  /* right after a deploy the tax columns may not exist yet (cron migrates every 5 min) → migrate now and retry */
+  try { await ins(); } catch { await selfMigrate(c.env); await ins(); }
   const r = (await rentalById(c.env.DB, rid))!;
   const url = await createCheckout(c.env, r, it, u);
   if (url) return c.redirect(url, 303);
@@ -78,7 +82,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
   const spots = owner.pickup_spots ? (JSON.parse(owner.pickup_spots) as string[]) : [];
   const fmtT = (t: number) => new Date(t).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
   const live = r.status === 'picked_up';
-  const xs = await c.env.DB.prepare(`SELECT COALESCE(SUM(rent_cents),0) rent, COALESCE(SUM(total_cents),0) total FROM rental_extensions WHERE rental_id = ? AND status = 'confirmed'`).bind(r.id).first<{ rent: number; total: number }>().catch(() => null);
+  const xs = await c.env.DB.prepare(`SELECT COALESCE(SUM(COALESCE(payout_cents, rent_cents)),0) rent, COALESCE(SUM(total_cents),0) total FROM rental_extensions WHERE rental_id = ? AND status = 'confirmed'`).bind(r.id).first<{ rent: number; total: number }>().catch(() => null);
   const xRent = xs?.rent || 0, xTotal = xs?.total || 0;
   const ox = live ? await openExt(c.env, r.id) : null;
   const extOk = live && !isOwner && !ox ? await extendableDays(c.env, r) : [];
@@ -90,7 +94,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
           {photos[0] ? <img src={'/p/' + photos[0].r2_key} alt="" style="width:64px;height:64px;border-radius:12px;object-fit:cover;background:var(--cream)" /> : <div style="width:64px;height:64px;border-radius:12px;background:var(--cream)"></div>}
           <div style="min-width:0;line-height:1.3">
             <div style="font-size:16px;font-weight:800">{it.name}</div>
-            <div style="font-size:13px;font-weight:700;margin-top:2px">{r.status === 'inquiry' ? (isOwner ? 'Question about your item' : 'Questions before renting') : <>{fmtRange(r.start_day, r.end_day)} · {isOwner ? `you earn ${money(r.rent_cents + xRent)}` : `${money(r.total_cents + xTotal)}${r.status === 'held' ? ' held' : ' paid'}`}</>}</div>
+            <div style="font-size:13px;font-weight:700;margin-top:2px">{r.status === 'inquiry' ? (isOwner ? 'Question about your item' : 'Questions before renting') : <>{fmtRange(r.start_day, r.end_day)} · {isOwner ? `you earn ${money(payoutOf(r) + xRent)}` : `${money(r.total_cents + xTotal)}${r.status === 'held' ? ' held' : ' paid'}`}</>}</div>
             <div class="hint" style="margin-top:1px">{isOwner ? 'to ' : 'from '}<b>{shortName(other.name)}</b>{r.meet_spot ? ' · 📍 ' + r.meet_spot : spots.length ? ' · meet: ' + spots.join(' or ') : ''}</div>
           </div>
         </a>
@@ -101,7 +105,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
         {/* owner decision */}
         {isOwner && r.status === 'held' ? (
           <div class="card" style="border:2px solid var(--ink)">
-            <b>{firstName(other.name)} wants it {fmtRange(r.start_day, r.end_day)}. You'd earn {money(r.rent_cents)}.</b>
+            <b>{firstName(other.name)} wants it {fmtRange(r.start_day, r.end_day)}. You'd earn {money(payoutOf(r))} (after the {c.env.FEE_PCT}% fee)</b>
             <div class="row" style="margin-top:10px;gap:8px">
               <form method="post" action={'/r/' + r.id + '/accept'} style="flex:1" id="acceptForm"><button class="btn pri full" type="submit">YES — accept</button></form>
               <form method="post" action={'/r/' + r.id + '/decline'}><button class="btn" type="submit">No</button></form>
@@ -117,7 +121,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
         {/* extend: customer picks a later return day → card hold → owner YES */}
         {ox && ox.status === 'held' ? (isOwner ? (
           <div class="card" style="border:2px solid var(--ink)">
-            <b>{firstName(other.name)} wants to keep it until {fmtDay(ox.new_end)} · you'd earn {money(ox.rent_cents)} more</b>
+            <b>{firstName(other.name)} wants to keep it until {fmtDay(ox.new_end)} · you'd earn {money(payoutOf(ox))} more</b>
             <div class="row" style="margin-top:10px;gap:8px">
               <form method="post" action={`/r/${r.id}/ext/${ox.id}/accept`} style="flex:1"><button class="btn pri full" type="submit">YES</button></form>
               <form method="post" action={`/r/${r.id}/ext/${ox.id}/decline`}><button class="btn" type="submit">No</button></form>
@@ -373,7 +377,7 @@ rentals.get('/i/:id/ask', requireUser, async (c) => {
 // ---------- Your rentals + Inbox ----------
 rentals.get('/rentals', requireUser, async (c) => {
   const u = c.get('user')!;
-  const rows = await c.env.DB.prepare(`SELECT r.*, l.name item, o.name owner_name, n.name renter_name, (SELECT COUNT(*) FROM messages m WHERE m.rental_id = r.id AND m.sender_id IS NOT NULL AND m.sender_id != ?3 AND m.created_at > COALESCE((SELECT seen_at FROM thread_reads t WHERE t.user_id = ?3 AND t.rental_id = r.id), 0)) unread, (SELECT COALESCE(SUM(x.rent_cents),0) FROM rental_extensions x WHERE x.rental_id = r.id AND x.status = 'confirmed') x_rent, (SELECT COALESCE(SUM(x.total_cents),0) FROM rental_extensions x WHERE x.rental_id = r.id AND x.status = 'confirmed') x_total FROM rentals r JOIN listings l ON l.id = r.listing_id JOIN users o ON o.id = r.owner_id JOIN users n ON n.id = r.renter_id WHERE (r.owner_id = ?1 OR r.renter_id = ?2) AND r.status != 'requested' AND NOT (r.status = 'inquiry' AND EXISTS (SELECT 1 FROM rentals x WHERE x.listing_id = r.listing_id AND x.renter_id = r.renter_id AND x.status NOT IN ('inquiry','requested') AND x.created_at > r.created_at)) ORDER BY r.updated_at DESC LIMIT 100`).bind(u.id, u.id, u.id).all<Rental & { item: string; owner_name: string | null; renter_name: string | null; unread: number; x_rent: number; x_total: number }>().catch(() => ({ results: [] as any[] }));
+  const rows = await c.env.DB.prepare(`SELECT r.*, l.name item, o.name owner_name, n.name renter_name, (SELECT COUNT(*) FROM messages m WHERE m.rental_id = r.id AND m.sender_id IS NOT NULL AND m.sender_id != ?3 AND m.created_at > COALESCE((SELECT seen_at FROM thread_reads t WHERE t.user_id = ?3 AND t.rental_id = r.id), 0)) unread, (SELECT COALESCE(SUM(COALESCE(x.payout_cents, x.rent_cents)),0) FROM rental_extensions x WHERE x.rental_id = r.id AND x.status = 'confirmed') x_rent, (SELECT COALESCE(SUM(x.total_cents),0) FROM rental_extensions x WHERE x.rental_id = r.id AND x.status = 'confirmed') x_total FROM rentals r JOIN listings l ON l.id = r.listing_id JOIN users o ON o.id = r.owner_id JOIN users n ON n.id = r.renter_id WHERE (r.owner_id = ?1 OR r.renter_id = ?2) AND r.status != 'requested' AND NOT (r.status = 'inquiry' AND EXISTS (SELECT 1 FROM rentals x WHERE x.listing_id = r.listing_id AND x.renter_id = r.renter_id AND x.status NOT IN ('inquiry','requested') AND x.created_at > r.created_at)) ORDER BY r.updated_at DESC LIMIT 100`).bind(u.id, u.id, u.id).all<Rental & { item: string; owner_name: string | null; renter_name: string | null; unread: number; x_rent: number; x_total: number }>().catch(() => ({ results: [] as any[] }));
   const ph = await firstPhotos(c.env.DB, [...new Set(rows.results.map(r => r.listing_id))]);
   const label = (r: Rental) => ({ held: 'waiting for YES', confirmed: 'confirmed · set pickup', picked_up: 'out', returned: 'returned · rate', closed: 'done', declined: 'declined', expired: 'expired', canceled: 'canceled', requested: '', inquiry: 'question' }[r.status]);
   return c.html(
@@ -385,7 +389,7 @@ rentals.get('/rentals', requireUser, async (c) => {
           {ph[r.listing_id] ? <img src={'/p/' + ph[r.listing_id]} alt="" /> : <div class="ph"></div>}
           <div style="min-width:0;flex:1">
             <div style="font-weight:800">{r.item}</div>
-            <div style="font-size:13px">{r.status === 'inquiry' ? (r.owner_id === u.id ? `${firstName(r.renter_name)} asked` : `asked ${firstName(r.owner_name)}`) : <>{fmtRange(r.start_day, r.end_day)} · {r.owner_id === u.id ? `to ${firstName(r.renter_name)} · +${money(r.rent_cents + (r.x_rent || 0))}` : `from ${firstName(r.owner_name)} · ${money(r.total_cents + (r.x_total || 0))}`}</>}</div>
+            <div style="font-size:13px">{r.status === 'inquiry' ? (r.owner_id === u.id ? `${firstName(r.renter_name)} asked` : `asked ${firstName(r.owner_name)}`) : <>{fmtRange(r.start_day, r.end_day)} · {r.owner_id === u.id ? `to ${firstName(r.renter_name)} · +${money(payoutOf(r) + (r.x_rent || 0))}` : `from ${firstName(r.owner_name)} · ${money(r.total_cents + (r.x_total || 0))}`}</>}</div>
             <div class="hint">{label(r)}</div>
           </div>
           {r.status === 'held' && r.owner_id === u.id ? <span class="pill" style="background:var(--orange);color:#fff">YES?</span> : r.unread ? <span class="badge-n">{r.unread}</span> : null}
@@ -464,7 +468,7 @@ rentals.get('/payout', requireUser, async (c) => {
     try { const a = await s.accounts.retrieve(u.stripe_account_id); connected = !!a.payouts_enabled; detail = connected ? 'Payouts on.' : 'Setup not finished yet.'; } catch { detail = 'Could not reach Stripe.'; }
     if (connected && c.req.query('done')) { const n = await flushPendingPayouts(c.env, u); if (n) detail += ` Sent ${n} pending payout${n === 1 ? '' : 's'}.`; }
   }
-  const pending = await c.env.DB.prepare(`SELECT COALESCE(SUM(rent_cents),0) s FROM rentals WHERE owner_id = ? AND status IN ('confirmed','picked_up','returned','closed') AND paid_out = 0`).bind(u.id).first<{ s: number }>();
+  const pending = await c.env.DB.prepare(`SELECT COALESCE(SUM(COALESCE(payout_cents, rent_cents)),0) s FROM rentals WHERE owner_id = ? AND status IN ('confirmed','picked_up','returned','closed') AND paid_out = 0`).bind(u.id).first<{ s: number }>();
   return c.html(
     <Layout title="Get paid" user={u}>
       <section class="sec" style="border-bottom:0">

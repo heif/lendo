@@ -3,7 +3,8 @@ import type { Env, Rental, User } from './env';
 import { itemLink } from './urls';
 import { addMessage, busyDays, listingById, rentalById, setRentalStatus, userById } from './db';
 import { textUser } from './blooio';
-import { captureRental, feeFor, payoutRental, refundPart, releaseHold } from './stripe';
+import { captureRental, payoutRental, refundPart, releaseHold } from './stripe';
+import { feePct, payoutOf, quote } from './money';
 import { firstName, fmtRange, money, now } from './util';
 
 const HOLD_HOURS = 24;
@@ -30,7 +31,7 @@ export async function markHeld(env: Env, r: Rental, paymentIntent: string | null
   const { owner, renter, listing } = await parties(env, r);
   const url = `${env.APP_URL}/r/${r.id}`;
   await addMessage(env, r.id, null, `${firstName(renter.name)} requested ${fmtRange(r.start_day, r.end_day)} · card held · waiting for ${firstName(owner.name)}`, 'system');
-  await textUser(env, owner, `${firstName(renter.name)} wants your ${listing.name} ${fmtRange(r.start_day, r.end_day)}. You'd earn ${money(r.rent_cents)}. Reply YES to accept or NO to pass. ${url}`, 'rental', r.id);
+  await textUser(env, owner, `${firstName(renter.name)} wants your ${listing.name} ${fmtRange(r.start_day, r.end_day)}. You'd earn ${money(payoutOf(r))}. Reply YES to accept or NO to pass. ${url}`, 'rental', r.id);
   await textUser(env, renter, `Requested ${listing.name} from ${firstName(owner.name)} for ${fmtRange(r.start_day, r.end_day)}. Your card is held, not charged, until they say yes. We'll text you. ${url}`, 'rental', r.id);
 }
 
@@ -39,10 +40,10 @@ export async function accept(env: Env, r0: Rental, rentCents?: number): Promise<
   if (r0.status !== 'held') return false;
   let r = r0;
   if (rentCents != null && rentCents >= 0 && rentCents < r0.rent_cents) {
-    const fee = rentCents === 0 ? 0 : feeFor(env, rentCents);           // free rental = no fee
-    const total = Math.max(0, rentCents + fee - r0.credit_cents);
-    await env.DB.prepare('UPDATE rentals SET list_rent_cents = COALESCE(list_rent_cents, rent_cents), rent_cents = ?, fee_cents = ?, total_cents = ? WHERE id = ?').bind(rentCents, fee, total, r0.id).run();
-    r = { ...r0, rent_cents: rentCents, fee_cents: fee, total_cents: total };
+    // same rule as at request: credit off the rent, tax on rent after credit, fee (on rent + tax) from the owner's side; free = no tax, no fee
+    const q = quote(env, rentCents, r0.credit_cents, r0.tax_rate || 0);
+    await env.DB.prepare('UPDATE rentals SET list_rent_cents = COALESCE(list_rent_cents, rent_cents), rent_cents = ?, fee_cents = ?, total_cents = ?, credit_cents = ?, tax_cents = ?, payout_cents = ? WHERE id = ?').bind(q.rent, q.fee, q.total, q.credit, q.tax, q.payout, r0.id).run();
+    r = { ...r0, rent_cents: q.rent, fee_cents: q.fee, total_cents: q.total, credit_cents: q.credit, tax_cents: q.tax, payout_cents: q.payout };
   }
   const { owner, renter, listing } = await parties(env, r);
   let how: string;
@@ -57,7 +58,7 @@ export async function accept(env: Env, r0: Rental, rentCents?: number): Promise<
   await textUser(env, renter, `${firstName(owner.name)} said yes!${gift} ${paidLine[0].toUpperCase() + paidLine.slice(1)}.${spot} ${firstName(owner.name)} will text a pickup time ${url}`, 'money', r.id);
   await textUser(env, owner, `${r.rent_cents === 0 ? 'Done — lending it free' : `Done. ${firstName(renter.name)} paid`}. When can ${firstName(renter.name)} pick it up? Reply a time (like "after 6"), or SKIP`, 'rental', r.id);
   if (!owner.stripe_account_id && r.rent_cents > 0) {
-    await textUser(env, owner, `Where should your ${money(r.rent_cents)} go? Add a debit card or bank, takes 30 sec: ${env.APP_URL}/payout`, 'money', r.id);
+    await textUser(env, owner, `Where should your ${money(payoutOf(r))} go? Add a debit card or bank, takes 30 sec: ${env.APP_URL}/payout`, 'money', r.id);
   }
   return true;
 }
@@ -83,10 +84,15 @@ export async function customerCancel(env: Env, r: Rental): Promise<'released' | 
   }
   if (r.status !== 'confirmed') return false;
   const refund = Math.round(r.total_cents * 0.5);
-  const keep = r.total_cents >= 50 ? Math.round(r.rent_cents * 0.5) : 0; // nothing was charged on a free / near-free rental
-  if (r.total_cents >= 50) { try { await refundPart(env, r, refund); } catch (e) { console.error('late cancel refund failed', e); return false; } }
-  const charged = Math.max(0, r.total_cents - refund);
-  await setRentalStatus(env.DB, r.id, 'canceled', { late_cancel: 1, rent_cents: keep, fee_cents: Math.max(0, charged - keep), total_cents: charged });
+  const paid = r.total_cents >= 50; /* nothing was charged on a free / near-free rental */
+  if (paid) { try { await refundPart(env, r, refund); } catch (e) { console.error('late cancel refund failed', e); return false; } }
+  const charged = paid ? Math.max(0, r.total_cents - refund) : 0;
+  // half of everything stays: half the rent (and its tax) → owner gets that minus the fee on it
+  const keepRent = paid ? Math.round(r.rent_cents * 0.5) : 0, keepTax = paid ? Math.round((r.tax_cents || 0) * 0.5) : 0;
+  const legacy = r.payout_cents == null; /* booked before Nov 13: customer paid the fee, owner gets the rent */
+  const ownerFee = legacy ? Math.max(0, charged - keepRent) : keepRent > 0 ? Math.round((keepRent + keepTax) * feePct(env) / 100) : 0;
+  const keep = legacy ? keepRent : Math.max(0, keepRent - ownerFee);
+  await setRentalStatus(env.DB, r.id, 'canceled', { late_cancel: 1, rent_cents: keepRent, tax_cents: keepTax, fee_cents: ownerFee, payout_cents: legacy ? null : keep, total_cents: charged });
   const fresh = (await rentalById(env.DB, r.id))!;
   await addMessage(env, r.id, null, `${firstName(renter.name)} canceled after the yes · ${money(refund)} refunded · ${firstName(owner.name)} keeps ${money(keep)}`, 'system');
   try { await payoutRental(env, fresh, owner); } catch (e) { console.error('late cancel payout failed', e); }
@@ -101,7 +107,7 @@ export async function pickedUp(env: Env, r: Rental, photoKey: string | null) {
   const { owner, renter, listing } = await parties(env, r);
   await addMessage(env, r.id, null, photoKey ? `${firstName(owner.name)} took the pickup photo · time-stamped, you both have it` : `Picked up`, 'system');
   await textUser(env, renter, `You've got the ${listing.name}. Return ${fmtRange(r.end_day, r.end_day)}`, 'pickup', r.id);
-  try { if (await payoutRental(env, r, owner)) await textUser(env, owner, `${money(r.rent_cents)} is on its way to your account`, 'money', r.id); } catch (e) { console.error('payout failed', e); }
+  try { if (await payoutRental(env, r, owner)) await textUser(env, owner, `${money(payoutOf(r))} is on its way to your account`, 'money', r.id); } catch (e) { console.error('payout failed', e); }
   return true;
 }
 
