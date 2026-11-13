@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { localToday } from '../lib/util';
 import { checkListingPhoto } from '../lib/photo-check';
 import { Grade, GRADES, GRADE_WORD, isGrade, shownGrade } from '../lib/grade';
 import { assignHandle, assignSlug, itemLink } from '../lib/urls';
@@ -193,7 +194,7 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
   const it = await listingById(c.env.DB, c.req.param('id'));
   if (!it || it.owner_id !== u.id) return c.notFound();
   const photos = await photosFor(c.env.DB, it.id);
-  const today = dayStr(new Date());
+  const today = localToday(it.lng);
   const busy = await busyDays(c.env.DB, it.id, today, addDays(today, 13));
   const blocked = new Set((await c.env.DB.prepare('SELECT day FROM blocked_days WHERE listing_id = ? AND day >= ?').bind(it.id, today).all<{ day: string }>()).results.map(r => r.day));
   const days = Array.from({ length: 14 }, (_, i) => addDays(today, i));
@@ -295,7 +296,7 @@ listings.post('/listings/:id/edit', requireUser, async (c) => {
   await c.env.DB.prepare('UPDATE listings SET name = ?, description = ?, price_cents = ?, week_cents = ?, emoji = ? WHERE id = ?')
     .bind(nm, ds, price, week, em, it.id).run();
   if (isGrade(f.grade)) { const gr = await shownGrade(c.env, it.id, (it as any).grade); if (!gr.customers) await c.env.DB.prepare('UPDATE listings SET grade = ? WHERE id = ?').bind(f.grade, it.id).run().catch(() => {}); }
-  const today = dayStr(new Date());
+  const today = localToday(it.lng);
   await c.env.DB.prepare('DELETE FROM blocked_days WHERE listing_id = ? AND day >= ?').bind(it.id, today).run();
   const blocks = ([] as unknown[]).concat(f.block || []).map(String).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d));
   for (const d of blocks) await c.env.DB.prepare('INSERT OR IGNORE INTO blocked_days (listing_id, day) VALUES (?,?)').bind(it.id, d).run();

@@ -1,5 +1,6 @@
 // Public read API — agents welcome. No auth for reads; writes come later (keys + scopes).
 import { Hono } from 'hono';
+import { localToday } from '../lib/util';
 import { loadUser, twilioBasic } from '../lib/auth';
 import { saveSearch, turnOff } from '../lib/alerts';
 import type { Env, Listing, Vars } from '../lib/env';
@@ -72,7 +73,7 @@ api.get('/api/hoods.geojson', async (c) => {
 
 // Cost guard: one beacon per Mapbox map init → map_loads_daily (compare with the 50k/month free tier).
 api.post('/api/map-load', async (c) => {
-  const day = new Date().toISOString().slice(0, 10);
+  const day = localToday();
   c.executionCtx.waitUntil(c.env.DB.prepare('INSERT INTO map_loads_daily (day, n) VALUES (?, 1) ON CONFLICT(day) DO UPDATE SET n = n + 1').bind(day).run());
   return c.body(null, 204);
 });

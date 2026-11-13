@@ -1,6 +1,7 @@
 // Plain-English texting: Claude turns a text into one of a few actions. Anything touching money or bookings
 // is parked in pending_actions and only runs after the sender replies YES.
 import type { Env, Listing, Rental, User } from './env';
+import { localToday } from './util';
 import { weekDefault } from './util';
 import { itemLink } from './urls';
 import { saveSearch, allowMore } from './alerts';
@@ -32,7 +33,7 @@ Actions:
 - {"action":"extend","until":"YYYY-MM-DD or null"}  — the customer wants to keep the item longer.
 - {"action":"list"}  — they want to list / rent out their own stuff.
 - {"action":"help"}  — anything else, or unclear.
-Today is ${new Date().toISOString().slice(0, 10)}.`;
+Today is ${localToday()}.`;
   const facts = [
     ctx.rental ? `Active rental: they are the ${ctx.role} of "${ctx.item}" with ${ctx.other}, ${ctx.rental.start_day} to ${ctx.rental.end_day}, status ${ctx.rental.status}.` : 'No active rental.',
     ctx.listings.length ? `Their listings: ${ctx.listings.map(l => `${l.name} ($${l.price_cents / 100}/day)`).join('; ')}.` : 'They have no listings.',

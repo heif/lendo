@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { localToday } from '../lib/util';
 import { shortName } from '../lib/util';
 import { handleText } from './webhooks';
 import { acceptExt, askExtension, declineExt, extById, extendableDays, extPrice, EXT_MAX_DAYS, openExt } from '../lib/extend';
@@ -26,7 +27,7 @@ rentals.post('/i/:id/rent', async (c) => {
   if ((it as any)?.demo) return c.redirect('/i/' + c.req.param('id'));
   if (!it || it.status !== 'live') return c.notFound();
   if (it.owner_id === u.id) return c.text("That's your own listing.", 400);
-  const today = dayStr(new Date());
+  const today = localToday(it.lng);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end) || start < today || end < start || daysBetween(start, end) > 60) return c.text('Pick valid days.', 400);
   const busy = await busyDays(c.env.DB, it.id, start, end);
   if (busy.size) return c.text('Some of those days just got booked. Pick again.', 409);

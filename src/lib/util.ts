@@ -96,3 +96,9 @@ export function shortName(name: string | null, fallback = 'Neighbor'): string {
   if (!p.length) return fallback;
   return p.length > 1 ? `${p[0]} ${p[p.length - 1].charAt(0).toUpperCase()}.` : p[0];
 }
+
+// "Today" where the item is (servers run on UTC, so 9pm in NYC was already "tomorrow")
+export function tzFor(lng?: number | null): string { return lng != null && lng < -82.5 ? 'America/Chicago' : 'America/New_York'; }
+export function localToday(lng?: number | null): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: tzFor(lng), year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+}

@@ -1,4 +1,5 @@
 import { Hono, type Context } from 'hono';
+import { localToday } from '../lib/util';
 import { SOCIALS, SocialIcons, socialHandle } from '../lib/socials';
 import { Avatar, PhotoField, saveUserPhoto } from '../lib/userphoto';
 import { shortName } from '../lib/util';
@@ -119,7 +120,7 @@ export const itemPage = async (c: Ctx, lid: string, pretty = false) => {
   const owner = (await userById(c.env.DB, it.owner_id))!;
   const photos = await photosFor(c.env.DB, it.id);
   const rep = await reputation(c.env.DB, owner.id);
-  const today = dayStr(new Date());
+  const today = localToday(it.lng);
   const to = addDays(today, 13);
   const busy = await busyDays(c.env.DB, it.id, today, to);
   const credit = u && (u.promo_cents || 0) > 0 && !((await c.env.DB.prepare(`SELECT COUNT(*) n FROM rentals WHERE renter_id = ? AND credit_cents > 0 AND status IN ('held','confirmed','picked_up','returned','closed')`).bind(u.id).first<{ n: number }>())?.n) ? u.promo_cents : 0;
