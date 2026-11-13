@@ -560,3 +560,4 @@ img.uav{background:#ddd}
 .chg s{color:#8A857B;font-weight:500}
 .chg.tot{border-top:1.5px solid var(--ink);margin-top:4px;padding-top:9px;font-weight:900;font-size:17px}
 .chg-note{font-size:12px;color:var(--mute);margin-top:4px}
+.meet-after{display:flex;gap:14px;margin-top:10px}.meet-after button{background:none;border:0;padding:0;font-weight:800;font-size:14px;color:var(--orange);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
