@@ -18,7 +18,7 @@ export async function createCheckout(env: Env, rental: Rental, listing: Listing,
   const s = stripe(env);
   if (!s) return null; // dev mode → caller fakes a hold
   // $5 promo credit: a one-off coupon on this session (Lendo absorbs it; the owner's rent is unchanged)
-  const coupon = rental.credit_cents > 0 ? await s.coupons.create({ amount_off: rental.credit_cents, currency: 'usd', duration: 'once', name: '$5 off your first rental', max_redemptions: 1 }) : null;
+  const coupon = rental.credit_cents > 0 ? await s.coupons.create({ amount_off: rental.credit_cents, currency: 'usd', duration: 'once', name: 'Lendo credit (off the rent)', max_redemptions: 1 }) : null;
   const session = await s.checkout.sessions.create({
     ...(coupon ? { discounts: [{ coupon: coupon.id }] } : {}),
     mode: 'payment',

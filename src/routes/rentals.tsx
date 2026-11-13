@@ -36,9 +36,9 @@ rentals.post('/i/:id/rent', async (c) => {
   const fee = feeFor(c.env, rent);
   const rid = id('r');
   const t = now();
-  // promo credit ($5 phone bar, or $10 from the list-10 promo): used once, never more than the total
+  // promo credit ($5 phone bar, or $10 from the list-10 promo): used once, off the rent only (the 15% fee is always paid)
   const prior = await c.env.DB.prepare(`SELECT COUNT(*) n FROM rentals WHERE renter_id = ? AND credit_cents > 0 AND status IN ('held','confirmed','picked_up','returned','closed')`).bind(u.id).first<{ n: number }>();
-  const credit = (u.promo_cents || 0) > 0 && !(prior?.n) ? Math.min(u.promo_cents, rent + fee - 50) : 0;
+  const credit = (u.promo_cents || 0) > 0 && !(prior?.n) ? Math.min(u.promo_cents, rent) : 0;
   await c.env.DB.prepare(`INSERT INTO rentals (id, listing_id, owner_id, renter_id, start_day, end_day, days, rent_cents, fee_cents, total_cents, credit_cents, status, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .bind(rid, it.id, it.owner_id, u.id, start, end, days, rent, fee, rent + fee - Math.max(0, credit), Math.max(0, credit), 'requested', t, t).run();
   const r = (await rentalById(c.env.DB, rid))!;
