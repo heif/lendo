@@ -13,18 +13,31 @@
   function esc(s) { return String(s).replace(/[<>&"]/g, function (c) { return ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]; }); }
 
   // List view (prototype "aisles"): category sections, big heading + count, horizontal row of item stickers
+  // order matters: first match wins
   var AISLES = [
-    ['Tech & cameras', /projector|laptop|macbook|monitor|printer|camera|camcorder|drone|\btv\b|console|controller|vr |headset|ipad|tablet|power station|battery|gopro/],
-    ['Music & sound', /guitar|keyboard|piano|violin|drum|sax|trumpet|banjo|accordion|speaker|micro|\bmic\b|dj |boombox|disco|amp\b/],
-    ['Wheels', /bike|bicycle|scooter|skateboard|roller|moped|\bcar\b|\bvan\b|truck|wheelchair|crutch|stroller|wagon/],
-    ['Outdoors', /tent|kayak|sail|surf|umbrella|telescope|microscope|fishing|archery|\bbow\b|kite|snorkel|paraglid|backpack|hammock|cooler|binocular|camping/],
-    ['Snow', /\bski|snowboard|ice skate|\bsled|ski jacket/],
-    ['Sports & games', /pickleball|racket|tennis|hockey|lacrosse|cricket|boxing|soccer|goal|golf|game/],
-    ['Tools', /ladder|saw|axe|toolbox|hammer|drill|pressure washer|leaf blower|mower|trimmer|sander|shop vac|nail gun|sprayer|generator|hand truck|wheelbarrow|laser level|tool/],
-    ['Home & kitchen', /mixer|espresso|air fryer|dinner|picnic|sewing|steamer|carpet cleaner|vacuum|chair|suitcase|luggage|grill|table|crib|stroller|car seat|record player|pottery/],
-    ['Parties & photo', /balloon|backdrop|ring light|disco|projector|speaker|craft|cutting machine/],
-    ['Wellness', /yoga|exercise bike|massage|paddleboard/],
-    ['Dress up', /gown|heels|boots|top hat|\btux|dress|costume|handbag|hair styler|film kit|clapper|jacket/]
+    ['Cars & vans', /\bcar\b|\bvan\b|minivan|\bsuv\b|pickup truck|\btruck\b|trailer/],
+    ['Health & mobility', /wheelchair|crutch|walker\b|\bcane\b|knee scooter|mobility|shower chair|massage/],
+    ['Baby & kids', /stroller|crib|car seat|high ?chair|bassinet|baby|pack ?n ?play|playpen|kids|toddler|bouncer|swing set/],
+    ['Tech & cameras', /projector|laptop|macbook|monitor|printer|camera|camcorder|drone|\btv\b|console|playstation|xbox|nintendo|switch\b|controller|vr\b|headset|ipad|tablet|kindle|e-reader|power station|battery|gopro|tripod|ring light|gimbal|lens|green screen|hard drive|router/],
+    ['Music & sound', /guitar|keyboard|piano|violin|cello|ukulele|flute|clarinet|drum|sax|trumpet|trombone|banjo|accordion|harmonica|speaker|headphone|micro|\bmic\b|\bdj\b|turntable|record player|boombox|amp\b|amplifier|pa system|karaoke|bullhorn|megaphone/],
+    ['Bikes & scooters', /bike|bicycle|scooter|moped|skateboard|longboard|roller|rollerblade|unicycle|helmet/],
+    ['Snow', /\bski|snowboard|snowshoe|ice skate|\bsled|toboggan/],
+    ['Water', /kayak|canoe|paddle|surf|sail|snorkel|wetsuit|life jacket|\bboat|fishing|scuba/],
+    ['Camping & outdoors', /tent|sleeping bag|backpack|hammock|cooler|binocular|telescope|camping|camp stove|lantern|beach umbrella|umbrella|beach chair|kite|archery|\bbow\b|metal detector|hiking/],
+    ['Sports & fitness', /pickleball|racket|tennis|badminton|hockey|golf|lacrosse|cricket|boxing|soccer|basketball|volleyball|football|baseball|weights|dumbbell|kettlebell|yoga|exercise|treadmill|rowing|peloton|spin bike|bench press/],
+    ['Games', /board game|puzzle|ping pong|foosball|cornhole|chess|game/],
+    ['Garden & yard', /mower|trimmer|leaf blower|hedge|rake|shovel|wheelbarrow|hose|tiller|chainsaw|snow blower|edger|garden/],
+    ['Tools', /ladder|saw|axe|toolbox|hammer|drill|impact driver|wrench|socket|clamp|sander|nail gun|sprayer|generator|laser level|stud finder|tile cutter|welder|compressor|tool/],
+    ['Moving', /hand truck|dolly|moving|cargo|roof box|roof rack|ratchet strap|furniture pad/],
+    ['Cleaning & air', /carpet cleaner|vacuum|steam cleaner|steamer|pressure washer|shop vac|air purifier|dehumidifier|humidifier|\bfan\b|heater|air condition|\bac\b/],
+    ['Kitchen', /mixer|espresso|coffee|air fryer|instant pot|blender|waffle|grill|smoker|pizza oven|dinner|plates|chafing|punch bowl|fondue|ice cream|popcorn|cotton candy|slow cooker|juicer|dehydrator/],
+    ['Parties & events', /balloon|backdrop|disco|canopy|string lights|photo booth|fog machine|bubble machine|bounce house|decoration|party/],
+    ['Art & crafts', /sewing|cricut|cutting machine|pottery|kiln|easel|paint|loom|knitting|embroidery|craft|calligraphy/],
+    ['Home & furniture', /chair|table|sofa|couch|air mattress|mattress|\brug\b|lamp|mirror|shelf|record|clock/],
+    ['Travel', /suitcase|luggage|duffel|carry-on|travel|carrier/],
+    ['Dress up', /gown|heels|boots|top hat|\btux|suit\b|dress|costume|handbag|purse|hair styler|jewelry|necklace|jacket|coat/],
+    ['Office', /stapler|label maker|shredder|whiteboard|laminator|office|desk/],
+    ['Books & learning', /book|textbook|microscope|calculator|globe/]
   ];
   var openAisle = null;
   function aisleOf(it) { var n = (it.name + ' ' + (it.description || '')).toLowerCase(); for (var k = 0; k < AISLES.length; k++) if (AISLES[k][1].test(n)) return AISLES[k][0]; return 'Everything else'; }
