@@ -1,5 +1,7 @@
 // Admin (allowlisted phones only): pricing rules + identification test.
 import { Hono } from 'hono';
+import { logEvent } from '../lib/log';
+import { registerDash } from './admin-dash';
 import { stripe } from '../lib/stripe';
 import { twilioBasic } from '../lib/auth';
 import type { Env, Vars } from '../lib/env';
@@ -17,8 +19,10 @@ import { textUser } from '../lib/blooio';
 export const admin = new Hono<{ Bindings: Env; Variables: Vars }>();
 
 const isAdmin = (env: Env, phone: string) => (env.ADMIN_PHONES || '').split(',').map(s => s.trim()).includes(phone);
+admin.use('/admin', requireUser, async (c, next) => { if (!isAdmin(c.env, c.get('user')!.phone)) return c.notFound(); await next(); });
 admin.use('/admin/*', requireUser, async (c, next) => { if (!isAdmin(c.env, c.get('user')!.phone)) return c.notFound(); await next(); });
 admin.use('/api/identify', requireUser);
+registerDash(admin);
 
 // Identify a photo → label, description, category, suggested price. Used by the snap flow.
 admin.post('/api/identify', async (c) => {
@@ -38,11 +42,6 @@ admin.post('/api/identify', async (c) => {
   return c.json({ ...id, cut: `/api/cuttmp/${tmp.slice(4)}`, price_cents: pr.day_cents, week_cents: pr.week_cents, basis: pr.basis, category_label: pr.rule.label, ...(c.req.query('raw') && c.get('user')!.admin ? { raw: lastRaw } : {}) });
 });
 
-admin.get('/admin', (c) => {
-  const u = c.get('user')!;
-  const links: [string, string][] = [['/admin/review', 'Photo check'], ['/admin/promo', '$10 promo'], ['/admin/pricing', 'Pricing'], ['/admin/wanted', 'Wanted items'], ['/admin/debug', 'Debug']];
-  return c.html(<Layout title="Admin" user={u}><div style="padding:12px 16px 40px;display:grid;gap:8px">{links.map(([h, t]) => <a class="card" href={h} style="font-weight:800;text-decoration:none;color:var(--ink)">{t} →</a>)}</div></Layout>);
-});
 // what the background pieces last did (identify, inbound texts, icons) + a live Claude ping
 admin.get('/admin/debug', async (c) => {
   const rows = (await c.env.DB.prepare(`SELECT key, value FROM settings WHERE key IN ('last_identify','last_inbound','last_inbound_err','wanted_icons_err','wanted_bad','login_fails')`).all<{ key: string; value: string }>()).results;
@@ -209,6 +208,7 @@ admin.post('/admin/review/:id', async (c) => {
     if (owner) c.executionCtx.waitUntil(textUser(c.env, owner, `Lendo: the photo for your ${it.name} can't be posted. List it again with a photo of just the item ${c.env.APP_URL}/list`, 'rental').catch(() => {}));
   }
   await c.env.DB.prepare(`DELETE FROM settings WHERE key = ?`).bind('flag_' + lid).run();
+  await logEvent(c.env.DB, 'admin.review_' + (v === 'ok' ? 'approved' : v === 'rm' ? 'removed' : v), { user: c.get('user')?.id, listing: lid });
   return c.redirect('/admin/review');
 });
 
@@ -246,6 +246,7 @@ admin.post('/admin/promo/:uid', async (c) => {
     catch (e: any) { cash = 'cash failed: ' + String(e?.message || e).slice(0, 80); }
   }
   await c.env.DB.prepare('UPDATE settings SET value = ? WHERE key = ?').bind(`${new Date().toISOString().slice(0, 10)} · ${cash} · $10 credit added`, key).run();
+  await logEvent(c.env.DB, 'admin.promo_paid', { user: uid, cents: 1000, data: { by: c.get('user')?.id, cash } });
   c.executionCtx.waitUntil(textUser(c.env, who, cash === '$10 cash sent' ? `Lendo: $10 sent for listing 10 things, plus $10 toward your next rental` : `Lendo: $10 toward your next rental is on your account. Set up payouts to get your $10 cash ${c.env.APP_URL}/payout`, 'money').catch(() => {}));
   return c.redirect('/admin/promo');
 });

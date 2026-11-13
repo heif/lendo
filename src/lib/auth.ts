@@ -1,4 +1,5 @@
 import type { Context, MiddlewareHandler } from 'hono';
+import { logEvent } from './log';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import type { Env, User, Vars } from './env';
 import { ensureUser } from './db';
@@ -56,6 +57,7 @@ async function twilio(env: Env, path: string, body: Record<string, string>): Pro
 async function logFail(env: Env, phone: string, via: string, err: string) {
   try {
     const r = await env.DB.prepare(`SELECT value FROM settings WHERE key = 'login_fails'`).first<{ value: string }>();
+    await logEvent(env.DB, 'login.send_fail', { data: { phone, via, err: String(err).slice(0, 300) } });
     const list = r ? JSON.parse(r.value) : []; list.unshift({ t: new Date().toISOString(), phone: phone.slice(0, -4) + '••••', via, err: String(err).slice(0, 200) });
     await env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('login_fails', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(JSON.stringify(list.slice(0, 20))).run();
   } catch {}
@@ -104,6 +106,7 @@ export async function finishLogin(c: Context<{ Bindings: Env; Variables: Vars }>
     : typed === row.code);
   if (!ok) {
     await c.env.DB.prepare('UPDATE otp_codes SET attempts = attempts + 1 WHERE phone = ?').bind(phone).run();
+    await logEvent(c.env.DB, 'login.bad_code', { data: { phone } });
     return null;
   }
   await c.env.DB.prepare('DELETE FROM otp_codes WHERE phone IN (?, ?)').bind(phone, 'prev:' + phone).run();
@@ -111,12 +114,13 @@ export async function finishLogin(c: Context<{ Bindings: Env; Variables: Vars }>
   const sid = id('s');
   const exp = now() + SESSION_DAYS * 86400000;
   await c.env.DB.prepare('INSERT INTO sessions (id, user_id, expires_at) VALUES (?,?,?)').bind(sid, user.id, exp).run();
+  await logEvent(c.env.DB, 'login', { user: user.id, data: { ua: (c.req.header('user-agent') || '').slice(0, 160), ip_country: (c.req.raw as any).cf?.country ?? null } });
   setCookie(c, COOKIE, sid, { path: '/', httpOnly: true, sameSite: 'Lax', secure: c.env.APP_URL.startsWith('https'), maxAge: SESSION_DAYS * 86400 });
   return user;
 }
 
 export async function logout(c: Context<{ Bindings: Env; Variables: Vars }>) {
   const sid = getCookie(c, COOKIE);
-  if (sid) await c.env.DB.prepare('DELETE FROM sessions WHERE id = ?').bind(sid).run();
+  if (sid) { await logEvent(c.env.DB, 'logout', { user: c.get('user')?.id ?? null }); await c.env.DB.prepare('DELETE FROM sessions WHERE id = ?').bind(sid).run(); }
   deleteCookie(c, COOKIE, { path: '/' });
 }

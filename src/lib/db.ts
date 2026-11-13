@@ -1,4 +1,5 @@
 import type { Env, Listing, Rental, User } from './env';
+import { logEvent } from './log';
 import { id, now } from './util';
 
 export type PhotoRow = { id: string; listing_id: string; r2_key: string; pos: number };
@@ -14,6 +15,7 @@ export async function ensureUser(db: D1Database, phone: string): Promise<User> {
   if (u) return u;
   const uid = id('u');
   await db.prepare('INSERT INTO users (id, phone, created_at) VALUES (?, ?, ?)').bind(uid, phone, now()).run();
+  await logEvent(db, 'user.signup', { user: uid, data: { phone } });
   return (await userById(db, uid))!;
 }
 
@@ -88,6 +90,8 @@ export async function addMessage(env: Env, rentalId: string, senderId: string | 
 
 export async function setRentalStatus(db: D1Database, rid: string, status: Rental['status'], extra: Record<string, string | number | null> = {}) {
   const keys = Object.keys(extra);
+  const was = await db.prepare('SELECT status FROM rentals WHERE id = ?').bind(rid).first<{ status: string }>().catch(() => null);
   const sets = ['status = ?', 'updated_at = ?', ...keys.map(k => `${k} = ?`)].join(', ');
   await db.prepare(`UPDATE rentals SET ${sets} WHERE id = ?`).bind(status, now(), ...keys.map(k => extra[k]), rid).run();
+  await logEvent(db, 'rental.' + status, { rental: rid, data: { from: was?.status ?? null, ...extra } });
 }

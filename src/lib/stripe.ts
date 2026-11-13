@@ -2,6 +2,7 @@
 // Owner replies YES → capture. Owner declines / 24h timeout → cancel (hold released).
 // Owners connect a Stripe Express account for payouts; captured rent is transferred to it.
 import Stripe from 'stripe';
+import { logErr, logEvent } from './log';
 import type { Env, Listing, Rental, User } from './env';
 import { payoutOf } from './money';
 
@@ -34,6 +35,7 @@ export async function createCheckout(env: Env, rental: Rental, listing: Listing,
     cancel_url: `${env.APP_URL}/i/${listing.id}?canceled=1`,
     expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
   });
+  await logEvent(env.DB, 'money.checkout', { rental: rental.id, user: renter.id, listing: listing.id, cents: rental.total_cents, data: { session: session.id, rent: rental.rent_cents, tax: rental.tax_cents, credit: rental.credit_cents } });
   return session.url;
 }
 
@@ -42,8 +44,9 @@ export async function createCheckout(env: Env, rental: Rental, listing: Listing,
 export async function captureRental(env: Env, rental: Rental): Promise<'captured' | 'released' | 'none'> {
   const s = stripe(env);
   if (!s || !rental.stripe_payment_intent) return 'none';
-  if (rental.total_cents < 50) { await s.paymentIntents.cancel(rental.stripe_payment_intent); return 'released'; }
+  if (rental.total_cents < 50) { await s.paymentIntents.cancel(rental.stripe_payment_intent); await logEvent(env.DB, 'money.release', { rental: rental.id, cents: 0, data: { pi: rental.stripe_payment_intent, why: 'under 50c' } }); return 'released'; }
   await s.paymentIntents.capture(rental.stripe_payment_intent, { amount_to_capture: rental.total_cents });
+  await logEvent(env.DB, 'money.capture', { rental: rental.id, cents: rental.total_cents, data: { pi: rental.stripe_payment_intent, tax: rental.tax_cents, fee: rental.fee_cents } });
   return 'captured';
 }
 
@@ -53,6 +56,7 @@ export async function payoutRental(env: Env, rental: Rental, owner: User): Promi
   if (!s || !owner.stripe_account_id || rental.paid_out || payoutOf(rental) <= 0) return false;
   await s.transfers.create({ amount: payoutOf(rental), currency: 'usd', destination: owner.stripe_account_id, transfer_group: rental.id, metadata: { rental_id: rental.id } }, { idempotencyKey: `payout_${rental.id}` });
   await env.DB.prepare('UPDATE rentals SET paid_out = 1 WHERE id = ?').bind(rental.id).run();
+  await logEvent(env.DB, 'money.payout', { rental: rental.id, user: owner.id, cents: payoutOf(rental), data: { acct: owner.stripe_account_id } });
   return true;
 }
 
@@ -61,13 +65,14 @@ export async function refundPart(env: Env, rental: Rental, amountCents: number):
   const s = stripe(env);
   if (!s || !rental.stripe_payment_intent || amountCents <= 0) return false;
   await s.refunds.create({ payment_intent: rental.stripe_payment_intent, amount: amountCents, metadata: { rental_id: rental.id, reason: 'late_cancel' } }, { idempotencyKey: `latecancel_${rental.id}` });
+  await logEvent(env.DB, 'money.refund', { rental: rental.id, cents: amountCents, data: { pi: rental.stripe_payment_intent, reason: 'late_cancel' } });
   return true;
 }
 
 export async function releaseHold(env: Env, rental: Rental): Promise<void> {
   const s = stripe(env);
   if (!s || !rental.stripe_payment_intent) return;
-  try { await s.paymentIntents.cancel(rental.stripe_payment_intent); } catch (e) { console.error('cancel PI failed', e); }
+  try { await s.paymentIntents.cancel(rental.stripe_payment_intent); await logEvent(env.DB, 'money.release', { rental: rental.id, data: { pi: rental.stripe_payment_intent } }); } catch (e) { await logErr(env.DB, 'release hold', e, { rental: rental.id }); }
 }
 
 export async function connectOnboardingUrl(env: Env, owner: User): Promise<{ url: string; accountId: string } | null> {
@@ -78,6 +83,7 @@ export async function connectOnboardingUrl(env: Env, owner: User): Promise<{ url
     const a = await s.accounts.create({ type: 'express', country: 'US', capabilities: { transfers: { requested: true } }, business_type: 'individual', metadata: { user_id: owner.id } });
     acct = a.id;
     await env.DB.prepare('UPDATE users SET stripe_account_id = ? WHERE id = ?').bind(acct, owner.id).run();
+    await logEvent(env.DB, 'payout.account_created', { user: owner.id, data: { acct } });
   }
   const link = await s.accountLinks.create({ account: acct, type: 'account_onboarding', refresh_url: `${env.APP_URL}/payout`, return_url: `${env.APP_URL}/payout?done=1` });
   return { url: link.url, accountId: acct };
@@ -93,6 +99,7 @@ export async function flushPendingPayouts(env: Env, owner: User): Promise<number
     if (payoutOf(r) <= 0) continue;
     await s.transfers.create({ amount: payoutOf(r), currency: 'usd', destination: owner.stripe_account_id, transfer_group: r.id, metadata: { rental_id: r.id } }, { idempotencyKey: `payout_${r.id}` });
     await env.DB.prepare('UPDATE rentals SET paid_out = 1 WHERE id = ?').bind(r.id).run();
+    await logEvent(env.DB, 'money.payout', { rental: r.id, user: owner.id, cents: payoutOf(r), data: { acct: owner.stripe_account_id, late: true } });
     n++;
   }
   // extra days from extensions (captured, not yet sent)
@@ -100,6 +107,7 @@ export async function flushPendingPayouts(env: Env, owner: User): Promise<number
   for (const x of xs.results) {
     await s.transfers.create({ amount: x.rent_cents, currency: 'usd', destination: owner.stripe_account_id, transfer_group: x.rental_id, metadata: { rental_id: x.rental_id, ext_id: x.id } }, { idempotencyKey: `payout_${x.id}` });
     await env.DB.prepare('UPDATE rental_extensions SET paid_out = 1 WHERE id = ?').bind(x.id).run();
+    await logEvent(env.DB, 'money.payout', { rental: x.rental_id, user: owner.id, cents: x.rent_cents, data: { ext: x.id, late: true } });
     n++;
   }
   return n;

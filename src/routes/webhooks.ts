@@ -1,4 +1,5 @@
 import { answerPending, actOn, intentContext, parseIntent } from '../lib/intent';
+import { logErr, logEvent } from '../lib/log';
 import { acceptExt, declineExt, extById, extFromSession, heldExtForOwner, markExtHeld } from '../lib/extend';
 import { turnOff } from '../lib/alerts';
 import { Hono, type Context } from 'hono';
@@ -19,7 +20,8 @@ webhooks.post('/webhooks/stripe', async (c) => {
   const sig = c.req.header('stripe-signature') || '';
   const raw = await c.req.text();
   let ev: Stripe.Event;
-  try { ev = await s.webhooks.constructEventAsync(raw, sig, c.env.STRIPE_WEBHOOK_SECRET); } catch (e) { return c.text('bad signature', 400); }
+  try { ev = await s.webhooks.constructEventAsync(raw, sig, c.env.STRIPE_WEBHOOK_SECRET); } catch (e) { await logEvent(c.env.DB, 'stripe.bad_signature', {}); return c.text('bad signature', 400); }
+  { const o: any = ev.data.object; await logEvent(c.env.DB, 'stripe.' + ev.type, { rental: o?.metadata?.rental_id || o?.client_reference_id || null, cents: o?.amount_total ?? o?.amount ?? null, data: { id: ev.id, obj: o?.id, ext: o?.metadata?.ext_id ?? null } }); }
   if (ev.type === 'checkout.session.completed') {
     const cs = ev.data.object as Stripe.Checkout.Session;
     const xid = extFromSession(cs);
@@ -49,7 +51,7 @@ webhooks.post('/webhooks/stripe', async (c) => {
 // Anything else relays to the other party of the sender's most recent active rental.
 webhooks.post('/webhooks/blooio', async (c) => {
   try { return await blooioInbound(c); }
-  catch (e: any) { await c.env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('last_inbound_err', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(`${Date.now()} ${e?.stack || e}`.slice(0, 1500)).run(); return c.json({ ok: false }, 500); }
+  catch (e: any) { await logErr(c.env.DB, 'blooio inbound', e); await c.env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('last_inbound_err', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(`${Date.now()} ${e?.stack || e}`.slice(0, 1500)).run(); return c.json({ ok: false }, 500); }
 });
 async function blooioInbound(c: Context<{ Bindings: Env; Variables: Vars }>) {
   const raw = await c.req.text();
@@ -78,6 +80,7 @@ async function blooioInbound(c: Context<{ Bindings: Env; Variables: Vars }>) {
   const text = m.text.trim();
   const kw = text.toUpperCase().replace(/[^A-Z ]/g, '').trim();
   if (!user) {
+    await logEvent(c.env.DB, 'text.in_unknown', { data: { from: phone, body: text.slice(0, 500) } });
     // unknown number: invite them in
     return c.json({ ok: true, unknown: true });
   }

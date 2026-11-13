@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { logEvent } from '../lib/log';
 import { localToday } from '../lib/util';
 import { checkListingPhoto } from '../lib/photo-check';
 import { Grade, GRADES, GRADE_WORD, isGrade, shownGrade } from '../lib/grade';
@@ -169,6 +170,7 @@ listings.post('/listings/:id/price', requireUser, async (c) => {
   const np = Math.max(minP, it.price_cents + d);
   const week = weekDefault(np); /* weekly is always automatic */
   await c.env.DB.prepare('UPDATE listings SET price_cents = ?, week_cents = ? WHERE id = ?').bind(np, week, it.id).run();
+  await logEvent(c.env.DB, 'listing.price', { user: u.id, listing: it.id, cents: np, data: { was: it.price_cents } });
   return c.redirect('/listings');
 });
 
@@ -178,6 +180,7 @@ listings.post('/listings/:id/toggle', requireUser, async (c) => {
   if (!it || it.owner_id !== u.id) return c.notFound();
   if (it.status === 'review') return c.redirect('/listings');
   await c.env.DB.prepare('UPDATE listings SET status = ? WHERE id = ?').bind(it.status === 'live' ? 'paused' : 'live', it.id).run();
+  await logEvent(c.env.DB, it.status === 'live' ? 'listing.paused' : 'listing.unpaused', { user: u.id, listing: it.id });
   return c.redirect('/listings');
 });
 
@@ -186,6 +189,7 @@ listings.post('/listings/:id/remove', requireUser, async (c) => {
   const it = await listingById(c.env.DB, c.req.param('id'));
   if (!it || it.owner_id !== u.id) return c.notFound();
   await c.env.DB.prepare(`UPDATE listings SET status = 'removed' WHERE id = ?`).bind(it.id).run();
+  await logEvent(c.env.DB, 'listing.removed', { user: u.id, listing: it.id, data: { name: it.name } });
   return c.redirect('/listings');
 });
 
@@ -272,7 +276,7 @@ listings.post('/listings/:id/photos/:pid/delete', requireUser, async (c) => {
   const it = await ownListing(c); if (!it) return c.notFound();
   const cover0 = (await photosFor(c.env.DB, it.id))[0]?.r2_key || null;
   const ph = await c.env.DB.prepare('SELECT r2_key FROM photos WHERE id = ? AND listing_id = ?').bind(c.req.param('pid'), it.id).first<{ r2_key: string }>();
-  if (ph) { await c.env.DB.prepare('DELETE FROM photos WHERE id = ?').bind(c.req.param('pid')).run(); await c.env.PHOTOS.delete(ph.r2_key); await renumber(c.env, it.id); await recoverIcon(c, it.id, cover0); }
+  if (ph) { await logEvent(c.env.DB, 'listing.photo_deleted', { user: it.owner_id, listing: it.id, data: { key: ph.r2_key } }); await c.env.DB.prepare('DELETE FROM photos WHERE id = ?').bind(c.req.param('pid')).run(); await c.env.PHOTOS.delete(ph.r2_key); await renumber(c.env, it.id); await recoverIcon(c, it.id, cover0); }
   return c.redirect(`/listings/${it.id}/edit`);
 });
 listings.post('/listings/:id/photos/:pid/cover', requireUser, async (c) => {
@@ -295,6 +299,7 @@ listings.post('/listings/:id/edit', requireUser, async (c) => {
   const em = nm === it.name && it.emoji ? it.emoji : emojiFor(nm, ds); // map icon is automatic, not owner-edited
   await c.env.DB.prepare('UPDATE listings SET name = ?, description = ?, price_cents = ?, week_cents = ?, emoji = ? WHERE id = ?')
     .bind(nm, ds, price, week, em, it.id).run();
+  await logEvent(c.env.DB, 'listing.edited', { user: u.id, listing: it.id, cents: price, data: { was: { name: it.name, price: it.price_cents, desc: it.description }, now: { name: nm, price, desc: ds } } });
   if (isGrade(f.grade)) { const gr = await shownGrade(c.env, it.id, (it as any).grade); if (!gr.customers) await c.env.DB.prepare('UPDATE listings SET grade = ? WHERE id = ?').bind(f.grade, it.id).run().catch(() => {}); }
   const today = localToday(it.lng);
   await c.env.DB.prepare('DELETE FROM blocked_days WHERE listing_id = ? AND day >= ?').bind(it.id, today).run();

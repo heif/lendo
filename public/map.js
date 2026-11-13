@@ -277,8 +277,11 @@
         var pb = map.getBounds(), w = pb.getEast() - pb.getWest(), h = pb.getNorth() - pb.getSouth();
         items = Object.keys(known).map(function (k) { return known[k]; }).filter(function (it) { return it.lng > pb.getWest() - w * .5 && it.lng < pb.getEast() + w * .5 && it.lat > pb.getSouth() - h * .5 && it.lat < pb.getNorth() + h * .5; })
           .sort(function (a, b2) { return Math.hypot(a.lat - cc.lat, (a.lng - cc.lng) * .76) - Math.hypot(b2.lat - cc.lat, (b2.lng - cc.lng) * .76); }).slice(0, 600);
-        $('toggle').hidden = !items.length && !listMode && !qq; if (!items.length && listMode && !qq) setList(false); itemsRev++; refresh(); if (!listMode) renderGrid(items); setKpi(j); if (!items.length && !centered && !qq) goNearest(); if (qq) searchFeedback(qq, items.length); centered = true; });
+        $('toggle').hidden = !items.length && !listMode && !qq; if (!items.length && listMode && !qq) setList(false); itemsRev++; refresh(); if (!listMode) renderGrid(items); setKpi(j); if (!items.length && !centered && !qq) goNearest(); if (qq) { searchFeedback(qq, items.length); logSearch(qq, items.length); } centered = true; });
   }
+  // log what people search for (settled queries only, once each) → /admin/log demand signal
+  var logT = 0, logged = '';
+  function logSearch(qq, n) { clearTimeout(logT); logT = setTimeout(function () { if (q.value.trim() !== qq || qq === logged || qq.length < 2) return; logged = qq; var c = map.getCenter(); try { navigator.sendBeacon('/api/search-log', JSON.stringify({ q: qq, n: n, lat: +c.lat.toFixed(3), lng: +c.lng.toFixed(3) })); } catch (e) {} }, 1500); }
   // search with nothing in view: jump to the nearest match (once per search), else say so plainly
   var widened = '';
   function searchFeedback(qq, n) {

@@ -1,5 +1,6 @@
 // One place that turns (name, price, photos, maybe GPS) into a live listing: location fallback chain, hood, emoji, icon job.
 import type { Env, User } from './env';
+import { logEvent } from './log';
 import { nearestHood } from './weekly';
 import { isGrade } from './grade';
 import { checkListingPhoto } from './photo-check';
@@ -39,6 +40,7 @@ export async function createListing(env: Env, ctx: { waitUntil(p: Promise<unknow
   const name = n.name.trim().slice(0, 80);
   await env.DB.prepare('INSERT INTO listings (id, owner_id, name, description, price_cents, week_cents, status, hood, lat, lng, emoji, mapbox_id, geocoded_at, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
     .bind(lid, u.id, name, desc, price, week, 'live', hood, flat, flng, emojiFor(name, desc), mbId, geoAt, now()).run();
+  await logEvent(env.DB, 'listing.created', { user: u.id, listing: lid, cents: price, data: { name, hood } });
   if (isGrade(n.grade) && n.grade !== 'A') await env.DB.prepare('UPDATE listings SET grade = ? WHERE id = ?').bind(n.grade, lid).run().catch(() => {});
   if (flat != null) { try { await assignHood(env, 'listings', lid, lat, lng); if (!u.hood_id) await assignHood(env, 'users', u.id, lat, lng); } catch (e) { console.warn('hood assign', e); } }
   let pos = 0, firstKey: string | null = null;

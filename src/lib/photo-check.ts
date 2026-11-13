@@ -1,6 +1,7 @@
 // Photo safety filter: every new listing's first photo gets a quick Claude look.
 // Flagged → status 'review' (hidden from map/search/alerts) until an admin OKs it at /admin/review.
 import type { Env } from './env';
+import { logEvent } from './log';
 
 const b64 = (buf: ArrayBuffer) => { const b = new Uint8Array(buf); let s = ''; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000)); return btoa(s); };
 
@@ -29,6 +30,7 @@ export async function checkListingPhoto(env: Env, lid: string, key: string) {
   const v = await photoOk(env, key);
   if (v.ok) return true;
   await env.DB.prepare(`UPDATE listings SET status = 'review' WHERE id = ? AND status = 'live'`).bind(lid).run();
+  await logEvent(env.DB, 'listing.flagged', { listing: lid, data: { reason: v.reason || 'flagged' } });
   await env.DB.prepare(`INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind('flag_' + lid, v.reason || 'flagged').run();
   return false;
 }

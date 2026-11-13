@@ -2,6 +2,7 @@
 // Same money pattern as a rental: card hold → owner YES → capture (+ extra rent to owner) | NO / 24h → hold released.
 // Blocked when any of the extra days (plus the buffer day after) is taken.
 import Stripe from 'stripe';
+import { logErr, logEvent } from './log';
 import type { Env, Rental } from './env';
 import { addMessage, listingById, rentalById, userById } from './db';
 import { textUser } from './blooio';
@@ -66,6 +67,7 @@ export async function askExtension(env: Env, r: Rental, newEnd: string): Promise
     expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
   });
   await env.DB.prepare('UPDATE rental_extensions SET stripe_checkout_id = ? WHERE id = ?').bind(session.id, xid).run();
+  await logEvent(env.DB, 'ext.requested', { rental: r.id, cents: p.total, data: { ext: xid, new_end: newEnd, rent: p.rent, tax: p.tax, session: session.id } });
   return { url: session.url! };
 }
 
@@ -91,13 +93,14 @@ export async function acceptExt(env: Env, x: Ext): Promise<boolean> {
   // claim the row first so a double YES can't capture twice
   const claim = await env.DB.prepare(`UPDATE rental_extensions SET status = 'confirmed', updated_at = ? WHERE id = ? AND status = 'held'`).bind(now(), x.id).run();
   if (!claim.meta.changes) return false;
+  await logEvent(env.DB, 'ext.confirmed', { rental: r.id, cents: x.total_cents, data: { ext: x.id, new_end: x.new_end } });
   const s = stripe(env);
   if (s && x.stripe_payment_intent) {
     try {
       if (x.total_cents < 50) await s.paymentIntents.cancel(x.stripe_payment_intent);
-      else await s.paymentIntents.capture(x.stripe_payment_intent, { amount_to_capture: x.total_cents }, { idempotencyKey: `extcap_${x.id}` });
+      else { await s.paymentIntents.capture(x.stripe_payment_intent, { amount_to_capture: x.total_cents }, { idempotencyKey: `extcap_${x.id}` }); await logEvent(env.DB, 'money.capture', { rental: r.id, cents: x.total_cents, data: { ext: x.id, pi: x.stripe_payment_intent } }); }
     } catch (e) {
-      console.error('ext capture failed', e);
+      await logErr(env.DB, 'ext capture', e, { rental: r.id });
       await env.DB.prepare(`UPDATE rental_extensions SET status = 'expired', updated_at = ? WHERE id = ?`).bind(now(), x.id).run();
       const cust = (await userById(env.DB, r.renter_id))!;
       await textUser(env, cust, `The card hold for the extra days ran out, so it wasn't extended · return day stays ${fmtDay(r.end_day)}`, 'rental', r.id);
@@ -111,7 +114,8 @@ export async function acceptExt(env: Env, x: Ext): Promise<boolean> {
     try {
       await s.transfers.create({ amount: payoutOf(x), currency: 'usd', destination: owner!.stripe_account_id, transfer_group: r.id, metadata: { rental_id: r.id, ext_id: x.id } }, { idempotencyKey: `payout_${x.id}` });
       await env.DB.prepare('UPDATE rental_extensions SET paid_out = 1 WHERE id = ?').bind(x.id).run();
-    } catch (e) { console.error('ext payout failed', e); }
+      await logEvent(env.DB, 'money.payout', { rental: r.id, user: owner!.id, cents: payoutOf(x), data: { ext: x.id } });
+    } catch (e) { await logErr(env.DB, 'ext payout', e, { rental: r.id }); }
   }
   await addMessage(env, r.id, null, `Extended · now due back ${fmtDay(x.new_end)}`, 'system');
   await textUser(env, cust!, `${firstName(owner!.name)} said yes · keep the ${it!.name} until ${fmtDay(x.new_end)}${x.total_cents >= 50 ? ` · ${money(x.total_cents)} charged` : ''}`, 'money', r.id);
@@ -122,6 +126,7 @@ export async function acceptExt(env: Env, x: Ext): Promise<boolean> {
 export async function declineExt(env: Env, x: Ext, why: 'declined' | 'expired' | 'canceled') {
   const claim = await env.DB.prepare(`UPDATE rental_extensions SET status = ?, updated_at = ? WHERE id = ? AND status IN ('requested','held')`).bind(why, now(), x.id).run();
   if (!claim.meta.changes) return;
+  await logEvent(env.DB, 'ext.' + why, { rental: x.rental_id, data: { ext: x.id } });
   const s = stripe(env);
   if (s && x.stripe_payment_intent) { try { await s.paymentIntents.cancel(x.stripe_payment_intent); } catch (e) { console.error('ext release failed', e); } }
   if (x.status !== 'held') return; // never got to the owner: nothing to tell anyone

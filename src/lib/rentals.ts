@@ -1,5 +1,6 @@
 // Rental state transitions + the texts they trigger. Used by web routes, Stripe webhook, Blooio webhook and cron.
 import type { Env, Rental, User } from './env';
+import { logErr } from './log';
 import { itemLink } from './urls';
 import { addMessage, busyDays, listingById, rentalById, setRentalStatus, userById } from './db';
 import { textUser } from './blooio';
@@ -47,7 +48,7 @@ export async function accept(env: Env, r0: Rental, rentCents?: number): Promise<
   }
   const { owner, renter, listing } = await parties(env, r);
   let how: string;
-  try { how = await captureRental(env, r); } catch (e) { console.error('capture failed', e); return false; }
+  try { how = await captureRental(env, r); } catch (e) { await logErr(env.DB, 'capture failed', e, { rental: r.id }); return false; }
   await setRentalStatus(env.DB, r.id, 'confirmed', { expires_at: null });
   const url = `${env.APP_URL}/r/${r.id}`;
   const paidLine = r.total_cents <= 0 || how === 'released' ? 'free — nothing charged' : `${money(r.total_cents)} paid`;
@@ -85,7 +86,7 @@ export async function customerCancel(env: Env, r: Rental): Promise<'released' | 
   if (r.status !== 'confirmed') return false;
   const refund = Math.round(r.total_cents * 0.5);
   const paid = r.total_cents >= 50; /* nothing was charged on a free / near-free rental */
-  if (paid) { try { await refundPart(env, r, refund); } catch (e) { console.error('late cancel refund failed', e); return false; } }
+  if (paid) { try { await refundPart(env, r, refund); } catch (e) { await logErr(env.DB, 'late cancel refund failed', e, { rental: r.id }); return false; } }
   const charged = paid ? Math.max(0, r.total_cents - refund) : 0;
   // half of everything stays: half the rent (and its tax) → owner gets that minus the fee on it
   const keepRent = paid ? Math.round(r.rent_cents * 0.5) : 0, keepTax = paid ? Math.round((r.tax_cents || 0) * 0.5) : 0;
@@ -95,7 +96,7 @@ export async function customerCancel(env: Env, r: Rental): Promise<'released' | 
   await setRentalStatus(env.DB, r.id, 'canceled', { late_cancel: 1, rent_cents: keepRent, tax_cents: keepTax, fee_cents: ownerFee, payout_cents: legacy ? null : keep, total_cents: charged });
   const fresh = (await rentalById(env.DB, r.id))!;
   await addMessage(env, r.id, null, `${firstName(renter.name)} canceled after the yes · ${money(refund)} refunded · ${firstName(owner.name)} keeps ${money(keep)}`, 'system');
-  try { await payoutRental(env, fresh, owner); } catch (e) { console.error('late cancel payout failed', e); }
+  try { await payoutRental(env, fresh, owner); } catch (e) { await logErr(env.DB, 'late cancel payout failed', e, { rental: r.id }); }
   await textUser(env, owner, `${firstName(renter.name)} canceled the ${listing.name} rental — you keep ${money(keep)}`, 'money', r.id);
   await textUser(env, renter, `Canceled. ${money(refund)} back to your card (half, since ${firstName(owner.name)} had already said yes)`, 'money', r.id);
   return 'half';
@@ -107,7 +108,7 @@ export async function pickedUp(env: Env, r: Rental, photoKey: string | null) {
   const { owner, renter, listing } = await parties(env, r);
   await addMessage(env, r.id, null, photoKey ? `${firstName(owner.name)} took the pickup photo · time-stamped, you both have it` : `Picked up`, 'system');
   await textUser(env, renter, `You've got the ${listing.name}. Return ${fmtRange(r.end_day, r.end_day)}`, 'pickup', r.id);
-  try { if (await payoutRental(env, r, owner)) await textUser(env, owner, `${money(payoutOf(r))} is on its way to your account`, 'money', r.id); } catch (e) { console.error('payout failed', e); }
+  try { if (await payoutRental(env, r, owner)) await textUser(env, owner, `${money(payoutOf(r))} is on its way to your account`, 'money', r.id); } catch (e) { await logErr(env.DB, 'payout failed', e, { rental: r.id }); }
   return true;
 }
 

@@ -1,6 +1,7 @@
 // Blooio — iMessage (falls back to SMS on Blooio's side) for login codes and rental texts.
 // Docs: https://docs.blooio.com  (POST {BASE}/chats/{phone}/messages  { text, attachments? })
 import type { Env, User } from './env';
+import { logEvent } from './log';
 import { id, now } from './util';
 
 export type TextCategory = 'login' | 'rental' | 'money' | 'pickup' | 'nudge' | 'milestone' | 'alert';
@@ -30,13 +31,12 @@ export async function sendRaw(env: Env, phone: string, text: string, attachments
 // Text a user and log it so the Inbox page shows "what we text you".
 export async function textUser(env: Env, user: User, text: string, category: TextCategory, rentalId?: string) {
   // eslint-disable-next-line no-param-reassign
-  if (category === 'nudge' && !user.nudges) return;
-  if (!user.texts && category !== 'login') return;
+  if ((category === 'nudge' && !user.nudges) || (!user.texts && category !== 'login')) { await logEvent(env.DB, 'text.suppressed', { user: user.id, rental: rentalId, data: { category, why: !user.texts ? 'STOP' : 'nudges off', body: text.slice(0, 300) } }); return; }
   // Until they've texted us once, iOS tends to spam-filter messages with links from an unknown number,
   // and Blooio allows only 3 outbound on a new conversation. So: no links, and ask for a reply.
   if (!user.replied) text = text.replace(/https?:\/\/\S+/g, '').replace(/\s{2,}/g, ' ').trim() + ' (Reply OK to get links + updates here.)';
   const r = await sendRaw(env, user.phone, text);
-  if (!r.ok) console.warn('text not sent', user.id, category, r.error);
+  if (!r.ok) { console.warn('text not sent', user.id, category, r.error); await logEvent(env.DB, 'text.failed', { user: user.id, rental: rentalId, data: { category, err: String(r.error).slice(0, 300), body: text.slice(0, 300) } }); }
   await env.DB.prepare('INSERT INTO outbound_texts (id, user_id, body, category, rental_id, provider_id, created_at) VALUES (?,?,?,?,?,?,?)')
     .bind(id('t'), user.id, text, category, rentalId ?? null, r.message_id ?? null, now()).run();
   return r;

@@ -1,5 +1,6 @@
 // Public read API — agents welcome. No auth for reads; writes come later (keys + scopes).
 import { Hono } from 'hono';
+import { logEvent } from '../lib/log';
 import { localToday } from '../lib/util';
 import { loadUser, twilioBasic } from '../lib/auth';
 import { saveSearch, turnOff } from '../lib/alerts';
@@ -14,8 +15,17 @@ export const api = new Hono<{ Bindings: Env; Variables: Vars }>();
 // api routes mount before the global loadUser, so the ones that need the session load it here
 api.use('/api/alerts', loadUser);
 api.use('/api/alerts/*', loadUser);
+api.use('/api/search-log', loadUser);
 
 api.use('/api/*', async (c, next) => { await next(); c.header('access-control-allow-origin', '*'); c.header('cache-control', 'no-store'); });
+
+// settled search queries (map.js beacon) → events 'search'
+api.post('/api/search-log', async (c) => {
+  let j: any; try { j = JSON.parse(await c.req.text()); } catch { return c.body(null, 204); }
+  const q = String(j?.q || '').trim().slice(0, 80);
+  if (q.length >= 2) await logEvent(c.env.DB, 'search', { user: c.get('user')?.id ?? null, cents: null, data: { q, n: Number(j.n) || 0, lat: Number(j.lat) || null, lng: Number(j.lng) || null } });
+  return c.body(null, 204);
+});
 
 api.get('/api/listings', async (c) => {
   const bbox = (c.req.query('bbox') || '').split(',').map(parseFloat);
