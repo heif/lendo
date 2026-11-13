@@ -45,8 +45,13 @@ export async function captureRental(env: Env, rental: Rental): Promise<'captured
   const s = stripe(env);
   if (!s || !rental.stripe_payment_intent) return 'none';
   if (rental.total_cents < 50) { await s.paymentIntents.cancel(rental.stripe_payment_intent); await logEvent(env.DB, 'money.release', { rental: rental.id, cents: 0, data: { pi: rental.stripe_payment_intent, why: 'under 50c' } }); return 'released'; }
-  await s.paymentIntents.capture(rental.stripe_payment_intent, { amount_to_capture: rental.total_cents });
-  await logEvent(env.DB, 'money.capture', { rental: rental.id, cents: rental.total_cents, data: { pi: rental.stripe_payment_intent, tax: rental.tax_cents, fee: rental.fee_cents } });
+  // look first: already captured (e.g. a retried YES) counts as captured; never ask for more than the hold
+  const pi = await s.paymentIntents.retrieve(rental.stripe_payment_intent);
+  if (pi.status === 'succeeded') { await logEvent(env.DB, 'money.capture', { rental: rental.id, cents: pi.amount_received, data: { pi: pi.id, already: true } }); return 'captured'; }
+  if (pi.status !== 'requires_capture') throw new Error(`payment ${pi.id} is ${pi.status}, can't capture (hold ${pi.amount}, want ${rental.total_cents})`);
+  const amt = Math.min(rental.total_cents, pi.amount_capturable);
+  await s.paymentIntents.capture(pi.id, { amount_to_capture: amt });
+  await logEvent(env.DB, 'money.capture', { rental: rental.id, cents: amt, data: { pi: pi.id, tax: rental.tax_cents, fee: rental.fee_cents, hold: pi.amount_capturable, wanted: rental.total_cents } });
   return 'captured';
 }
 
