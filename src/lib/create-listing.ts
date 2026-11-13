@@ -16,7 +16,7 @@ export type NewListing = { name: string; priceCents: number; weekCents?: number 
 export async function createListing(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }, u: User, n: NewListing): Promise<string> {
   const minP = parseInt(env.MIN_PRICE_CENTS, 10);
   const price = Math.max(minP, Math.round(n.priceCents));
-  const week = n.weekCents && n.weekCents > 0 ? Math.round(n.weekCents) : weekDefault(price);
+  const week = weekDefault(price); // weekly is always automatic: 30% off 7 days, never set by the owner
   let lat = n.lat ?? NaN, lng = n.lng ?? NaN, hood = u.hood;
   const fromGps = !isNaN(lat) && !isNaN(lng);
   if (!fromGps) { lat = u.lat ?? NaN; lng = u.lng ?? NaN; }

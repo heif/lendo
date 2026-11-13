@@ -1,6 +1,7 @@
 // Plain-English texting: Claude turns a text into one of a few actions. Anything touching money or bookings
 // is parked in pending_actions and only runs after the sender replies YES.
 import type { Env, Listing, Rental, User } from './env';
+import { weekDefault } from './util';
 import { itemLink } from './urls';
 import { saveSearch, allowMore } from './alerts';
 import { listingById, userById } from './db';
@@ -75,7 +76,7 @@ export async function answerPending(env: Env, user: User, yes: boolean): Promise
   if (p.kind === 'change_price') {
     const it = await listingById(env.DB, d.lid);
     if (!it || it.owner_id !== user.id) return true;
-    const week = Math.round(d.cents * 7 * 0.7);
+    const week = weekDefault(d.cents);
     await env.DB.prepare('UPDATE listings SET price_cents = ?, week_cents = ? WHERE id = ?').bind(d.cents, week, it.id).run();
     await textUser(env, user, `${it.name} is now ${money(d.cents)}/day ${await itemLink(env, it.id)}`, 'rental');
   } else if (p.kind === 'cancel') {

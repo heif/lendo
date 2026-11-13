@@ -166,7 +166,7 @@ listings.post('/listings/:id/price', requireUser, async (c) => {
   const it = await listingById(c.env.DB, c.req.param('id'));
   if (!it || it.owner_id !== u.id) return c.notFound();
   const np = Math.max(minP, it.price_cents + d);
-  const week = it.week_cents === weekDefault(it.price_cents) ? weekDefault(np) : it.week_cents; // keep auto week in sync
+  const week = weekDefault(np); /* weekly is always automatic */
   await c.env.DB.prepare('UPDATE listings SET price_cents = ?, week_cents = ? WHERE id = ?').bind(np, week, it.id).run();
   return c.redirect('/listings');
 });
@@ -214,7 +214,6 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
         </div>
         <div style="display:flex;gap:10px">
           <label class="field" style="flex:1"><span>$ per day</span><input name="price" type="number" step="1" min={parseInt(c.env.MIN_PRICE_CENTS, 10) / 100} value={it.price_cents / 100} required /></label>
-          <label class="field" style="flex:1"><span>$ per week</span><input name="week" type="number" step="1" min="0" value={(it.week_cents || 0) / 100} /></label>
         </div>
         <div class="field"><span>Condition</span>
           {gr.customers ? <div class="row" style="gap:10px;margin-top:4px"><Grade g={gr.letter} /><span class="hint">{GRADE_WORD[gr.letter]} · set by customers now (average of yours + {gr.customers} customer grade{gr.customers === 1 ? '' : 's'})</span></div>
@@ -290,8 +289,7 @@ listings.post('/listings/:id/edit', requireUser, async (c) => {
   const f = await c.req.parseBody({ all: true });
   const minP = parseInt(c.env.MIN_PRICE_CENTS, 10);
   const price = Math.max(minP, Math.round(parseFloat(String(f.price || '0')) * 100) || minP);
-  const weekIn = parseFloat(String(f.week || ''));
-  const week = !isNaN(weekIn) && weekIn > 0 ? Math.round(weekIn * 100) : weekDefault(price);
+  const week = weekDefault(price); /* weekly is always automatic */
   const nm = String(f.name || it.name).trim().slice(0, 80), ds = String(f.description || '').trim().slice(0, 600) || null;
   const em = nm === it.name && it.emoji ? it.emoji : emojiFor(nm, ds); // map icon is automatic, not owner-edited
   await c.env.DB.prepare('UPDATE listings SET name = ?, description = ?, price_cents = ?, week_cents = ?, emoji = ? WHERE id = ?')

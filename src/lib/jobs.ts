@@ -47,6 +47,12 @@ JOBS.old_handle_scott = async (env) => {
   return 'ok';
 };
 
+// weekly price is automatic for everyone: reset any custom weekly rates to 30% off 7 days
+JOBS.week_auto = async (env) => {
+  const r = await env.DB.prepare(`UPDATE listings SET week_cents = CAST(ROUND(price_cents * 7 * 0.7 / 100.0) AS INTEGER) * 100 WHERE week_cents IS NULL OR week_cents != CAST(ROUND(price_cents * 7 * 0.7 / 100.0) AS INTEGER) * 100`).run();
+  return 'reset ' + (r.meta.changes || 0);
+};
+
 export async function runJobs(env: Env, ctx: ExecutionContext) {
   for (const [name, fn] of Object.entries(JOBS)) {
     const key = 'job_' + name;
