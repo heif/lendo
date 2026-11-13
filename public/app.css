@@ -554,3 +554,9 @@ img.uav{background:#ddd}
 .hero{padding:2px 16px 6px}
 .hero img#heroImg{max-height:250px;max-width:86%}
 .hero .pr{margin-top:-10px}
+/* item page: list of charges for the picked days */
+.charges{padding-top:12px;padding-bottom:12px}
+.chg{display:flex;justify-content:space-between;font-size:15px;padding:5px 0;color:var(--ink)}
+.chg s{color:#8A857B;font-weight:500}
+.chg.tot{border-top:1.5px solid var(--ink);margin-top:4px;padding-top:9px;font-weight:900;font-size:17px}
+.chg-note{font-size:12px;color:var(--mute);margin-top:4px}
