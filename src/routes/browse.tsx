@@ -135,7 +135,8 @@ export const itemPage = async (c: Ctx, lid: string, pretty = false) => {
     <Layout title={it.name} headerCenter={<span />} user={u} flash={c.req.query('canceled') ? 'Checkout canceled — nothing was charged.' : null}>
       <div class={photos.length > 1 ? 'hero gal' : 'hero'}>
         <Grade g={gr.letter} cls="onphoto" />
-        {photos[0] ? <img id="heroImg" src={cutoutUrl(c.env, photos[0].r2_key)} alt={it.name} onerror={`this.onerror=null;this.src='/p/${photos[0].r2_key}'`} /> : it.avatar_key ? <img id="heroImg" class="trimme" crossorigin="anonymous" src={'/p/' + it.avatar_key} alt={it.name} /> : <div class="hint">no photo yet</div>}
+        {photos[0] ? <img id="heroImg" data-trim="1" src={cutoutUrl(c.env, photos[0].r2_key)} alt={it.name} onerror={`this.onerror=null;this.src='/p/${photos[0].r2_key}'`} /> : it.avatar_key ? <img id="heroImg" class="trimme" crossorigin="anonymous" src={'/p/' + it.avatar_key} alt={it.name} /> : <div class="hint">no photo yet</div>}
+        <script src="/trim.js" defer></script>
         {photos.length > 1 ? <>
           <button type="button" class="gal-nav prev" id="galPrev" aria-label="Previous photo"><svg width="12" height="18" viewBox="0 0 12 18"><path d="M9 2L3 9l6 7" fill="none" stroke="#1E3A2B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
           <button type="button" class="gal-nav next" id="galNext" aria-label="Next photo"><svg width="12" height="18" viewBox="0 0 12 18"><path d="M3 2l6 7-6 7" fill="none" stroke="#1E3A2B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" /></svg></button>

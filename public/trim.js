@@ -6,7 +6,9 @@
       var w = img.naturalWidth, h = img.naturalHeight; if (!w || !h) return;
       var c = document.createElement('canvas'); c.width = w; c.height = h; var x = c.getContext('2d'); x.drawImage(img, 0, 0);
       var d = x.getImageData(0, 0, w, h).data, x0 = w, y0 = h, x1 = -1, y1 = -1;
-      for (var y = 0; y < h; y += 2) for (var i = 0; i < w; i += 2) if (d[(y * w + i) * 4 + 3] > 24) { if (i < x0) x0 = i; if (i > x1) x1 = i; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      var wh = function (k) { return d[k + 3] < 25 || (d[k] > 238 && d[k + 1] > 238 && d[k + 2] > 238); };
+      var whiteBg = wh(0) && wh((w - 1) * 4) && wh(((h - 1) * w) * 4) && wh(((h - 1) * w + w - 1) * 4);
+      for (var y = 0; y < h; y += 2) for (var i = 0; i < w; i += 2) if (whiteBg ? !wh((y * w + i) * 4) : d[(y * w + i) * 4 + 3] > 24) { if (i < x0) x0 = i; if (i > x1) x1 = i; if (y < y0) y0 = y; if (y > y1) y1 = y; }
       if (x1 < 0 || (x1 - x0 > w * 0.94 && y1 - y0 > h * 0.94)) return;
       x0 = Math.max(0, x0 - 2); y0 = Math.max(0, y0 - 2); x1 = Math.min(w - 1, x1 + 2); y1 = Math.min(h - 1, y1 + 2);
       var o = document.createElement('canvas'); o.width = x1 - x0 + 1; o.height = y1 - y0 + 1; o.getContext('2d').drawImage(c, x0, y0, o.width, o.height, 0, 0, o.width, o.height);

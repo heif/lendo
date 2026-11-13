@@ -549,3 +549,8 @@ img.uav{background:#ddd}
 .soc-in{display:flex;align-items:center;gap:4px;margin-top:6px}.soc-in b{font-size:13px;color:#6F6A60;white-space:nowrap}.soc-in input{flex:1;min-width:0}
 .field .soc-in .soc-ic{display:flex;margin:0;width:24px;justify-content:center}
 .pf-share{display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;border:1.5px solid var(--ink);border-radius:15px;background:#fff;text-decoration:none}
+
+/* item page photo: no empty band above/below — tight to the header and price */
+.hero{padding:2px 16px 6px}
+.hero img#heroImg{max-height:250px;max-width:86%}
+.hero .pr{margin-top:-10px}
