@@ -59,7 +59,7 @@ export function registerDash(admin: A) {
       one<{ n: number }>(c, `SELECT COUNT(*) n FROM events WHERE kind = 'text.failed' AND at > ?`, d1),
       one<{ n: number }>(c, `SELECT COUNT(*) n FROM events WHERE kind = 'error' AND at > ?`, d1),
       one<{ n: number; z: number }>(c, `SELECT COUNT(*) n, SUM(json_extract(data,'$.n') = 0) z FROM events WHERE kind = 'search' AND at > ?`, d7),
-      all<EvRow>(c, `SELECT e.*, u.name uname FROM events e LEFT JOIN users u ON u.id = e.user_id WHERE e.kind != 'search' ORDER BY e.id DESC LIMIT 25`),
+      all<EvRow>(c, `SELECT e.*, u.name uname FROM events e LEFT JOIN users u ON u.id = e.user_id WHERE e.kind NOT IN ('search','view','view.item') ORDER BY e.id DESC LIMIT 25`),
       all<{ q: string; n: number; zero: number }>(c, `SELECT lower(json_extract(data,'$.q')) q, COUNT(*) n, SUM(json_extract(data,'$.n') = 0) zero FROM events WHERE kind = 'search' AND at > ? GROUP BY 1 ORDER BY n DESC LIMIT 12`, t - 30 * DAY),
     ]);
     const st = Object.fromEntries(rs.map(r => [r.status, r.n]));
@@ -90,6 +90,8 @@ export function registerDash(admin: A) {
         {K('/admin/rentals', money(moneyAll?.credit ?? 0), 'credits given (Lendo cost)')}
         {K('/admin/rentals?owed=1', money(owed?.s ?? 0), `owed to owners · not yet sent (${owed?.n ?? 0})`, (owed?.n ?? 0) > 0)}
       </div>
+      <h3>Visits</h3>
+      {await visits(c)}
       <h3>Health · last 24h</h3>
       <div class="ad-k">
         {K('/admin/texts', texts?.n ?? 0, 'texts sent')}
@@ -121,7 +123,7 @@ export function registerDash(admin: A) {
     const qs = new URLSearchParams(Object.entries(q).filter(([k, v]) => v && k !== 'limit') as [string, string][]).toString();
     return c.html(<Shell c={c} title="Activity log" path={c.req.path + (q.kind === 'error' ? '?kind=error' : '')}>
       <form class="ad-f" method="get">
-        <select name="kind"><option value="">all kinds</option>{['rental.', 'money.', 'stripe.', 'text.', 'listing.', 'login', 'admin.', 'ext.'].map(k => <option value={k} selected={q.kind === k}>{k}*</option>)}{kinds.map(k => <option value={k.kind} selected={q.kind === k.kind}>{k.kind} ({k.n})</option>)}</select>
+        <select name="kind"><option value="">all kinds</option>{['rental.', 'money.', 'stripe.', 'text.', 'listing.', 'profile.', 'item.', 'alert.', 'view', 'login', 'admin.', 'ext.'].map(k => <option value={k} selected={q.kind === k}>{k}*</option>)}{kinds.map(k => <option value={k.kind} selected={q.kind === k.kind}>{k.kind} ({k.n})</option>)}</select>
         <input name="q" placeholder="text in details" value={q.q || ''} />
         <input name="user" placeholder="user id" value={q.user || ''} size={14} />
         <input name="rental" placeholder="rental id" value={q.rental || ''} size={14} />
@@ -202,6 +204,24 @@ export function registerDash(admin: A) {
       <div class="ad-wrap"><table class="ad-t"><tr><th>Query</th><th class="n">Found nothing</th><th class="n">Times</th><th class="n">People</th><th>Last</th></tr>{rows.map(r => <tr><td><a href={'/admin/log?kind=search&q=' + encodeURIComponent(r.q)}>{r.q}</a></td><td class="n">{r.zero || ''}</td><td class="n">{r.n}</td><td class="n">{r.people}</td><td>{ago(r.last)}</td></tr>)}</table></div>
     </Shell>);
   });
+}
+
+async function visits(c: any) {
+  const t = Date.now(), d1 = t - DAY, d7 = t - 7 * DAY;
+  const [a, top, refs] = await Promise.all([
+    one<{ v1: number; u1: number; v7: number; u7: number; i7: number }>(c, `SELECT SUM(at > ?1) v1, COUNT(DISTINCT CASE WHEN at > ?1 THEN json_extract(data,'$.v') END) u1, COUNT(*) v7, COUNT(DISTINCT json_extract(data,'$.v')) u7, SUM(kind = 'view.item') i7 FROM events WHERE kind IN ('view','view.item') AND at > ?2`, d1, d7),
+    all<{ listing_id: string; name: string; n: number; u: number; saves: number }>(c, `SELECT e.listing_id, l.name, COUNT(*) n, COUNT(DISTINCT json_extract(e.data,'$.v')) u, (SELECT COUNT(*) FROM events s WHERE s.kind = 'item.saved' AND s.listing_id = e.listing_id AND s.at > ?1) saves FROM events e JOIN listings l ON l.id = e.listing_id WHERE e.kind = 'view.item' AND e.at > ?1 GROUP BY e.listing_id ORDER BY u DESC LIMIT 10`, d7),
+    all<{ ref: string; n: number }>(c, `SELECT COALESCE(json_extract(data,'$.utm'), json_extract(data,'$.ref')) ref, COUNT(DISTINCT json_extract(data,'$.v')) n FROM events WHERE kind IN ('view','view.item') AND at > ? AND COALESCE(json_extract(data,'$.utm'), json_extract(data,'$.ref')) IS NOT NULL GROUP BY 1 ORDER BY n DESC LIMIT 8`, d7),
+  ]);
+  return <>
+    <div class="ad-k">
+      <a href="/admin/log?kind=view&days=1"><b>{a?.u1 ?? 0}</b><span>visitors today · {a?.v1 ?? 0} pages</span></a>
+      <a href="/admin/log?kind=view&days=7"><b>{a?.u7 ?? 0}</b><span>visitors this week · {a?.v7 ?? 0} pages</span></a>
+      <a href="/admin/log?kind=view.item&days=7"><b>{a?.i7 ?? 0}</b><span>item page views this week</span></a>
+    </div>
+    <div class="ad-wrap" style="margin-top:8px"><table class="ad-t"><tr><th>Most-viewed items · 7 days</th><th class="n">Visitors</th><th class="n">Views</th><th class="n">Saves</th></tr>{top.map(r => <tr><td><a href={'/i/' + r.listing_id}>{r.name}</a> <a class="hint" href={'/admin/log?kind=view.item&listing=' + r.listing_id}>log</a></td><td class="n">{r.u}</td><td class="n">{r.n}</td><td class="n">{r.saves || ''}</td></tr>)}</table></div>
+    {refs.length ? <div class="ad-wrap" style="margin-top:8px"><table class="ad-t"><tr><th>Came from · 7 days</th><th class="n">Visitors</th></tr>{refs.map(r => <tr><td>{r.ref}</td><td class="n">{r.n}</td></tr>)}</table></div> : null}
+  </>;
 }
 
 async function rentalSummary(c: any, rid: string) {

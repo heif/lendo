@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { logEvent } from '../lib/log';
 import { localToday } from '../lib/util';
 import { shortName } from '../lib/util';
 import { handleText } from './webhooks';
@@ -419,6 +420,7 @@ rentals.get('/alerts', requireUser, async (c) => {
 rentals.post('/alerts/:id/toggle', requireUser, async (c) => {
   const u = c.get('user')!;
   await c.env.DB.prepare('UPDATE saved_searches SET active = 1 - active WHERE id = ? AND user_id = ?').bind(c.req.param('id'), u.id).run();
+  await logEvent(c.env.DB, 'alert.toggled', { user: u.id, data: { id: c.req.param('id') } });
   return c.redirect('/alerts');
 });
 

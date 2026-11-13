@@ -1,4 +1,5 @@
 import { Hono, type Context } from 'hono';
+import { logEvent } from '../lib/log';
 import { localToday } from '../lib/util';
 import { SOCIALS, SocialIcons, socialHandle } from '../lib/socials';
 import { Avatar, PhotoField, saveUserPhoto } from '../lib/userphoto';
@@ -114,6 +115,7 @@ browse.get('/', (c) => homePage(c));
 
 // ---------- Item ----------
 export const itemPage = async (c: Ctx, lid: string, pretty = false) => {
+  (c as any).set('viewListing', lid); /* page-view log: this is an item page */
   const u = c.get('user');
   const it = await listingById(c.env.DB, lid);
   if (!it || it.status === 'removed' || (it.status === 'review' && u?.id !== it.owner_id)) return c.notFound();
@@ -224,7 +226,7 @@ var mm=document.getElementById('meetMid');if(mm){var M0={n:document.getElementBy
 browse.get('/i/:id', async (c) => {
   // old links → readable URL when there is one
   const r = await c.env.DB.prepare('SELECT l.slug, u.handle FROM listings l JOIN users u ON u.id = l.owner_id WHERE l.id = ?').bind(c.req.param('id')).first<{ slug: string | null; handle: string | null }>().catch(() => null);
-  if (r?.slug && r.handle) return c.redirect(`/${r.handle}/${r.slug}`, 301);
+  if (r?.slug && r.handle) { const qs = new URL(c.req.url).search; return c.redirect(`/${r.handle}/${r.slug}${qs}`, 301); } /* keep ?utm_source etc */
   return itemPage(c, c.req.param('id'));
 });
 
@@ -235,6 +237,7 @@ browse.post('/i/:id/save', async (c) => {
   const ex = await c.env.DB.prepare('SELECT 1 FROM saved WHERE user_id = ? AND listing_id = ?').bind(u.id, lid).first();
   if (ex) await c.env.DB.prepare('DELETE FROM saved WHERE user_id = ? AND listing_id = ?').bind(u.id, lid).run();
   else await c.env.DB.prepare('INSERT INTO saved (user_id, listing_id, created_at) VALUES (?,?,?)').bind(u.id, lid, Date.now()).run();
+  await logEvent(c.env.DB, ex ? 'item.unsaved' : 'item.saved', { user: u.id, listing: lid });
   return c.redirect('/i/' + lid);
 });
 
@@ -395,7 +398,7 @@ browse.post('/profile/edit', async (c) => {
   if (!u) return c.redirect('/login');
   const f = await c.req.parseBody();
   await c.env.DB.prepare('UPDATE users SET ig = ?, x = ?, linkedin = ? WHERE id = ?').bind(socialHandle('ig', f.soc_ig), socialHandle('x', f.soc_x), socialHandle('linkedin', f.soc_linkedin), u.id).run().catch(e => console.warn('socials', e));
-  if (f.photo) await saveUserPhoto(c.env, u.id, f.photo).catch(e => console.warn('photo save', e));
+  if (f.photo) { const k = await saveUserPhoto(c.env, u.id, f.photo).catch(e => { console.warn('photo save', e); return null; }); await logEvent(c.env.DB, k ? 'profile.photo' : 'profile.photo_failed', { user: u.id, data: { key: k } }); }
   const hNew = String(f.handle || '').trim().toLowerCase();
   if (hNew && hNew !== (u as any).handle) {
     if (!handleOk(hNew)) return c.redirect('/profile/edit?err=handle');
@@ -405,6 +408,7 @@ browse.post('/profile/edit', async (c) => {
     // the old link keeps working
     if (r?.meta.changes && (u as any).handle) await c.env.DB.prepare('INSERT OR REPLACE INTO old_handles (handle, user_id, created_at) VALUES (?,?,?)').bind((u as any).handle, u.id, Date.now()).run().catch(() => {});
     if (!r?.meta.changes) return c.redirect('/profile/edit?err=taken');
+    await logEvent(c.env.DB, 'profile.handle', { user: u.id, data: { was: (u as any).handle ?? null, now: hNew } });
   }
   let spots: string[] = [];
   try { const j = JSON.parse(String(f.pickup_spots_json || '[]')); if (Array.isArray(j)) spots = j.map(s => String(s).trim().slice(0, 80)).filter(Boolean).slice(0, 1); /* one meetup spot per owner */ } catch { /* keep empty */ }
@@ -424,6 +428,11 @@ browse.post('/profile/edit', async (c) => {
     .bind(String(f.name || '').trim().slice(0, 40) || null, String(f.cross_streets || '').trim().slice(0, 80) || null, spots.length ? JSON.stringify(spots) : null,
       hoodOut ? hoodOut.slice(0, 60) : null, isNaN(lat) ? null : lat, isNaN(lng) ? null : lng, addr || null, mapboxId, geocodedAt, u.id).run();
   const me = (await userById(c.env.DB, u.id))!;
+  { /* what changed (name, hood, spot, address, socials) */
+    const was: Record<string, unknown> = {}, now: Record<string, unknown> = {};
+    for (const k of ['name', 'hood', 'pickup_spots', 'cross_streets', 'address', 'ig', 'x', 'linkedin'] as const) { const a = (u as any)[k] ?? null, b = (me as any)[k] ?? null; if (a !== b) { was[k] = a; now[k] = b; } }
+    if (Object.keys(now).length) await logEvent(c.env.DB, 'profile.edited', { user: u.id, data: { was, now } });
+  }
   if (me.lat != null && me.lng != null) {
     try { await assignHood(c.env, 'users', u.id, me.lat, me.lng); } catch (e) { console.warn('hood assign', e); }
     const orphans = await c.env.DB.prepare('SELECT id FROM listings WHERE owner_id = ? AND lat IS NULL').bind(u.id).all<{ id: string }>();

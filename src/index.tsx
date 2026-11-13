@@ -1,4 +1,6 @@
 import { iconsDone, makeWantedIcon, auditIcons } from './lib/wanted-icons';
+import { getCookie, setCookie } from 'hono/cookie';
+import { logEvent } from './lib/log';
 import { logErr } from './lib/log';
 import { runJobs } from './lib/jobs';
 import { expireExtensions } from './lib/extend';
@@ -41,6 +43,19 @@ app.use('*', async (c, next) => {
 app.route('/', webhooks);   // raw-body routes first, no session needed
 app.route('/', api);
 app.use('*', loadUser);
+// page views → events ('view.item' for item pages, 'view' otherwise). Real browsers only, HTML pages only, not admin. Anonymous visitors get a random lendo_v cookie so uniques can be counted
+app.use('*', async (c, next) => {
+  await next();
+  if (c.req.method !== 'GET' || c.res.status !== 200 || !(c.res.headers.get('content-type') || '').includes('text/html')) return;
+  const path = c.req.path, ua = c.req.header('user-agent') || '';
+  if (/^\/(admin|api|p|dev|webhooks)(\/|$)/.test(path) || /bot|crawl|spider|slurp|preview|headless|facebookexternalhit|curl|wget/i.test(ua) || c.req.header('x-lendo-preview')) return;
+  let vid = getCookie(c, 'lendo_v');
+  if (!vid) { vid = crypto.randomUUID().slice(0, 12); setCookie(c, 'lendo_v', vid, { path: '/', maxAge: 60 * 60 * 24 * 400, sameSite: 'Lax', secure: true }); }
+  const ref = c.req.header('referer'); let refHost: string | null = null; try { refHost = ref ? new URL(ref).host : null; } catch { /* bad referer */ }
+  const qs = new URL(c.req.url).searchParams, utm = qs.get('utm_source') || qs.get('ref') || null;
+  const lid = (c as any).get('viewListing') as string | undefined, item = lid ? [path, lid] : null;
+  c.executionCtx.waitUntil(logEvent(c.env.DB, item ? 'view.item' : 'view', { user: c.get('user')?.id ?? null, listing: item ? item[1] : null, data: { path, v: vid, ref: refHost && refHost !== new URL(c.env.APP_URL).host ? refHost : null, utm } }));
+});
 app.route('/', auth);
 app.route('/', browse);
 app.route('/', listings);

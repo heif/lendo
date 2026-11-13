@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { logEvent } from '../lib/log';
 import { PhotoField, saveUserPhoto } from '../lib/userphoto';
 import type { Env, Vars } from '../lib/env';
 import { Layout } from '../pages/layout';
@@ -97,6 +98,7 @@ auth.post('/welcome', async (c) => {
   await c.env.DB.prepare('UPDATE users SET name = ?, hood = COALESCE(NULLIF(?, \'\'), hood) WHERE id = ?')
     .bind(String(f.name || '').trim().slice(0, 40) || 'Neighbor', String(f.hood || '').trim().slice(0, 60), u.id).run();
   if (f.photo) await saveUserPhoto(c.env, u.id, f.photo).catch(() => null);
+  await logEvent(c.env.DB, 'profile.setup', { user: u.id, data: { name: String(f.name || '').trim().slice(0, 40), hood: String(f.hood || '').trim().slice(0, 60), photo: !!f.photo } });
   return c.redirect(safeNext(String(f.next || '/')));
 });
 

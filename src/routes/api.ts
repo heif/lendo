@@ -101,11 +101,12 @@ api.post('/api/alerts', async (c) => {
   const lat = Number(b.lat), lng = Number(b.lng);
   if (!isFinite(lat) || !isFinite(lng)) return c.json({ error: 'where' }, 400);
   const sid = await saveSearch(c.env, u, String(b.q || ''), lat, lng, b.hood ? String(b.hood).slice(0, 40) : null);
+  await logEvent(c.env.DB, 'alert.on', { user: u.id, data: { q: String(b.q || '').slice(0, 80), id: sid, hood: b.hood ?? null } });
   return c.json({ id: sid });
 });
 api.post('/api/alerts/:id/off', async (c) => {
   const u = c.get('user'); if (!u) return c.json({ error: 'login' }, 401);
-  await turnOff(c.env, u, c.req.param('id')); return c.json({ ok: true });
+  await turnOff(c.env, u, c.req.param('id')); await logEvent(c.env.DB, 'alert.off', { user: u.id, data: { id: c.req.param('id') } }); return c.json({ ok: true });
 });
 // public health check: schema version only, nothing sensitive
 api.get('/api/health', async (c) => {
