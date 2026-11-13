@@ -61,7 +61,7 @@ listings.get('/list', async (c) => {
         <div class="lf-scroll">
           <div class="rv-top"><button type="button" class="lnk" id="backCam">← snap more</button><span class="m rv-count" id="rvCount"></span></div>
           <div class="lf-h">Check names and prices</div>
-          <div class="lf-tip"><b>✦ Filled in from your photo</b> — a first guess, sometimes wrong. Fix the name, price or notes before listing</div>
+          <div class="lf-tip"><b>✦ Guessed from your photo</b> — fix anything off</div>
           <div id="rows"></div>
         </div>
         <div class="lf-foot"><button type="button" class="cta" id="listBtn">LIST</button></div>

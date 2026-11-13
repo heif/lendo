@@ -94,7 +94,7 @@
       return '<div class="row-item" data-i="' + i + '">' +
         '<div class="rtcol"><button type="button" class="rt" data-act="retake"><img src="' + (s.cutUrl || s.url) + '" alt=""' + (s.cutUrl ? ' class="cut"' : '') + '><span>↻ Retake</span></button>' +
         '<div class="xtra">' + (s.extra || []).map(function (x, k) { return '<button type="button" class="xt" data-act="xdel" data-k="' + k + '" aria-label="Remove photo"><img src="' + x.url + '" alt=""><b>×</b></button>'; }).join('') + ((s.extra || []).length < 5 ? '<button type="button" class="xadd" data-act="xadd" aria-label="Add photos">+</button>' : '') + '</div></div>' +
-        '<div class="mid"><div class="nmwrap"><input class="nm" data-act="name" value="' + esc(s.name) + '" placeholder="' + (s.pending ? 'Identifying…' : 'What is it?') + '" maxlength="80"></div>' +
+        '<div class="mid"><div class="nmwrap"><input class="nm" data-act="name" value="' + esc(s.name) + '" placeholder="' + (s.pending ? '' : 'What is it?') + '" maxlength="80">' + (s.pending && !s.name ? '<span class="idwait">Identifying<span class="dots"><i>.</i><i>.</i><i>.</i></span></span>' : '') + '</div>' +
         (s.askLabel && !s.pending ? '<button type="button" class="asklabel" data-act="label">📷 Brand? Snap the logo or label</button>' : '') + '<div class="pricerow"><button type="button" class="pm" data-act="dn" aria-label="Lower">−</button><span class="badge">$' + s.price + '<small>/day</small></span><button type="button" class="pm" data-act="up" aria-label="Raise">+</button></div>' + '<div class="grdrow"><button type="button" class="grdbtn" data-act="grade" aria-label="Condition, tap to change"><span class="grd g' + (s.grade || 'A') + '"><b>' + (s.grade || 'A') + '</b><small>CONDITION</small><i>▾</i></span></button><span class="grdw">' + GW[s.grade || 'A'] + '</span></div>' +
         '<textarea class="note" data-act="note" rows="2" placeholder="✎ model · what’s included · condition · good for" maxlength="400">' + esc(s.note) + '</textarea>' + (window.lendoDetails && !s.pending ? '<div class="dmeter">' + window.lendoDetails(s.note) + '</div>' : '') + '</div>' +
         '<button type="button" class="del" data-act="del" aria-label="Remove this item"><svg width="18" height="20" viewBox="0 0 18 20" aria-hidden="true"><path d="M2 5h14M7 5V3h4v2M4 5l1 13h8l1-13" fill="none" stroke="#9B968C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>';
@@ -103,7 +103,7 @@
     $('listBtn').textContent = shots.length === 1 ? 'LIST IT' : 'LIST ALL ' + shots.length;
     var pend = shots.some(function (s) { return s.pending; });
     $('listBtn').disabled = !shots.length || pend || shots.some(function (s) { return !s.name.trim(); });
-    if (pend) $('listBtn').textContent = 'IDENTIFYING…';
+    if (pend) $('listBtn').innerHTML = 'IDENTIFYING<span class="dots"><i>.</i><i>.</i><i>.</i></span>';
   }
   $('rows').addEventListener('click', function (e) {
     var b = e.target.closest('[data-act]'); if (!b) return; var row = b.closest('.row-item'), i = +row.dataset.i, act = b.dataset.act;
