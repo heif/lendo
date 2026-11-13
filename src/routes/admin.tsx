@@ -1,7 +1,7 @@
 // Admin (allowlisted phones only): pricing rules + identification test.
 import { Hono } from 'hono';
 import { logEvent } from '../lib/log';
-import { registerDash } from './admin-dash';
+import { AdminNav, registerDash } from './admin-dash';
 import { stripe } from '../lib/stripe';
 import { twilioBasic } from '../lib/auth';
 import type { Env, Vars } from '../lib/env';
@@ -51,7 +51,13 @@ admin.get('/admin/debug', async (c) => {
   if (twilioBasic(c.env) && c.env.TWILIO_VERIFY_SID) { try { const r = await fetch(`https://verify.twilio.com/v2/Services/${c.env.TWILIO_VERIFY_SID.trim()}`, { headers: { authorization: twilioBasic(c.env)! } }); const j: any = await r.json().catch(() => ({})); twilio = r.status + ' ' + (j.friendly_name || j.message || ''); } catch (e: any) { twilio = 'ERR ' + (e?.message || e); } }
   const tables = (await c.env.DB.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`).all<{ name: string }>()).results.map(r => r.name);
   const mig = await c.env.DB.prepare(`SELECT name FROM d1_migrations ORDER BY id DESC LIMIT 1`).first<{ name: string }>().catch(() => null);
-  return c.json({ twilio_ping: twilio, last_migration: mig?.name ?? null, has_alerts_tables: tables.includes('saved_searches'), claude_ping: ping, settings: Object.fromEntries(rows.map(r => [r.key, r.value])) });
+  const out = { twilio_ping: twilio, last_migration: mig?.name ?? null, has_alerts_tables: tables.includes('saved_searches'), claude_ping: ping, settings: Object.fromEntries(rows.map(r => [r.key, r.value])) };
+  if (c.req.query('json')) return c.json(out);
+  return c.html(<Layout title="Admin · system" user={c.get('user')} back="/admin">
+    <div style="padding:0 14px"><AdminNav c={c} path="/admin/debug" /></div>
+    <div style="padding:4px 16px 40px"><p class="hint"><a href="/api/health">Health JSON</a> · <a href="/admin/debug?json=1">This as JSON</a></p>
+      <pre style="background:#fff;border-radius:12px;padding:12px;font-size:12px;white-space:pre-wrap;word-break:break-word">{JSON.stringify(out, null, 2)}</pre></div>
+  </Layout>);
 });
 
 // Wanted ghosts: tick = shown on the map. Saved to settings.wanted_off.
@@ -61,8 +67,9 @@ admin.get('/admin/wanted', async (c) => {
   const off = new Set<string>(row ? JSON.parse(row.value) : []);
   const icons = await iconsDone(c.env); const missing = WANTED_ALL.filter(w => !icons.has(w.key)).length;
   return c.html(
-    <Layout title="Admin · wanted items" user={u} back="/admin/pricing">
-      <form method="post" action="/admin/wanted" style="padding:12px 16px 40px">
+    <Layout title="Admin · wanted items" user={u} back="/admin">
+      <div style="padding:0 14px"><AdminNav c={c} path="/admin/wanted" /></div>
+      <form method="post" action="/admin/wanted" style="padding:4px 16px 40px">
         <div class="row" style="justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap"><span class="hint">{WANTED_ALL.length - off.size} of {WANTED_ALL.length} on the map · {icons.size} custom icons{missing ? ` (${missing} missing)` : ''}</span><span class="row" style="gap:6px">{missing ? <button class="btn sm" type="submit" formaction="/admin/wanted/icons" formmethod="post">Make 12 icons</button> : null}<button class="btn sm" type="submit" formaction="/admin/demo/fixland" formmethod="post" title="Move demo items off parks/water (120 per tap)">Demo: off parks</button><button class="btn pri sm" type="submit">Save</button></span></div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px">
           {WANTED_ALL.map(w => <label class="card" style={'display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer' + (off.has(w.key) ? ';opacity:.45' : '')}><input type="checkbox" name="on" value={w.key} checked={!off.has(w.key)} />{icons.has(w.key) ? <img src={`/p/wanted/${w.key}.png?v=${Date.now()}`} alt="" style="width:40px;height:40px;object-fit:contain" /> : <span style="font-size:24px">{w.emoji}</span>}<span style="font-size:13px;font-weight:700;flex:1">{w.label}</span><button type="submit" formaction={`/admin/wanted/icons/${w.key}`} formmethod="post" class="btn sm" title="Regenerate icon" style="padding:0 8px;height:28px">↻</button></label>)}
@@ -99,8 +106,9 @@ admin.get('/admin/pricing', async (c) => {
   const { rules, settings } = await loadPricing(c.env, true);
   const test = c.req.query('t');
   return c.html(
-    <Layout title="Admin · pricing" user={u} back="/">
-      <div style="padding:12px 16px 40px">
+    <Layout title="Admin · pricing" user={u} back="/admin">
+      <div style="padding:0 14px"><AdminNav c={c} path="/admin/pricing" /></div>
+      <div style="padding:4px 16px 40px">
         <form method="post" action="/admin/pricing/test" enctype="multipart/form-data" class="card" style="margin-bottom:14px">
           <b>Test identification</b>
           <div class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap">
@@ -175,8 +183,9 @@ admin.get('/admin/review', async (c) => {
   const u = c.get('user')!;
   const rows = (await c.env.DB.prepare(`SELECT l.id, l.name, l.owner_id, (SELECT r2_key FROM photos p WHERE p.listing_id = l.id ORDER BY pos LIMIT 1) k, (SELECT value FROM settings s WHERE s.key = 'flag_' || l.id) why FROM listings l WHERE l.status = 'review' ORDER BY l.created_at DESC LIMIT 100`).all<{ id: string; name: string; owner_id: string; k: string | null; why: string | null }>()).results;
   return c.html(
-    <Layout title="Admin · photo check" user={u} back="/admin/pricing">
-      <div style="padding:12px 16px 40px">
+    <Layout title="Admin · photo check" user={u} back="/admin">
+      <div style="padding:0 14px"><AdminNav c={c} path="/admin/review" /></div>
+      <div style="padding:4px 16px 40px">
         <div class="hint" style="margin-bottom:10px">{rows.length} held</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">
           {rows.map(r => (
@@ -218,7 +227,8 @@ admin.get('/admin/promo', async (c) => {
   const rows = (await c.env.DB.prepare(`SELECT u.id, u.name, u.phone, u.hood, u.stripe_account_id acct, COUNT(l.id) n, (SELECT value FROM settings s WHERE s.key = 'promo10_' || u.id) done FROM users u JOIN listings l ON l.owner_id = u.id WHERE l.status IN ('live','paused') AND l.demo = 0 AND u.demo = 0 GROUP BY u.id HAVING n >= 10 ORDER BY done IS NOT NULL, n DESC`).all<{ id: string; name: string | null; phone: string; hood: string | null; acct: string | null; n: number; done: string | null }>()).results;
   return c.html(
     <Layout title="Admin · $10 promo" user={u} back="/admin">
-      <div style="padding:12px 16px 40px">
+      <div style="padding:0 14px"><AdminNav c={c} path="/admin/promo" /></div>
+      <div style="padding:4px 16px 40px">
         <div class="hint" style="margin-bottom:10px">{rows.length} owners with 10+ listed · after the FaceTime check, tap Done: $10 cash goes to their payout account and $10 rental credit to their account</div>
         {rows.map(r => <div class="card" style="padding:10px;margin-bottom:6px">
           <div class="row" style="justify-content:space-between"><a href={'/u/' + r.id} style="font-weight:800">{r.name || 'Neighbor'}</a><span class="hint">{r.hood || ''} · {r.n} listed · <a href={'facetime:' + r.phone}>FaceTime</a></span></div>

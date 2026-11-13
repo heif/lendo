@@ -13,17 +13,31 @@ const esc = (s: unknown) => String(s ?? '');
 const CSS = `.wrap:has(.ad){max-width:1180px}.ad{padding:10px 14px 48px;max-width:1100px;margin:0 auto}.ad h3{font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin:22px 0 8px;opacity:.7}
 .ad-k{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}.ad-k a{background:#fff;border-radius:12px;padding:10px 12px;text-decoration:none;color:var(--ink);display:block}
 .ad-k b{display:block;font-size:24px;font-weight:900;letter-spacing:-.02em}.ad-k span{font-size:12px;opacity:.7}.ad-k a.warn b{color:#FF4F00}
-.ad-nav{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px}.ad-nav a{background:#fff;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:700;text-decoration:none;color:var(--ink)}.ad-nav a.on{background:var(--ink);color:#fff}
+.ad-sub{display:flex;flex-wrap:wrap;gap:4px;margin:2px 0 8px}.ad-sub a{background:#fff;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:700;text-decoration:none;color:var(--ink)}.ad-sub a.on{background:var(--ink);color:#fff}
 .ad-t{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;border-radius:12px;overflow:hidden}.ad-t td,.ad-t th{padding:6px 8px;border-bottom:1px solid #eee;text-align:left;vertical-align:top}.ad-t th{font-size:11px;text-transform:uppercase;opacity:.6}
 .ad-t td.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}.ad-t .d{max-width:420px;word-break:break-word;opacity:.8;font-family:ui-monospace,Menlo,monospace;font-size:11px}
 .ad-f{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}.ad-f input,.ad-f select{height:34px;border-radius:8px;border:1px solid #ddd;padding:0 8px;font:inherit;font-size:13px}.ad-f button{height:34px}
 .ad-wrap{overflow-x:auto}.ad-kind{font-weight:700;white-space:nowrap}.ad-kind.error,.ad-kind.text\\.failed{color:#c22}.ad-kind.money{color:#0a7}`;
 
-const NAV: [string, string][] = [['/admin', 'Dashboard'], ['/admin/log', 'Activity log'], ['/admin/rentals', 'Rentals'], ['/admin/users', 'Users'], ['/admin/texts', 'Texts'], ['/admin/searches', 'Searches'], ['/admin/log?kind=error', 'Errors'], ['/admin/review', 'Photo check'], ['/admin/promo', '$10 promo'], ['/admin/pricing', 'Pricing'], ['/admin/wanted', 'Wanted'], ['/api/health', 'Health'], ['/admin/debug', 'Debug']];
+/* one admin nav for every admin page: a single tight row (scrolls sideways on a phone), sticky under the header; red counts = needs attention */
+const NAV_CSS = `.adn{position:sticky;top:0;z-index:20;background:var(--cream,#F5F3EE);margin:0 -14px 6px;padding:6px 14px;border-bottom:1px solid rgba(30,58,43,.1)}
+.adn div{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;white-space:nowrap}.adn div::-webkit-scrollbar{display:none}
+.adn a{padding:5px 9px;border-radius:8px;font-size:12.5px;font-weight:700;text-decoration:none;color:var(--ink);opacity:.7}.adn a:hover{opacity:1;background:rgba(30,58,43,.06)}
+.adn a.on{opacity:1;background:var(--ink);color:#fff}.adn i{width:1px;align-self:stretch;margin:4px 5px;background:rgba(30,58,43,.18)}
+.adn sup{font-size:10px;font-weight:800;color:#fff;background:#FF4F00;border-radius:999px;padding:0 5px;margin-left:3px;vertical-align:2px}`;
+const NAV: ([string, string, ('review' | 'error')?] | null)[] = [['/admin', 'Home'], ['/admin/log', 'Log'], ['/admin/rentals', 'Rentals'], ['/admin/users', 'Users'], ['/admin/texts', 'Texts'], ['/admin/searches', 'Searches'], ['/admin/log?kind=error', 'Errors', 'error'], null, ['/admin/review', 'Photos', 'review'], ['/admin/promo', 'Promo'], ['/admin/pricing', 'Pricing'], ['/admin/wanted', 'Wanted'], ['/admin/debug', 'System']];
+export async function AdminNav({ c, path }: { c: any; path: string }) {
+  const [rv, er] = await Promise.all([
+    c.env.DB.prepare(`SELECT COUNT(*) n FROM listings WHERE status = 'review'`).first().catch(() => null),
+    c.env.DB.prepare(`SELECT COUNT(*) n FROM events WHERE kind = 'error' AND at > ?`).bind(Date.now() - DAY).first().catch(() => null),
+  ]);
+  const badge = { review: (rv as any)?.n || 0, error: (er as any)?.n || 0 };
+  return <nav class="adn"><style dangerouslySetInnerHTML={{ __html: NAV_CSS }} /><div>{NAV.map(n => n ? <a href={n[0]} class={n[0] === path ? 'on' : ''}>{n[1]}{n[2] && badge[n[2]] ? <sup>{badge[n[2]]}</sup> : null}</a> : <i />)}</div><script dangerouslySetInnerHTML={{ __html: `(function(){var a=document.querySelector('.adn a.on');if(a)a.parentNode.scrollLeft=a.offsetLeft-60})()` }} /></nav>;
+}
 function Shell(p: { c: any; title: string; path: string; children: any }) {
   return <Layout title={'Admin · ' + p.title} user={p.c.get('user')}>
     <style dangerouslySetInnerHTML={{ __html: CSS }} />
-    <div class="ad"><nav class="ad-nav">{NAV.map(([h, t]) => <a href={h} class={h === p.path ? 'on' : ''}>{t}</a>)}</nav>{p.children}</div>
+    <div class="ad"><AdminNav c={p.c} path={p.path} />{p.children}</div>
   </Layout>;
 }
 const kindClass = (k: string) => 'ad-kind ' + (k.startsWith('money.') ? 'money' : k);
@@ -151,7 +165,7 @@ export function registerDash(admin: A) {
     const rows = await all<any>(c, `SELECT r.*, l.name item, o.name oname, n.name cname FROM rentals r JOIN listings l ON l.id = r.listing_id LEFT JOIN users o ON o.id = r.owner_id LEFT JOIN users n ON n.id = r.renter_id ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY r.updated_at DESC LIMIT 300`, ...b);
     const statuses = ['inquiry', 'requested', 'held', 'confirmed', 'picked_up', 'returned', 'closed', 'declined', 'expired', 'canceled'];
     return c.html(<Shell c={c} title="Rentals" path="/admin/rentals">
-      <nav class="ad-nav"><a href="/admin/rentals" class={!q.status && !q.owed ? 'on' : ''}>all</a>{statuses.map(s => <a href={'/admin/rentals?status=' + s} class={q.status === s ? 'on' : ''}>{s}</a>)}<a href="/admin/rentals?owed=1" class={q.owed ? 'on' : ''}>owed to owner</a></nav>
+      <nav class="ad-sub"><a href="/admin/rentals" class={!q.status && !q.owed ? 'on' : ''}>all</a>{statuses.map(s => <a href={'/admin/rentals?status=' + s} class={q.status === s ? 'on' : ''}>{s}</a>)}<a href="/admin/rentals?owed=1" class={q.owed ? 'on' : ''}>owed to owner</a></nav>
       <div class="ad-wrap"><table class="ad-t"><tr><th>Updated</th><th>Status</th><th>Item</th><th>Owner → customer</th><th>Days</th><th class="n">Rent</th><th class="n">Credit</th><th class="n">Tax</th><th class="n">Paid</th><th class="n">Fee</th><th class="n">Owner gets</th><th>Sent</th></tr>
         {rows.map(r => <tr><td style="white-space:nowrap">{ago(r.updated_at)}</td><td class="ad-kind">{r.status}{r.late_cancel ? ' (late)' : ''}</td><td><a href={'/r/' + r.id}>{r.item}</a><br /><a href={'/admin/log?rental=' + r.id} class="hint">log</a></td><td>{r.oname || r.owner_id} → {r.cname || r.renter_id}</td><td style="white-space:nowrap">{r.start_day.slice(5)}→{r.end_day.slice(5)}</td>
           <td class="n">{money(r.rent_cents)}</td><td class="n">{r.credit_cents ? '−' + money(r.credit_cents) : ''}</td><td class="n">{r.tax_cents ? money(r.tax_cents) : ''}</td><td class="n">{money(r.total_cents)}</td><td class="n">{money(r.fee_cents)}</td><td class="n">{money(r.payout_cents ?? r.rent_cents)}</td><td>{r.paid_out ? '✓' : ''}</td></tr>)}
@@ -169,7 +183,7 @@ export function registerDash(admin: A) {
       (SELECT MAX(at) FROM events e WHERE e.user_id = u.id AND e.kind = 'login') last_login
       FROM users u ORDER BY ${sort} LIMIT 500`);
     return c.html(<Shell c={c} title="Users" path="/admin/users">
-      <nav class="ad-nav"><a href="/admin/users" class={sort.startsWith('u.') ? 'on' : ''}>newest</a><a href="/admin/users?sort=items" class={sort.startsWith('items') ? 'on' : ''}>most items</a></nav>
+      <nav class="ad-sub"><a href="/admin/users" class={sort.startsWith('u.') ? 'on' : ''}>newest</a><a href="/admin/users?sort=items" class={sort.startsWith('items') ? 'on' : ''}>most items</a></nav>
       <div class="ad-wrap"><table class="ad-t"><tr><th>Joined</th><th>Name</th><th>Phone</th><th>Hood</th><th class="n">Live items</th><th class="n">Rented</th><th class="n">Lent</th><th>Payout acct</th><th>Texts</th><th>Last login</th></tr>
         {rows.map(r => <tr><td style="white-space:nowrap">{ago(r.created_at)}</td><td><a href={r.handle ? '/' + r.handle : '/u/' + r.id}>{r.name || '—'}</a><br /><a class="hint" href={'/admin/log?user=' + r.id}>log</a></td><td style="white-space:nowrap">{r.phone}</td><td>{r.hood || ''}</td><td class="n">{r.items}</td><td class="n">{r.rented}</td><td class="n">{r.lent}</td><td>{r.stripe_account_id ? '✓' : ''}</td><td>{r.texts ? (r.replied ? 'on' : 'on · no reply yet') : 'STOP'}</td><td style="white-space:nowrap">{r.last_login ? ago(r.last_login) : ''}</td></tr>)}
       </table></div>
@@ -199,7 +213,7 @@ export function registerDash(admin: A) {
     const days = parseInt(c.req.query('days') || '30', 10) || 30;
     const rows = await all<{ q: string; n: number; zero: number; people: number; last: number }>(c, `SELECT lower(json_extract(data,'$.q')) q, COUNT(*) n, SUM(json_extract(data,'$.n') = 0) zero, COUNT(DISTINCT COALESCE(user_id, json_extract(data,'$.lat') || json_extract(data,'$.lng'))) people, MAX(at) last FROM events WHERE kind = 'search' AND at > ? GROUP BY 1 ORDER BY zero DESC, n DESC LIMIT 300`, Date.now() - days * DAY);
     return c.html(<Shell c={c} title="Searches" path="/admin/searches">
-      <nav class="ad-nav">{[7, 30, 90].map(d => <a href={'/admin/searches?days=' + d} class={d === days ? 'on' : ''}>{d} days</a>)}</nav>
+      <nav class="ad-sub">{[7, 30, 90].map(d => <a href={'/admin/searches?days=' + d} class={d === days ? 'on' : ''}>{d} days</a>)}</nav>
       <p class="hint">Most-wanted first: searches that found nothing nearby are items to recruit</p>
       <div class="ad-wrap"><table class="ad-t"><tr><th>Query</th><th class="n">Found nothing</th><th class="n">Times</th><th class="n">People</th><th>Last</th></tr>{rows.map(r => <tr><td><a href={'/admin/log?kind=search&q=' + encodeURIComponent(r.q)}>{r.q}</a></td><td class="n">{r.zero || ''}</td><td class="n">{r.n}</td><td class="n">{r.people}</td><td>{ago(r.last)}</td></tr>)}</table></div>
     </Shell>);
