@@ -70,7 +70,11 @@ async function blooioInbound(c: Context<{ Bindings: Env; Variables: Vars }>) {
   }
   let j: any; try { j = JSON.parse(raw); } catch { return c.text('bad json', 400); }
   const ev = (c.req.header('x-blooio-event') || j.event || j.type || '').toString();
-  if (ev && ev !== 'message.received') return c.json({ ok: true, ignored: ev });
+  if (ev && ev !== 'message.received') {
+    /* delivery receipts (message.sent / delivered / failed / read …) → events 'text.status', matched to outbound_texts.provider_id in /admin/texts */
+    if (ev.startsWith('message.')) { const d = j.data || j; await logEvent(c.env.DB, 'text.status', { data: { status: ev.slice(8), id: d.message_id || d.id || j.message_id || null, to: String(d.external_id || d.recipient || d.to || d.chat_id || '').slice(-4), err: d.error || d.error_message || d.reason || null, via: d.protocol || d.service || null } }); }
+    return c.json({ ok: true, logged: ev });
+  }
   const m = parseInbound(j);
   // debug breadcrumb: last inbound seen (event + sender suffix + time); no message text stored
   c.executionCtx.waitUntil(c.env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('last_inbound', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(JSON.stringify({ t: Date.now(), ev, from: m ? String(m.from).slice(-4) : null })).run().then(() => {}));

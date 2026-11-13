@@ -231,7 +231,7 @@ export function registerDash(admin: A) {
   admin.get('/admin/texts', async (c) => {
     const uid = c.req.query('user') || null;
     const rows = await all<any>(c, `SELECT * FROM (
-        SELECT o.created_at at, 'out' dir, o.category cat, o.body, o.user_id, o.rental_id FROM outbound_texts o WHERE ?1 IS NULL OR o.user_id = ?1
+        SELECT o.created_at at, 'out' dir, o.category || COALESCE(' · ' || (SELECT json_extract(e.data,'$.status') || COALESCE(' ' || json_extract(e.data,'$.err'), '') FROM events e WHERE e.kind = 'text.status' AND json_extract(e.data,'$.id') = o.provider_id ORDER BY e.id DESC LIMIT 1), CASE WHEN o.provider_id IS NULL THEN ' · not sent' ELSE '' END) cat, o.body, o.user_id, o.rental_id FROM outbound_texts o WHERE ?1 IS NULL OR o.user_id = ?1
         UNION ALL SELECT i.created_at, 'in', i.via, i.body, i.user_id, NULL FROM inbound_texts i WHERE ?1 IS NULL OR i.user_id = ?1
         UNION ALL SELECT e.at, 'in?', 'unknown number', json_extract(e.data,'$.from') || ': ' || json_extract(e.data,'$.body'), NULL, NULL FROM events e WHERE e.kind = 'text.in_unknown' AND ?1 IS NULL
         UNION ALL SELECT e.at, 'fail', json_extract(e.data,'$.category'), json_extract(e.data,'$.err') || ' — ' || json_extract(e.data,'$.body'), e.user_id, e.rental_id FROM events e WHERE e.kind IN ('text.failed','text.suppressed') AND (?1 IS NULL OR e.user_id = ?1)
