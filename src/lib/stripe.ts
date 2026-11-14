@@ -15,7 +15,7 @@ export async function createCheckout(env: Env, rental: Rental, listing: Listing,
   const s = stripe(env);
   if (!s) return null; // dev mode → caller fakes a hold
   // promo credit: a one-off coupon on this session (Lendo absorbs it; the owner's payout is unchanged). Customer sees rent + sales tax − credit; Lendo's fee is on the owner's side
-  const coupon = rental.credit_cents > 0 ? await s.coupons.create({ amount_off: rental.credit_cents, currency: 'usd', duration: 'once', name: 'Lendo credit (off the rent)', max_redemptions: 1 }) : null;
+  const coupon = rental.credit_cents > 0 ? await s.coupons.create({ amount_off: rental.credit_cents, currency: 'usd', duration: 'once', name: 'Lendo credit', max_redemptions: 1 }) : null;
   const session = await s.checkout.sessions.create({
     ...(coupon ? { discounts: [{ coupon: coupon.id }] } : {}),
     mode: 'payment',
