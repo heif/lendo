@@ -29,7 +29,15 @@ const gate: MiddlewareHandler<{ Bindings: Env; Variables: Vars }> = async (c, ne
 };
 admin.use('/admin', requireUser, gate);
 admin.use('/admin/*', requireUser, gate);
-admin.use('/api/identify', requireUser);
+admin.use('/api/identify', async (c, next) => {
+  /* the snap flow asks for login only after the item questions, so guests can identify too — capped per IP (AI cost) */
+  if (c.get('user')) return next();
+  const ip = c.req.header('cf-connecting-ip') || 'x';
+  const n = await c.env.DB.prepare(`SELECT COUNT(*) n FROM events WHERE kind = 'identify.guest' AND at > ? AND data = ?`).bind(Date.now() - 3600000, ip).first<{ n: number }>().catch(() => null);
+  if ((n?.n || 0) >= 20) return c.json({ error: 'slow down' }, 429);
+  await logEvent(c.env.DB, 'identify.guest', { data: ip });
+  await next();
+});
 registerDash(admin);
 
 // Identify a photo → label, description, category, suggested price. Used by the snap flow.

@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { smsHref } from '../lib/blooio';
 import { logEvent } from '../lib/log';
 import { localToday } from '../lib/util';
 import { checkListingPhoto } from '../lib/photo-check';
@@ -23,11 +24,10 @@ export const listings = new Hono<{ Bindings: Env; Variables: Vars }>();
 
 // ---------- List fast ----------
 listings.get('/list', async (c) => {
-  const u = c.get('user');
-  if (!u) return c.redirect('/login?next=/list');
-  const cfg = JSON.stringify({ minPrice: parseInt(c.env.MIN_PRICE_CENTS, 10) / 100, hood: u.hood || '', shareUrl: c.env.APP_URL + ((u as any).handle ? '/' + (u as any).handle : '/u/' + u.id) });
+  const u = c.get('user'); /* guests can snap + answer; phone/code come after the item questions */
+  const cfg = JSON.stringify({ minPrice: parseInt(c.env.MIN_PRICE_CENTS, 10) / 100, hood: u?.hood || '', user: u ? { name: u.name || '', hood: u.hood || '', replied: !!u.replied } : null, sms: smsHref(c.env, 'OK'), shareUrl: u ? c.env.APP_URL + ((u as any).handle ? '/' + (u as any).handle : '/u/' + u.id) : c.env.APP_URL });
   return c.html(
-    <Layout title="Rent out your stuff" user={u} htmlClass="mappage" head={<link rel="stylesheet" href="/list.css" />}>
+    <Layout title="Rent out your stuff" user={u} promo={false} htmlClass="mappage" head={<link rel="stylesheet" href="/list.css" />}>
       {/* ideas */}
       <section id="st-ideas" class="lf">
         <div class="lf-scroll">
@@ -66,6 +66,13 @@ listings.get('/list', async (c) => {
           <div id="rows"></div>
         </div>
         <div class="lf-foot"><button type="button" class="cta" id="listBtn">LIST</button></div>
+      </section>
+      {/* one question at a time (card stack): small photo always on top, answered questions shrink to lines, current one is a card */}
+      <section id="st-q" class="lf" hidden>
+        <div class="lf-scroll">
+          <div class="q-top"><button type="button" class="q-ph" id="qPh" aria-label="Retake photo"><img id="qImg" alt="" /><span>↻</span></button><div class="q-done" id="qDone"></div></div>
+          <div class="q-card" id="qCard"></div>
+        </div>
       </section>
       {/* done */}
       <section id="st-done" class="lf" hidden>

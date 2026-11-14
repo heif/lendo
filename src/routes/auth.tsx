@@ -103,6 +103,32 @@ auth.post('/welcome', async (c) => {
   return c.redirect(u.replied ? nx : '/texts-on?next=' + encodeURIComponent(nx));
 });
 
+/* JSON login for the one-question-at-a-time list flow (phone → code → name → hood, after the item questions) */
+auth.post('/api/auth/start', async (c) => {
+  const j = await c.req.json().catch(() => ({} as any));
+  const phone = normPhone(String(j.phone || ''));
+  if (!phone) return c.json({ ok: false, error: "That doesn't look like a phone number" }, 400);
+  const r = await startLogin(c.env, phone, j.via === 'sms' ? 'sms' : 'auto');
+  if (!r.ok) return c.json({ ok: false, error: 'Could not send the text · ' + (r.error || 'try again') }, 502);
+  return c.json({ ok: true, phone, pretty: prettyPhone(phone), dev: r.devCode || null, note: r.note || null, sms: smsFallback(c.env) });
+});
+auth.post('/api/auth/verify', async (c) => {
+  const j = await c.req.json().catch(() => ({} as any));
+  const phone = normPhone(String(j.phone || ''));
+  if (!phone) return c.json({ ok: false }, 400);
+  const u = await finishLogin(c, phone, String(j.code || ''));
+  if (!u) return c.json({ ok: false, error: "That code didn't match · check the latest text" }, 400);
+  return c.json({ ok: true, user: { name: u.name || '', hood: u.hood || '', replied: !!u.replied } });
+});
+auth.post('/api/auth/me', async (c) => {
+  const u = c.get('user'); if (!u) return c.json({ ok: false }, 401);
+  const j = await c.req.json().catch(() => ({} as any));
+  const name = String(j.name ?? '').trim().slice(0, 40), hood = String(j.hood ?? '').trim().slice(0, 60);
+  await c.env.DB.prepare('UPDATE users SET name = COALESCE(NULLIF(?, \'\'), name), hood = COALESCE(NULLIF(?, \'\'), hood) WHERE id = ?').bind(name, hood, u.id).run();
+  await logEvent(c.env.DB, 'profile.setup', { user: u.id, data: { name, hood, via: 'list' } });
+  return c.json({ ok: true });
+});
+
 /* signup step: send one real text to Lendo (sms: link with OK typed) + save the contact. Makes iPhone trust the number,
    unlocks links in Lendo texts, and starts Blooio's reply count fresh. Page waits for the OK and moves on by itself */
 auth.get('/texts-on', async (c) => {

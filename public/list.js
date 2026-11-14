@@ -1,4 +1,4 @@
-// Snap-flow: ideas → camera → review → done. Minimal copy. Config: window.LENDO_LIST = { minPrice, hood, shareUrl, hasGps }.
+// Snap-flow: ideas → camera (1 photo) → one question at a time (card stack; sign-up after the item questions) → done. Minimal copy. Config: window.LENDO_LIST = { minPrice, hood, shareUrl, hasGps }.
 (function () {
   var CFG = window.LENDO_LIST || {}, MIN = CFG.minPrice || 8;
   var $ = function (id) { return document.getElementById(id); };
@@ -10,7 +10,7 @@
   var picked = [], shots = [], step = 'ideas', t0 = null, clockT, stream = null, retakeIdx = null, more = false;
   var fmt = function (n) { return '$' + n; };
   function esc(s) { return String(s).replace(/[<>&"]/g, function (c) { return ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]; }); }
-  function show(name) { step = name; ['ideas', 'cam', 'review', 'done'].forEach(function (s) { $('st-' + s).hidden = s !== name; }); document.documentElement.classList.toggle('camdark', name === 'cam'); if (name === 'cam') startCam(); else stopCam(); if (name === 'review') renderReview(); }
+  function show(name) { step = name; ['ideas', 'cam', 'review', 'q', 'done'].forEach(function (s) { $('st-' + s).hidden = s !== name; }); document.documentElement.classList.toggle('camdark', name === 'cam'); if (name === 'cam') startCam(); else stopCam(); if (name === 'review') renderReview(); if (name === 'q') renderQ(); }
   function clock() { if (!t0) return '0:00'; var s = Math.round((Date.now() - t0) / 1000); return Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2); }
 
   // ---- ideas
@@ -42,9 +42,9 @@
   function renderMiniList() { var el = $('miniList'); if (!picked.length) { el.hidden = true; return; } el.hidden = false; el.innerHTML = picked.map(function (n) { var done = shots.some(function (s) { return s.name === n || s.hint === n; }); return '<span class="' + (done ? 'done' : '') + '">' + (done ? '✓ ' : '○ ') + esc(n) + '</span>'; }).join(''); }
   function addShot(blob) {
     var url = URL.createObjectURL(blob), name = nextName(), idea = IDEAS.filter(function (i) { return i[1] === name; })[0];
-    if (retakeIdx != null) { shots[retakeIdx].blob = blob; shots[retakeIdx].url = url; retakeIdx = null; show('review'); return; }
+    if (retakeIdx != null) { var rs = shots[retakeIdx]; rs.blob = blob; rs.url = url; rs.cutUrl = null; rs.touched = {}; retakeIdx = null; identify(rs); show('q'); return; }
     var shot = { blob: blob, url: url, name: name, price: idea ? idea[2] : MIN, week: 0, note: '', hint: name, ai: null, touched: {} };
-    shots.push(shot); identify(shot);
+    shots = [shot]; identify(shot); QI = 0; setTimeout(function () { show('q'); }, 250); /* one thing at a time: no Done, straight to the questions */
     $('flash').classList.add('on'); setTimeout(function () { $('flash').classList.remove('on'); }, 220);
     $('toast').classList.add('on'); clearTimeout($('toast')._t); $('toast')._t = setTimeout(function () { $('toast').classList.remove('on'); }, 1100);
     updateHint();
@@ -63,7 +63,7 @@
       if (!shot.touched.name || shot.labelBlob) shot.name = j.name || shot.name;
       if (!shot.touched.price) { shot.price = Math.max(MIN, Math.round(j.price_cents / 100)); shot.week = Math.round((j.week_cents || 0) / 100); }
       if (!shot.touched.note && j.description) shot.note = j.description;
-      if (step === 'review') renderReview(); else updateHint();
+      if (step === 'review') renderReview(); else if (step === 'q') renderQ(true); else updateHint();
     }).catch(function () { shot.pending = false; });
   }
   function snap() {
@@ -117,8 +117,8 @@
     if (act === 'del') { var gone = shots.splice(i, 1)[0]; renderReview(); undoToast('Removed ' + (gone.name || 'item'), function () { shots.splice(i, 0, gone); renderReview(); }); }
   });
   var labelFor = null;
-  $('labelFile').addEventListener('change', function () { var sh = labelFor, f = this.files[0]; if (!sh || !f) return; shrink(f, function (b) { sh.labelBlob = b; sh.askLabel = false; sh.touched.name = false; identify(sh); renderReview(); }); });
-  $('moreFile').addEventListener('change', function () { var i = moreFor; if (i == null || !shots[i]) return; var fs = Array.prototype.slice.call(this.files, 0, 5 - (shots[i].extra || []).length); fs.forEach(function (f) { shrink(f, function (b) { (shots[i].extra = shots[i].extra || []).push({ blob: b, url: URL.createObjectURL(b) }); renderReview(); }); }); });
+  $('labelFile').addEventListener('change', function () { var sh = labelFor, f = this.files[0]; if (!sh || !f) return; shrink(f, function (b) { sh.labelBlob = b; sh.askLabel = false; sh.touched.name = false; identify(sh); if (step === 'q') renderQ(); else renderReview(); }); });
+  $('moreFile').addEventListener('change', function () { var i = moreFor; if (i == null || !shots[i]) return; var fs = Array.prototype.slice.call(this.files, 0, 5 - (shots[i].extra || []).length); fs.forEach(function (f) { shrink(f, function (b) { (shots[i].extra = shots[i].extra || []).push({ blob: b, url: URL.createObjectURL(b) }); if (step === 'q') renderQ(); else renderReview(); }); }); });
   $('rows').addEventListener('input', function (e) { var inp = e.target, row = inp.closest('.row-item'); if (!row) return; var i = +row.dataset.i; if (inp.dataset.act === 'name') { shots[i].name = inp.value; shots[i].touched.name = true; $('listBtn').disabled = shots.some(function (s) { return !s.name.trim(); }); } if (inp.dataset.act === 'note') { shots[i].note = inp.value; shots[i].touched.note = true; grow(inp); var dm = row.querySelector('.dmeter'); if (dm && window.lendoDetails) dm.innerHTML = window.lendoDetails(inp.value); } });
   function grow(t) { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 160) + 'px'; }
   $('backCam').addEventListener('click', function () { show('cam'); });
@@ -193,7 +193,84 @@
     $('stSave').onclick = function () { blob(dl); };
     function dl(b) { var a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'lendo-story.png'; document.body.appendChild(a); a.click(); a.remove(); }
   }
-  $('again').addEventListener('click', function () { shots = []; picked = []; t0 = Date.now(); renderIdeas(); show('cam'); });
+  $('again').addEventListener('click', function () { shots = []; picked = []; QI = 0; t0 = Date.now(); renderIdeas(); show('cam'); });
+
+  // ---- one question at a time (card stack). Item questions first, then sign-up (only if logged out), then list
+  var QI = 0, ME = CFG.user, SIGNUP = !CFG.user, NEED = { name: !ME || !ME.name, hood: !ME || !ME.hood }, /* question list is fixed once known, so answering doesn't shift it */ AUTH = { phone: '', pretty: '' }, G = { A: 'Like new', B: 'Good', C: 'Fair', D: 'Worn', F: 'Rough' };
+  function cur() { return shots[0]; }
+  function qs() {
+    var s = cur(), L = [
+      { k: 'name', line: function () { return s.name || '…'; } },
+      { k: 'grade', line: function () { return 'Condition ' + (s.grade || 'A') + ' · ' + G[s.grade || 'A']; } },
+      { k: 'price', line: function () { return '$' + s.price + '/day'; } },
+      { k: 'note', line: function () { return s.note ? s.note : 'No details'; } }
+    ];
+    if (SIGNUP) L.push({ k: 'phone', line: function () { return AUTH.pretty || AUTH.phone; } }, { k: 'code', line: function () { return 'Phone confirmed'; } });
+    if (NEED.name) L.push({ k: 'fname', line: function () { return (ME && ME.name) || ''; } });
+    if (NEED.hood) L.push({ k: 'hood', line: function () { return (ME && ME.hood) || 'Hood skipped'; } });
+    return L;
+  }
+  function renderQ(soft) {
+    var s = cur(); if (!s) { show('cam'); return; }
+    var L = qs(); if (QI >= L.length) return listIt();
+    var im = $('qImg'); im.src = s.cutUrl || s.url; im.className = s.cutUrl ? 'cut' : '';
+    $('qDone').innerHTML = L.slice(0, QI).map(function (q, i) { return '<button type="button" class="q-line" data-i="' + i + '"><span>' + esc(q.line()) + '</span><b>' + (i < 4 ? 'change' : '✓') + '</b></button>'; }).join('');
+    var q = L[QI], h = '', n = 'Question ' + (QI + 1) + ' of ' + L.length;
+    if (soft && (!(q.k === 'name' || q.k === 'price' || q.k === 'note') || s.touched[q.k])) return; /* identify result arrived: only refresh cards that show its guesses */
+    if (q.k === 'name') h = card(n, 'What is it?', s.pending ? 'Guessing from your photo<span class="dots"><i>.</i><i>.</i><i>.</i></span>' : 'Guessed from your photo · fix it if it’s off',
+      '<input class="q-in" id="qv" value="' + esc(s.name) + '" maxlength="80" placeholder="' + (s.pending ? '' : 'Drill, tent, speaker…') + '">' + (s.askLabel && !s.pending ? '<div class="q-chips"><button type="button" id="qLabel">📷 Snap the brand label</button></div>' : ''), 'Next');
+    if (q.k === 'grade') h = card(n, 'What shape is it in?', 'Be honest · customers see it', '<div class="q-grades">' + 'ABCDF'.split('').map(function (g) { return '<button type="button" data-g="' + g + '" class="' + ((s.grade || '') === g ? 'on' : '') + '">' + g + '</button>'; }).join('') + '</div><div class="q-sub" style="margin:8px 0 0">A Like new · B Good · C Fair · D Worn · F Rough</div>', null);
+    if (q.k === 'price') { var p0 = s.price, opts = [Math.max(MIN, p0 - 3), p0, p0 + 3].filter(function (v, i, a) { return a.indexOf(v) === i; });
+      h = card(n, 'How much a day?', 'A week is ' + fmt(Math.round(s.price * 7 * 0.7)) + ' automatically (30% off) · 15% fee (will stay low)', '<input class="q-in" id="qv" inputmode="numeric" value="' + s.price + '"><div class="q-chips">' + opts.map(function (v) { return '<button type="button" data-p="' + v + '" class="' + (v === s.price ? 'on' : '') + '">$' + v + '</button>'; }).join('') + '</div>', 'Next'); }
+    if (q.k === 'note') h = card(n, 'Anything a customer should know?', 'Model · what’s included · condition', '<textarea class="q-ta" id="qv" maxlength="400" placeholder="Batteries included, strap, works great">' + esc(s.note || '') + '</textarea>' + (window.lendoDetails ? '<div class="dmeter" id="qMeter">' + window.lendoDetails(s.note || '') + '</div>' : '') + '<div class="q-chips"><button type="button" id="qMore">📷 Add more photos' + ((s.extra || []).length ? ' (' + s.extra.length + ')' : '') + '</button></div>', 'Next', true);
+    if (q.k === 'phone') h = card(n, 'Where should requests go?', 'Your cell · requests and payouts come by text', '<input class="q-in" id="qv" type="tel" autocomplete="tel" inputmode="tel" placeholder="(646) 555-0101" value="' + esc(AUTH.phone) + '">', 'Text me a code');
+    if (q.k === 'code') h = card(n, 'Code we just texted', 'Sent to ' + esc(AUTH.pretty) + (AUTH.dev ? ' · DEV code ' + AUTH.dev : ''), '<input class="q-in" id="qv" inputmode="numeric" autocomplete="one-time-code" maxlength="6" style="letter-spacing:.3em">', 'Confirm');
+    if (q.k === 'fname') h = card(n, 'What should neighbors call you?', 'First name is fine', '<input class="q-in" id="qv" autocomplete="given-name" maxlength="40" value="' + esc((ME && ME.name) || '') + '">', 'Next');
+    if (q.k === 'hood') h = card(n, 'Your neighborhood?', 'Shown on your items · not your address', '<input class="q-in" id="qv" maxlength="60" placeholder="West Village" value="' + esc(CFG.hood || '') + '">', 'List it', true);
+    $('qCard').innerHTML = h; var v = $('qv'); if (v && !soft) setTimeout(function () { try { v.focus({ preventScroll: true }); } catch (e) {} }, 60);
+  }
+  function card(k, title, sub, body, next, skip) {
+    var last = QI === qs().length - 1;
+    return '<div class="q-k">' + k + '</div><div class="q-h">' + title + '</div><div class="q-sub">' + sub + '</div>' + body + '<div class="q-err" id="qErr" hidden></div>' +
+      (next ? '<button type="button" class="cta q-next" id="qNext">' + (last ? 'LIST IT' : next) + '</button>' : '') + (skip ? '<button type="button" class="q-skip" id="qSkip">Skip</button>' : '');
+  }
+  function err(t) { var e = $('qErr'); if (e) { e.textContent = t; e.hidden = !t; } }
+  function go() { QI++; renderQ(); window.scrollTo(0, 0); }
+  function api(url, body) { return fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(function (r) { return r.json(); }); }
+  function submitQ(skipped) {
+    var s = cur(), q = qs()[QI], v = $('qv'), val = v ? v.value.trim() : '';
+    if (q.k === 'name') { if (!val) return err('What is it?'); s.name = val; s.touched.name = true; return go(); }
+    if (q.k === 'price') { var n = parseInt(val, 10); if (!(n >= MIN)) return err('At least $' + MIN + '/day'); s.price = n; s.week = 0; s.touched.price = true; return go(); }
+    if (q.k === 'note') { if (!skipped) { s.note = val; s.touched.note = true; } return go(); }
+    if (q.k === 'phone') { var b = $('qNext'); b.disabled = true; b.textContent = 'TEXTING…';
+      return api('/api/auth/start', { phone: val }).then(function (j) { if (!j.ok) { b.disabled = false; b.textContent = 'Text me a code'; return err(j.error || 'Try again'); } AUTH = { phone: val, norm: j.phone, pretty: j.pretty, dev: j.dev }; go(); }).catch(function () { b.disabled = false; err('Try again'); }); }
+    if (q.k === 'code') { var b2 = $('qNext'); b2.disabled = true;
+      return api('/api/auth/verify', { phone: AUTH.norm, code: val }).then(function (j) { if (!j.ok) { b2.disabled = false; return err(j.error || 'Try again'); } ME = j.user; NEED = { name: !ME.name, hood: !ME.hood }; var L = qs(), k = 0; for (var i = 0; i < L.length; i++) if (L[i].k === 'code') k = i; QI = k + 1; renderQ(); }); }
+    if (q.k === 'fname') { if (!val) return err('A first name, so neighbors know who’s lending'); ME = ME || {}; ME.name = val; return api('/api/auth/me', { name: val }).then(go, go); }
+    if (q.k === 'hood') { if (!skipped && val) { ME = ME || {}; ME.hood = val; CFG.hood = val; return api('/api/auth/me', { hood: val }).then(go, go); } return go(); }
+  }
+  $('qCard').addEventListener('click', function (e) {
+    var t = e.target.closest('button'); if (!t) return; var s = cur();
+    if (t.id === 'qNext') return submitQ(false);
+    if (t.id === 'qSkip') return submitQ(true);
+    if (t.dataset.g) { s.grade = t.dataset.g; return go(); }
+    if (t.dataset.p) { $('qv').value = t.dataset.p; [].forEach.call($('qCard').querySelectorAll('[data-p]'), function (b) { b.classList.toggle('on', b === t); }); return; }
+    if (t.id === 'qLabel') { labelFor = s; $('labelFile').value = ''; $('labelFile').click(); }
+    if (t.id === 'qMore') { moreFor = 0; $('moreFile').value = ''; $('moreFile').click(); }
+  });
+  $('qCard').addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); submitQ(false); } });
+  $('qCard').addEventListener('input', function (e) { var s0 = cur(), q0 = qs()[QI]; if (e.target.id === 'qv' && s0 && q0) s0.touched[q0.k] = true; if (e.target.id === 'qv' && e.target.tagName === 'TEXTAREA' && $('qMeter') && window.lendoDetails) $('qMeter').innerHTML = window.lendoDetails(e.target.value); });
+  $('qDone').addEventListener('click', function (e) { var b = e.target.closest('.q-line'); if (!b) return; var i = +b.dataset.i; if (i < 4) { QI = i; renderQ(); } });
+  $('qPh').addEventListener('click', function () { retakeIdx = 0; show('cam'); });
+  function listIt() {
+    var s = cur(); $('qCard').innerHTML = '<div class="q-h" style="margin:8px 0">Listing<span class="dots"><i>.</i><i>.</i><i>.</i></span></div>';
+    var fd = new FormData(); (s.extra || []).forEach(function (x, k) { fd.append('photo_0_' + (k + 1), x.blob, 'p0_' + (k + 1) + '.jpg'); });
+    fd.append('name_0', s.name.trim()); if (s.ai && s.ai.name) fd.append('ai_0', s.ai.name); fd.append('price_0', s.price); fd.append('week_0', 0); fd.append('note_0', s.note || ''); fd.append('grade_0', s.grade || 'A'); fd.append('photo_0', s.blob, 'p0.jpg');
+    if (window._gps) { fd.append('lat', window._gps[0]); fd.append('lng', window._gps[1]); }
+    fetch('/api/list', { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (j) { if (!j || j.error) throw 0; renderDone(j); show('done');
+      if (ME && !ME.replied && CFG.sms) { var d = document.createElement('a'); d.className = 'btn pri full'; d.href = CFG.sms; d.style.cssText = 'display:grid;place-items:center;margin:12px 0;text-decoration:none'; d.textContent = '💬 Text OK to Lendo so requests reach you'; var tr = $('tray'); tr.parentNode.insertBefore(d, tr.nextSibling); } })
+      .catch(function () { $('qCard').innerHTML = '<div class="q-h">Didn’t go through</div><button type="button" class="cta q-next" id="qRetry">TRY AGAIN</button>'; $('qRetry').onclick = listIt; });
+  }
 
   // gps once (silent)
   if (navigator.geolocation) navigator.geolocation.getCurrentPosition(function (p) { window._gps = [p.coords.latitude, p.coords.longitude]; }, function () {}, { timeout: 6000 });
