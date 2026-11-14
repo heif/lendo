@@ -190,7 +190,8 @@ f.addEventListener('change',ok);f.addEventListener('submit',function(){document.
         })() : null}
 
         {/* quick actions */}
-        {!dead && stage >= 1 && stage < 3 ? (
+        {/* "I'm here" only when a meetup is due: pickup day (or later) before pickup, return day (or later) while it's out */}
+        {!dead && ((stage === 1 && localToday(it.lng) >= r.start_day) || (stage === 2 && localToday(it.lng) >= r.end_day)) ? (
           <div style="display:grid;grid-template-columns:1fr;gap:6px">
             {[["I'm here", "I'm here"]].map(([l, m]) => (
               <form method="post" action={'/r/' + r.id + '/msg'}><input type="hidden" name="body" value={m} /><button class="btn sm full" type="submit">{l}</button></form>
