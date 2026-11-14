@@ -165,7 +165,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
           <Avatar name={owner.name} photo={owner.photo_key} size={32} />
           <span class="owner-txt"><b>{shortName(owner.name)}</b><small>{rep.as_owner_avg ? `${starStr(rep.as_owner_avg)} · ${rep.rentals} rentals` : 'new'} · {rep.listed} listed{owner.hood ? ' · ' + owner.hood : ''}</small></span>
           <svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2L8 8L2 14" fill="none" stroke="#1E3A2B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
-        </a>{!isOwner && !it.demo && it.status === 'live' ? <a class="chatbtn" href={'/i/' + it.id + '/ask'} aria-label={'Message ' + firstName(owner.name)}><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linejoin="round" /></svg></a> : null}</div>
+        </a></div>
         {!isOwner && it.status === 'live' ? (
           <form method="post" action={'/i/' + it.id + '/rent'} id="rentForm">
             <div class="quick" id="quick" style="display:flex;gap:8px;margin-top:14px">
