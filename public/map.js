@@ -91,7 +91,7 @@
   // Recomputed only when the item set or the zoom band changes; panning changes nothing, so pins never jump or flicker.
   var GMARKS = {};                       // ghost markers by cell key (shared with walkers)
   var POS = {}, SHOW = [], HIDE = [], itemsRev = 0, layoutKey = '', OBST = [];
-  var PIN_W = 76, PIN_H = 76, MAX_SHOWN = 140;
+  var PIN_W = 76, PIN_H = 76, MAX_SHOWN = 140, PIC_CAP = 150, MINI = {};
   function hid(s) { var h = 0; for (var k = 0; k < s.length; k++) h = (h * 31 + s.charCodeAt(k)) | 0; return Math.abs(h); }
   function worldPx(lng, lat, z) { var sc = 512 * Math.pow(2, z), sy = Math.sin(lat * Math.PI / 180); return [(lng + 180) / 360 * sc, (0.5 - Math.log((1 + sy) / (1 - sy)) / (4 * Math.PI)) * sc]; }
   // Small knots of nearby items (≤ 8 within a pin's width of each other, e.g. one owner's things) fan out in a ring
@@ -144,6 +144,13 @@
       else take(it, p);
     });
     later.forEach(function (x) { if (SHOW.length < MAX_SHOWN && fits(x[1])) take(x[0], x[1]); else HIDE.push(x[0]); });
+    /* items without a price tag: a same-size picture while there's room (≤ PIC_CAP pictures in all, no heavy overlap); the rest stay small orange dots */
+    MINI = {}; var pts = SHOW.map(function (it) { return worldPx(POS[it.id][0], POS[it.id][1], z); }), D = SZ * 0.8, nPic = SHOW.length;
+    HIDE.forEach(function (it) {
+      if (nPic >= PIC_CAP) return; var p = worldPx(POS[it.id][0], POS[it.id][1], z);
+      for (var i = 0; i < pts.length; i++) if (Math.abs(pts[i][0] - p[0]) < D && Math.abs(pts[i][1] - p[1]) < D) return;
+      MINI[it.id] = 1; pts.push(p); nPic++;
+    });
   }
   function pinsGeo() {
     return { type: 'FeatureCollection', features: SHOW.map(function (it) {
@@ -151,7 +158,7 @@
         properties: { id: it.id, sel: sel === it.id, rot: wiggleRot(it.id), name: it.name, price: fmt(it.price_cents), price_cents: it.price_cents, week_cents: it.week_cents || 0, photo: it.photo || '', avatar: it.avatar_key || '', emoji: it.emoji || '📦', hood: it.hood || '', icon: iconCache[it.id] ? 'l_' + it.id : 'pin-default' } };
     }) };
   }
-  function moreGeo() { return { type: 'FeatureCollection', features: HIDE.map(function (it) { return { type: 'Feature', geometry: { type: 'Point', coordinates: POS[it.id] }, properties: { id: it.id, icon: 'm_' + it.id, has: !!miniCache[it.id] } }; }) }; }
+  function moreGeo() { return { type: 'FeatureCollection', features: HIDE.map(function (it) { return { type: 'Feature', geometry: { type: 'Point', coordinates: POS[it.id] }, properties: { id: it.id, icon: 'm_' + it.id, has: !!(miniCache[it.id] && MINI[it.id]) } }; }) }; }
   function drawPins() { var src = map.getSource('pins'); if (src) src.setData(pinsGeo()); }
   // screen points of everything walkers must stay off (pins + ghosts); rebuilt after each layout / map move
   function buildObst() {
@@ -166,7 +173,7 @@
       if (!sameBand || layoutKey.split('|')[1] !== String(itemsRev)) computePos(z);
       pickShown(z, sticky); layoutKey = key;
       var m = map.getSource('more'); if (m) m.setData(moreGeo());
-      SHOW.forEach(ensureIcon); HIDE.slice(0, 400).forEach(ensureMini);
+      SHOW.forEach(ensureIcon); HIDE.forEach(function (it) { if (MINI[it.id]) ensureMini(it); });
     }
     drawPins(); if (window.__placeWanted) window.__placeWanted(); buildObst();
   }
