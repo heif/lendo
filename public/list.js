@@ -196,25 +196,22 @@
   $('again').addEventListener('click', function () { shots = []; picked = []; QI = 0; t0 = Date.now(); renderIdeas(); show('cam'); });
 
   // ---- one question at a time (card stack). Item questions first, then sign-up (only if logged out), then list
-  var QI = 0, ME = CFG.user, SIGNUP = !CFG.user, NEED = { name: !ME || !ME.name, hood: !ME || !ME.hood }, /* question list is fixed once known, so answering doesn't shift it */ AUTH = { phone: '', pretty: '' }, G = { A: 'Like new', B: 'Good', C: 'Fair', D: 'Worn', F: 'Rough' };
+  var QI = 0, ME = CFG.user, SIGNUP = !CFG.user, NEED = { name: !ME || !ME.name, hood: !ME || !ME.hood }, ITEMQ = { grade: 1, name: 1, price: 1, note: 1 }, /* question list is fixed once known, so answering doesn't shift it */ AUTH = { phone: '', pretty: '' }, G = { A: 'Like new', B: 'Good', C: 'Fair', D: 'Worn', F: 'Rough' };
   function cur() { return shots[0]; }
   function qs() {
-    var s = cur(), L = [
-      { k: 'name', line: function () { return s.name || '…'; } },
-      { k: 'grade', line: function () { return 'Condition ' + (s.grade || 'A') + ' · ' + G[s.grade || 'A']; } },
-      { k: 'price', line: function () { return '$' + s.price + '/day'; } },
-      { k: 'note', line: function () { return s.note ? s.note : 'No details'; } }
-    ];
+    /* questions that don't need the photo lookup come first, so the AI name/price/details are ready by the time they're asked */
+    var s = cur(), L = [{ k: 'grade', line: function () { return 'Condition ' + (s.grade || 'A') + ' · ' + G[s.grade || 'A']; } }];
     if (SIGNUP) L.push({ k: 'phone', line: function () { return AUTH.pretty || AUTH.phone; } }, { k: 'code', line: function () { return 'Phone confirmed'; } });
     if (NEED.name) L.push({ k: 'fname', line: function () { return (ME && ME.name) || ''; } });
     if (NEED.hood) L.push({ k: 'hood', line: function () { return (ME && ME.hood) || 'Hood skipped'; } });
+    L.push({ k: 'name', line: function () { return s.name || '…'; } }, { k: 'price', line: function () { return '$' + s.price + '/day'; } }, { k: 'note', line: function () { return s.note ? s.note : 'No details'; } });
     return L;
   }
   function renderQ(soft) {
     var s = cur(); if (!s) { show('cam'); return; }
     var L = qs(); if (QI >= L.length) return listIt();
     var im = $('qImg'); im.src = s.cutUrl || s.url; im.className = s.cutUrl ? 'cut' : '';
-    $('qDone').innerHTML = L.slice(0, QI).map(function (q, i) { return '<button type="button" class="q-line" data-i="' + i + '"><span>' + esc(q.line()) + '</span><b>' + (i < 4 ? 'change' : '✓') + '</b></button>'; }).join('');
+    $('qDone').innerHTML = L.slice(0, QI).map(function (q, i) { return '<button type="button" class="q-line" data-i="' + i + '"><span>' + esc(q.line()) + '</span><b>' + (ITEMQ[q.k] ? 'change' : '✓') + '</b></button>'; }).join('');
     var q = L[QI], h = '', n = 'Question ' + (QI + 1) + ' of ' + L.length;
     if (soft && (!(q.k === 'name' || q.k === 'price' || q.k === 'note') || s.touched[q.k])) return; /* identify result arrived: only refresh cards that show its guesses */
     if (q.k === 'name') h = card(n, 'What is it?', s.pending ? 'Guessing from your photo<span class="dots"><i>.</i><i>.</i><i>.</i></span>' : 'Guessed from your photo · fix it if it’s off',
@@ -226,7 +223,7 @@
     if (q.k === 'phone') h = card(n, 'Where should requests go?', 'Your cell · requests and payouts come by text', '<input class="q-in" id="qv" type="tel" autocomplete="tel" inputmode="tel" placeholder="(646) 555-0101" value="' + esc(AUTH.phone) + '">', 'Text me a code');
     if (q.k === 'code') h = card(n, 'Code we just texted', 'Sent to ' + esc(AUTH.pretty) + (AUTH.dev ? ' · DEV code ' + AUTH.dev : ''), '<input class="q-in" id="qv" inputmode="numeric" autocomplete="one-time-code" maxlength="6" style="letter-spacing:.3em">', 'Confirm');
     if (q.k === 'fname') h = card(n, 'What should neighbors call you?', 'First name is fine', '<input class="q-in" id="qv" autocomplete="given-name" maxlength="40" value="' + esc((ME && ME.name) || '') + '">', 'Next');
-    if (q.k === 'hood') h = card(n, 'Your neighborhood?', 'Shown on your items · not your address', '<input class="q-in" id="qv" maxlength="60" placeholder="West Village" value="' + esc(CFG.hood || '') + '">', 'List it', true);
+    if (q.k === 'hood') h = card(n, 'Your neighborhood?', 'Shown on your items · not your address', '<input class="q-in" id="qv" maxlength="60" placeholder="West Village" value="' + esc(CFG.hood || '') + '">', 'Next', true);
     $('qCard').innerHTML = h; var v = $('qv'); if (v && !soft) setTimeout(function () { try { v.focus({ preventScroll: true }); } catch (e) {} }, 60);
   }
   function card(k, title, sub, body, next, skip) {
@@ -260,7 +257,7 @@
   });
   $('qCard').addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); submitQ(false); } });
   $('qCard').addEventListener('input', function (e) { var s0 = cur(), q0 = qs()[QI]; if (e.target.id === 'qv' && s0 && q0) s0.touched[q0.k] = true; if (e.target.id === 'qv' && e.target.tagName === 'TEXTAREA' && $('qMeter') && window.lendoDetails) $('qMeter').innerHTML = window.lendoDetails(e.target.value); });
-  $('qDone').addEventListener('click', function (e) { var b = e.target.closest('.q-line'); if (!b) return; var i = +b.dataset.i; if (i < 4) { QI = i; renderQ(); } });
+  $('qDone').addEventListener('click', function (e) { var b = e.target.closest('.q-line'); if (!b) return; var i = +b.dataset.i, q = qs()[i]; if (q && ITEMQ[q.k]) { QI = i; renderQ(); } });
   $('qPh').addEventListener('click', function () { retakeIdx = 0; show('cam'); });
   function listIt() {
     var s = cur(); $('qCard').innerHTML = '<div class="q-h" style="margin:8px 0">Listing<span class="dots"><i>.</i><i>.</i><i>.</i></span></div>';
