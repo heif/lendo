@@ -386,8 +386,12 @@
     if (!w) return more ? 'another one' : 'one';
     return (more ? 'another ' : (/^[aeiou]/.test(w) ? 'an ' : 'a ')) + w;
   }
-  function alertCard(on, cb) {
+  function alertCard(on, cb, guest) {
     var chip = $('alertChip');
+    if (guest) { /* not logged in: nothing is saved yet, so no OFF switch — an orange Turn on that goes through login and comes back ON */
+      chip.innerHTML = (qNote ? '<div class="ac-h">' + qNote + '</div>' : '') + '<button type="button" class="ac-pill"><span>🔔 Text me when ' + alertNoun(q.value, !qNote) + ' is listed</span><i class="ac-go">Turn on</i></button>';
+      chip.hidden = false; chip.querySelector('.ac-pill').onclick = cb; return;
+    }
     chip.innerHTML = (qNote ? '<div class="ac-h">' + qNote + '</div>' : '') +
       '<button type="button" class="ac-pill' + (on ? ' on' : '') + '" role="switch" aria-checked="' + on + '"><span>🔔 Text alert when ' + alertNoun(q.value, !qNote) + ' is listed</span><i class="ac-sw"><em>' + (on ? 'ON' : 'OFF') + '</em><b></b></i></button>';
     chip.hidden = false; chip.querySelector('.ac-pill').onclick = cb;
@@ -398,7 +402,7 @@
     alertT = setTimeout(function () {
       if (qq === alertQ && !chip.hidden && now !== true) return; alertQ = qq;
       var cc = map.getCenter(), hood = ($('scHoodN') || {}).title || '';
-      if (!CFG.user) { alertCard(false, function () { location.href = '/login?next=' + encodeURIComponent('/?q=' + qq); }); return; }
+      if (!CFG.user) { alertCard(false, function () { location.href = '/login?next=' + encodeURIComponent('/?q=' + qq); }, true); return; }
       function save() {
         return fetch('/api/alerts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ q: qq, lat: cc.lat, lng: cc.lng, hood: hood }) })
           .then(function (r) { return r.json(); }).then(function (j) { if (j.id) alertId = j.id; return !!j.id; }).catch(function () { return false; });
