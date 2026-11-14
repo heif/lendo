@@ -28,12 +28,25 @@ export async function sendRaw(env: Env, phone: string, text: string, attachments
   return { ok: true, message_id: j.message_id || j.id || j.data?.message_id || j.data?.id || (j.messages?.[0]?.id) || undefined };
 }
 
+export const STREAK_MAX = 6;
+// texts actually sent to this user since their last real text to Lendo (web inbox doesn't count for Blooio)
+export async function textStreak(env: Env, uid: string): Promise<number> {
+  const r = await env.DB.prepare(`SELECT COUNT(*) n FROM outbound_texts WHERE user_id = ?1 AND provider_id IS NOT NULL AND created_at > COALESCE((SELECT MAX(created_at) FROM inbound_texts WHERE user_id = ?1 AND via = 'text'), 0)`).bind(uid).first<{ n: number }>().catch(() => null);
+  return r?.n || 0;
+}
+
 // Text a user and log it so the Inbox page shows "what we text you".
 export async function textUser(env: Env, user: User, text: string, category: TextCategory, rentalId?: string) {
   // eslint-disable-next-line no-param-reassign
   if ((category === 'nudge' && !user.nudges) || (!user.texts && category !== 'login')) { await logEvent(env.DB, 'text.suppressed', { user: user.id, rental: rentalId, data: { category, why: !user.texts ? 'STOP' : 'nudges off', body: text.slice(0, 300) } }); return; }
   // Until they've texted us once, iOS tends to spam-filter messages with links from an unknown number,
   // and Blooio allows only 3 outbound on a new conversation. So: no links, and ask for a reply.
+  /* Blooio stops a conversation after 6 texts in a row with no reply (429 streak_limit). The 5th asks for a reply; past 6 we hold instead of failing */
+  const streak = await textStreak(env, user.id);
+  if (streak >= STREAK_MAX && category !== 'login') { await logEvent(env.DB, 'text.suppressed', { user: user.id, rental: rentalId, data: { category, why: `waiting for a reply (${streak} unanswered)`, body: text.slice(0, 300) } });
+    await env.DB.prepare('INSERT INTO outbound_texts (id, user_id, body, category, rental_id, provider_id, created_at) VALUES (?,?,?,?,?,?,?)').bind(id('t'), user.id, text, category, rentalId ?? null, null, now()).run(); /* still shows in the web inbox */
+    return { ok: false, error: 'streak' }; }
+  if (streak === STREAK_MAX - 2 && !/\bReply\b/i.test(text)) text = text + ' · Reply OK to keep Lendo texts coming';
   if (!user.replied) text = text.replace(/https?:\/\/\S+/g, '').replace(/\s{2,}/g, ' ').trim() + ' (Reply OK to get links + updates here.)';
   const r = await sendRaw(env, user.phone, text);
   if (!r.ok) { console.warn('text not sent', user.id, category, r.error); await logEvent(env.DB, 'text.failed', { user: user.id, rental: rentalId, data: { category, err: String(r.error).slice(0, 300), body: text.slice(0, 300) } }); }

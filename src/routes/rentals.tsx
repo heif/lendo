@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { logEvent } from '../lib/log';
-import { localToday } from '../lib/util';
+import { localToday, tzFor } from '../lib/util';
 import { shortName } from '../lib/util';
 import { handleText } from './webhooks';
 import { acceptExt, askExtension, declineExt, extById, extendableDays, extPrice, EXT_MAX_DAYS, openExt } from '../lib/extend';
@@ -15,7 +15,7 @@ import { createCheckout, connectOnboardingUrl, flushPendingPayouts, stripe } fro
 import { payoutOf, quote, taxRateFor } from '../lib/money';
 import { selfMigrate } from '../lib/migrate';
 import { accept, decline, customerCancel, markHeld, pickedUp, rate, relay, returned } from '../lib/rentals';
-import { textUser } from '../lib/blooio';
+import { STREAK_MAX, textStreak, textUser } from '../lib/blooio';
 
 export const rentals = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -62,6 +62,18 @@ const PROMISES = (owner: string) => [
   `I use it at my own risk. ${owner} and Lendo aren’t responsible if I get hurt`,
 ];
 
+/* meetup timing helpers (times are "HH:MM" local to the item) */
+const TIMES = Array.from({ length: 31 }, (_, i) => { const m = 7 * 60 + i * 30; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); });
+const fmtHM = (t: string) => { const [h, m] = t.split(':').map(Number); return (h % 12 || 12) + (m ? ':' + String(m).padStart(2, '0') : '') + (h < 12 ? 'am' : 'pm'); };
+const timeWord = (t?: string | null) => t ? ' ~' + fmtHM(t) : '';
+const dayWord = (d: string, lng?: number | null) => { const t = localToday(lng); return d === t ? 'today' : d === addDays(t, 1) ? 'tomorrow' : d < t ? fmtDay(d) + ' (late)' : fmtDay(d); };
+const nowMin = (lng?: number | null) => { const p = new Intl.DateTimeFormat('en-US', { timeZone: tzFor(lng), hour: 'numeric', minute: 'numeric', hour12: false }).formatToParts(new Date()); const g = (k: string) => Number(p.find(x => x.type === k)?.value || 0); return (g('hour') % 24) * 60 + g('minute'); };
+/* "I'm here" shows when a meetup is due: the day has come, and if a time is set, from an hour before it */
+function meetDue(day: string, time: string | null | undefined, lng?: number | null) {
+  const t = localToday(lng); if (t < day) return false; if (t > day || !time) return true;
+  const [h, m] = time.split(':').map(Number); return nowMin(lng) >= h * 60 + m - 60;
+}
+
 rentals.get('/r/:id', requireUser, async (c) => {
   const u = c.get('user')!;
   const r = await rentalById(c.env.DB, c.req.param('id'));
@@ -87,21 +99,32 @@ rentals.get('/r/:id', requireUser, async (c) => {
   const xRent = xs?.rent || 0, xTotal = xs?.total || 0;
   const ox = live ? await openExt(c.env, r.id) : null;
   const extOk = live && !isOwner && !ox ? await extendableDays(c.env, r) : [];
+  const paused = (await textStreak(c.env, u.id)) >= STREAK_MAX;
   const extCells = live && !isOwner && !ox ? Array.from({ length: Math.min(EXT_MAX_DAYS, Math.max(7, extOk.length + 1)) }, (_, i) => addDays(r.end_day, i + 1)) : [];
   return c.html(
     <Layout title={isOwner ? 'Rental of your ' + it.name : 'Your rental'} user={u} back="/rentals" flash={c.req.query('paid') ? (r.status === 'held' ? `Card held. Waiting for ${firstName(owner.name)}.` : null) : null}>
-      <div style="padding:12px 12px 90px;display:flex;flex-direction:column;gap:10px">
-        <a class="card row" href={'/i/' + it.id} style="text-decoration:none;align-items:center">
-          {photos[0] ? <img src={'/p/' + photos[0].r2_key} alt="" style="width:64px;height:64px;border-radius:12px;object-fit:cover;background:var(--cream)" /> : <div style="width:64px;height:64px;border-radius:12px;background:var(--cream)"></div>}
-          <div style="min-width:0;line-height:1.3">
-            <div style="font-size:16px;font-weight:800">{it.name}</div>
-            <div style="font-size:13px;font-weight:700;margin-top:2px">{r.status === 'inquiry' ? (isOwner ? 'Question about your item' : 'Questions before renting') : <>{fmtRange(r.start_day, r.end_day)} · {isOwner ? `you earn ${money(payoutOf(r) + xRent)}` : `${money(r.total_cents + xTotal)}${r.status === 'held' ? ' held' : ' paid'}`}</>}</div>
-            <div class="hint" style="margin-top:1px">{isOwner ? 'to ' : 'from '}<b>{shortName(other.name)}</b>{r.meet_spot ? ' · 📍 ' + r.meet_spot : spots.length ? ' · meet: ' + spots.join(' or ') : ''}</div>
-          </div>
+      <div style="padding:12px 12px 140px;display:flex;flex-direction:column;gap:10px">
+        {/* 3A: compact header (who · item · dates · $) + pinned where/when strip */}
+        <a class="rhd" href={'/i/' + it.id}>
+          {photos[0] ? <img src={'/p/' + photos[0].r2_key} alt="" /> : <span class="rhd-ph"></span>}
+          <div><b>{firstName(other.name)} · {it.name}</b>
+            <div>{r.status === 'inquiry' ? (isOwner ? 'Question about your item' : 'Questions before renting') : <>{fmtRange(r.start_day, r.end_day)} · {isOwner ? `you earn ${money(payoutOf(r) + xRent)}` : `${money(r.total_cents + xTotal)}${r.status === 'held' ? ' held' : ' paid'}`}</>}</div></div>
         </a>
-        {r.status === 'inquiry' ? (!isOwner ? <a class="btn pri full" href={'/i/' + it.id}>Rent it · {money(it.price_cents)}/day</a> : null) : dead ? <div class="flash err" style="margin:0">{r.status === 'declined' ? `${firstName(owner.name)} couldn't do those days.` : r.status === 'expired' ? 'No answer in time.' : 'Canceled.'} Nothing was charged.</div> : (
-          <div class="steps">{STEPS.map((s, i) => <div><div class={'bar' + (i < stage ? ' done' : i === stage ? ' on' : '')}></div><div class={'lbl m' + (i <= stage ? ' on' : '')}>{s}</div></div>)}</div>
-        )}
+        {paused ? <div class="hint" style="text-align:center;color:#b3261e;font-weight:700">📵 Lendo texts paused · text OK to Lendo from your phone to resume</div> : null}
+        {r.status === 'inquiry' ? (!isOwner ? <a class="btn pri full" href={'/i/' + it.id}>Rent it · {money(it.price_cents)}/day</a> : null) : dead ? <div class="flash err" style="margin:0">{r.status === 'declined' ? `${firstName(owner.name)} couldn't do those days.` : r.status === 'expired' ? 'No answer in time.' : 'Canceled.'} Nothing was charged.</div> : null}
+        {!dead && (stage === 1 || stage === 2) ? (
+          <details class="rstrip">
+            <summary><span>📍 <b>{r.meet_spot || (spots.length === 1 ? spots[0] : 'Pick a meet spot')}</b> <span class="hint">· {stage === 1 ? 'pickup ' + dayWord(r.start_day, it.lng) + timeWord(r.pickup_time) : 'back ' + dayWord(r.end_day, it.lng) + timeWord(r.return_time)}</span></span><u>Change</u></summary>
+            <div class="rstrip-in">
+              {spots.length ? <form method="post" action={'/r/' + r.id + '/spot'} class="row" style="gap:6px;flex-wrap:wrap">{spots.map(sp => <button class={'btn sm' + (sp === r.meet_spot ? ' pri' : '')} name="spot" value={sp} type="submit">📍 {sp}</button>)}</form> : null}
+              <form method="post" action={'/r/' + r.id + '/time'} class="row" style="gap:6px;align-items:center">
+                <input type="hidden" name="kind" value={stage === 1 ? 'pickup' : 'return'} />
+                <span class="hint">{stage === 1 ? 'Pickup' : 'Return'} {dayWord(stage === 1 ? r.start_day : r.end_day, it.lng)} around</span>
+                <select name="t" onchange="this.form.submit()" class="rtime">{[<option value="">time…</option>, ...TIMES.map(t => <option value={t} selected={t === (stage === 1 ? r.pickup_time : r.return_time)}>{fmtHM(t)}</option>)]}</select>
+              </form>
+            </div>
+          </details>
+        ) : null}
 
         {/* owner decision */}
         {isOwner && r.status === 'held' ? (
@@ -142,12 +165,13 @@ rentals.get('/r/:id', requireUser, async (c) => {
           </form>
         ) : null}
 
-        {/* customer cancel: free before YES, 50% back after YES */}
-        {!isOwner && (r.status === 'held' || r.status === 'confirmed') ? (
-          <form method="post" action={'/r/' + r.id + '/cancel'} onsubmit={r.status === 'confirmed' ? `return confirm('Cancel? You get ${money(Math.round(r.total_cents / 2))} back — ${firstName(other.name)} already said yes')` : ''} style="margin:4px 0 10px">
-            <button class="btn sm" type="submit" style="width:100%;color:var(--mute)">{r.status === 'held' ? 'Cancel request · nothing charged' : `Cancel · ${money(Math.round(r.total_cents / 2))} back (half)`}</button>
-          </form>
-        ) : null}
+
+        <div class="msgs">
+          {msgs.results.map(m => {
+            const me = m.sender_id === u.id, sys = !m.sender_id;
+            return <div class={'msg' + (me ? ' me' : sys ? ' sys' : '')}><div class="bub"><Linked t={m.body} /></div><div class="meta">{sys ? '' : (me ? 'You' : firstName(m.sender_name)) + (m.via === 'text' ? ' · by text' : '') + ' · '}{fmtT(m.created_at)}</div></div>;
+          })}
+        </div>
 
         {/* community agreement: customer signs once confirmed; owner sees status + a copy */}
         {!dead && stage >= 1 ? (() => {
@@ -164,9 +188,9 @@ rentals.get('/r/:id', requireUser, async (c) => {
           );
           if (r.promise_at) return <>{view}<button type="button" class="btn sm full" onclick="document.getElementById('promView').showModal()">✓ {isOwner ? `${cu} signed the promise` : 'Promise signed'} · <u>View</u></button></>;
           if (r.status !== 'confirmed') return null; // only matters before pickup
-          if (isOwner) return <div class="hint" style="text-align:center">{cu} hasn’t signed the promise yet · texted a reminder</div>;
+          if (isOwner) return <div class="hint" style="text-align:center">{cu} hasn’t signed the promise yet · reminder texted</div>;
           return (<>
-            <div class="pcall"><div><b>Sign your promise to {ow}</b><div class="hint">3 quick checks · needed before pickup</div></div><button type="button" class="btn pri sm" onclick="document.getElementById('promSign').showModal()">Sign now</button></div>
+            <div class="hint" style="text-align:center">Sign your promise to {ow} before pickup · 3 quick checks</div>
             <dialog id="promSign" class="psheet"><form method="post" action={'/r/' + r.id + '/promise'} class="psheet-in" id="promForm">
               <div class="psheet-h"><b>Your promise to {ow}</b><button type="button" class="psheet-x" aria-label="Close" onclick="this.closest('dialog').close()">✕</button></div>
               <div class="hint">Neighbor to neighbor. Tap each one</div>
@@ -190,31 +214,10 @@ f.addEventListener('change',ok);f.addEventListener('submit',function(){document.
         })() : null}
 
         {/* quick actions */}
-        {/* "I'm here" only when a meetup is due: pickup day (or later) before pickup, return day (or later) while it's out */}
-        {!dead && ((stage === 1 && localToday(it.lng) >= r.start_day) || (stage === 2 && localToday(it.lng) >= r.end_day)) ? (
-          <div style="display:grid;grid-template-columns:1fr;gap:6px">
-            {[["I'm here", "I'm here"]].map(([l, m]) => (
-              <form method="post" action={'/r/' + r.id + '/msg'}><input type="hidden" name="body" value={m} /><button class="btn sm full" type="submit">{l}</button></form>
-            ))}
-          </div>
-        ) : null}
-        {!dead && stage === 1 && spots.length && !r.meet_spot ? (
-          <form method="post" action={'/r/' + r.id + '/spot'} class="row" style="gap:6px;flex-wrap:wrap">
-            <span class="hint">Meet at:</span>{spots.map(s => <button class="btn sm" name="spot" value={s} type="submit">📍 {s}</button>)}
-          </form>
-        ) : null}
-
-        {/* pickup / return photo (owner's phone) */}
-        {isOwner && !dead && stage === 1 ? (
-          <form method="post" action={'/r/' + r.id + '/pickup'} enctype="multipart/form-data" class="card" style="background:var(--orange);color:#fff;border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink)">
-            <label style="display:flex;align-items:center;gap:12px;cursor:pointer"><span style="font-size:26px">📷</span><span><b style="display:block">Photo of {firstName(other.name)} with it</b></span><input type="file" name="photo" accept="image/*" capture="environment" style="display:none" onchange="this.form.submit()" /></label>
-            <button class="btn sm" type="submit" style="margin-top:8px;background:#fff">Mark picked up without photo</button>
-          </form>
-        ) : null}
-        {isOwner && !dead && stage === 2 ? (
-          <form method="post" action={'/r/' + r.id + '/return'} enctype="multipart/form-data" class="card" style="border:2px solid var(--ink)">
-            <label style="display:flex;align-items:center;gap:12px;cursor:pointer"><span style="font-size:26px">📷</span><span><b style="display:block">Got it back? Snap it</b></span><input type="file" name="photo" accept="image/*" capture="environment" style="display:none" onchange="this.form.submit()" /></label>
-            <button class="btn sm" type="submit" style="margin-top:8px">Mark returned without photo</button>
+        {/* customer cancel: free before YES, 50% back after YES */}
+        {!isOwner && (r.status === 'held' || r.status === 'confirmed') ? (
+          <form method="post" action={'/r/' + r.id + '/cancel'} onsubmit={r.status === 'confirmed' ? `return confirm('Cancel? You get ${money(Math.round(r.total_cents / 2))} back — ${firstName(other.name)} already said yes')` : ''} style="margin:4px 0 10px">
+            <button type="submit" style="width:100%;background:none;border:0;color:var(--mute);text-decoration:underline;font:inherit;font-size:13px">{r.status === 'held' ? 'Cancel request · nothing charged' : `Cancel · ${money(Math.round(r.total_cents / 2))} back (half)`}</button>
           </form>
         ) : null}
         {r.pickup_photo_key ? <div class="row"><img src={'/p/' + r.pickup_photo_key} alt="pickup" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:1.5px solid var(--ink)" /><span class="hint">pickup photo · {r.return_photo_key ? 'return photo ✓' : 'until it comes back'}</span>{r.return_photo_key ? <img src={'/p/' + r.return_photo_key} alt="return" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:1.5px solid var(--ink)" /> : null}</div> : null}
@@ -230,19 +233,22 @@ f.addEventListener('change',ok);f.addEventListener('submit',function(){document.
           </form>
         ) : myRating ? <div class="hint">You gave {myRating >= 3 ? '👍' : '👎'}</div> : null}
 
-        <div class="m" style="font-size:8px;color:var(--mute);margin:6px 2px 0">history</div>
-        <div class="msgs">
-          {msgs.results.map(m => {
-            const me = m.sender_id === u.id, sys = !m.sender_id;
-            return <div class={'msg' + (me ? ' me' : sys ? ' sys' : '')}><div class="bub"><Linked t={m.body} /></div><div class="meta">{sys ? '' : (me ? 'You' : firstName(m.sender_name)) + (m.via === 'text' ? ' · by text' : '') + ' · '}{fmtT(m.created_at)}</div></div>;
-          })}
-        </div>
       </div>
       {!dead ? (
-        <form method="post" action={'/r/' + r.id + '/msg'} class="compose">
-          <input name="body" placeholder={`Message ${firstName(other.name)} (or just reply to the text)`} required maxlength={500} autocomplete="off" />
-          <button type="submit" aria-label="Send">↑</button>
-        </form>
+        <div class="rdock">
+          {stage === 1 || stage === 2 ? <div class="rchips">
+            {isOwner ? <>
+              <form method="post" action={'/r/' + r.id + (stage === 1 ? '/pickup' : '/return')} enctype="multipart/form-data"><label class="rchip hot">📷 {stage === 1 ? 'Handed over' : 'Got it back'}<input type="file" name="photo" accept="image/*" capture="environment" hidden onchange="this.form.submit()" /></label></form>
+              <form method="post" action={'/r/' + r.id + (stage === 1 ? '/pickup' : '/return')} enctype="multipart/form-data" onsubmit={`return confirm('${stage === 1 ? 'Mark picked up' : 'Mark returned'} without a photo?')`}><button class="rchip" type="submit">✓ No photo</button></form>
+            </> : stage === 1 && !r.promise_at ? <button type="button" class="rchip hot" onclick="document.getElementById('promSign').showModal()">✍️ Sign promise</button> : null}
+            {meetDue(stage === 1 ? r.start_day : r.end_day, stage === 1 ? r.pickup_time : r.return_time, it.lng) ? <form method="post" action={'/r/' + r.id + '/msg'}><input type="hidden" name="body" value="I'm here" /><button class="rchip" type="submit">👋 I’m here</button></form> : null}
+            <button type="button" class="rchip" onclick="var d=document.querySelector('.rstrip');d.open=true;d.scrollIntoView({block:'start',behavior:'smooth'})">⏱ {(stage === 1 ? r.pickup_time : r.return_time) ? fmtHM((stage === 1 ? r.pickup_time : r.return_time)!) : 'Time'}</button>
+          </div> : null}
+          <form method="post" action={'/r/' + r.id + '/msg'} class="compose" style="position:static;padding:6px 0 0">
+            <input name="body" placeholder={`Message ${firstName(other.name)}`} required maxlength={500} autocomplete="off" />
+            <button type="submit" aria-label="Send">↑</button>
+          </form>
+        </div>
       ) : null}
     </Layout>
   );
@@ -301,6 +307,18 @@ rentals.post('/r/:id/ext/:xid/:v', requireUser, async (c) => {
   const x = await extById(c.env, c.req.param('xid'));
   if (!x || x.rental_id !== r.id || x.status !== 'held') return c.redirect('/r/' + r.id);
   if (c.req.param('v') === 'accept') await acceptExt(c.env, x); else if (c.req.param('v') === 'decline') await declineExt(c.env, x, 'declined');
+  return c.redirect('/r/' + r.id);
+});
+rentals.post('/r/:id/time', requireUser, async (c) => {
+  const u = c.get('user')!; const r = await rentalById(c.env.DB, c.req.param('id'));
+  if (!r || (r.owner_id !== u.id && r.renter_id !== u.id)) return c.notFound();
+  const f = await c.req.parseBody(), t = String(f.t || ''), kind = f.kind === 'return' ? 'return' : 'pickup';
+  if (!TIMES.includes(t)) return c.redirect('/r/' + r.id);
+  const col = kind === 'return' ? 'return_time' : 'pickup_time';
+  await c.env.DB.prepare(`UPDATE rentals SET ${col} = ?, updated_at = ? WHERE id = ?`).bind(t, now(), r.id).run();
+  await logEvent(c.env.DB, 'rental.' + col, { user: u.id, rental: r.id, data: { t, was: (r as any)[col] ?? null } });
+  const it = (await listingById(c.env.DB, r.listing_id))!;
+  await relay(c.env, r, u, `${kind === 'return' ? 'Return' : 'Pickup'} ${dayWord(kind === 'return' ? r.end_day : r.start_day, it.lng)} around ${fmtHM(t)}?`, 'web');
   return c.redirect('/r/' + r.id);
 });
 rentals.post('/r/:id/spot', requireUser, async (c) => {
@@ -435,9 +453,11 @@ rentals.get('/inbox', requireUser, async (c) => {
   const inn = (await c.env.DB.prepare(`SELECT body, via, created_at FROM inbound_texts WHERE user_id = ? ORDER BY created_at DESC LIMIT 100`).bind(u.id).all<{ body: string; via: string; created_at: number }>().catch(() => ({ results: [] as { body: string; via: string; created_at: number }[] }))).results;
   const all = [...out.map(t => ({ me: false, body: t.body, rid: t.rental_id, at: t.created_at, via: '' })), ...inn.map(t => ({ me: true, body: t.body, rid: null as string | null, at: t.created_at, via: t.via }))]
     .sort((a, b) => a.at - b.at).slice(-150);
+  const paused = (await textStreak(c.env, u.id)) >= STREAK_MAX;
   const fmtT = (t: number) => new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
   return c.html(
     <Layout title="Inbox" user={u}>
+      {paused ? <div class="hint" style="text-align:center;color:#b3261e;font-weight:700;margin:10px 12px 0">📵 Texts to your phone are paused after {STREAK_MAX} with no reply · text OK to Lendo from your phone (typing here doesn’t count)</div> : null}
       <div class="msgs" id="inbox" style="padding:12px 12px 8px">
         {all.length ? all.map(m => (
           <div class={'msg' + (m.me ? ' me' : '')}>
