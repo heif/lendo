@@ -1,5 +1,6 @@
 import { answerPending, actOn, intentContext, parseIntent } from '../lib/intent';
 import { logErr, logEvent } from '../lib/log';
+import { CONFIRM_ASK, KEEP_ASK } from '../lib/blooio';
 import { acceptExt, declineExt, extById, extFromSession, heldExtForOwner, markExtHeld } from '../lib/extend';
 import { turnOff } from '../lib/alerts';
 import { Hono, type Context } from 'hono';
@@ -95,8 +96,11 @@ async function blooioInbound(c: Context<{ Bindings: Env; Variables: Vars }>) {
 export async function handleText(c: Context<{ Bindings: Env; Variables: Vars }>, user: User, text: string, via: 'text' | 'web') {
   const kw = text.toUpperCase().replace(/[^A-Z ]/g, '').trim();
   await c.env.DB.prepare('INSERT INTO inbound_texts (id, user_id, body, via, created_at) VALUES (?,?,?,?,?)').bind(crypto.randomUUID(), user.id, text.slice(0, 500), via, Date.now()).run().catch(() => {});
-  if (!user.replied) { await c.env.DB.prepare('UPDATE users SET replied = 1 WHERE id = ?').bind(user.id).run(); user.replied = 1; }
-  if (kw === 'OK' || kw === 'OKAY' || kw === 'K') {
+  if (!user.replied && via === 'text') { await c.env.DB.prepare('UPDATE users SET replied = 1 WHERE id = ?').bind(user.id).run(); user.replied = 1; }
+  if (kw === 'OK' || kw === 'OKAY' || kw === 'K' || kw === 'GOT IT' || kw === 'THANKS' || kw === 'THANK YOU') {
+    /* OK to a Lendo confirm ask = acknowledged; no reply (the inbound text already reset Blooio's count) */
+    const last = await c.env.DB.prepare(`SELECT body FROM outbound_texts WHERE user_id = ? ORDER BY created_at DESC LIMIT 1`).bind(user.id).first<{ body: string }>().catch(() => null);
+    if (last && (last.body.endsWith(CONFIRM_ASK) || last.body.endsWith(KEEP_ASK) || last.body.includes('Reply OK to get links'))) { await logEvent(c.env.DB, 'text.ack', { user: user.id, data: { via } }); return c.json({ ok: true }); }
     const r0 = await activeRentalFor(c.env, user.id);
     if (!r0) { await textUser(c.env, user, `You're set. Rentals: ${c.env.APP_URL}/rentals · Map: ${c.env.APP_URL}/`, 'rental'); return c.json({ ok: true }); }
   }
@@ -125,10 +129,14 @@ export async function handleText(c: Context<{ Bindings: Env; Variables: Vars }>,
 
   // a parked plain-English action (price change, cancel) waiting for YES wins over an owner's pending request
   if ((kw === 'YES' || kw === 'Y' || kw === 'NO' || kw === 'N') && await answerPending(c.env, user, kw.startsWith('Y'))) return c.json({ ok: true });
-  if (kw === 'YES' || kw === 'Y' || kw === 'ACCEPT' || kw === 'NO' || kw === 'N' || kw === 'PASS' || kw === 'DECLINE') {
-    const held = await c.env.DB.prepare(`SELECT * FROM rentals WHERE owner_id = ? AND status = 'held' ORDER BY created_at DESC LIMIT 1`).bind(user.id).first<Rental>();
+  const coded = text.trim().match(/^(yes|y|no|n)\s+#?([a-z0-9]{4})$/i);
+  if (coded || kw === 'YES' || kw === 'Y' || kw === 'ACCEPT' || kw === 'NO' || kw === 'N' || kw === 'PASS' || kw === 'DECLINE') {
+    const kw2 = coded ? coded[1].toUpperCase() : kw; /* eslint-disable-line */
+    const held = coded
+      ? (await c.env.DB.prepare(`SELECT * FROM rentals WHERE owner_id = ? AND status = 'held' ORDER BY created_at DESC`).bind(user.id).all<Rental>()).results.find(x => x.id.slice(-4).toLowerCase() === coded[2].toLowerCase()) ?? null
+      : await c.env.DB.prepare(`SELECT * FROM rentals WHERE owner_id = ? AND status = 'held' ORDER BY created_at DESC LIMIT 1`).bind(user.id).first<Rental>();
     if (held) {
-      if (kw.startsWith('Y') || kw === 'ACCEPT') { const ok = await accept(c.env, held); if (!ok) await textUser(c.env, user, `Couldn't confirm that one — open it here: ${c.env.APP_URL}/r/${held.id}`, 'rental', held.id); }
+      if (kw2.startsWith('Y') || kw2 === 'ACCEPT') { const ok = await accept(c.env, held); if (!ok) await textUser(c.env, user, `Couldn't confirm that one — open it here: ${c.env.APP_URL}/r/${held.id}`, 'rental', held.id); }
       else await decline(c.env, held, 'declined');
       return c.json({ ok: true });
     }

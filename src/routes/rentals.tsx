@@ -15,7 +15,7 @@ import { createCheckout, connectOnboardingUrl, flushPendingPayouts, stripe } fro
 import { payoutOf, quote, taxRateFor } from '../lib/money';
 import { selfMigrate } from '../lib/migrate';
 import { accept, decline, customerCancel, markHeld, pickedUp, rate, relay, returned } from '../lib/rentals';
-import { STREAK_MAX, textStreak, textUser } from '../lib/blooio';
+import { smsHref, STREAK_MAX, textStreak, textUser } from '../lib/blooio';
 
 export const rentals = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -110,7 +110,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
           <div><b>{firstName(other.name)} · {it.name}</b>
             <div>{r.status === 'inquiry' ? (isOwner ? 'Question about your item' : 'Questions before renting') : <>{fmtRange(r.start_day, r.end_day)} · {isOwner ? `you earn ${money(payoutOf(r) + xRent)}` : `${money(r.total_cents + xTotal)}${r.status === 'held' ? ' held' : ' paid'}`}</>}</div></div>
         </a>
-        {paused ? <div class="hint" style="text-align:center;color:#b3261e;font-weight:700">📵 Lendo texts paused · text OK to Lendo from your phone to resume</div> : null}
+        {paused ? <a class="hint" href={smsHref(c.env, 'OK')} style="text-align:center;color:#b3261e;font-weight:700;display:block">📵 Lendo texts paused · <u>tap to text OK</u> and turn them back on</a> : null}
         {r.status === 'inquiry' ? (!isOwner ? <a class="btn pri full" href={'/i/' + it.id}>Rent it · {money(it.price_cents)}/day</a> : null) : dead ? <div class="flash err" style="margin:0">{r.status === 'declined' ? `${firstName(owner.name)} couldn't do those days.` : r.status === 'expired' ? 'No answer in time.' : 'Canceled.'} Nothing was charged.</div> : null}
         {!dead && (stage === 1 || stage === 2) ? (
           <details class="rstrip">
@@ -131,14 +131,19 @@ rentals.get('/r/:id', requireUser, async (c) => {
           <div class="card" style="border:2px solid var(--ink)">
             <b>{firstName(other.name)} wants it {fmtRange(r.start_day, r.end_day)}. You'd earn {money(payoutOf(r))} (after the {c.env.FEE_PCT}% fee)</b>
             <div class="row" style="margin-top:10px;gap:8px">
-              <form method="post" action={'/r/' + r.id + '/accept'} style="flex:1" id="acceptForm"><button class="btn pri full" type="submit">YES — accept</button></form>
-              <form method="post" action={'/r/' + r.id + '/decline'}><button class="btn" type="submit">No</button></form>
+              {/* phones: YES/NO open Messages with the reply typed (a real text keeps Lendo texts flowing); computers: plain buttons */}
+              <a class="btn pri sms-only" style="flex:1;display:grid;place-items:center;text-decoration:none" href={smsHref(c.env, 'YES ' + r.id.slice(-4))}>💬 YES — accept</a>
+              <a class="btn sms-only" style="display:grid;place-items:center;text-decoration:none" href={smsHref(c.env, 'NO ' + r.id.slice(-4))}>No</a>
+              <div style="flex:1" class="web-only"><button class="btn pri full" type="submit" form="acceptForm2">YES — accept</button></div>
+              <form method="post" action={'/r/' + r.id + '/decline'} class="web-only"><button class="btn" type="submit">No</button></form>
             </div>
+            <div class="hint sms-only" style="margin-top:6px">Opens Messages with “YES” typed · tap Send · <button type="submit" form="acceptForm2" style="background:none;border:0;padding:0;font:inherit;color:inherit;text-decoration:underline">or accept here</button></div>
+            <form method="post" action={'/r/' + r.id + '/accept'} id="acceptForm2"></form>
             <details class="disc"><summary>Give a discount</summary>
-              <label class="field" style="margin-top:8px"><span>Your price for these days ($0 = free, max {money(r.rent_cents)})</span><input form="acceptForm" name="rent" type="number" inputmode="decimal" min="0" max={(r.rent_cents / 100).toFixed(2)} step="0.01" placeholder={(r.rent_cents / 100).toFixed(0)} /></label>
-              <div class="hint">Can only go down. Free = no Lendo fee. Then tap YES</div>
+              <label class="field" style="margin-top:8px"><span>Your price for these days ($0 = free, max {money(r.rent_cents)})</span><input form="acceptForm2" name="rent" type="number" inputmode="decimal" min="0" max={(r.rent_cents / 100).toFixed(2)} step="0.01" placeholder={(r.rent_cents / 100).toFixed(0)} /></label>
+              <div class="hint">Can only go down. Free = no Lendo fee</div><button class="btn pri full" type="submit" form="acceptForm2" style="margin-top:8px">Accept at this price</button>
             </details>
-            <div class="hint" style="margin-top:8px">or reply YES / NO by text · expires {r.expires_at ? fmtT(r.expires_at) : 'in 24h'}</div>
+            <div class="hint" style="margin-top:8px"><span class="web-only">or reply YES / NO by text · </span>expires {r.expires_at ? fmtT(r.expires_at) : 'in 24h'}</div>
           </div>
         ) : null}
 
@@ -147,7 +152,8 @@ rentals.get('/r/:id', requireUser, async (c) => {
           <div class="card" style="border:2px solid var(--ink)">
             <b>{firstName(other.name)} wants to keep it until {fmtDay(ox.new_end)} · you'd earn {money(payoutOf(ox))} more</b>
             <div class="row" style="margin-top:10px;gap:8px">
-              <form method="post" action={`/r/${r.id}/ext/${ox.id}/accept`} style="flex:1"><button class="btn pri full" type="submit">YES</button></form>
+              <a class="btn pri sms-only" style="flex:1;display:grid;place-items:center;text-decoration:none" href={smsHref(c.env, 'YES')}>💬 YES</a>
+              <form method="post" action={`/r/${r.id}/ext/${ox.id}/accept`} style="flex:1" class="web-only"><button class="btn pri full" type="submit">YES</button></form>
               <form method="post" action={`/r/${r.id}/ext/${ox.id}/decline`}><button class="btn" type="submit">No</button></form>
             </div>
             <div class="hint" style="margin-top:8px">or reply YES / NO by text</div>
@@ -241,7 +247,7 @@ f.addEventListener('change',ok);f.addEventListener('submit',function(){document.
               <form method="post" action={'/r/' + r.id + (stage === 1 ? '/pickup' : '/return')} enctype="multipart/form-data"><label class="rchip hot">📷 {stage === 1 ? 'Handed over' : 'Got it back'}<input type="file" name="photo" accept="image/*" capture="environment" hidden onchange="this.form.submit()" /></label></form>
               <form method="post" action={'/r/' + r.id + (stage === 1 ? '/pickup' : '/return')} enctype="multipart/form-data" onsubmit={`return confirm('${stage === 1 ? 'Mark picked up' : 'Mark returned'} without a photo?')`}><button class="rchip" type="submit">✓ No photo</button></form>
             </> : stage === 1 && !r.promise_at ? <button type="button" class="rchip hot" onclick="document.getElementById('promSign').showModal()">✍️ Sign promise</button> : null}
-            {meetDue(stage === 1 ? r.start_day : r.end_day, stage === 1 ? r.pickup_time : r.return_time, it.lng) ? <form method="post" action={'/r/' + r.id + '/msg'}><input type="hidden" name="body" value="I'm here" /><button class="rchip" type="submit">👋 I’m here</button></form> : null}
+            {meetDue(stage === 1 ? r.start_day : r.end_day, stage === 1 ? r.pickup_time : r.return_time, it.lng) ? <><a class="rchip sms-only" href={smsHref(c.env, "I'm here")} style="text-decoration:none">👋 I’m here</a><form method="post" action={'/r/' + r.id + '/msg'} class="web-only"><input type="hidden" name="body" value="I'm here" /><button class="rchip" type="submit">👋 I’m here</button></form></> : null}
             <button type="button" class="rchip" onclick="var d=document.querySelector('.rstrip');d.open=true;d.scrollIntoView({block:'start',behavior:'smooth'})">⏱ {(stage === 1 ? r.pickup_time : r.return_time) ? fmtHM((stage === 1 ? r.pickup_time : r.return_time)!) : 'Time'}</button>
           </div> : null}
           <form method="post" action={'/r/' + r.id + '/msg'} class="compose" style="position:static;padding:6px 0 0">
@@ -457,7 +463,7 @@ rentals.get('/inbox', requireUser, async (c) => {
   const fmtT = (t: number) => new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
   return c.html(
     <Layout title="Inbox" user={u}>
-      {paused ? <div class="hint" style="text-align:center;color:#b3261e;font-weight:700;margin:10px 12px 0">📵 Texts to your phone are paused after {STREAK_MAX} with no reply · text OK to Lendo from your phone (typing here doesn’t count)</div> : null}
+      {paused ? <a class="hint" href={smsHref(c.env, 'OK')} style="text-align:center;color:#b3261e;font-weight:700;margin:10px 12px 0;display:block">📵 Texts to your phone are paused after {STREAK_MAX} with no reply · <u>tap to text OK</u> (typing here doesn’t count)</a> : null}
       <div class="msgs" id="inbox" style="padding:12px 12px 8px">
         {all.length ? all.map(m => (
           <div class={'msg' + (m.me ? ' me' : '')}>

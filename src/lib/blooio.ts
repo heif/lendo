@@ -4,7 +4,13 @@ import type { Env, User } from './env';
 import { logEvent } from './log';
 import { id, now } from './util';
 
-export type TextCategory = 'login' | 'rental' | 'money' | 'pickup' | 'nudge' | 'milestone' | 'alert';
+export type TextCategory = 'login' | 'rental' | 'money' | 'pickup' | 'nudge' | 'milestone' | 'alert' | 'chat';
+/* every text asks for a reply (Blooio pauses a conversation after 6 unanswered). Info-only texts end with a confirm ask; the reply is acked silently */
+export const CONFIRM_ASK = 'Reply OK to confirm';
+export const KEEP_ASK = 'Reply OK to keep these coming';
+const asksReply = (t: string) => /\breply\b/i.test(t);
+/* Lendo's own number as an sms: link (prefilled body); works on iPhone + Android */
+export const smsHref = (env: Env, body: string) => `sms:+1${(env.LENDO_NUMBER || '').replace(/\D/g, '').slice(-10)}?&body=${encodeURIComponent(body)}`;
 
 export async function sendRaw(env: Env, phone: string, text: string, attachments?: string[]): Promise<{ ok: boolean; message_id?: string; error?: string }> {
   if (!env.BLOOIO_API_KEY) {
@@ -46,7 +52,7 @@ export async function textUser(env: Env, user: User, text: string, category: Tex
   if (streak >= STREAK_MAX && category !== 'login') { await logEvent(env.DB, 'text.suppressed', { user: user.id, rental: rentalId, data: { category, why: `waiting for a reply (${streak} unanswered)`, body: text.slice(0, 300) } });
     await env.DB.prepare('INSERT INTO outbound_texts (id, user_id, body, category, rental_id, provider_id, created_at) VALUES (?,?,?,?,?,?,?)').bind(id('t'), user.id, text, category, rentalId ?? null, null, now()).run(); /* still shows in the web inbox */
     return { ok: false, error: 'streak' }; }
-  if (streak === STREAK_MAX - 2 && !/\bReply\b/i.test(text)) text = text + ' · Reply OK to keep Lendo texts coming';
+  if (user.replied && category !== 'login' && category !== 'chat' && !asksReply(text)) text = text + ' · ' + (category === 'alert' || category === 'nudge' || category === 'milestone' ? KEEP_ASK : CONFIRM_ASK);
   if (!user.replied) text = text.replace(/https?:\/\/\S+/g, '').replace(/\s{2,}/g, ' ').trim() + ' (Reply OK to get links + updates here.)';
   const r = await sendRaw(env, user.phone, text);
   if (!r.ok) { console.warn('text not sent', user.id, category, r.error); await logEvent(env.DB, 'text.failed', { user: user.id, rental: rentalId, data: { category, err: String(r.error).slice(0, 300), body: text.slice(0, 300) } }); }

@@ -136,7 +136,7 @@ export async function relay(env: Env, r: Rental, from: User, body: string, via: 
   await addMessage(env, r.id, from.id, body, via);
   const toId = from.id === r.owner_id ? r.renter_id : r.owner_id;
   const to = (await userById(env.DB, toId))!;
-  await textUser(env, to, `${firstName(from.name)}: ${body}`, 'rental', r.id);
+  await textUser(env, to, `${firstName(from.name)}: ${body}`, 'chat', r.id); /* a person's words: no confirm ask; a reply goes back to them */
 }
 
 // the rental a texter most likely means (newest active one they're part of)

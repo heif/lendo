@@ -574,3 +574,7 @@ img.uav{background:#ddd}
 .rchips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;white-space:nowrap}.rchips::-webkit-scrollbar{display:none}.rchips form{display:contents}
 .rchip{display:inline-flex;align-items:center;gap:5px;height:34px;padding:0 12px;border-radius:999px;background:#fff;border:1.5px solid var(--line);font:inherit;font-size:13.5px;font-weight:700;color:var(--ink);cursor:pointer;flex:none}
 .rchip.hot{background:var(--orange);color:#fff;border-color:var(--ink);box-shadow:2px 2px 0 var(--ink)}
+
+/* phones get sms: buttons (a real text back keeps Lendo texts flowing); mouse/trackpad gets the web buttons */
+@media (pointer:fine){.sms-only{display:none!important}}
+@media (pointer:coarse){.web-only{display:none!important}}

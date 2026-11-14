@@ -1,3 +1,4 @@
+import { raw } from 'hono/html';
 import { Hono } from 'hono';
 import { logEvent } from '../lib/log';
 import { PhotoField, saveUserPhoto } from '../lib/userphoto';
@@ -6,7 +7,7 @@ import { Layout } from '../pages/layout';
 import { startLogin, finishLogin, logout, smsFallback } from '../lib/auth';
 import { normPhone, prettyPhone } from '../lib/util';
 import { ensureUser } from '../lib/db';
-import { sendRaw } from '../lib/blooio';
+import { sendRaw, smsHref } from '../lib/blooio';
 import { setCookie, getCookie } from 'hono/cookie';
 
 export const auth = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -79,7 +80,6 @@ auth.get('/welcome', async (c) => {
   return c.html(
     <Layout title="Welcome" user={u} back={null}>
       <form method="post" action="/welcome" enctype="multipart/form-data" style="padding:20px 16px">
-        <div class="flash" style="margin:0 0 14px;display:flex;align-items:center;gap:10px"><span style="flex:1">📱 Reply <b>OK</b> to the text so rental texts reach you</span><a class="btn sm" href="/lendo.vcf" style="width:auto;white-space:nowrap">Save contact</a></div>
         <h2 style="margin:0 0 6px;font-size:24px;font-weight:900;letter-spacing:-.02em">What should neighbors call you?</h2>
         <input type="hidden" name="next" value={next} />
         <label class="field"><span>Your name</span><input name="name" placeholder="Fiona Smith" required maxlength={40} autofocus /></label>
@@ -99,7 +99,36 @@ auth.post('/welcome', async (c) => {
     .bind(String(f.name || '').trim().slice(0, 40) || 'Neighbor', String(f.hood || '').trim().slice(0, 60), u.id).run();
   if (f.photo) await saveUserPhoto(c.env, u.id, f.photo).catch(() => null);
   await logEvent(c.env.DB, 'profile.setup', { user: u.id, data: { name: String(f.name || '').trim().slice(0, 40), hood: String(f.hood || '').trim().slice(0, 60), photo: !!f.photo } });
-  return c.redirect(safeNext(String(f.next || '/')));
+  const nx = safeNext(String(f.next || '/'));
+  return c.redirect(u.replied ? nx : '/texts-on?next=' + encodeURIComponent(nx));
+});
+
+/* signup step: send one real text to Lendo (sms: link with OK typed) + save the contact. Makes iPhone trust the number,
+   unlocks links in Lendo texts, and starts Blooio's reply count fresh. Page waits for the OK and moves on by itself */
+auth.get('/texts-on', async (c) => {
+  const u = c.get('user');
+  if (!u) return c.redirect('/login');
+  const next = safeNext(c.req.query('next'));
+  return c.html(
+    <Layout title="Turn on texts" user={u} back={null}>
+      <div style="padding:36px 18px 30px;text-align:center">
+        <div style="font-size:56px;line-height:1">💬</div>
+        <h2 style="margin:10px 0 6px;font-size:26px;font-weight:900;letter-spacing:-.02em">Turn on Lendo texts</h2>
+        <p class="hint" style="font-size:15px;margin:0 0 22px">Requests, payments and pickups come by text. Send one OK so your phone trusts Lendo</p>
+        <a class="btn pri full" href={smsHref(c.env, 'OK')} style="display:grid;place-items:center;text-decoration:none">Text OK to Lendo</a>
+        <a class="btn full" href="/lendo.vcf" style="display:grid;place-items:center;text-decoration:none;margin-top:10px">📇 Save Lendo contact</a>
+        <div class="card" style="margin-top:20px;text-align:left;font-size:14px" id="tst">✓ Code sent<br /><span id="tok">⏳ Waiting for your OK…</span></div>
+        <a href={next} class="hint" style="display:block;margin-top:16px">Skip for now</a>
+      </div>
+      {raw(`<script>(function(){var t0=${Date.now()},n=0;function chk(){fetch('/api/texts-on?since='+t0).then(function(r){return r.json()}).then(function(j){if(j.ok){document.getElementById('tok').textContent='✓ Got your OK — texts are on';setTimeout(function(){location.href=${JSON.stringify(next)}},900)}else if(++n<120)setTimeout(chk,3000)}).catch(function(){if(++n<120)setTimeout(chk,3000)})}chk()})()</script>`)}
+    </Layout>
+  );
+});
+auth.get('/api/texts-on', async (c) => {
+  const u = c.get('user'); if (!u) return c.json({ ok: false });
+  const since = Number(c.req.query('since')) || 0;
+  const r = await c.env.DB.prepare(`SELECT 1 FROM inbound_texts WHERE user_id = ? AND via = 'text' AND created_at > ? LIMIT 1`).bind(u.id, since - 60000).first().catch(() => null);
+  return c.json({ ok: !!r });
 });
 
 // $5-off promo bar (prototype): phone → opt-in → credit saved to that number + a text. Idempotent per phone.
