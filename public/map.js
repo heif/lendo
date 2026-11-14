@@ -243,10 +243,10 @@
   /* items that don't fit as a full pin (zoomed out / crowded): a small picture of the item instead of an orange dot */
   var miniCache = {}, miniLoading = {}, miniT;
   function drawMini(img, transparent) {
-    var B = 34, cv = document.createElement('canvas'); cv.width = B * DPR; cv.height = B * DPR;
+    var B = SZ + 10, cv = document.createElement('canvas'); /* same item size as a full pin (pin item box = SZ + 6) */ cv.width = B * DPR; cv.height = B * DPR;
     var g = cv.getContext('2d'); g.scale(DPR, DPR);
     if (img && transparent) {
-      img = trimAlpha(img); var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height, k = (B - 6) / Math.max(w, h), dw = w * k, dh = h * k, x = (B - dw) / 2, y = (B - dh) / 2;
+      img = trimAlpha(img); var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height, k = (B - 4) / Math.max(w, h), dw = w * k, dh = h * k, x = (B - dw) / 2, y = (B - dh) / 2;
       /* white outline: the silhouette drawn white around the item, then the item */
       var sil = document.createElement('canvas'); sil.width = cv.width; sil.height = cv.height; var sg = sil.getContext('2d'); sg.scale(DPR, DPR);
       sg.drawImage(img, x, y, dw, dh); sg.globalCompositeOperation = 'source-in'; sg.fillStyle = '#fff'; sg.fillRect(0, 0, B, B);
@@ -254,7 +254,7 @@
       [[-1.5, 0], [1.5, 0], [0, -1.5], [0, 1.5], [-1, -1], [1, 1], [-1, 1], [1, -1]].forEach(function (o) { g.drawImage(sil, o[0], o[1], B, B); }); g.restore();
       g.drawImage(img, x, y, dw, dh);
     } else if (img) {
-      var r = B / 2 - 3; g.save(); g.beginPath(); g.arc(B / 2, B / 2, r, 0, Math.PI * 2); g.clip();
+      var r = B / 2 - 6; g.save(); g.beginPath(); g.arc(B / 2, B / 2, r, 0, Math.PI * 2); g.clip();
       var iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height, s2 = Math.min(iw, ih); g.drawImage(img, (iw - s2) / 2, (ih - s2) / 2, s2, s2, B / 2 - r, B / 2 - r, r * 2, r * 2); g.restore();
       g.beginPath(); g.arc(B / 2, B / 2, r, 0, Math.PI * 2); g.lineWidth = 2; g.strokeStyle = '#fff'; g.stroke();
     } else return null;
@@ -285,7 +285,7 @@
     map.addSource('pins', { type: 'geojson', data: pinsGeo(), promoteId: 'id' });
     // items that don't fit as a pin right now: a small picture of the item (tap opens it); orange dot only until its picture loads
     map.addLayer({ id: 'mini', type: 'symbol', source: 'more', filter: ['==', ['get', 'has'], true],
-      layout: { 'icon-image': ['get', 'icon'], 'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.6, 13, 0.85, 15, 1], 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
+      layout: { 'icon-image': ['get', 'icon'], 'icon-size': 1, 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
     map.addLayer({ id: 'more', type: 'circle', source: 'more', filter: ['!=', ['get', 'has'], true], paint: { 'circle-color': S.cluster.fill, 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 2.5, 15, 4.5], 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.2, 'circle-opacity': 0.9 } });
     map.addLayer({ id: 'pins', type: 'symbol', source: 'pins',
       layout: { 'icon-image': ['get', 'icon'], 'icon-rotate': ['get', 'rot'], 'icon-size': ['case', ['get', 'sel'], 1.15, 1], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'symbol-sort-key': ['case', ['get', 'sel'], 1, 0] } });

@@ -13,7 +13,7 @@ window.LENDO_MAP_STYLE = {
   // Lendo layers
   cluster: { fill: '#FF4F00', stroke: '#1E3A2B', text: '#FFFFFF' },
   hoods: { line: '#1E3A2B', lineOpacity: 0.3, fill: '#1E3A2B', fillOpacity: 0.03, emptyFillOpacity: 0.1, emptyColor: '#8A857B' },
-  sticker: { size: 56, border: 3, tagBg: '#FF4F00', tagInk: '#1E3A2B', tagText: '#FFFFFF' },
+  sticker: { size: 52, border: 3, tagBg: '#FF4F00', tagInk: '#1E3A2B', tagText: '#FFFFFF' },
 };
 
 window.applyLendoStyle = function (map) {
