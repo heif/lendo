@@ -151,7 +151,7 @@
         properties: { id: it.id, sel: sel === it.id, rot: wiggleRot(it.id), name: it.name, price: fmt(it.price_cents), price_cents: it.price_cents, week_cents: it.week_cents || 0, photo: it.photo || '', avatar: it.avatar_key || '', emoji: it.emoji || '📦', hood: it.hood || '', icon: iconCache[it.id] ? 'l_' + it.id : 'pin-default' } };
     }) };
   }
-  function moreGeo() { return { type: 'FeatureCollection', features: HIDE.map(function (it) { return { type: 'Feature', geometry: { type: 'Point', coordinates: POS[it.id] }, properties: {} }; }) }; }
+  function moreGeo() { return { type: 'FeatureCollection', features: HIDE.map(function (it) { return { type: 'Feature', geometry: { type: 'Point', coordinates: POS[it.id] }, properties: { id: it.id, icon: 'm_' + it.id, has: !!miniCache[it.id] } }; }) }; }
   function drawPins() { var src = map.getSource('pins'); if (src) src.setData(pinsGeo()); }
   // screen points of everything walkers must stay off (pins + ghosts); rebuilt after each layout / map move
   function buildObst() {
@@ -166,7 +166,7 @@
       if (!sameBand || layoutKey.split('|')[1] !== String(itemsRev)) computePos(z);
       pickShown(z, sticky); layoutKey = key;
       var m = map.getSource('more'); if (m) m.setData(moreGeo());
-      SHOW.forEach(ensureIcon);
+      SHOW.forEach(ensureIcon); HIDE.slice(0, 400).forEach(ensureMini);
     }
     drawPins(); if (window.__placeWanted) window.__placeWanted(); buildObst();
   }
@@ -240,6 +240,34 @@
     return g.getImageData(0, 0, W * DPR, H * DPR);
   }
   function addIcon(id, imgData) { if (!map.hasImage(id)) map.addImage(id, imgData, { pixelRatio: DPR }); }
+  /* items that don't fit as a full pin (zoomed out / crowded): a small picture of the item instead of an orange dot */
+  var miniCache = {}, miniLoading = {}, miniT;
+  function drawMini(img, transparent) {
+    var B = 34, cv = document.createElement('canvas'); cv.width = B * DPR; cv.height = B * DPR;
+    var g = cv.getContext('2d'); g.scale(DPR, DPR);
+    if (img && transparent) {
+      img = trimAlpha(img); var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height, k = (B - 6) / Math.max(w, h), dw = w * k, dh = h * k, x = (B - dw) / 2, y = (B - dh) / 2;
+      /* white outline: the silhouette drawn white around the item, then the item */
+      var sil = document.createElement('canvas'); sil.width = cv.width; sil.height = cv.height; var sg = sil.getContext('2d'); sg.scale(DPR, DPR);
+      sg.drawImage(img, x, y, dw, dh); sg.globalCompositeOperation = 'source-in'; sg.fillStyle = '#fff'; sg.fillRect(0, 0, B, B);
+      g.save(); g.shadowColor = 'rgba(30,58,43,0.35)'; g.shadowBlur = 2;
+      [[-1.5, 0], [1.5, 0], [0, -1.5], [0, 1.5], [-1, -1], [1, 1], [-1, 1], [1, -1]].forEach(function (o) { g.drawImage(sil, o[0], o[1], B, B); }); g.restore();
+      g.drawImage(img, x, y, dw, dh);
+    } else if (img) {
+      var r = B / 2 - 3; g.save(); g.beginPath(); g.arc(B / 2, B / 2, r, 0, Math.PI * 2); g.clip();
+      var iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height, s2 = Math.min(iw, ih); g.drawImage(img, (iw - s2) / 2, (ih - s2) / 2, s2, s2, B / 2 - r, B / 2 - r, r * 2, r * 2); g.restore();
+      g.beginPath(); g.arc(B / 2, B / 2, r, 0, Math.PI * 2); g.lineWidth = 2; g.strokeStyle = '#fff'; g.stroke();
+    } else return null;
+    return g.getImageData(0, 0, B * DPR, B * DPR);
+  }
+  function ensureMini(it) {
+    if (miniCache[it.id] || miniLoading[it.id]) return;
+    var src = it.avatar_key ? '/p/' + it.avatar_key : it.photo ? '/p/' + it.photo : null; if (!src) return;
+    miniLoading[it.id] = true;
+    var img = new Image(); img.onload = function () { try { var d = drawMini(img, !!it.avatar_key); if (d) { addIcon('m_' + it.id, d); miniCache[it.id] = true; } } catch (e) {} miniLoading[it.id] = false;
+      clearTimeout(miniT); miniT = setTimeout(function () { var m = map.getSource('more'); if (m) m.setData(moreGeo()); }, 80); };
+    img.onerror = function () { miniLoading[it.id] = false; }; img.src = src;
+  }
   function ensureIcon(it) {
     if (iconCache[it.id] || loading[it.id]) return;
     loading[it.id] = true;
@@ -255,8 +283,10 @@
     addIcon('pin-default', drawSticker({ price_cents: 0, emoji: '📦' }, null, false));
     map.addSource('more', { type: 'geojson', data: moreGeo() });
     map.addSource('pins', { type: 'geojson', data: pinsGeo(), promoteId: 'id' });
-    // items that don't fit as a pin right now: small orange dots (tap to zoom in)
-    map.addLayer({ id: 'more', type: 'circle', source: 'more', paint: { 'circle-color': S.cluster.fill, 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 2.5, 15, 4.5], 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.2, 'circle-opacity': 0.9 } });
+    // items that don't fit as a pin right now: a small picture of the item (tap opens it); orange dot only until its picture loads
+    map.addLayer({ id: 'mini', type: 'symbol', source: 'more', filter: ['==', ['get', 'has'], true],
+      layout: { 'icon-image': ['get', 'icon'], 'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.6, 13, 0.85, 15, 1], 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
+    map.addLayer({ id: 'more', type: 'circle', source: 'more', filter: ['!=', ['get', 'has'], true], paint: { 'circle-color': S.cluster.fill, 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 2.5, 15, 4.5], 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.2, 'circle-opacity': 0.9 } });
     map.addLayer({ id: 'pins', type: 'symbol', source: 'pins',
       layout: { 'icon-image': ['get', 'icon'], 'icon-rotate': ['get', 'rot'], 'icon-size': ['case', ['get', 'sel'], 1.15, 1], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'symbol-sort-key': ['case', ['get', 'sel'], 1, 0] } });
     if (HOOD_LAYER) addHoods();
@@ -370,9 +400,13 @@
     sel = p.id; refresh();
     fillCard(it); sheet.classList.add('on');
   });
+  map.on('click', 'mini', function (e) {
+    var id = e.features[0].properties.id, it = items.filter(function (x) { return x.id === id; })[0]; if (!it) return;
+    sel = id; refresh(); fillCard(it); sheet.classList.add('on');
+  });
   map.on('click', 'more', function (e) { map.easeTo({ center: e.lngLat, zoom: Math.min(17, map.getZoom() + 1.5), duration: 600 }); });
-  map.on('click', function (e) { if (map.queryRenderedFeatures(e.point, { layers: ['pins', 'more'] }).length) return; if (sel) { sel = null; refresh(); } sheet.classList.remove('on'); });
-  ['pins', 'more'].forEach(function (l) { map.on('mouseenter', l, function () { map.getCanvas().style.cursor = 'pointer'; }); map.on('mouseleave', l, function () { map.getCanvas().style.cursor = ''; }); });
+  map.on('click', function (e) { if (map.queryRenderedFeatures(e.point, { layers: ['pins', 'mini', 'more'] }).length) return; if (sel) { sel = null; refresh(); } sheet.classList.remove('on'); });
+  ['pins', 'mini', 'more'].forEach(function (l) { map.on('mouseenter', l, function () { map.getCanvas().style.cursor = 'pointer'; }); map.on('mouseleave', l, function () { map.getCanvas().style.cursor = ''; }); });
 
   q.addEventListener('input', function () { clearTimeout(t); t = setTimeout(load, 300); });
   // saved-search alert: on automatically after a search settles; visible Turn off
@@ -473,8 +507,8 @@
   function addHoods() {
     map.addSource('hoods', { type: 'geojson', data: '/api/hoods.geojson' });
     map.addLayer({ id: 'hoods-fill', type: 'fill', source: 'hoods', minzoom: 10, maxzoom: 15,
-      paint: { 'fill-color': ['case', ['==', ['get', 'n'], 0], S.hoods.emptyColor, S.hoods.fill], 'fill-opacity': ['case', ['==', ['get', 'n'], 0], S.hoods.emptyFillOpacity, S.hoods.fillOpacity] } }, 'more');
-    map.addLayer({ id: 'hoods-line', type: 'line', source: 'hoods', minzoom: 10, paint: { 'line-color': S.hoods.line, 'line-opacity': S.hoods.lineOpacity, 'line-width': 1, 'line-dasharray': [2, 2] } }, 'more');
+      paint: { 'fill-color': ['case', ['==', ['get', 'n'], 0], S.hoods.emptyColor, S.hoods.fill], 'fill-opacity': ['case', ['==', ['get', 'n'], 0], S.hoods.emptyFillOpacity, S.hoods.fillOpacity] } }, 'mini');
+    map.addLayer({ id: 'hoods-line', type: 'line', source: 'hoods', minzoom: 10, paint: { 'line-color': S.hoods.line, 'line-opacity': S.hoods.lineOpacity, 'line-width': 1, 'line-dasharray': [2, 2] } }, 'mini');
   }
 
   // ---- idle wiggle (prototype 'sway'): each item rocks ±1.6° on its own phase; paused while the map moves or the tab is hidden
