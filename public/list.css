@@ -204,3 +204,10 @@ canvas.story{width:132px;height:auto;aspect-ratio:9/16;border-radius:12px;border
 .dn2-foot{display:flex;gap:22px;justify-content:center;margin:34px 0 10px}
 .dn2-foot button,.dn2-foot a{background:none;border:0;font:inherit;font-size:16px;font-weight:800;color:var(--ink);text-decoration:none;padding:6px 2px}
 .dn2-foot button{color:var(--orange)}
+/* posted: three big choices */
+.dn3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;width:100%;max-width:400px;margin-top:26px}
+.dn3-b{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;height:104px;border-radius:20px;border:2px solid var(--ink);background:#fff;box-shadow:3px 3px 0 var(--ink);font:inherit;font-size:16px;font-weight:900;color:var(--ink);text-decoration:none;padding:0}
+.dn3-b .ic{font-size:30px;line-height:1}
+.dn3-b.hot{background:var(--orange);color:#fff}
+.dn3-b:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.dn2-img{width:240px;height:240px}

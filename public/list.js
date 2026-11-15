@@ -140,7 +140,8 @@
   function renderDone(j) {
     clearInterval(clockT);
     var escH = function (x) { return String(x).replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]; }); };
-    $('tray').innerHTML = shots.map(function (s) { return '<img src="' + (s.cutUrl || s.url) + '" alt="" class="dn2-img' + (s.cutUrl ? ' cut' : '') + '"><div class="dn2-nm">' + escH(s.name.trim()) + '</div><div class="dn2-pr">$' + s.price + '<small>/day</small></div>'; }).join('');
+    var Lc = (j && j.listed) || [];
+    $('tray').innerHTML = shots.map(function (s, k) { var cu = s.cutUrl || (Lc[k] && Lc[k].cut); return '<img src="' + (cu || s.url) + '" alt="" class="dn2-img' + (cu ? ' cut' : '') + '" onerror="if(this.src!==\'' + s.url + '\'){this.src=\'' + s.url + '\';this.className=\'dn2-img\'}"><div class="dn2-nm">' + escH(s.name.trim()) + '</div><div class="dn2-pr">$' + s.price + '<small>/day</small></div>'; }).join('');
     $('dnHead').textContent = shots.length === 1 ? 'Posted' : shots.length + ' posted';
     $('dnSub').textContent = shots.length === 1 ? 'Live on the map — neighbors can rent it now' : 'Live on the map — neighbors can rent them now';
 
@@ -151,9 +152,10 @@
     var B = [['💬', 'Text', function () { location.href = 'sms:?&body=' + enc; }], ['🟢', 'WhatsApp', function () { window.open('https://wa.me/?text=' + enc, '_blank'); }], ['🔗', 'Copy link', function () { copy('Copied'); }], ['⬇', 'Story image', function () { $('stSave').click(); }]];
     $('shBtns').innerHTML = B.map(function (b, i) { return '<button type="button" data-i="' + i + '" aria-label="' + b[1] + '"><span class="ic">' + b[0] + '</span><span>' + b[1] + '</span></button>'; }).join('');
     $('shBtns').onclick = function (e) { var b = e.target.closest('button'); if (!b) return; B[+b.dataset.i][2](); };
-    drawStory(L, url);
+    SHARE = { text: text, url: url }; drawStory(L, url);
   }
   // ---- story card (1080x1920): real item cut out on cream, name + price, QR to the item
+  var SHARE = { text: '', url: location.origin };
   function drawStory(L, url) {
     var cv = $('story'), g = cv.getContext('2d'), W = 1080, H = 1920, F = '"Helvetica Neue",Helvetica,Arial,sans-serif';
     var one = shots.length === 1, minP = Math.min.apply(null, shots.map(function (s) { return s.price; }));
@@ -196,7 +198,10 @@
       if (x1 <= x0) return im; var o = document.createElement('canvas'); o.width = x1 - x0 + 1; o.height = y1 - y0 + 1; o.getContext('2d').drawImage(c, x0, y0, o.width, o.height, 0, 0, o.width, o.height); o._cut = true; return o; } catch (e) { return im; } }
     function blob(cb) { cv.toBlob(function (b) { cb(b); }, 'image/png'); }
     $('stShare').onclick = function () { blob(function (b) { var f = new File([b], 'lendo-story.png', { type: 'image/png' });
-      if (navigator.canShare && navigator.canShare({ files: [f] })) navigator.share({ files: [f] }).catch(function () {}); else dl(b); }); };
+      /* phone: share sheet with the story image + link; no file sharing: just the link; desktop: copy the link */
+      if (navigator.canShare && navigator.canShare({ files: [f] })) navigator.share({ files: [f], text: SHARE.text, url: SHARE.url }).catch(function () {});
+      else if (navigator.share) navigator.share({ text: SHARE.text, url: SHARE.url }).catch(function () {});
+      else { try { navigator.clipboard.writeText(SHARE.text + ' ' + SHARE.url); } catch (e) {} $('shToast').style.display = ''; $('shToast').textContent = 'Link copied'; $('shToast').classList.add('on'); setTimeout(function () { $('shToast').classList.remove('on'); }, 2000); } }); };
     $('stSave').onclick = function () { blob(dl); };
     function dl(b) { var a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'lendo-story.png'; document.body.appendChild(a); a.click(); a.remove(); }
   }

@@ -81,10 +81,14 @@ listings.get('/list', async (c) => {
         <div class="lf-scroll dn2">
           <div class="dn2-ok"><span class="dn2-tick" aria-hidden="true">✓</span><span id="dnHead">Posted</span><span id="dnSub" hidden></span></div>
           <div id="tray" class="dn2-tray"></div>
-          <button type="button" class="cta dn2-share" id="stShare">Share</button>
-          <div class="dn2-row" id="shBtns"></div>
+          {/* three big choices */}
+          <div class="dn3">
+            <button type="button" class="dn3-b hot" id="stShare"><span class="ic">📤</span>Share</button>
+            <button type="button" class="dn3-b" id="again"><span class="ic">📷</span>Add another</button>
+            <a class="dn3-b" href="/"><span class="ic">🗺️</span>See map</a>
+          </div>
+          <div id="shBtns" hidden></div>
           <canvas class="story" id="story" width="1080" height="1920" hidden></canvas><button type="button" id="stSave" hidden></button>
-          <div class="dn2-foot"><button type="button" id="again">+ List another</button><a href="/">See the map</a></div>
         </div>
         <div class="toast" id="shToast" style="display:none"></div>
       </section>
@@ -159,7 +163,7 @@ listings.post('/api/list', async (c) => {
   const f = await c.req.parseBody({ all: true });
   const lat = parseFloat(String(f.lat || '')), lng = parseFloat(String(f.lng || ''));
   const minP = parseInt(c.env.MIN_PRICE_CENTS, 10);
-  const out: { id: string; name: string; url?: string }[] = [];
+  const out: { id: string; name: string; url?: string; cut?: string | null }[] = [];
   for (let i = 0; i < 30; i++) {
     const name = String(f[`name_${i}`] || '').trim(); if (!name) continue;
     const aiName = String(f[`ai_${i}`] || '').trim(); if (aiName) c.executionCtx.waitUntil(recordCorrection(c.env, aiName, name).catch(() => {}));
@@ -169,7 +173,8 @@ listings.post('/api/list', async (c) => {
     const wk = Math.round(parseFloat(String(f[`week_${i}`] || '0')) * 100);
     const lid = await createListing(c.env, c.executionCtx, u, { name, priceCents: price, weekCents: wk > 0 ? wk : null, description: String(f[`note_${i}`] || ''), lat: isNaN(lat) ? null : lat, lng: isNaN(lng) ? null : lng, photos, grade: String(f[`grade_${i}`] || 'A') });
     await assignHandle(c.env, u.id, u.name).catch(() => null); await assignSlug(c.env, lid, u.id, name).catch(() => null);
-    out.push({ id: lid, name, url: await itemLink(c.env, lid) });
+    const ph0 = await c.env.DB.prepare('SELECT r2_key FROM photos WHERE listing_id = ? ORDER BY pos LIMIT 1').bind(lid).first<{ r2_key: string }>().catch(() => null);
+    out.push({ id: lid, name, url: await itemLink(c.env, lid), cut: ph0 ? cutoutUrl(c.env, ph0.r2_key, 600, 600) : null } as any); /* posted screen shows the cut-out even if the in-flow one didn't land */
   }
   return c.json({ listed: out, count: out.length });
 });
