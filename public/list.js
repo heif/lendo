@@ -196,13 +196,13 @@
   $('again').addEventListener('click', function () { shots = []; picked = []; QI = 0; t0 = Date.now(); renderIdeas(); show('cam'); });
 
   // ---- one question at a time (card stack). Item questions first, then sign-up (only if logged out), then list
-  var QI = 0, ME = CFG.user, SIGNUP = !CFG.user, NEED = { name: !ME || !ME.name, hood: !ME || !ME.hood }, ITEMQ = { grade: 1, name: 1, price: 1, note: 1 }, /* question list is fixed once known, so answering doesn't shift it */ AUTH = { phone: '', pretty: '' }, G = { A: 'Like new', B: 'Good', C: 'Fair', D: 'Worn', F: 'Rough' };
+  var QI = 0, ME = CFG.user, SIGNUP = !CFG.user, NEED = { name: !ME || !ME.name, hood: !ME || !ME.hood }, ITEMQ = { grade: 1, name: 1, price: 1, note: 1 }, PNAME = '', /* question list is fixed once known, so answering doesn't shift it */ AUTH = { phone: '', pretty: '' }, G = { A: 'Like new', B: 'Good', C: 'Fair', D: 'Worn', F: 'Rough' };
   function cur() { return shots[0]; }
   function qs() {
     /* questions that don't need the photo lookup come first, so the AI name/price/details are ready by the time they're asked */
     var s = cur(), L = [{ k: 'grade', line: function () { return 'Condition ' + (s.grade || 'A') + ' · ' + G[s.grade || 'A']; } }];
+    if (NEED.name) L.push({ k: 'fname', line: function () { return (ME && ME.name) || PNAME; } }); /* name before phone */
     if (SIGNUP) L.push({ k: 'phone', line: function () { return AUTH.pretty || AUTH.phone; } }, { k: 'code', line: function () { return 'Phone confirmed'; } });
-    if (NEED.name) L.push({ k: 'fname', line: function () { return (ME && ME.name) || ''; } });
     if (NEED.hood) L.push({ k: 'hood', line: function () { return (ME && ME.hood) || 'Hood skipped'; } });
     L.push({ k: 'name', line: function () { return s.name || '…'; } }, { k: 'price', line: function () { return '$' + s.price + '/day'; } }, { k: 'note', line: function () { return s.note ? s.note : 'No details'; } });
     return L;
@@ -222,7 +222,7 @@
     if (q.k === 'note') h = card(n, 'Anything a customer should know?', 'Model · what’s included · condition', '<textarea class="q-ta" id="qv" maxlength="400" placeholder="Batteries included, strap, works great">' + esc(s.note || '') + '</textarea>' + (window.lendoDetails ? '<div class="dmeter" id="qMeter">' + window.lendoDetails(s.note || '') + '</div>' : '') + '<div class="q-chips"><button type="button" id="qMore">📷 Add more photos' + ((s.extra || []).length ? ' (' + s.extra.length + ')' : '') + '</button></div>', 'Next', true);
     if (q.k === 'phone') h = card(n, 'Where should requests go?', 'Your cell · requests and payouts come by text', '<input class="q-in" id="qv" type="tel" autocomplete="tel" inputmode="tel" placeholder="(646) 555-0101" value="' + esc(AUTH.phone) + '">', 'Text me a code');
     if (q.k === 'code') h = card(n, 'Code we just texted', 'Sent to ' + esc(AUTH.pretty) + (AUTH.dev ? ' · DEV code ' + AUTH.dev : ''), '<input class="q-in" id="qv" inputmode="numeric" autocomplete="one-time-code" maxlength="6" style="letter-spacing:.3em">', 'Confirm');
-    if (q.k === 'fname') h = card(n, 'What should neighbors call you?', 'First name is fine', '<input class="q-in" id="qv" autocomplete="given-name" maxlength="40" value="' + esc((ME && ME.name) || '') + '">', 'Next');
+    if (q.k === 'fname') h = card(n, 'What should neighbors call you?', 'First name is fine', '<input class="q-in" id="qv" autocomplete="given-name" maxlength="40" value="' + esc((ME && ME.name) || PNAME) + '">', 'Next');
     if (q.k === 'hood') h = card(n, 'Your neighborhood?', 'Shown on your items · not your address', '<input class="q-in" id="qv" maxlength="60" placeholder="West Village" value="' + esc(CFG.hood || '') + '">', 'Next', true);
     $('qCard').innerHTML = h; var v = $('qv'); if (v && !soft) setTimeout(function () { try { v.focus({ preventScroll: true }); } catch (e) {} }, 60);
   }
@@ -242,8 +242,8 @@
     if (q.k === 'phone') { var b = $('qNext'); b.disabled = true; b.textContent = 'TEXTING…';
       return api('/api/auth/start', { phone: val }).then(function (j) { if (!j.ok) { b.disabled = false; b.textContent = 'Text me a code'; return err(j.error || 'Try again'); } AUTH = { phone: val, norm: j.phone, pretty: j.pretty, dev: j.dev }; go(); }).catch(function () { b.disabled = false; err('Try again'); }); }
     if (q.k === 'code') { var b2 = $('qNext'); b2.disabled = true;
-      return api('/api/auth/verify', { phone: AUTH.norm, code: val }).then(function (j) { if (!j.ok) { b2.disabled = false; return err(j.error || 'Try again'); } ME = j.user; NEED = { name: !ME.name, hood: !ME.hood }; var L = qs(), k = 0; for (var i = 0; i < L.length; i++) if (L[i].k === 'code') k = i; QI = k + 1; renderQ(); }); }
-    if (q.k === 'fname') { if (!val) return err('A first name, so neighbors know who’s lending'); ME = ME || {}; ME.name = val; return api('/api/auth/me', { name: val }).then(go, go); }
+      return api('/api/auth/verify', { phone: AUTH.norm, code: val }).then(function (j) { if (!j.ok) { b2.disabled = false; return err(j.error || 'Try again'); } ME = j.user; NEED.hood = !ME.hood; if (PNAME && !ME.name) { ME.name = PNAME; api('/api/auth/me', { name: PNAME }); } var L = qs(), k = 0; for (var i = 0; i < L.length; i++) if (L[i].k === 'code') k = i; QI = k + 1; renderQ(); }); }
+    if (q.k === 'fname') { if (!val) return err('A first name, so neighbors know who’s lending'); if (!ME) { PNAME = val; return go(); } /* not logged in yet: saved right after the code */ ME.name = val; return api('/api/auth/me', { name: val }).then(go, go); }
     if (q.k === 'hood') { if (!skipped && val) { ME = ME || {}; ME.hood = val; CFG.hood = val; return api('/api/auth/me', { hood: val }).then(go, go); } return go(); }
   }
   $('qCard').addEventListener('click', function (e) {
