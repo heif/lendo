@@ -140,7 +140,7 @@
   function renderDone(j) {
     clearInterval(clockT);
     var escH = function (x) { return String(x).replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]; }); };
-    $('tray').innerHTML = shots.map(function (s) { return '<div class="dn-item"><img src="' + (s.cutUrl || s.url) + '" alt=""' + (s.cutUrl ? ' class="cut"' : '') + '><div class="dn-nm">' + escH(s.name.trim()) + '</div><div class="dn-pr">$' + s.price + '/day</div><span class="dn-tick">✓</span></div>'; }).join('');
+    $('tray').innerHTML = shots.map(function (s) { return '<img src="' + (s.cutUrl || s.url) + '" alt="" class="dn2-img' + (s.cutUrl ? ' cut' : '') + '"><div class="dn2-nm">' + escH(s.name.trim()) + '</div><div class="dn2-pr">$' + s.price + '<small>/day</small></div>'; }).join('');
     $('dnHead').textContent = shots.length === 1 ? 'Posted' : shots.length + ' posted';
     $('dnSub').textContent = shots.length === 1 ? 'Live on the map — neighbors can rent it now' : 'Live on the map — neighbors can rent them now';
 
@@ -148,9 +148,9 @@
     var text = one ? 'Renting out my ' + shots[0].name.trim().toLowerCase() + ' — $' + shots[0].price + '/day' + (CFG.hood ? ', pickup in ' + CFG.hood : '') : 'Renting out ' + shots.length + ' things' + (CFG.hood ? ' in ' + CFG.hood : '') + ', from $' + minP + '/day', url = one ? (L[0].url || location.origin + '/i/' + L[0].id) : CFG.shareUrl, full = text + ' ' + url, enc = encodeURIComponent(full);
     var toast = function (t) { $('shToast').textContent = t; $('shToast').classList.add('on'); setTimeout(function () { $('shToast').classList.remove('on'); }, 2000); };
     var copy = function (t) { try { navigator.clipboard.writeText(full); } catch (e) {} toast(t); };
-    var B = [['💬', 'Text', function () { location.href = 'sms:?&body=' + enc; }], ['🟢', 'WhatsApp', function () { window.open('https://wa.me/?text=' + enc, '_blank'); }], ['🔗', 'Copy', function () { copy('Copied'); }]];
-    $('shBtns').innerHTML = B.map(function (b, i) { return '<button type="button" data-i="' + i + '"><span class="ic">' + b[0] + '</span><span>' + b[1] + '</span></button>'; }).join('');
-    $('shBtns').onclick = function (e) { var b = e.target.closest('button'); if (!b) return; if (navigator.share && b.dataset.i === '2') { navigator.share({ text: text, url: url }).catch(function () {}); return; } B[+b.dataset.i][2](); };
+    var B = [['💬', 'Text', function () { location.href = 'sms:?&body=' + enc; }], ['🟢', 'WhatsApp', function () { window.open('https://wa.me/?text=' + enc, '_blank'); }], ['🔗', 'Copy link', function () { copy('Copied'); }], ['⬇', 'Story image', function () { $('stSave').click(); }]];
+    $('shBtns').innerHTML = B.map(function (b, i) { return '<button type="button" data-i="' + i + '" aria-label="' + b[1] + '"><span class="ic">' + b[0] + '</span><span>' + b[1] + '</span></button>'; }).join('');
+    $('shBtns').onclick = function (e) { var b = e.target.closest('button'); if (!b) return; B[+b.dataset.i][2](); };
     drawStory(L, url);
   }
   // ---- story card (1080x1920): real item cut out on cream, name + price, QR to the item
@@ -273,7 +273,7 @@
     fd.append('name_0', s.name.trim()); if (s.ai && s.ai.name) fd.append('ai_0', s.ai.name); fd.append('price_0', s.price); fd.append('week_0', 0); fd.append('note_0', s.note || ''); fd.append('grade_0', s.grade || 'A'); fd.append('photo_0', s.blob, 'p0.jpg');
     if (window._gps) { fd.append('lat', window._gps[0]); fd.append('lng', window._gps[1]); }
     fetch('/api/list', { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (j) { if (!j || j.error) throw 0; renderDone(j); show('done');
-      if (ME && !ME.replied && CFG.sms) { var d = document.createElement('a'); d.className = 'btn pri full'; d.href = CFG.sms; d.style.cssText = 'display:grid;place-items:center;margin:12px 0;text-decoration:none'; d.textContent = '💬 Text OK to Lendo so requests reach you'; var tr = $('tray'); tr.parentNode.insertBefore(d, tr.nextSibling); } })
+      if (ME && !ME.replied && CFG.sms) { var d = document.createElement('a'); d.className = 'dn2-ok-text'; d.href = CFG.sms; d.textContent = '💬 Text OK to Lendo so requests reach you'; var tr = $('tray'); tr.parentNode.insertBefore(d, tr.nextSibling); } })
       .catch(function () { $('qCard').innerHTML = '<div class="q-h">Didn’t go through</div><button type="button" class="cta q-next" id="qRetry">TRY AGAIN</button>'; $('qRetry').onclick = listIt; });
   }
 

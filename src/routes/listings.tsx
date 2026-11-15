@@ -76,21 +76,14 @@ listings.get('/list', async (c) => {
       </section>
       {/* done */}
       <section id="st-done" class="lf" hidden>
-        <div class="lf-scroll">
-          <div class="dn-ok">
-            <div class="dn-top">
-              <div class="dn-check" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 40 40"><path d="M9 21l7 7L31 12" fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" /></svg></div>
-              <div><div class="dn-head" id="dnHead">Posted</div><div class="dn-sub" id="dnSub">Live on the map now</div></div>
-            </div>
-            <div class="dn-items" id="tray"></div>
-          </div>
-          <div class="share">
-            <div class="share-h">Share it</div>
-            <div class="story-wrap"><canvas class="story" id="story" width="1080" height="1920" aria-label="Story card"></canvas>
-              <div class="story-side"><button type="button" class="btn pri" id="stShare">📸 Share story</button><button type="button" class="btn" id="stSave">⬇ Save image</button><div class="hint" style="font-size:12px">Instagram story, WhatsApp status, or the building chat · scan the QR to rent</div></div></div>
-            <div class="shbtns" id="shBtns"></div>
-          </div>
-          <div class="dn-acts"><button type="button" class="btn" id="again" style="box-shadow:3px 3px 0 var(--ink)">+ List more</button><a class="btn dark" href="/">See the map</a></div>
+        {/* posted: the item big on cream, one Share button, three small ways to send, then list another */}
+        <div class="lf-scroll dn2">
+          <div class="dn2-ok"><span class="dn2-tick" aria-hidden="true">✓</span><span id="dnHead">Posted</span><span id="dnSub" hidden></span></div>
+          <div id="tray" class="dn2-tray"></div>
+          <button type="button" class="cta dn2-share" id="stShare">Share</button>
+          <div class="dn2-row" id="shBtns"></div>
+          <canvas class="story" id="story" width="1080" height="1920" hidden></canvas><button type="button" id="stSave" hidden></button>
+          <div class="dn2-foot"><button type="button" id="again">+ List another</button><a href="/">See the map</a></div>
         </div>
         <div class="toast" id="shToast" style="display:none"></div>
       </section>
