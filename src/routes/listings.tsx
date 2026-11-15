@@ -84,9 +84,9 @@ listings.get('/list', async (c) => {
           {/* three big choices */}
           <div class="dn3">
             <button type="button" class="dn3-b hot" id="stShare"><span class="ic">📤</span>Share</button>
-            <button type="button" class="dn3-b" id="again"><span class="ic">📷</span>Add another</button>
-            <a class="dn3-b" href="/"><span class="ic">🗺️</span>See map</a>
+            <button type="button" class="dn3-b" id="again"><span class="ic">＋</span>List something else</button>
           </div>
+          <a class="dn3-map" href="/">See it on the map</a>
           <div id="shBtns" hidden></div>
           <canvas class="story" id="story" width="1080" height="1920" hidden></canvas><button type="button" id="stSave" hidden></button>
         </div>
