@@ -10,8 +10,9 @@ const NEG = 'photo, realistic, photorealistic, background scene, room, floor, sh
 export async function makeCutout(env: Env, photoKey: string, size = 320): Promise<ArrayBuffer | null> {
   // Images transformations run on the zone; this fetches our own /p/ URL through the resizer.
   const src = `${env.APP_URL}/p/${photoKey}`;
-  const u = `${env.APP_URL}/cdn-cgi/image/segment=foreground,fit=contain,width=${size},height=${size},trim=auto,format=png/${src}`;
-  const r = await fetch(u);
+  /* Workers can't always fetch their own zone's /cdn-cgi/image URL; the cf.image option is the supported way. URL form is the fallback */
+  let r = await fetch(src, { cf: { image: { segment: 'foreground', fit: 'contain', width: size, height: size, format: 'png' } } } as any).catch(() => null as any);
+  if (!r || !r.ok || !(r.headers.get('content-type') || '').includes('png')) r = await fetch(`${env.APP_URL}/cdn-cgi/image/segment=foreground,fit=contain,width=${size},height=${size},trim=auto,format=png/${src}`);
   if (!r.ok) throw new Error(`cutout ${r.status}: ${(await r.text().catch(() => '')).slice(0, 200)}`);
   if (!(r.headers.get('content-type') || '').includes('png')) throw new Error('cutout: not a png (transformations off?)');
   return r.arrayBuffer();

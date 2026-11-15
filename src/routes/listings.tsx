@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { smsHref } from '../lib/blooio';
-import { logEvent } from '../lib/log';
+import { logErr, logEvent } from '../lib/log';
 import { localToday } from '../lib/util';
 import { checkListingPhoto } from '../lib/photo-check';
 import { Grade, GRADES, GRADE_WORD, isGrade, shownGrade } from '../lib/grade';
@@ -148,7 +148,7 @@ listings.post('/api/cut', async (c) => {
     const cut = await makeCutout(c.env, `${base}.jpg`, 600); if (!cut) return c.json({ error: 'cut' }, 502);
     c.executionCtx.waitUntil(c.env.PHOTOS.put(`${base}-cut.png`, cut, { httpMetadata: { contentType: 'image/png' } }).then(() => {}));
     return c.body(cut, 200, { 'content-type': 'image/png', 'cache-control': 'no-store' });
-  } catch { return c.json({ error: 'cut' }, 502); }
+  } catch (e) { await logErr(c.env.DB, 'api/cut', e); return c.json({ error: 'cut', why: String(e).slice(0, 200) }, 502); }
 });
 listings.get('/api/cuttmp/:id{[a-f0-9]{16}}', async (c) => {
   const base = `tmp/${c.req.param('id')}`, key = `${base}-cut.png`;
