@@ -141,7 +141,9 @@
     clearInterval(clockT);
     var escH = function (x) { return String(x).replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]; }); };
     var Lc = (j && j.listed) || [];
-    $('tray').innerHTML = shots.map(function (s, k) { var cu = s.cutUrl || (Lc[k] && Lc[k].cut); return '<img src="' + (cu || s.url) + '" alt="" class="dn2-img' + (cu ? ' cut' : '') + '" onerror="if(this.src!==\'' + s.url + '\'){this.src=\'' + s.url + '\';this.className=\'dn2-img\'}"><div class="dn2-nm">' + escH(s.name.trim()) + '</div><div class="dn2-pr">$' + s.price + '<small>/day</small></div>'; }).join('');
+    $('tray').innerHTML = shots.map(function (s, k) { var cu = s.cutUrl || (Lc[k] && Lc[k].cut); return '<img src="' + (cu || s.url) + '" alt="" class="dn2-img' + (cu ? ' cut' : '') + '" onerror="if(this.src!==\'' + s.url + '\'){this.src=\'' + s.url + '\';this.className=\'dn2-img\'}"><div class="dn2-pr">$' + s.price + '<small>/day</small></div><div class="dn2-nm">' + escH(s.name.trim()) + '</div>'; }).join('');
+    /* tap the picture or name → the item page */
+    var L0 = Lc[0]; if (L0) { var tr = $('tray'), a = document.createElement('a'); a.href = L0.url || '/i/' + L0.id; a.className = 'dn2-tray'; a.id = 'tray'; a.innerHTML = tr.innerHTML; tr.parentNode.replaceChild(a, tr); }
     $('dnHead').textContent = shots.length === 1 ? 'Posted' : shots.length + ' posted';
     $('dnSub').textContent = shots.length === 1 ? 'Live on the map — neighbors can rent it now' : 'Live on the map — neighbors can rent them now';
 
