@@ -1,9 +1,9 @@
-// Condition grade (A B C D F), NYC-restaurant-sign style badge. A–B green, C amber, D–F red.
+// Condition grade A great · B good · C ok · D poor · E junk, NYC-restaurant-sign style badge. A–B green, C amber, D–E red.
 import type { Env } from './env';
 
-export const GRADES = ['A', 'B', 'C', 'D', 'F'] as const;
-export const GRADE_WORD: Record<string, string> = { A: 'Like new', B: 'Good', C: 'Fair', D: 'Worn', F: 'Rough' };
-const PTS: Record<string, number> = { A: 4, B: 3, C: 2, D: 1, F: 0 };
+export const GRADES = ['A', 'B', 'C', 'D', 'E'] as const;
+export const GRADE_WORD: Record<string, string> = { A: 'Great', B: 'Good', C: 'OK', D: 'Poor', E: 'Junk' };
+const PTS: Record<string, number> = { A: 4, B: 3, C: 2, D: 1, E: 0 };
 export const isGrade = (g: unknown): g is string => typeof g === 'string' && g in PTS;
 
 // Shown grade = owner's grade until customers grade it, then the average of owner + customers.

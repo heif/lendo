@@ -179,3 +179,5 @@ canvas.story{width:132px;height:auto;aspect-ratio:9/16;border-radius:12px;border
 .q-next{margin-top:14px}.q-skip{display:block;margin:10px auto 0;background:none;border:0;font:inherit;font-size:14px;color:var(--mute);text-decoration:underline}
 .q-err{color:#b3261e;font-size:14px;font-weight:700;margin:8px 0 0}
 .q-grades{display:flex;gap:8px;margin-top:4px}.q-grades button{flex:1;height:64px;border-radius:12px;border:2px solid var(--ink);background:#fff;font:inherit;font-size:28px;font-weight:900;color:var(--ink)}.q-grades button.on{background:var(--ink);color:#fff}
+.q-price{display:flex;gap:8px;align-items:center}.q-price .q-in{flex:1;text-align:center}
+.q-pm{flex:none;width:58px;height:58px;border-radius:14px;border:2px solid var(--ink);background:#fff;font:inherit;font-size:28px;font-weight:900;color:var(--ink);box-shadow:2px 2px 0 var(--ink)}

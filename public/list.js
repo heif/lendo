@@ -87,7 +87,7 @@
     clearTimeout(t._h); t._h = setTimeout(function () { t.hidden = true; }, 5000);
     t.lastChild.onclick = function () { t.hidden = true; undo(); };
   }
-  var GW = { A: 'Like new', B: 'Good', C: 'Fair', D: 'Worn', F: 'Rough' };
+  var GW = { A: 'Great', B: 'Good', C: 'OK', D: 'Poor', E: 'Junk' };
   function renderReview() {
     $('rvCount').textContent = shots.length + ' in ' + clock();
     $('rows').innerHTML = shots.map(function (s, i) {
@@ -113,7 +113,7 @@
     if (act === 'xdel') { (shots[i].extra || []).splice(+b.dataset.k, 1); renderReview(); }
     if (act === 'dn') { shots[i].price = Math.max(MIN, shots[i].price - 1); shots[i].week = 0; shots[i].touched.price = true; renderReview(); }
     if (act === 'up') { shots[i].price += 1; shots[i].week = 0; shots[i].touched.price = true; renderReview(); }
-    if (act === 'grade') { var G = 'ABCDF', g = shots[i].grade || 'A'; shots[i].grade = G[(G.indexOf(g) + 1) % 5]; renderReview(); }
+    if (act === 'grade') { var G = 'ABCDE', g = shots[i].grade || 'A'; shots[i].grade = G[(G.indexOf(g) + 1) % 5]; renderReview(); }
     if (act === 'del') { var gone = shots.splice(i, 1)[0]; renderReview(); undoToast('Removed ' + (gone.name || 'item'), function () { shots.splice(i, 0, gone); renderReview(); }); }
   });
   var labelFor = null;
@@ -196,7 +196,7 @@
   $('again').addEventListener('click', function () { shots = []; picked = []; QI = 0; t0 = Date.now(); renderIdeas(); show('cam'); });
 
   // ---- one question at a time (card stack). Item questions first, then sign-up (only if logged out), then list
-  var QI = 0, ME = CFG.user, SIGNUP = !CFG.user, NEED = { name: !ME || !ME.name, hood: !ME || !ME.hood }, ITEMQ = { grade: 1, name: 1, price: 1, note: 1 }, PNAME = '', /* question list is fixed once known, so answering doesn't shift it */ AUTH = { phone: '', pretty: '' }, G = { A: 'Like new', B: 'Good', C: 'Fair', D: 'Worn', F: 'Rough' };
+  var QI = 0, ME = CFG.user, SIGNUP = !CFG.user, NEED = { name: !ME || !ME.name, hood: !ME || !ME.hood }, ITEMQ = { grade: 1, name: 1, price: 1, note: 1 }, PNAME = '', /* question list is fixed once known, so answering doesn't shift it */ AUTH = { phone: '', pretty: '' }, G = { A: 'Great', B: 'Good', C: 'OK', D: 'Poor', E: 'Junk' };
   function cur() { return shots[0]; }
   function qs() {
     /* questions that don't need the photo lookup come first, so the AI name/price/details are ready by the time they're asked */
@@ -216,9 +216,9 @@
     if (soft && (!(q.k === 'name' || q.k === 'price' || q.k === 'note') || s.touched[q.k])) return; /* identify result arrived: only refresh cards that show its guesses */
     if (q.k === 'name') h = card(n, 'What is it?', s.pending ? 'Guessing from your photo<span class="dots"><i>.</i><i>.</i><i>.</i></span>' : 'Guessed from your photo · fix it if it’s off',
       '<input class="q-in" id="qv" value="' + esc(s.name) + '" maxlength="80" placeholder="' + (s.pending ? '' : 'Drill, tent, speaker…') + '">' + (s.askLabel && !s.pending ? '<div class="q-chips"><button type="button" id="qLabel">📷 Snap the brand label</button></div>' : ''), 'Next');
-    if (q.k === 'grade') h = card(n, 'What shape is it in?', 'Be honest · customers see it', '<div class="q-grades">' + 'ABCDF'.split('').map(function (g) { return '<button type="button" data-g="' + g + '" class="' + ((s.grade || '') === g ? 'on' : '') + '">' + g + '</button>'; }).join('') + '</div><div class="q-sub" style="margin:8px 0 0">A Like new · B Good · C Fair · D Worn · F Rough</div>', null);
-    if (q.k === 'price') { var p0 = s.price, opts = [Math.max(MIN, p0 - 3), p0, p0 + 3].filter(function (v, i, a) { return a.indexOf(v) === i; });
-      h = card(n, 'How much a day?', 'A week is ' + fmt(Math.round(s.price * 7 * 0.7)) + ' automatically (30% off) · 15% fee (will stay low)', '<input class="q-in" id="qv" inputmode="numeric" value="' + s.price + '"><div class="q-chips">' + opts.map(function (v) { return '<button type="button" data-p="' + v + '" class="' + (v === s.price ? 'on' : '') + '">$' + v + '</button>'; }).join('') + '</div>', 'Next'); }
+    if (q.k === 'grade') h = card(n, 'What shape is it in?', 'Be honest · customers see it', '<div class="q-grades">' + 'ABCDE'.split('').map(function (g) { return '<button type="button" data-g="' + g + '" class="' + ((s.grade || '') === g ? 'on' : '') + '">' + g + '</button>'; }).join('') + '</div><div class="q-sub" style="margin:8px 0 0">A great · B good · C ok · D poor · E junk</div>', null);
+    if (q.k === 'price') h = card(n, 'How much a day?', 'A week is ' + fmt(Math.round(s.price * 7 * 0.7)) + ' automatically (30% off) · 15% fee (will stay low)',
+      '<div class="q-price"><button type="button" class="q-pm" data-d="-1" aria-label="Lower">−</button><input class="q-in" id="qv" inputmode="numeric" value="' + s.price + '"><button type="button" class="q-pm" data-d="1" aria-label="Raise">+</button></div>', 'Next');
     if (q.k === 'note') h = card(n, 'Anything a customer should know?', 'Model · what’s included · condition', '<textarea class="q-ta" id="qv" maxlength="400" placeholder="Batteries included, strap, works great">' + esc(s.note || '') + '</textarea>' + (window.lendoDetails ? '<div class="dmeter" id="qMeter">' + window.lendoDetails(s.note || '') + '</div>' : '') + '<div class="q-chips"><button type="button" id="qMore">📷 Add more photos' + ((s.extra || []).length ? ' (' + s.extra.length + ')' : '') + '</button></div>', 'Next', true);
     if (q.k === 'phone') h = card(n, 'Where should requests go?', 'Your cell · requests and payouts come by text', '<input class="q-in" id="qv" type="tel" autocomplete="tel" inputmode="tel" placeholder="(646) 555-0101" value="' + esc(AUTH.phone) + '">', 'Text me a code');
     if (q.k === 'code') h = card(n, 'Code we just texted', 'Sent to ' + esc(AUTH.pretty) + (AUTH.dev ? ' · DEV code ' + AUTH.dev : ''), '<input class="q-in" id="qv" inputmode="numeric" autocomplete="one-time-code" maxlength="6" style="letter-spacing:.3em">', 'Confirm');
@@ -251,6 +251,7 @@
     if (t.id === 'qNext') return submitQ(false);
     if (t.id === 'qSkip') return submitQ(true);
     if (t.dataset.g) { s.grade = t.dataset.g; return go(); }
+    if (t.dataset.d) { var pv = $('qv'), nv = Math.max(MIN, (parseInt(pv.value, 10) || MIN) + +t.dataset.d); pv.value = nv; s.touched.price = true; var sub = $('qCard').querySelector('.q-sub'); if (sub) sub.textContent = 'A week is ' + fmt(Math.round(nv * 7 * 0.7)) + ' automatically (30% off) · 15% fee (will stay low)'; return; }
     if (t.dataset.p) { $('qv').value = t.dataset.p; [].forEach.call($('qCard').querySelectorAll('[data-p]'), function (b) { b.classList.toggle('on', b === t); }); return; }
     if (t.id === 'qLabel') { labelFor = s; $('labelFile').value = ''; $('labelFile').click(); }
     if (t.id === 'qMore') { moreFor = 0; $('moreFile').value = ''; $('moreFile').click(); }
