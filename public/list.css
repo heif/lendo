@@ -181,3 +181,7 @@ canvas.story{width:132px;height:auto;aspect-ratio:9/16;border-radius:12px;border
 .q-grades{display:flex;gap:8px;margin-top:4px}.q-grades button{flex:1;height:64px;border-radius:12px;border:2px solid var(--ink);background:#fff;font:inherit;font-size:28px;font-weight:900;color:var(--ink)}.q-grades button.on{background:var(--ink);color:#fff}
 .q-price{display:flex;gap:8px;align-items:center}.q-price .q-in{flex:1;text-align:center}
 .q-pm{flex:none;width:58px;height:58px;border-radius:14px;border:2px solid var(--ink);background:#fff;font:inherit;font-size:28px;font-weight:900;color:var(--ink);box-shadow:2px 2px 0 var(--ink)}
+.q-prog{height:4px;border-radius:2px;background:#ece8df;margin:0 0 14px}.q-prog i{display:block;height:100%;border-radius:2px;background:var(--orange)}
+.q-grades button{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}.q-grades button small{font-size:11px;font-weight:700;margin-top:4px;opacity:.75}
+.q-pbox{flex:1;display:flex;align-items:center;justify-content:center;gap:0;height:58px;border-radius:14px;border:2px solid var(--ink);background:#fff;font-size:24px;font-weight:900}
+.q-pbox .q-in{border:0;height:auto;width:1.7em;padding:0;text-align:center;flex:none}.q-pbox small{font-size:14px;font-weight:700;color:var(--mute)}

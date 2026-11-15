@@ -210,7 +210,7 @@
     var s = cur(), L = [{ k: 'grade', line: function () { return 'Condition ' + (s.grade || 'A') + ' · ' + G[s.grade || 'A']; } }];
     if (NEED.name) L.push({ k: 'fname', line: function () { return (ME && ME.name) || PNAME; } }); /* name before phone */
     if (SIGNUP) L.push({ k: 'phone', line: function () { return AUTH.pretty || AUTH.phone; } }, { k: 'code', line: function () { return 'Phone confirmed'; } });
-    if (NEED.hood) L.push({ k: 'hood', line: function () { return (ME && ME.hood) || 'Hood skipped'; } });
+    if (NEED.hood) L.push({ k: 'hood', line: function () { return (ME && ME.hood) || ''; } });
     L.push({ k: 'name', line: function () { return s.name || '…'; } }, { k: 'price', line: function () { return '$' + s.price + '/day'; } }, { k: 'note', line: function () { return s.note ? s.note : 'No details'; } });
     return L;
   }
@@ -218,24 +218,24 @@
     var s = cur(); if (!s) { show('cam'); return; }
     var L = qs(); if (QI >= L.length) return listIt();
     var im = $('qImg'); im.src = s.cutUrl || s.url; im.className = s.cutUrl ? 'cut' : '';
-    $('qDone').innerHTML = L.slice(0, QI).map(function (q, i) { return '<button type="button" class="q-line" data-i="' + i + '"><span>' + esc(q.line()) + '</span><b>' + (ITEMQ[q.k] ? 'change' : '✓') + '</b></button>'; }).join('');
+    $('qDone').innerHTML = L.slice(0, QI).map(function (q, i) { var t = q.line(); if (q.k === 'code' || !t) return ''; return '<button type="button" class="q-line" data-i="' + i + '"><span>' + esc(t) + '</span>' + (ITEMQ[q.k] ? '<b>✎</b>' : '') + '</button>'; }).join('');
     var q = L[QI], h = '', n = 'Question ' + (QI + 1) + ' of ' + L.length;
     if (soft && (!(q.k === 'name' || q.k === 'price' || q.k === 'note') || s.touched[q.k])) return; /* identify result arrived: only refresh cards that show its guesses */
-    if (q.k === 'name') h = card(n, 'What is it?', s.pending ? 'Guessing from your photo<span class="dots"><i>.</i><i>.</i><i>.</i></span>' : 'Guessed from your photo · fix it if it’s off',
+    if (q.k === 'name') h = card(n, 'What is it?', s.pending ? '<span class="dots"><i>.</i><i>.</i><i>.</i></span>' : '',
       '<input class="q-in" id="qv" value="' + esc(s.name) + '" maxlength="80" placeholder="' + (s.pending ? '' : 'Drill, tent, speaker…') + '">' + (s.askLabel && !s.pending ? '<div class="q-chips"><button type="button" id="qLabel">📷 Snap the brand label</button></div>' : ''), 'Next');
-    if (q.k === 'grade') h = card(n, 'What shape is it in?', 'Be honest · customers see it', '<div class="q-grades">' + 'ABCDE'.split('').map(function (g) { return '<button type="button" data-g="' + g + '" class="' + ((s.grade || '') === g ? 'on' : '') + '">' + g + '</button>'; }).join('') + '</div><div class="q-sub" style="margin:8px 0 0">A great · B good · C ok · D poor · E junk</div>', null);
-    if (q.k === 'price') h = card(n, 'How much a day?', 'A week is ' + fmt(Math.round(s.price * 7 * 0.7)) + ' automatically (30% off) · 15% fee (will stay low)',
-      '<div class="q-price"><button type="button" class="q-pm" data-d="-1" aria-label="Lower">−</button><input class="q-in" id="qv" inputmode="numeric" value="' + s.price + '"><button type="button" class="q-pm" data-d="1" aria-label="Raise">+</button></div>', 'Next');
-    if (q.k === 'note') h = card(n, 'Anything a customer should know?', 'Model · what’s included · condition', '<textarea class="q-ta" id="qv" maxlength="400" placeholder="Batteries included, strap, works great">' + esc(s.note || '') + '</textarea>' + (window.lendoDetails ? '<div class="dmeter" id="qMeter">' + window.lendoDetails(s.note || '') + '</div>' : '') + '<div class="q-chips"><button type="button" id="qMore">📷 Add more photos' + ((s.extra || []).length ? ' (' + s.extra.length + ')' : '') + '</button></div>', 'Next', true);
-    if (q.k === 'phone') h = card(n, 'Where should requests go?', 'Your cell · requests and payouts come by text', '<input class="q-in" id="qv" type="tel" autocomplete="tel" inputmode="tel" placeholder="(646) 555-0101" value="' + esc(AUTH.phone) + '">', 'Text me a code');
-    if (q.k === 'code') h = card(n, 'Code we just texted', 'Sent to ' + esc(AUTH.pretty) + (AUTH.dev ? ' · DEV code ' + AUTH.dev : ''), '<input class="q-in" id="qv" inputmode="numeric" autocomplete="one-time-code" maxlength="6" style="letter-spacing:.3em">', 'Confirm');
-    if (q.k === 'fname') h = card(n, 'What should neighbors call you?', 'First name is fine', '<input class="q-in" id="qv" autocomplete="given-name" maxlength="40" value="' + esc((ME && ME.name) || PNAME) + '">', 'Next');
-    if (q.k === 'hood') h = card(n, 'Your neighborhood?', 'Shown on your items · not your address', '<input class="q-in" id="qv" maxlength="60" placeholder="West Village" value="' + esc(CFG.hood || '') + '">', 'Next', true);
+    if (q.k === 'grade') h = card(n, 'What shape is it in?', '', '<div class="q-grades">' + 'ABCDE'.split('').map(function (g) { return '<button type="button" data-g="' + g + '" class="' + ((s.grade || '') === g ? 'on' : '') + '">' + g + '<small>' + G[g].toLowerCase() + '</small></button>'; }).join('') + '</div>', null);
+    if (q.k === 'price') h = card(n, 'How much a day?', '',
+      '<div class="q-price"><button type="button" class="q-pm" data-d="-1" aria-label="Lower">−</button><label class="q-pbox">$<input class="q-in" id="qv" inputmode="numeric" value="' + s.price + '"><small>/day</small></label><button type="button" class="q-pm" data-d="1" aria-label="Raise">+</button></div>', 'Next');
+    if (q.k === 'note') h = card(n, 'Anything else?', '', '<textarea class="q-ta" id="qv" maxlength="400" placeholder="Model, what’s included…">' + esc(s.note || '') + '</textarea>' + (window.lendoDetails ? '<div class="dmeter" id="qMeter">' + window.lendoDetails(s.note || '') + '</div>' : '') + '<div class="q-chips"><button type="button" id="qMore">📷 Add more photos' + ((s.extra || []).length ? ' (' + s.extra.length + ')' : '') + '</button></div>', 'Next', true);
+    if (q.k === 'phone') h = card(n, 'Your cell #', '', '<input class="q-in" id="qv" type="tel" autocomplete="tel" inputmode="tel" placeholder="(646) 555-0101" value="' + esc(AUTH.phone) + '">', 'Text me a code');
+    if (q.k === 'code') h = card(n, 'Code we texted', AUTH.dev ? 'DEV code ' + AUTH.dev : '', '<input class="q-in" id="qv" inputmode="numeric" autocomplete="one-time-code" maxlength="6" style="letter-spacing:.3em">', 'Confirm');
+    if (q.k === 'fname') h = card(n, 'Your first name', '', '<input class="q-in" id="qv" autocomplete="given-name" maxlength="40" value="' + esc((ME && ME.name) || PNAME) + '">', 'Next');
+    if (q.k === 'hood') h = card(n, 'Your neighborhood', '', '<input class="q-in" id="qv" maxlength="60" placeholder="West Village" value="' + esc(CFG.hood || '') + '">', 'Next', true);
     $('qCard').innerHTML = h; var v = $('qv'); if (v && !soft) setTimeout(function () { try { v.focus({ preventScroll: true }); } catch (e) {} }, 60);
   }
   function card(k, title, sub, body, next, skip) {
     var last = QI === qs().length - 1;
-    return '<div class="q-k">' + k + '</div><div class="q-h">' + title + '</div><div class="q-sub">' + sub + '</div>' + body + '<div class="q-err" id="qErr" hidden></div>' +
+    var L = qs().length; return '<div class="q-prog"><i style="width:' + Math.round((QI + 1) / L * 100) + '%"></i></div><div class="q-h">' + title + '</div>' + (sub ? '<div class="q-sub">' + sub + '</div>' : '<div style="height:12px"></div>') + body + '<div class="q-err" id="qErr" hidden></div>' +
       (next ? '<button type="button" class="cta q-next" id="qNext">' + (last ? 'LIST IT' : next) + '</button>' : '') + (skip ? '<button type="button" class="q-skip" id="qSkip">Skip</button>' : '');
   }
   function err(t) { var e = $('qErr'); if (e) { e.textContent = t; e.hidden = !t; } }
@@ -258,7 +258,7 @@
     if (t.id === 'qNext') return submitQ(false);
     if (t.id === 'qSkip') return submitQ(true);
     if (t.dataset.g) { s.grade = t.dataset.g; return go(); }
-    if (t.dataset.d) { var pv = $('qv'), nv = Math.max(MIN, (parseInt(pv.value, 10) || MIN) + +t.dataset.d); pv.value = nv; s.touched.price = true; var sub = $('qCard').querySelector('.q-sub'); if (sub) sub.textContent = 'A week is ' + fmt(Math.round(nv * 7 * 0.7)) + ' automatically (30% off) · 15% fee (will stay low)'; return; }
+    if (t.dataset.d) { var pv = $('qv'), nv = Math.max(MIN, (parseInt(pv.value, 10) || MIN) + +t.dataset.d); pv.value = nv; s.touched.price = true; return; }
     if (t.dataset.p) { $('qv').value = t.dataset.p; [].forEach.call($('qCard').querySelectorAll('[data-p]'), function (b) { b.classList.toggle('on', b === t); }); return; }
     if (t.id === 'qLabel') { labelFor = s; $('labelFile').value = ''; $('labelFile').click(); }
     if (t.id === 'qMore') { moreFor = 0; $('moreFile').value = ''; $('moreFile').click(); }
