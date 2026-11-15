@@ -132,6 +132,24 @@ listings.get('/api/cut/:id', async (c) => {
   return c.body(o.body, 200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' });
 });
 
+/* fast cut-out for the snap flow: starts the moment the photo is taken, in parallel with identify (which used to come first) */
+listings.post('/api/cut', async (c) => {
+  if (!c.get('user')) { /* guests: capped per IP, like identify */
+    const ip = c.req.header('cf-connecting-ip') || 'x';
+    const n = await c.env.DB.prepare(`SELECT COUNT(*) n FROM events WHERE kind = 'cut.guest' AND at > ? AND data = ?`).bind(Date.now() - 3600000, ip).first<{ n: number }>().catch(() => null);
+    if ((n?.n || 0) >= 30) return c.json({ error: 'slow down' }, 429);
+    await logEvent(c.env.DB, 'cut.guest', { data: ip });
+  }
+  const f = await c.req.parseBody(); const p = f.photo;
+  if (!(p instanceof File)) return c.json({ error: 'photo required' }, 400);
+  const id = crypto.randomUUID().replace(/-/g, '').slice(0, 16), base = `tmp/${id}`;
+  await c.env.PHOTOS.put(`${base}.jpg`, await p.arrayBuffer(), { httpMetadata: { contentType: p.type || 'image/jpeg' } });
+  try {
+    const cut = await makeCutout(c.env, `${base}.jpg`, 600); if (!cut) return c.json({ error: 'cut' }, 502);
+    c.executionCtx.waitUntil(c.env.PHOTOS.put(`${base}-cut.png`, cut, { httpMetadata: { contentType: 'image/png' } }).then(() => {}));
+    return c.body(cut, 200, { 'content-type': 'image/png', 'cache-control': 'no-store' });
+  } catch { return c.json({ error: 'cut' }, 502); }
+});
 listings.get('/api/cuttmp/:id{[a-f0-9]{16}}', async (c) => {
   const base = `tmp/${c.req.param('id')}`, key = `${base}-cut.png`;
   const o = await c.env.PHOTOS.get(key);

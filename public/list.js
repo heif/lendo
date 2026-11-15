@@ -42,9 +42,9 @@
   function renderMiniList() { var el = $('miniList'); if (!picked.length) { el.hidden = true; return; } el.hidden = false; el.innerHTML = picked.map(function (n) { var done = shots.some(function (s) { return s.name === n || s.hint === n; }); return '<span class="' + (done ? 'done' : '') + '">' + (done ? '✓ ' : '○ ') + esc(n) + '</span>'; }).join(''); }
   function addShot(blob) {
     var url = URL.createObjectURL(blob), name = nextName(), idea = IDEAS.filter(function (i) { return i[1] === name; })[0];
-    if (retakeIdx != null) { var rs = shots[retakeIdx]; rs.blob = blob; rs.url = url; rs.cutUrl = null; rs.touched = {}; retakeIdx = null; identify(rs); show('q'); return; }
+    if (retakeIdx != null) { var rs = shots[retakeIdx]; rs.blob = blob; rs.url = url; rs.cutUrl = null; rs.touched = {}; retakeIdx = null; cutFast(rs); identify(rs); show('q'); return; }
     var shot = { blob: blob, url: url, name: name, price: idea ? idea[2] : MIN, week: 0, note: '', hint: name, ai: null, touched: {} };
-    shots = [shot]; identify(shot); QI = 0; setTimeout(function () { show('q'); }, 250); /* one thing at a time: no Done, straight to the questions */
+    shots = [shot]; cutFast(shot); identify(shot); QI = 0; setTimeout(function () { show('q'); }, 250); /* one thing at a time: no Done, straight to the questions */
     $('flash').classList.add('on'); setTimeout(function () { $('flash').classList.remove('on'); }, 220);
     $('toast').classList.add('on'); clearTimeout($('toast')._t); $('toast')._t = setTimeout(function () { $('toast').classList.remove('on'); }, 1100);
     updateHint();
@@ -54,12 +54,19 @@
     var d = g.getImageData(0, 0, W, H).data, x0 = W, y0 = H, x1 = 0, y1 = 0;
     for (var y = 0; y < H; y += 2) for (var x = 0; x < W; x += 2) if (d[(y * W + x) * 4 + 3] > 20) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
     if (x1 <= x0) return fallback; var pad = 6, o = document.createElement('canvas'); o.width = x1 - x0 + 1 + pad * 2; o.height = y1 - y0 + 1 + pad * 2; o.getContext('2d').drawImage(c, x0, y0, x1 - x0 + 1, y1 - y0 + 1, pad, pad, x1 - x0 + 1, y1 - y0 + 1); return o.toDataURL('image/png'); } catch (e) { return fallback; } }
+  /* cut-out starts right at the snap (doesn't wait for identify); shows up in the photo at the top as soon as it lands */
+  function cutFast(shot) {
+    var fd = new FormData(); fd.append('photo', shot.blob, 'p.jpg');
+    fetch('/api/cut', { method: 'POST', body: fd }).then(function (r) { return r.ok ? r.blob() : null; }).then(function (b) {
+      if (!b || shots[0] !== shot) return; var ci = new Image(); ci.onload = function () { shot.cutUrl = trimUrl(ci, ci.src); var im = $('qImg'); if (im && step === 'q') { im.src = shot.cutUrl; im.className = 'cut'; } }; ci.src = URL.createObjectURL(b);
+    }).catch(function () {});
+  }
   function identify(shot) {
     var fd = new FormData(); fd.append('photo', shot.blob, 'p.jpg'); if (shot.labelBlob) fd.append('label', shot.labelBlob, 'label.jpg'); if (shot.hint) fd.append('hint', shot.hint);
     shot.pending = true;
     fetch('/api/identify', { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (j) {
       shot.pending = false; if (!j || j.error) return; shot.ai = j; shot.askLabel = !!j.ask_label && !shot.labelBlob;
-      if (j.cut) { var ci = new Image(); ci.onload = function () { shot.cutUrl = trimUrl(ci, j.cut); var k = shots.indexOf(shot), im = k < 0 ? null : document.querySelector('.row-item[data-i="' + k + '"] .rt img'); if (im) { im.src = shot.cutUrl; im.classList.add('cut'); } }; ci.src = j.cut; }
+      if (j.cut && !shot.cutUrl) { var ci = new Image(); ci.onload = function () { shot.cutUrl = trimUrl(ci, j.cut); var k = shots.indexOf(shot), im = k < 0 ? null : document.querySelector('.row-item[data-i="' + k + '"] .rt img'); if (im) { im.src = shot.cutUrl; im.classList.add('cut'); } }; ci.src = j.cut; }
       if (!shot.touched.name || shot.labelBlob) shot.name = j.name || shot.name;
       if (!shot.touched.price) { shot.price = Math.max(MIN, Math.round(j.price_cents / 100)); shot.week = Math.round((j.week_cents || 0) / 100); }
       if (!shot.touched.note && j.description) shot.note = j.description;
