@@ -391,7 +391,7 @@
   $('plDim').addEventListener('click', function () { closePlaces(); });
   function openPlaces() { loadPlaces(function () { var c = map.getCenter(), ct = cityOf(c.lng, c.lat); if (ct) plCity = ct.id; renderPlaces(); $('places').hidden = false; $('plDim').hidden = false; }); }
   function closePlaces() { $('places').hidden = true; $('plDim').hidden = true; }
-  $('scHood').addEventListener('click', openPlaces); $('plClose').addEventListener('click', closePlaces);
+  $('scHood').addEventListener('click', function () { if (!$('places').hidden) closePlaces(); else openPlaces(); }); /* the pill toggles the picker */ $('plClose').addEventListener('click', closePlaces);
   $('scCity').addEventListener('click', function () { var ct = curCity || (PL && PL.cities[0]); if (ct) map.easeTo({ center: [ct.lng, ct.lat], zoom: ct.zoom }); else map.easeTo({ center: [-73.95, 40.73], zoom: 10.6 }); });
   loadPlaces(function () { updateCityPill(); }); map.on('moveend', updateCityPill);
   function cityN(fallback) { var c = map.getCenter(), ct = PL ? cityOf(c.lng, c.lat) : null; if (!ct) return fallback; return bounceN[ct.id] != null ? bounceN[ct.id] : ct.n; }
