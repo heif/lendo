@@ -223,3 +223,5 @@ a.dn2-tray{text-decoration:none;color:var(--ink)}
 .dn2-pr{position:relative;z-index:1;margin-top:-18px;background:var(--orange);color:#fff;border:2px solid var(--ink);border-radius:8px;box-shadow:2.5px 2.5px 0 var(--ink);padding:4px 10px 5px;font-size:26px;letter-spacing:-.04em;line-height:1;transform:rotate(-2deg)}
 .dn2-pr small{font-size:14px;font-weight:700;letter-spacing:0}
 .dn2-nm{margin-top:12px}
+
+.q-ph .q-id{position:absolute;left:0;right:0;top:0;bottom:0;display:flex;align-items:center;justify-content:center;background:rgba(245,243,238,.55);font-style:normal}.q-ph .q-id[hidden]{display:none}.q-ph .q-id .dots{font-size:30px;font-weight:900;color:var(--ink);line-height:1;letter-spacing:1px}.q-ph .q-id .dots i:nth-child(2){animation-delay:.15s}.q-ph .q-id .dots i:nth-child(3){animation-delay:.3s}

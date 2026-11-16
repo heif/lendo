@@ -71,7 +71,7 @@ listings.get('/list', async (c) => {
       {/* one question at a time (card stack): small photo always on top, answered questions shrink to lines, current one is a card */}
       <section id="st-q" class="lf" hidden>
         <div class="lf-scroll">
-          <div class="q-top"><button type="button" class="q-ph" id="qPh" aria-label="Retake photo"><img id="qImg" alt="" /><span>↻</span></button><div class="q-done" id="qDone"></div></div>
+          <div class="q-top"><button type="button" class="q-ph" id="qPh" aria-label="Retake photo"><img id="qImg" alt="" /><i class="q-id" id="qId" hidden aria-label="Identifying"><span class="dots"><i>.</i><i>.</i><i>.</i></span></i><span>↻</span></button><div class="q-done" id="qDone"></div></div>
           <div class="q-card" id="qCard"></div>
         </div>
       </section>

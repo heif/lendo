@@ -65,13 +65,13 @@
     var fd = new FormData(); fd.append('photo', shot.blob, 'p.jpg'); if (shot.labelBlob) fd.append('label', shot.labelBlob, 'label.jpg'); if (shot.hint) fd.append('hint', shot.hint);
     shot.pending = true;
     fetch('/api/identify', { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (j) {
-      shot.pending = false; if (!j || j.error) return; shot.ai = j; shot.askLabel = !!j.ask_label && !shot.labelBlob;
+      shot.pending = false; if ($('qId')) $('qId').hidden = true; if (!j || j.error) return; shot.ai = j; shot.askLabel = !!j.ask_label && !shot.labelBlob;
       if (j.cut && !shot.cutUrl) { var ci = new Image(); ci.onload = function () { shot.cutUrl = trimUrl(ci, j.cut); var k = shots.indexOf(shot), im = k < 0 ? null : document.querySelector('.row-item[data-i="' + k + '"] .rt img'); if (im) { im.src = shot.cutUrl; im.classList.add('cut'); } }; ci.src = j.cut; }
       if (!shot.touched.name || shot.labelBlob) shot.name = j.name || shot.name;
       if (!shot.touched.price) { shot.price = Math.max(MIN, Math.round(j.price_cents / 100)); shot.week = Math.round((j.week_cents || 0) / 100); }
       if (!shot.touched.note && j.description) shot.note = j.description;
       if (step === 'review') renderReview(); else if (step === 'q') renderQ(true); else updateHint();
-    }).catch(function () { shot.pending = false; });
+    }).catch(function () { shot.pending = false; if ($('qId')) $('qId').hidden = true; });
   }
   function snap() {
     if (!stream) { $('file').click(); return; }
@@ -224,7 +224,7 @@
   function renderQ(soft) {
     var s = cur(); if (!s) { show('cam'); return; }
     var L = qs(); if (QI >= L.length) return listIt();
-    var im = $('qImg'); im.src = s.cutUrl || s.url; im.className = s.cutUrl ? 'cut' : '';
+    var im = $('qImg'); im.src = s.cutUrl || s.url; im.className = s.cutUrl ? 'cut' : ''; $('qId').hidden = !s.pending; /* animated dots on the photo while it's being identified */
     $('qDone').innerHTML = L.slice(0, QI).map(function (q, i) { var t = q.line(); if (q.k === 'code' || !t) return ''; return '<button type="button" class="q-line" data-i="' + i + '"><span>' + esc(t) + '</span>' + (ITEMQ[q.k] ? '<b>✎</b>' : '') + '</button>'; }).join('');
     var q = L[QI], h = '', n = 'Question ' + (QI + 1) + ' of ' + L.length;
     if (soft && (!(q.k === 'name' || q.k === 'price' || q.k === 'note') || s.touched[q.k])) return; /* identify result arrived: only refresh cards that show its guesses */
