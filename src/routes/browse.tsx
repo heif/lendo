@@ -88,8 +88,6 @@ export const homePage = async (c: Ctx, opt: { center?: number[]; zoom?: number; 
           <div class="places-hoods" id="plHoods"></div>
         </div>
         <div class="pcard" id="sheet" role="dialog" aria-label="Selected item">
-          <div class="pcard-strip">FOR RENT</div>
-          <div class="pcard-more" id="shStrip" hidden></div>
           <button class="pcard-x" id="shClose" aria-label="Close"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" stroke-width="2.2" stroke-linecap="round" /></svg></button>
           <a class="pcard-body" id="shLink" href="#">
             <span class="pcard-img"><img id="shImg" alt="" /><span class="pcard-price" id="shPr"></span></span>
@@ -98,8 +96,10 @@ export const homePage = async (c: Ctx, opt: { center?: number[]; zoom?: number; 
               <span class="pcard-owner" id="shOwner"></span>
               <span class="pcard-where" id="shSub"><svg width="10" height="12" viewBox="0 0 24 26" aria-hidden="true"><path d="M12 25C12 25 3 16 3 10A9 9 0 0 1 21 10C21 16 12 25 12 25Z" fill="#1E3A2B" /><circle cx="12" cy="10" r="3.4" fill="#F5F3EE" /></svg><span id="shWhere"></span></span>
             </span>
-            <svg class="pcard-chev" width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2L8 8L2 14" fill="none" stroke="#1E3A2B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
           </a>
+          {/* owner in the middle, their other things circling (like the profile page) */}
+          <div class="pcard-orb" id="shOrb"><a class="pco-av" id="shOwnLink" href="#"><span id="shOwnAv"></span></a><div class="pco-ring" id="shRing"></div></div>
+          <a class="pcard-rent" id="shRent" href="#" aria-label="Rent it"><img src="/rent-it.webp" alt="Rent it" width="150" height="70" /></a>
           {!u ? <form class="promo incard" data-promo autocomplete="on" aria-label="Get $5 off this rental" hidden>
             <label class="sr">Phone number</label>
             <input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Phone #" maxlength={14} />

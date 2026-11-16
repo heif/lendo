@@ -207,12 +207,17 @@
     var own = (it.owner_name || 'Neighbor').split(' ')[0];
     $('shNm').innerHTML = ''; var o1 = document.createElement('span'); o1.style.fontWeight = '500'; o1.style.display = 'block'; o1.style.fontSize = '.72em'; o1.textContent = own + (/s$/i.test(own) ? '’' : '’s'); $('shNm').appendChild(o1); $('shNm').appendChild(document.createTextNode(it.name.charAt(0).toUpperCase() + it.name.slice(1))); // "Scott’s Projector": item names keep their capital
     $('shOwner').innerHTML = '<span class="av">' + esc(own.charAt(0)) + '</span>' + esc(own) + (it.owner_rating ? ' <span class="pill stars">' + '★★★★★'.slice(0, wholeStars(it.owner_rating)) + '</span>' : ' <span class="pill new">new</span>') + (it.rentals ? ' <span class="n">' + it.rentals + ' rental' + (it.rentals === 1 ? '' : 's') + '</span>' : '');
-    var more = Object.keys(known).map(function (k) { return known[k]; }).filter(function (x) { return x.owner_id === it.owner_id && x.id !== it.id; }).slice(0, 5), st = $('shStrip');
-    st.innerHTML = ''; st.hidden = !more.length;
-    if (more.length) { st.innerHTML = '<span class="ps-l">Also for rent from ' + esc(own) + '</span>';
-      more.forEach(function (x) { var b = document.createElement('button'); b.type = 'button'; b.className = 'ps-th'; b.title = x.name; b.setAttribute('aria-label', x.name);
-        var k = x.avatar_key || x.photo; if (k) { var i = document.createElement('img'); i.src = '/p/' + k; i.alt = ''; b.appendChild(i); }
-        b.onclick = function (e) { e.preventDefault(); sel = x.id; refresh(); fillCard(x); }; st.appendChild(b); }); }
+    $('shRent').href = '/i/' + it.id;
+    $('shOwnLink').href = '/u/' + it.owner_id; $('shOwnLink').setAttribute('aria-label', own + '’s profile');
+    $('shOwnAv').innerHTML = it.owner_photo ? '<img src="/p/' + it.owner_photo + '" alt="">' : '<b>' + esc(own.charAt(0)) + '</b>';
+    /* their other things orbit the owner (up to 6); tap one to switch the card to it */
+    var more = Object.keys(known).map(function (k) { return known[k]; }).filter(function (x) { return x.owner_id === it.owner_id && x.id !== it.id; }).slice(0, 6), ring = $('shRing');
+    ring.innerHTML = ''; $('shOrb').classList.toggle('solo', !more.length);
+    more.forEach(function (x, n) { var a = (-90 + n * (360 / Math.max(more.length, 5))) * Math.PI / 180, R = 34;
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'pco-sat'; b.title = x.name; b.setAttribute('aria-label', x.name);
+      b.style.left = (44 + Math.cos(a) * R - 14).toFixed(1) + 'px'; b.style.top = (44 + Math.sin(a) * R - 14).toFixed(1) + 'px';
+      var k = x.avatar_key || x.photo; if (k) { var im2 = document.createElement('img'); im2.src = '/p/' + k; im2.alt = ''; if (!x.avatar_key) im2.className = 'ph'; var w = document.createElement('span'); w.appendChild(im2); b.appendChild(w); }
+      b.onclick = function (e) { e.preventDefault(); sel = x.id; refresh(); fillCard(x); }; ring.appendChild(b); });
     $('shWhere').textContent = (it.hood || 'near you') + (it.owner_xs ? ' · ' + it.owner_xs : '');
   }
   $('shClose').addEventListener('click', function () { sel = null; refresh(); sheet.classList.remove('on'); });
@@ -323,9 +328,9 @@
     map.addLayer({ id: 'more', type: 'circle', source: 'more', filter: ['!=', ['get', 'has'], true], paint: { 'circle-color': S.cluster.fill, 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 2.5, 15, 4.5], 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.2, 'circle-opacity': 0.9 } });
     map.addLayer({ id: 'pins', type: 'symbol', source: 'pins',
       layout: { 'icon-image': ['get', 'icon'], 'icon-rotate': ['get', 'rot'], 'icon-size': ['case', ['get', 'sel'], 1.15, 1], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'symbol-sort-key': ['case', ['get', 'sel'], 1, 0] } });
-    // just-added items: "2h ago" chip at the top-right of the pin
+    // just-added items: "2h ago" chip hangs right under the pin's own price tag, so it can't be read as a neighbor's
     map.addLayer({ id: 'ages', type: 'symbol', source: 'pins', filter: ['!=', ['get', 'age'], ''],
-      layout: { 'icon-image': ['get', 'age'], 'icon-anchor': 'bottom-left', 'icon-offset': [10, -(SZ + 18)], 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
+      layout: { 'icon-image': ['get', 'age'], 'icon-anchor': 'top', 'icon-offset': [0, -3], 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'symbol-sort-key': ['case', ['get', 'sel'], 1, 0] } });
     if (HOOD_LAYER) addHoods();
     load(); updateHood();
     if (WALKERS) startWalkers();

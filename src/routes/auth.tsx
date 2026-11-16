@@ -179,4 +179,4 @@ auth.get('/lendo.vcf', (c) => {
   return c.body(card + '\r\n', 200, { 'content-type': 'text/vcard; charset=utf-8', 'content-disposition': 'inline; filename="Lendo.vcf"' });
 });
 
-auth.get('/logout', async (c) => { await logout(c); return c.redirect('/'); });
+auth.get('/logout', async (c) => { await logout(c); setCookie(c, 'lendo_p', '', { path: '/', maxAge: 0 }); /* logged out = see the $5-off offer again (server keeps it once per phone) */ return c.redirect('/'); });
