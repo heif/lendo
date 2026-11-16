@@ -147,10 +147,12 @@
     for (var r = 0, more = true; more; r++) { more = false; order.forEach(function (c) { var it = cats[c].list[r]; if (it) { queue.push(it); more = true; } }); }
     // pass 1 skips an item if the same kind of thing already shows nearby (variety of items, not just categories);
     // pass 2 fills whatever room is left
+    /* few items in view (≤ 30): every one shows with its price, overlaps allowed — no dots to zoom into */
+    var vb = map.getBounds(), few = queue.filter(function (it) { return vb.contains(POS[it.id] || [it.lng, it.lat]); }).length <= 30;
     var cell = {}, kinds = {}, seen = {}, later = [], NEAR = PIN_W * 4; SHOW = []; HIDE = [];
     function fits(p) {
       var gx = Math.floor(p[0] / PIN_W), gy = Math.floor(p[1] / PIN_H);
-      for (var dx = -1; dx <= 1; dx++) for (var dy = -1; dy <= 1; dy++) { var c2 = cell[(gx + dx) + ',' + (gy + dy)]; if (c2) for (var i = 0; i < c2.length; i++) if (Math.abs(c2[i][0] - p[0]) < PIN_W && Math.abs(c2[i][1] - p[1]) < PIN_H) return false; }
+      for (var dx = -1; dx <= 1; dx++) for (var dy = -1; dy <= 1; dy++) { var c2 = cell[(gx + dx) + ',' + (gy + dy)]; if (c2) for (var i = 0; i < c2.length; i++) if (Math.abs(c2[i][0] - p[0]) < PIN_W * 0.7 && Math.abs(c2[i][1] - p[1]) < PIN_H * 0.75) return false; }
       return true;
     }
     function sameKindNear(it, p) { var k = kinds[it.name.toLowerCase()]; if (k) for (var i = 0; i < k.length; i++) if (Math.abs(k[i][0] - p[0]) < NEAR && Math.abs(k[i][1] - p[1]) < NEAR) return true; return false; }
@@ -158,11 +160,11 @@
     queue.forEach(function (it, qi) {
       if (seen[it.id]) return; seen[it.id] = 1;
       var p = worldPx(POS[it.id][0], POS[it.id][1], z), keep = it.id === sel || qi <= sticky.length;   // selected + already-showing pins skip the variety test
-      if (SHOW.length >= MAX_SHOWN || !fits(p)) HIDE.push(it);
+      if (SHOW.length >= MAX_SHOWN || (!few && !fits(p))) HIDE.push(it);
       else if (!keep && sameKindNear(it, p)) later.push([it, p]);
       else take(it, p);
     });
-    later.forEach(function (x) { if (SHOW.length < MAX_SHOWN && fits(x[1])) take(x[0], x[1]); else HIDE.push(x[0]); });
+    later.forEach(function (x) { if (SHOW.length < MAX_SHOWN && (few || fits(x[1]))) take(x[0], x[1]); else HIDE.push(x[0]); });
     /* items without a price tag: a same-size picture while there's room (≤ PIC_CAP pictures in all, no heavy overlap); the rest stay small orange dots */
     MINI = {}; var pts = SHOW.map(function (it) { return worldPx(POS[it.id][0], POS[it.id][1], z); }), D = SZ * 0.8, nPic = SHOW.length;
     HIDE.forEach(function (it) {
