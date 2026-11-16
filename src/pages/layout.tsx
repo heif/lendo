@@ -45,16 +45,16 @@ export const Layout: FC<LayoutProps> = (p) => {
             {p.headerCenter ? <span class="sp"></span> : <span class="sep" aria-hidden="true"></span>}
             {p.headerCenter ? p.headerCenter : <h1>{p.title}</h1>}
             <span class="sp"></span>
+            {u ? <a class="hchat" href="/inbox" aria-label={'Inbox' + (u.unread ? ` (${u.unread} unread)` : '')}><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5C4 4.7 4.7 4 5.5 4h13c.8 0 1.5.7 1.5 1.5v9c0 .8-.7 1.5-1.5 1.5H10l-4.2 3.6c-.5.4-1.3.1-1.3-.6V16h-.5C3.7 16 4 15.3 4 14.5z" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linejoin="round" /></svg>{u.unread ? <span class="badge">{u.unread}</span> : null}</a> : null}
             <details class={'acct' + (u ? ' in' : '')}>
               <summary aria-label="Menu">
                 {u ? (u.photo_key ? <img src={'/p/' + u.photo_key} alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover" /> : initial || <svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4.2" fill="#fff" /><path d="M3.5 21C4.5 15.5 8 13.5 12 13.5S19.5 15.5 20.5 21Z" fill="#fff" /></svg>)
                   : <svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4.2" fill="#1E3A2B" /><path d="M3.5 21C4.5 15.5 8 13.5 12 13.5S19.5 15.5 20.5 21Z" fill="#1E3A2B" /></svg>}
-                {(p.badge ?? u?.unread) ? <span class="badge">{p.badge ?? u?.unread}</span> : null}
+                {p.badge ? <span class="badge">{p.badge}</span> : null}
               </summary>
               <nav aria-label="Your account">
                 {u ? (
                   <>
-                    <a href="/inbox">Inbox</a>
                     <a href={'/u/' + u.id}>{(() => { const f = (u.name || '').trim().split(/\s+/)[0] || 'Your'; return f === 'Your' ? 'Your Stuff' : f + (/s$/i.test(f) ? '’' : '’s') + ' Stuff'; })()}</a>
                     <a href="/rentals">Your rentals{u.unread ? <span class="badge-n" style="margin-left:6px">{u.unread}</span> : null}</a>
                     <a href="/saved">Saved</a>

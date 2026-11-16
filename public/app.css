@@ -21,6 +21,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .hdr h1{margin:0;min-width:0;flex:0 1 auto;font-size:16px;font-weight:900;letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hdr .sp{flex:1 1 0}
 .acct{position:relative;flex-shrink:0;display:flex}
+.hchat{position:relative;flex-shrink:0;width:36px;height:36px;display:grid;place-items:center;border-radius:50%;text-decoration:none}.hchat:active{background:rgba(30,58,43,.08)}.hchat .badge{position:absolute;top:-3px;right:-4px;min-width:17px;height:17px;padding:0 3px;border-radius:9px;background:var(--red);border:2px solid var(--cream);color:#fff;font-size:10px;font-weight:900;line-height:13px;text-align:center}
 .acct>summary{list-style:none;position:relative;width:36px;height:36px;margin:0 2px 0 4px;border:2px solid var(--ink);border-bottom-width:4px;border-radius:18px;color:#fff;background:linear-gradient(#FFFDF8,#EFEBE2);box-shadow:0 2px 5px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;font-weight:900}
 .acct>summary::-webkit-details-marker{display:none}
 .acct.in>summary{background:linear-gradient(#2E5340,#1E3A2B)}
@@ -585,3 +586,11 @@ img.uav{background:#ddd}
 .ac-go{flex-shrink:0;font-style:normal;background:var(--orange);color:#fff;border-radius:999px;padding:4px 11px;font-size:13px;font-weight:800;border:1.5px solid var(--ink)}
 /* just-added age chip on list tiles */
 .ai-im{position:relative}.ai-age{position:absolute;top:4px;right:4px;z-index:2;background:#fff;color:var(--ink);border:1.5px solid var(--ink);border-radius:6px;font-size:10.5px;font-weight:800;padding:1px 5px;white-space:nowrap}
+
+.askd{margin-top:10px}.askd>summary{list-style:none;cursor:pointer;margin-top:0}.askd>summary::-webkit-details-marker{display:none}.askd[open]>summary{display:none}
+.askf{display:flex;gap:8px;align-items:flex-end}.askf textarea{flex:1;min-height:44px;max-height:140px;padding:10px 14px;border:2px solid var(--ink);border-radius:18px;font:inherit;font-size:16px;resize:none;background:#fff}.askf textarea:focus{outline:none;border-color:var(--orange)}.askf button{width:44px;height:44px;flex:none;border-radius:50%;border:0;background:var(--ink);color:#fff;font-size:20px;font-weight:900}.askok{margin-top:10px;font-weight:800;font-size:14px}.askok a{color:var(--ink)}
+/* alert chip, lightened: no border/hard shadow/green fill; small ink switch */
+.alertchip{border:0!important;box-shadow:0 1px 6px rgba(30,58,43,.12)!important;padding:4px 6px 4px 12px!important;min-width:0!important}
+.alertchip .ac-pill,.alertchip .ac-pill.on{background:none;padding:6px 4px;font-weight:600;font-size:13px}
+.alertchip .ac-sw{width:34px;height:20px;border-radius:10px}.alertchip .ac-sw b{width:16px;height:16px;border-radius:8px;top:2px;left:2px}.alertchip .ac-pill.on .ac-sw b{left:16px}
+.alertchip .ac-pill.on .ac-sw{background:var(--ink)}.alertchip .ac-sw em{display:none}

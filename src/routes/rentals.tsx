@@ -6,7 +6,9 @@ import { handleText } from './webhooks';
 import { acceptExt, askExtension, declineExt, extById, extendableDays, extPrice, EXT_MAX_DAYS, openExt } from '../lib/extend';
 import { Grade, GRADES, isGrade } from '../lib/grade';
 import { raw } from 'hono/html';
-import type { Env, Listing, Rental, Vars } from '../lib/env';
+import type { Env, Listing, Rental, User, Vars } from '../lib/env';
+import type { Context } from 'hono';
+type Ctx = Context<{ Bindings: Env; Variables: Vars }>;
 import { Layout } from '../pages/layout';
 import { requireUser } from '../lib/auth';
 import { addMessage, busyDays, firstPhotos, listingById, photosFor, rentalById, userById } from '../lib/db';
@@ -281,10 +283,8 @@ rentals.post('/r/:id/decline', requireUser, async (c) => {
   await decline(c.env, r, 'declined');
   return c.redirect('/r/' + r.id);
 });
-rentals.post('/r/:id/msg', requireUser, async (c) => {
-  const u = c.get('user')!; const r = await rentalById(c.env.DB, c.req.param('id'));
-  if (!r || (r.owner_id !== u.id && r.renter_id !== u.id)) return c.notFound();
-  const body = String((await c.req.parseBody()).body || '').trim().slice(0, 500);
+/* a customer's message before renting: first one texts the owner the question, later ones relay */
+async function sendMsg(c: Ctx, u: User, r: Rental, body: string) {
   if (body && r.status === 'inquiry') {
     await c.env.DB.prepare('UPDATE rentals SET updated_at = ? WHERE id = ?').bind(now(), r.id).run();
     const first = !(await c.env.DB.prepare('SELECT 1 FROM messages WHERE rental_id = ? LIMIT 1').bind(r.id).first());
@@ -292,10 +292,15 @@ rentals.post('/r/:id/msg', requireUser, async (c) => {
       const it = (await listingById(c.env.DB, r.listing_id))!; const owner = (await userById(c.env.DB, r.owner_id))!;
       await addMessage(c.env, r.id, u.id, body, 'web');
       await textUser(c.env, owner, `${firstName(u.name)} asked about your ${it.name}: "${body}" · reply here to answer ${c.env.APP_URL}/r/${r.id}`, 'rental', r.id);
-      return c.redirect('/r/' + r.id);
+      return;
     }
   }
   if (body) await relay(c.env, r, u, body, 'web');
+}
+rentals.post('/r/:id/msg', requireUser, async (c) => {
+  const u = c.get('user')!; const r = await rentalById(c.env.DB, c.req.param('id'));
+  if (!r || (r.owner_id !== u.id && r.renter_id !== u.id)) return c.notFound();
+  await sendMsg(c, u, r, String((await c.req.parseBody()).body || '').trim().slice(0, 500));
   return c.redirect('/r/' + r.id);
 });
 rentals.post('/r/:id/extend', requireUser, async (c) => {
@@ -387,17 +392,30 @@ rentals.post('/r/:id/rate', requireUser, async (c) => {
 });
 
 // ---------- Message the owner before renting: an 'inquiry' thread (same chat as rentals, same text relay) ----------
+async function inquiryFor(c: Ctx, u: User, it: Listing) {
+  const ex = await c.env.DB.prepare(`SELECT * FROM rentals WHERE listing_id = ? AND renter_id = ? AND status = 'inquiry' ORDER BY updated_at DESC LIMIT 1`).bind(it.id, u.id).first<Rental>();
+  if (ex) return ex;
+  const rid = id('r'), t = now(), d = dayStr(new Date());
+  await c.env.DB.prepare(`INSERT INTO rentals (id, listing_id, owner_id, renter_id, start_day, end_day, days, rent_cents, fee_cents, total_cents, credit_cents, status, created_at, updated_at) VALUES (?,?,?,?,?,?,0,0,0,0,0,'inquiry',?,?)`)
+    .bind(rid, it.id, it.owner_id, u.id, d, d, t, t).run();
+  return (await rentalById(c.env.DB, rid))!;
+}
 rentals.get('/i/:id/ask', requireUser, async (c) => {
   const u = c.get('user')!;
   const it = await listingById(c.env.DB, c.req.param('id'));
   if (!it || it.status !== 'live' || it.demo) return c.notFound();
   if (it.owner_id === u.id) return c.redirect('/i/' + it.id);
-  const ex = await c.env.DB.prepare(`SELECT id FROM rentals WHERE listing_id = ? AND renter_id = ? AND status = 'inquiry' ORDER BY updated_at DESC LIMIT 1`).bind(it.id, u.id).first<{ id: string }>();
-  if (ex) return c.redirect('/r/' + ex.id);
-  const rid = id('r'), t = now(), d = dayStr(new Date());
-  await c.env.DB.prepare(`INSERT INTO rentals (id, listing_id, owner_id, renter_id, start_day, end_day, days, rent_cents, fee_cents, total_cents, credit_cents, status, created_at, updated_at) VALUES (?,?,?,?,?,?,0,0,0,0,0,'inquiry',?,?)`)
-    .bind(rid, it.id, it.owner_id, u.id, d, d, t, t).run();
-  return c.redirect('/r/' + rid);
+  return c.redirect('/r/' + (await inquiryFor(c, u, it)).id);
+});
+/* inline ask on the item page */
+rentals.post('/i/:id/ask', requireUser, async (c) => {
+  const u = c.get('user')!;
+  const it = await listingById(c.env.DB, c.req.param('id'));
+  if (!it || it.status !== 'live' || it.demo || it.owner_id === u.id) return c.notFound();
+  const body = String((await c.req.parseBody()).body || '').trim().slice(0, 500);
+  const r = await inquiryFor(c, u, it);
+  if (body) { await sendMsg(c, u, r, body); await logEvent(c.env.DB, 'rental.question', { user: u.id, rental: r.id, listing: it.id }); }
+  return (c.req.header('accept') || '').includes('application/json') ? c.json({ ok: true, rid: r.id }) : c.redirect('/r/' + r.id);
 });
 
 // ---------- Your rentals + Inbox ----------

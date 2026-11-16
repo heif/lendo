@@ -160,7 +160,13 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
         </div>
         <div class="hint" style="margin-top:2px">Condition {gr.letter} · {GRADE_WORD[gr.letter]} · {gr.customers ? `owner + ${gr.customers} customer${gr.customers === 1 ? '' : 's'}` : 'set by the owner'}{ir?.n ? ` · 👍 ${ir.up || 0} of ${ir.n}` : ''}</div>
         {it.description ? <p style="margin:4px 0 0;font-size:14px;line-height:1.4;color:var(--ink2);white-space:pre-wrap">{it.description}</p> : null}
-        {!isOwner && it.status === 'live' ? <a class="askbtn" href={it.demo ? '#' : '/i/' + it.id + '/ask'} onclick={it.demo ? "event.preventDefault();toast('Demo item — messaging is off')" : undefined}>💬 Ask {(owner.name || 'the owner').split(' ')[0]} a question</a> : null}
+        {!isOwner && it.status === 'live' ? (it.demo || !u
+          ? <a class="askbtn" href={it.demo ? '#' : '/i/' + it.id + '/ask'} onclick={it.demo ? "event.preventDefault();toast('Demo item — messaging is off')" : undefined}>💬 Ask {(owner.name || 'the owner').split(' ')[0]} a question</a>
+          : <details class="askd" ontoggle="if(this.open)this.querySelector('textarea').focus()"><summary class="askbtn">💬 Ask {(owner.name || 'the owner').split(' ')[0]} a question</summary>
+              <form class="askf" method="post" action={'/i/' + it.id + '/ask'} onsubmit={`event.preventDefault();var f=this,b=f.querySelector('button');if(!f.body.value.trim())return;b.disabled=true;fetch(f.action,{method:'POST',body:new FormData(f),headers:{accept:'application/json'}}).then(function(r){return r.json()}).then(function(j){if(!j.rid)throw 0;var d=document.createElement('div');d.className='askok';d.innerHTML='✓ Sent to ${(owner.name || 'the owner').split(' ')[0].replace(/[^\p{L}\p{N} .-]/gu, '')} · <a href="/r/'+j.rid+'">Open chat</a>';f.parentNode.replaceWith(d)}).catch(function(){b.disabled=false;f.submit()})`}>
+                <textarea name="body" rows={1} maxlength={500} placeholder="Is it free Saturday?" required oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+                <button type="submit" aria-label="Send">↑</button>
+              </form></details>) : null}
         <div class="row" style="gap:8px;align-items:center"><a href={'/u/' + owner.id} class="owner-row owner-tight" style="flex:1;min-width:0">
           <Avatar name={owner.name} photo={owner.photo_key} size={32} />
           <span class="owner-txt"><b>{shortName(owner.name)}</b><small>{rep.as_owner_avg ? `${starStr(rep.as_owner_avg)} · ${rep.rentals} rentals` : 'new'} · {rep.listed} listed{owner.hood ? ' · ' + owner.hood : ''}</small></span>
