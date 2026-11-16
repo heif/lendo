@@ -594,3 +594,13 @@ img.uav{background:#ddd}
 .alertchip .ac-pill,.alertchip .ac-pill.on{background:none;padding:6px 4px;font-weight:600;font-size:13px}
 .alertchip .ac-sw{width:34px;height:20px;border-radius:10px}.alertchip .ac-sw b{width:16px;height:16px;border-radius:8px;top:2px;left:2px}.alertchip .ac-pill.on .ac-sw b{left:16px}
 .alertchip .ac-pill.on .ac-sw{background:var(--ink)}.alertchip .ac-sw em{display:none}
+
+/* ROYS press: $ coins pop out and fall, whoosh lines on the left (from the prototype) */
+.rent-out .ro-c{position:absolute;top:3px;z-index:-1;width:24px;height:24px;border-radius:12px;background:var(--orange);border:2px solid var(--ink);box-sizing:border-box;font-style:normal;font-size:14px;font-weight:900;line-height:20px;text-align:center;color:#fff;box-shadow:1.5px 1.5px 0 var(--ink);opacity:0;pointer-events:none}
+.rent-out .ro-c1{left:2px;animation:lfc1 2.4s ease-out .8s infinite}.rent-out .ro-c2{left:calc(50% - 12px);animation:lfc2 2.4s ease-out .8s infinite}.rent-out .ro-c3{right:2px;animation:lfc3 2.4s ease-out .8s infinite}
+.rent-out .ro-w{position:absolute;left:-22px;top:9px;width:16px;display:flex;flex-direction:column;gap:4px;opacity:0;pointer-events:none;animation:lfwhoosh 2.4s ease-out .8s infinite}.rent-out .ro-w b{height:2px;width:14px;background:var(--ink);border-radius:1px}.rent-out .ro-w b:nth-child(2){width:10px;margin-left:4px}
+@keyframes lfwhoosh{0%,84%{opacity:0;transform:translateX(6px)}88%{opacity:1}100%{opacity:0;transform:translateX(-14px)}}
+@keyframes lfc1{0%,84%{opacity:0;transform:translate(0,0) scale(.5)}87%{opacity:1;transform:translate(-20px,2px) scale(1.1) rotate(-10deg)}93%{opacity:.85;transform:translate(-32px,20px) scale(1) rotate(-25deg)}100%{opacity:0;transform:translate(-38px,40px) scale(.85) rotate(-40deg)}}
+@keyframes lfc2{0%,85%{opacity:0;transform:translate(0,0) scale(.5)}88%{opacity:1;transform:translate(-3px,24px) scale(1.15)}94%{opacity:.85;transform:translate(-6px,42px) scale(1) rotate(12deg)}100%{opacity:0;transform:translate(-8px,62px) scale(.85) rotate(20deg)}}
+@keyframes lfc3{0%,86%{opacity:0;transform:translate(0,0) scale(.5)}89%{opacity:1;transform:translate(10px,22px) scale(1.1) rotate(10deg)}95%{opacity:.85;transform:translate(18px,40px) scale(1) rotate(25deg)}100%{opacity:0;transform:translate(22px,58px) scale(.85) rotate(38deg)}}
+@media (prefers-reduced-motion:reduce){.rent-out .ro-c,.rent-out .ro-w{animation:none;display:none}}
