@@ -44,12 +44,22 @@
   var JUST = (function () { var now = Date.now(), d = now - 864e5, prev = 0; try { var o = JSON.parse(localStorage.getItem('lendo_seen') || '{}'); prev = o.prev || 0; if (!o.at || now - o.at > 36e5) { prev = o.at || 0; localStorage.setItem('lendo_seen', JSON.stringify({ prev: prev, at: now })); } } catch (e) {}
     return Math.max(now - 7 * 864e5, Math.min(d, prev || d)); })();
   function isJust(it) { return it.created_at && it.created_at > JUST; }
+  /* "2h ago" / "yesterday" chip for just-added items (map + list) */
+  function ageLabel(t) { var m = Math.max(1, Math.round((Date.now() - t) / 6e4)); return m < 60 ? m + 'm ago' : m < 1440 ? Math.round(m / 60) + 'h ago' : m < 2880 ? 'yesterday' : Math.round(m / 1440) + 'd ago'; }
+  function ensureAge(lb) {
+    var id = 'age_' + lb; if (map.hasImage(id)) return id;
+    var cv = document.createElement('canvas'), g = cv.getContext('2d'); g.font = '800 11px "Helvetica Neue",Helvetica,Arial,sans-serif';
+    var w = Math.ceil(g.measureText(lb).width) + 14, h = 19; cv.width = w * DPR; cv.height = h * DPR; g = cv.getContext('2d'); g.scale(DPR, DPR);
+    g.beginPath(); g.roundRect ? g.roundRect(0.75, 0.75, w - 1.5, h - 1.5, 6) : g.rect(0.75, 0.75, w - 1.5, h - 1.5); g.fillStyle = '#fff'; g.fill(); g.lineWidth = 1.5; g.strokeStyle = '#1E3A2B'; g.stroke();
+    g.fillStyle = '#1E3A2B'; g.font = '800 11px "Helvetica Neue",Helvetica,Arial,sans-serif'; g.textBaseline = 'middle'; g.textAlign = 'center'; g.fillText(lb, w / 2, h / 2 + 0.5);
+    map.addImage(id, g.getImageData(0, 0, w * DPR, h * DPR), { pixelRatio: DPR }); return id;
+  }
   function aisleOf(it) { var n = (it.name + ' ' + (it.description || '')).toLowerCase(); for (var k = 0; k < AISLES.length; k++) if (AISLES[k][1].test(n)) return AISLES[k][0]; return 'Everything else'; }
   function tile(it) {
     var img = it.avatar_key ? '/p/' + it.avatar_key : it.photo ? '/p/' + it.photo : '';
     return '<div class="ai-t"><a href="/i/' + it.id + '"><div class="ai-im">' + '<span class="ai-sh"></span>' +
       (img ? '<img loading="lazy" decoding="async" src="' + img + '" alt="' + esc(it.name) + '"' + (it.avatar_key ? '' : ' class="ph"') + '>' : '<span class="ai-em">' + (it.emoji || '📦') + '</span>') +
-      '<span class="ai-pr">' + fmt(it.price_cents) + '<small>/day</small></span></div><div class="ai-nm">' + esc(it.name) + '</div></a>' +
+      (isJust(it) ? '<span class="ai-age">' + ageLabel(it.created_at) + '</span>' : '') + '<span class="ai-pr">' + fmt(it.price_cents) + '<small>/day</small></span></div><div class="ai-nm">' + esc(it.name) + '</div></a>' +
       '<button type="button" class="ai-wh" data-go="' + it.id + '"><svg width="9" height="11" viewBox="0 0 24 28" aria-hidden="true"><path d="M12 27C12 27 3 17 3 10.5A9 9 0 0 1 21 10.5C21 17 12 27 12 27Z" fill="#1E3A2B"/><circle cx="12" cy="10.5" r="3.2" fill="#fff"/></svg>' + esc(it.hood || 'nearby') + '</button></div>';
   }
   function renderGrid(items) {
@@ -162,7 +172,7 @@
   function pinsGeo() {
     return { type: 'FeatureCollection', features: SHOW.map(function (it) {
       return { type: 'Feature', id: it.id, geometry: { type: 'Point', coordinates: POS[it.id] },
-        properties: { id: it.id, sel: sel === it.id, rot: wiggleRot(it.id), name: it.name, price: fmt(it.price_cents), price_cents: it.price_cents, week_cents: it.week_cents || 0, photo: it.photo || '', avatar: it.avatar_key || '', emoji: it.emoji || '📦', hood: it.hood || '', icon: iconCache[it.id] ? 'l_' + it.id : 'pin-default' } };
+        properties: { age: isJust(it) ? ensureAge(ageLabel(it.created_at)) : '', id: it.id, sel: sel === it.id, rot: wiggleRot(it.id), name: it.name, price: fmt(it.price_cents), price_cents: it.price_cents, week_cents: it.week_cents || 0, photo: it.photo || '', avatar: it.avatar_key || '', emoji: it.emoji || '📦', hood: it.hood || '', icon: iconCache[it.id] ? 'l_' + it.id : 'pin-default' } };
     }) };
   }
   function moreGeo() { return { type: 'FeatureCollection', features: HIDE.map(function (it) { return { type: 'Feature', geometry: { type: 'Point', coordinates: POS[it.id] }, properties: { id: it.id, icon: 'm_' + it.id, has: !!(miniCache[it.id] && MINI[it.id]) } }; }) }; }
@@ -303,6 +313,9 @@
     map.addLayer({ id: 'more', type: 'circle', source: 'more', filter: ['!=', ['get', 'has'], true], paint: { 'circle-color': S.cluster.fill, 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 2.5, 15, 4.5], 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.2, 'circle-opacity': 0.9 } });
     map.addLayer({ id: 'pins', type: 'symbol', source: 'pins',
       layout: { 'icon-image': ['get', 'icon'], 'icon-rotate': ['get', 'rot'], 'icon-size': ['case', ['get', 'sel'], 1.15, 1], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'symbol-sort-key': ['case', ['get', 'sel'], 1, 0] } });
+    // just-added items: "2h ago" chip at the top-right of the pin
+    map.addLayer({ id: 'ages', type: 'symbol', source: 'pins', filter: ['!=', ['get', 'age'], ''],
+      layout: { 'icon-image': ['get', 'age'], 'icon-anchor': 'bottom-left', 'icon-offset': [10, -(SZ + 18)], 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
     if (HOOD_LAYER) addHoods();
     load(); updateHood();
     if (WALKERS) startWalkers();

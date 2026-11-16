@@ -583,3 +583,5 @@ img.uav{background:#ddd}
 .qwrap input:placeholder-shown{padding-right:10px!important;text-overflow:clip}
 /* logged out: the alert pill offers to turn on (after login the search comes back and the alert saves ON) */
 .ac-go{flex-shrink:0;font-style:normal;background:var(--orange);color:#fff;border-radius:999px;padding:4px 11px;font-size:13px;font-weight:800;border:1.5px solid var(--ink)}
+/* just-added age chip on list tiles */
+.ai-im{position:relative}.ai-age{position:absolute;top:4px;right:4px;z-index:2;background:#fff;color:var(--ink);border:1.5px solid var(--ink);border-radius:6px;font-size:10.5px;font-weight:800;padding:1px 5px;white-space:nowrap}
