@@ -158,7 +158,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
           {it.status === 'paused' ? <span class="pill">paused</span> : it.status === 'review' ? <span class="pill">Posted · checking the photo</span> : null}
           {isOwner ? <a class="btn sm" href={'/listings/' + it.id + '/edit'} style="flex-shrink:0;margin-left:8px">✎ Edit</a> : null}
         </div>
-        <div class="hint" style="margin-top:2px">Condition {gr.letter} · {GRADE_WORD[gr.letter]} · {gr.customers ? `owner + ${gr.customers} customer${gr.customers === 1 ? '' : 's'}` : 'set by the owner'}{ir?.n ? ` · 👍 ${ir.up || 0} of ${ir.n}` : ''}</div>
+        {ir?.n ? <div class="hint" style="margin-top:2px">👍 {ir.up || 0} of {ir.n}</div> : null}
         {it.description ? <p style="margin:4px 0 0;font-size:14px;line-height:1.4;color:var(--ink2);white-space:pre-wrap">{it.description}</p> : null}
         {!isOwner && it.status === 'live' ? (it.demo || !u
           ? <a class="askbtn" href={it.demo ? '#' : '/i/' + it.id + '/ask'} onclick={it.demo ? "event.preventDefault();toast('Demo item — messaging is off')" : undefined}>💬 Ask {(owner.name || 'the owner').split(' ')[0]} a question</a>
