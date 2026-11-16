@@ -184,6 +184,7 @@ canvas.story{width:132px;height:auto;aspect-ratio:9/16;border-radius:12px;border
 .q-prog{height:4px;border-radius:2px;background:#ece8df;margin:0 0 14px}.q-prog i{display:block;height:100%;border-radius:2px;background:var(--orange)}
 .q-grades button{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}.q-grades button small{font-size:11px;font-weight:700;margin-top:4px;opacity:.75}
 .q-pbox{flex:1;display:flex;align-items:center;justify-content:center;gap:0;height:58px;border-radius:14px;border:2px solid var(--ink);background:#fff;font-size:24px;font-weight:900}
+.q-pbox .q-in:focus,.q-pbox .q-in:focus-visible{outline:none;box-shadow:none}.q-pbox:focus-within{border-color:var(--orange)}
 .q-pbox .q-in{border:0;height:auto;width:1.7em;padding:0;text-align:center;flex:none}.q-pbox small{font-size:14px;font-weight:700;color:var(--mute)}
 /* posted screen: light + simple */
 .dn2{display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:18px!important}
