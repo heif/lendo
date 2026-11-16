@@ -50,8 +50,8 @@
     var id = 'age_' + lb; if (map.hasImage(id)) return id;
     var cv = document.createElement('canvas'), g = cv.getContext('2d'); g.font = '800 11px "Helvetica Neue",Helvetica,Arial,sans-serif';
     var w = Math.ceil(g.measureText(lb).width) + 14, h = 19; cv.width = w * DPR; cv.height = h * DPR; g = cv.getContext('2d'); g.scale(DPR, DPR);
-    g.beginPath(); g.roundRect ? g.roundRect(0.75, 0.75, w - 1.5, h - 1.5, 6) : g.rect(0.75, 0.75, w - 1.5, h - 1.5); g.fillStyle = '#fff'; g.fill(); g.lineWidth = 1.5; g.strokeStyle = '#1E3A2B'; g.stroke();
-    g.fillStyle = '#1E3A2B'; g.font = '800 11px "Helvetica Neue",Helvetica,Arial,sans-serif'; g.textBaseline = 'middle'; g.textAlign = 'center'; g.fillText(lb, w / 2, h / 2 + 0.5);
+    g.beginPath(); g.roundRect ? g.roundRect(0.75, 0.75, w - 1.5, h - 1.5, 6) : g.rect(0.75, 0.75, w - 1.5, h - 1.5); g.fillStyle = '#1E3A2B'; g.fill(); g.lineWidth = 1.5; g.strokeStyle = '#fff'; g.stroke(); /* ink tab tucked under its own price tag */
+    g.fillStyle = '#fff'; g.font = '800 11px "Helvetica Neue",Helvetica,Arial,sans-serif'; g.textBaseline = 'middle'; g.textAlign = 'center'; g.fillText(lb, w / 2, h / 2 + 0.5);
     map.addImage(id, g.getImageData(0, 0, w * DPR, h * DPR), { pixelRatio: DPR }); return id;
   }
   function aisleOf(it) { var n = (it.name + ' ' + (it.description || '')).toLowerCase(); for (var k = 0; k < AISLES.length; k++) if (AISLES[k][1].test(n)) return AISLES[k][0]; return 'Everything else'; }
@@ -330,7 +330,7 @@
       layout: { 'icon-image': ['get', 'icon'], 'icon-rotate': ['get', 'rot'], 'icon-size': ['case', ['get', 'sel'], 1.15, 1], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'symbol-sort-key': ['case', ['get', 'sel'], 1, 0] } });
     // just-added items: "2h ago" chip hangs right under the pin's own price tag, so it can't be read as a neighbor's
     map.addLayer({ id: 'ages', type: 'symbol', source: 'pins', filter: ['!=', ['get', 'age'], ''],
-      layout: { 'icon-image': ['get', 'age'], 'icon-anchor': 'top', 'icon-offset': [0, -3], 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'symbol-sort-key': ['case', ['get', 'sel'], 1, 0] } });
+      layout: { 'icon-image': ['get', 'age'], 'icon-anchor': 'top', 'icon-offset': [0, -9], 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'symbol-sort-key': ['case', ['get', 'sel'], 1, 0] } });
     if (HOOD_LAYER) addHoods();
     load(); updateHood();
     if (WALKERS) startWalkers();
