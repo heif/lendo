@@ -480,7 +480,7 @@ rentals.get('/inbox', requireUser, async (c) => {
   const paused = (await textStreak(c.env, u.id)) >= STREAK_MAX;
   const fmtT = (t: number) => new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
   return c.html(
-    <Layout title="Inbox" user={u}>
+    <Layout title="Inbox" user={u} headerCenter={<span class="sp"></span>}>
       {paused ? <a class="hint" href={smsHref(c.env, 'OK')} style="text-align:center;color:#b3261e;font-weight:700;margin:10px 12px 0;display:block">📵 Texts to your phone are paused after {STREAK_MAX} with no reply · <u>tap to text OK</u> (typing here doesn’t count)</a> : null}
       <div class="msgs" id="inbox" style="padding:12px 12px 8px">
         {all.length ? all.map(m => (

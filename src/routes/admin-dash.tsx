@@ -161,13 +161,13 @@ export function registerDash(admin: A) {
     const t = Date.now(), d1 = t - DAY, d7 = t - 7 * DAY;
     const PAID = `('confirmed','picked_up','returned','closed')`;
     const [users, users7, live, rs, money7, moneyAll, owed, texts, fails, errs, srch, evs, topQ] = await Promise.all([
-      one<{ n: number }>(c, `SELECT COUNT(*) n FROM users`),
-      one<{ n: number }>(c, `SELECT COUNT(*) n FROM users WHERE created_at > ?`, d7),
+      one<{ n: number }>(c, `SELECT COUNT(*) n FROM users WHERE demo = 0`),
+      one<{ n: number }>(c, `SELECT COUNT(*) n FROM users WHERE demo = 0 AND created_at > ?`, d7),
       one<{ n: number; d: number }>(c, `SELECT SUM(demo = 0) n, SUM(demo = 1) d FROM listings WHERE status = 'live'`),
-      all<{ status: string; n: number }>(c, `SELECT status, COUNT(*) n FROM rentals GROUP BY status`),
-      one<{ gmv: number; fee: number; tax: number; n: number }>(c, `SELECT COALESCE(SUM(total_cents),0) gmv, COALESCE(SUM(fee_cents),0) fee, COALESCE(SUM(tax_cents),0) tax, COUNT(*) n FROM rentals WHERE status IN ${PAID} AND updated_at > ?`, d7),
-      one<{ gmv: number; fee: number; tax: number; credit: number; n: number }>(c, `SELECT COALESCE(SUM(total_cents),0) gmv, COALESCE(SUM(fee_cents),0) fee, COALESCE(SUM(tax_cents),0) tax, COALESCE(SUM(credit_cents),0) credit, COUNT(*) n FROM rentals WHERE status IN ${PAID} OR (status = 'canceled' AND late_cancel = 1)`),
-      one<{ s: number; n: number }>(c, `SELECT COALESCE(SUM(COALESCE(payout_cents, rent_cents)),0) s, COUNT(*) n FROM rentals WHERE paid_out = 0 AND (status IN ('picked_up','returned','closed') OR (status = 'canceled' AND late_cancel = 1)) AND rent_cents > 0`),
+      all<{ status: string; n: number }>(c, `SELECT status, COUNT(*) n FROM rentals WHERE listing_id NOT IN (SELECT id FROM listings WHERE demo = 1) GROUP BY status`),
+      one<{ gmv: number; fee: number; tax: number; n: number }>(c, `SELECT COALESCE(SUM(total_cents),0) gmv, COALESCE(SUM(fee_cents),0) fee, COALESCE(SUM(tax_cents),0) tax, COUNT(*) n FROM rentals WHERE listing_id NOT IN (SELECT id FROM listings WHERE demo = 1) AND status IN ${PAID} AND updated_at > ?`, d7),
+      one<{ gmv: number; fee: number; tax: number; credit: number; n: number }>(c, `SELECT COALESCE(SUM(total_cents),0) gmv, COALESCE(SUM(fee_cents),0) fee, COALESCE(SUM(tax_cents),0) tax, COALESCE(SUM(credit_cents),0) credit, COUNT(*) n FROM rentals WHERE listing_id NOT IN (SELECT id FROM listings WHERE demo = 1) AND (status IN ${PAID} OR (status = 'canceled' AND late_cancel = 1))`),
+      one<{ s: number; n: number }>(c, `SELECT COALESCE(SUM(COALESCE(payout_cents, rent_cents)),0) s, COUNT(*) n FROM rentals WHERE listing_id NOT IN (SELECT id FROM listings WHERE demo = 1) AND paid_out = 0 AND (status IN ('picked_up','returned','closed') OR (status = 'canceled' AND late_cancel = 1)) AND rent_cents > 0`),
       one<{ n: number }>(c, `SELECT COUNT(*) n FROM outbound_texts WHERE created_at > ?`, d1),
       one<{ n: number }>(c, `SELECT COUNT(*) n FROM events WHERE kind = 'text.failed' AND at > ?`, d1),
       one<{ n: number }>(c, `SELECT COUNT(*) n FROM events WHERE kind = 'error' AND at > ?`, d1),
@@ -181,7 +181,7 @@ export function registerDash(admin: A) {
       <h3>People + items</h3>
       <div class="ad-k">
         {K('/admin/users', users?.n ?? 0, `users · +${users7?.n ?? 0} this week`)}
-        {K('/admin/users?sort=items', live?.n ?? 0, `live listings${live?.d ? ` · +${live.d} demo` : ''}`)}
+        {K('/admin/users?sort=items', live?.n ?? 0, 'live listings')}
         {K('/admin/review', (await one<{ n: number }>(c, `SELECT COUNT(*) n FROM listings WHERE status = 'review'`))?.n ?? 0, 'photos to check', !!(await one<{ n: number }>(c, `SELECT COUNT(*) n FROM listings WHERE status = 'review'`))?.n)}
         {K('/admin/searches', srch?.n ?? 0, `searches this week · ${srch?.z ?? 0} found nothing`)}
       </div>
@@ -258,7 +258,7 @@ export function registerDash(admin: A) {
 
   // ---------- Rentals ----------
   admin.get('/admin/rentals', async (c) => {
-    const q = c.req.query(), w: string[] = [], b: unknown[] = [];
+    const q = c.req.query(), w: string[] = ['l.demo = 0'], b: unknown[] = [];
     if (q.status) { w.push('r.status = ?'); b.push(q.status); }
     if (q.owed) w.push(`r.paid_out = 0 AND r.rent_cents > 0 AND (r.status IN ('picked_up','returned','closed') OR (r.status = 'canceled' AND r.late_cancel = 1))`);
     const rows = await all<any>(c, `SELECT r.*, l.name item, o.name oname, n.name cname FROM rentals r JOIN listings l ON l.id = r.listing_id LEFT JOIN users o ON o.id = r.owner_id LEFT JOIN users n ON n.id = r.renter_id ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY r.updated_at DESC LIMIT 300`, ...b);

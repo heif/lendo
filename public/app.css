@@ -1,7 +1,7 @@
 [hidden]{display:none!important}
 :root{--cream:#F5F3EE;--paper:#FFFFFF;--ink:#1E3A2B;--ink2:#4A463F;--mute:#8A857B;--line:#DCD7CC;--line2:#E6E2D9;--orange:#FF4F00;--red:#E5484D;--green:#1E6B35;--mint:#E3F1E4}
 *{box-sizing:border-box}
-html,body{margin:0;overflow-x:hidden;overscroll-behavior-x:none}
+html,body{margin:0;overflow-x:hidden;overflow-x:clip;overscroll-behavior-x:none} /* clip, not hidden: hidden breaks the sticky header */
 body{background:var(--cream);color:var(--ink);font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.35;-webkit-font-smoothing:antialiased}
 a{color:var(--ink)}
 input,textarea,select{font-size:16px!important;font-family:inherit;color:var(--ink)}
