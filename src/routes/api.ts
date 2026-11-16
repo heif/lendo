@@ -153,7 +153,11 @@ api.get('/api/places', async (c) => {
   const icons = await iconsDone(c.env);
   const cities = CITIES.map(ct => {
     const inCity = pts.filter(p => p.lng >= ct.bbox[0] && p.lng <= ct.bbox[2] && p.lat >= ct.bbox[1] && p.lat <= ct.bbox[3]);
-    const hoods = ct.hoods.map(h => ({ ...h, n: inCity.filter(p => Math.hypot((p.lat - h.lat) * 111, (p.lng - h.lng) * 111 * Math.cos(h.lat * Math.PI / 180)) < 0.9).length }));
+    /* each item counts once, in its nearest hood (within 2 km). The old 0.9 km circles overlapped, so one item could count in 2–3 hoods */
+    const km = (p: { lat: number; lng: number }, h: { lat: number; lng: number }) => Math.hypot((p.lat - h.lat) * 111, (p.lng - h.lng) * 111 * Math.cos(h.lat * Math.PI / 180));
+    const per = new Array(ct.hoods.length).fill(0);
+    for (const p of inCity) { let bi = -1, bd = 2; ct.hoods.forEach((h, i) => { const d = km(p, h); if (d < bd) { bd = d; bi = i; } }); if (bi >= 0) per[bi]++; }
+    const hoods = ct.hoods.map((h, i) => ({ ...h, n: per[i] }));
     return { id: ct.id, name: ct.name, short: short(ct.name), lat: ct.lat, lng: ct.lng, zoom: ct.zoom, n: inCity.length, live: inCity.length > 0, hoods };
   });
   const res = new Response(JSON.stringify({ cities, total: pts.length, wanted: WANTED_ALL.filter(w => !off.has(w.key)).map(w => ({ ...w, icon: icons.has(w.key) ? `/p/wanted/${w.key}.png` : null })) }), { headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=120' } });
