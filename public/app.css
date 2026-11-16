@@ -21,7 +21,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .hdr h1{margin:0;min-width:0;flex:0 1 auto;font-size:16px;font-weight:900;letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hdr .sp{flex:1 1 0}
 .acct{position:relative;flex-shrink:0;display:flex}
-.hchat{position:relative;flex-shrink:0;width:36px;height:36px;display:grid;place-items:center;border-radius:50%;text-decoration:none}.hchat:active{background:rgba(30,58,43,.08)}.hchat .badge{position:absolute;top:-3px;right:-4px;min-width:17px;height:17px;padding:0 3px;border-radius:9px;background:var(--red);border:2px solid var(--cream);color:#fff;font-size:10px;font-weight:900;line-height:13px;text-align:center}
+.hchat{position:relative;flex-shrink:0;width:36px;height:36px;display:grid;place-items:center;border-radius:50%;text-decoration:none;background:#fff;border:1.5px solid #d8d3c8}.hchat:active{background:rgba(30,58,43,.08)}.hchat .badge{position:absolute;top:-3px;right:-4px;min-width:17px;height:17px;padding:0 3px;border-radius:9px;background:var(--red);border:2px solid var(--cream);color:#fff;font-size:10px;font-weight:900;line-height:13px;text-align:center}
 .acct>summary{list-style:none;position:relative;width:36px;height:36px;margin:0 2px 0 4px;border:2px solid var(--ink);border-bottom-width:4px;border-radius:18px;color:#fff;background:linear-gradient(#FFFDF8,#EFEBE2);box-shadow:0 2px 5px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;font-weight:900}
 .acct>summary::-webkit-details-marker{display:none}
 .acct.in>summary{background:linear-gradient(#2E5340,#1E3A2B)}
