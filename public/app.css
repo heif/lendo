@@ -611,3 +611,5 @@ img.uav{background:#ddd}
 .pcard-more .ps-th{flex:0 0 46px;width:46px;height:46px;margin-left:4px;padding:0;border:0;background:none;cursor:pointer}
 .pcard-more .ps-th img{width:100%;height:100%;object-fit:contain}
 @media (max-width:420px){.scope-hood.crumb .cr-city{display:none}.scope-hood.crumb{max-width:200px;gap:5px;padding-left:12px!important}}
+
+.citytip{white-space:normal!important;width:max-content;max-width:calc(100vw - 32px);text-align:center}
