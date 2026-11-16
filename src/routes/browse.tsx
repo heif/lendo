@@ -464,37 +464,38 @@ browse.post('/profile/edit', async (c) => {
 // ---------- How it works (was /about, "Why Lendo") ----------
 browse.get('/about', (c) => c.redirect('/how-it-works', 301));
 browse.get('/how-it-works', (c) => {
+  // TEMP placeholder copy (flywheel kept). Real copy: commit d47e814
   const u = c.get('user');
   const H2 = 'font-size:26px;font-weight:900;letter-spacing:-.02em;margin:0 0 10px';
   const STEPS: [string, string][] = [
-    ['List', `Snap a photo, set a price per day (from $${parseInt(c.env.MIN_PRICE_CENTS || '800', 10) / 100}). It's on the map`],
-    ['Rent', 'Customers find it on the map, pick days, and their card is held'],
-    ['YES', 'The owner gets a text and replies YES. The card is charged. NO, or no reply, releases the hold'],
-    ['Pickup + return', 'Meet nearby. Photos at pickup and at return'],
-    ['Rate', 'Owner and customer rate each other. Ratings build trust across the neighborhood'],
+    ['Zuvi', 'Tife ranezu so raplemo, ne grine ke romira ($8). Pa sopa za kenemi'],
+    ['Pleta', 'Midudu soquata nonene talo, neraba paromi, ta zuvi tiba fe tane'],
+    ['ZUM', 'Gri soquami tilo quarosen ZUM. Ta feramo mo. ZE, bo tizulu, quabo mo zalu'],
+    ['Tiro + soqua', 'Lo boplepa nelovi. Sozaso zu pleduro qua ke bake'],
+    ['Bano', 'Soba bo tavi lo sonoba sone. Ranosen fefefe quara bo tizulu mo ta du'],
   ];
   return c.html(
     <Layout title="How it works" user={u}>
       <section class="sec" style="border-bottom:0;font-size:15px;line-height:1.5">
-        <h2 style={H2}>How it works</h2>
+        <h2 style={H2}>Zu mi zusen</h2>
         <ol style="margin:0;padding-left:20px">
           {STEPS.map(([k, t]) => <li style="margin:0 0 8px"><b>{k}</b> · {t}</li>)}
         </ol>
-        <p><b>{c.env.FEE_PCT}% fee, paid by the owner out of the rent (will stay low)</b></p>
+        <p><b>15% zaqua, palo senso no zaqua ta mo tiba (fe tane no)</b></p>
         <a class="btn pri full" href="/list" style="margin-top:4px">Rent out your stuff</a>
       </section>
       <section class="sec" style="border-bottom:0;font-size:15px;line-height:1.5;padding-top:0">
-        <h2 style={H2}>Why</h2>
-        <p>{TICKER.map(t => t.charAt(0) + t.slice(1).toLowerCase()).join(' · ')}</p>
+        <h2 style={H2}>Quo</h2>
+        <p>Tavi zemi · Soba zemi · Soba plato · Nelo ranosen · Gri lessa · Pleta lessa</p>
       </section>
       <figure class="flywheel" id="flywheel">
         <img src="/flywheel.svg" width="532" height="418" alt="The Lendo flywheel: more items listed, more convenient, more rentals, then more money saved and earned, more ratings and trust, more fun, and more neighbors met, which bring more people to try, which brings more items listed. At the center: more local connection and affordability." />
       </figure>
       <section class="sec" style="border-bottom:0;font-size:15px;line-height:1.5;padding-top:0">
-        <h2 style={H2}>History</h2>
-        <p>Before Lendo there was a rental counter: Heiferman's Paint &amp; Rental Center and AAA U-Rent-It, the Heiferman family business</p>
-        <p>Painted on the sign: “We rent most everything”</p>
-        <p>Lendo is that counter, spread across the neighborhood. Every owner's shelf is part of it</p>
+        <h2 style={H2}>Rasenpa</h2>
+        <p>Tiro soqua talu ta tata neti ba bavi: Loza's Bomople &amp; Zadu Kenemi and ZZZ Ta-Rasen-Zu, mo grine keti za ke kebota</p>
+        <p>Zavipa no sopa: “Ke ranezu tilo quarosen”</p>
+        <p>Lendo soquata za neti, quara bo tizulu fe tane. Nelovi sozaso zu pleduro qua ke</p>
       </section>
     </Layout>
   );
