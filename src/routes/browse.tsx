@@ -98,7 +98,7 @@ export const homePage = async (c: Ctx, opt: { center?: number[]; zoom?: number; 
             </span>
           </a>
           {/* owner in the middle, their other things circling (like the profile page) */}
-          <div class="pcard-orb" id="shOrb"><a class="pco-av" id="shOwnLink" href="#"><span id="shOwnAv"></span></a><div class="pco-ring" id="shRing"></div></div>
+          <span class="oorb pcard-orb" id="shOrb" aria-hidden="true"><span class="oorb-av" id="shOwnAv"></span><span class="oorb-ring" id="shRing"></span></span>
           <a class="pcard-rent" id="shRent" href="#" aria-label="Rent it"><img src="/rent-it.webp" alt="Rent it" width="150" height="70" /></a>
           {!u ? <form class="promo incard" data-promo autocomplete="on" aria-label="Get $5 off this rental" hidden>
             <label class="sr">Phone number</label>
@@ -115,6 +115,16 @@ export const homePage = async (c: Ctx, opt: { center?: number[]; zoom?: number; 
 };
 browse.get('/', (c) => homePage(c));
 
+/* owner photo with their things hugging it, slowly circling (item card, item page) */
+const OwnerOrbit = (p: { name: string | null; photo?: string | null; items: { src: string; cut: boolean }[] }) => {
+  const orb = p.items.slice(0, 6), R = 27;
+  return <span class="oorb">
+    <span class="oorb-av"><Avatar name={p.name} photo={p.photo} size={50} /></span>
+    <span class="oorb-ring">{orb.map((x, i) => { const a = (-90 + i * (360 / Math.max(orb.length, 5))) * Math.PI / 180;
+      return <span class="oorb-sat" style={`left:${(42 + Math.cos(a) * R - 13).toFixed(1)}px;top:${(42 + Math.sin(a) * R - 13).toFixed(1)}px`}><span><img src={x.src} alt="" class={x.cut ? '' : 'ph'} /></span></span>; })}</span>
+  </span>;
+};
+
 // ---------- Item ----------
 export const itemPage = async (c: Ctx, lid: string, pretty = false) => {
   (c as any).set('viewListing', lid); /* page-view log: this is an item page */
@@ -130,6 +140,8 @@ export const itemPage = async (c: Ctx, lid: string, pretty = false) => {
   const credit = u && (u.promo_cents || 0) > 0 && !((await c.env.DB.prepare(`SELECT COUNT(*) n FROM rentals WHERE renter_id = ? AND credit_cents > 0 AND status IN ('held','confirmed','picked_up','returned','closed')`).bind(u.id).first<{ n: number }>())?.n) ? u.promo_cents : 0;
   const days = Array.from({ length: 14 }, (_, i) => addDays(today, i));
   const isOwner = u?.id === it.owner_id;
+  const others = (await c.env.DB.prepare(`SELECT * FROM listings WHERE owner_id = ? AND id != ? AND status = 'live' ORDER BY created_at DESC LIMIT 6`).bind(it.owner_id, it.id).all<Listing>()).results;
+  const oph = await firstPhotos(c.env.DB, others.filter(o => !o.avatar_key).map(o => o.id));
   const review = await c.env.DB.prepare(`SELECT r.renter_review rv, u.name nm FROM rentals r JOIN users u ON u.id = r.renter_id WHERE r.owner_id = ? AND r.renter_review IS NOT NULL ORDER BY r.updated_at DESC LIMIT 1`).bind(owner.id).first<{ rv: string; nm: string }>();
   const saved = u ? !!(await c.env.DB.prepare('SELECT 1 FROM saved WHERE user_id = ? AND listing_id = ?').bind(u.id, it.id).first()) : false;
   const gr = await shownGrade(c.env, it.id, it.grade);
@@ -169,8 +181,8 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
                 <textarea name="body" rows={1} maxlength={500} placeholder="Is it free Saturday?" required oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
                 <button type="submit" aria-label="Send">↑</button>
               </form></details>) : null}
-        <div class="row" style="gap:8px;align-items:center"><a href={'/u/' + owner.id} class="owner-row owner-tight" style="flex:1;min-width:0">
-          <Avatar name={owner.name} photo={owner.photo_key} size={32} />
+        <div class="row" style="gap:8px;align-items:center"><a href={'/u/' + owner.id} class="owner-row owner-tight owner-orb" style="flex:1;min-width:0">
+          <OwnerOrbit name={owner.name} photo={owner.photo_key} items={others.map(o => ({ src: '/p/' + (o.avatar_key || oph[o.id]), cut: !!o.avatar_key })).filter(x => !x.src.endsWith('undefined'))} />
           <span class="owner-txt"><b>{shortName(owner.name)}</b><small>{rep.as_owner_avg ? `${starStr(rep.as_owner_avg)} · ${rep.rentals} rentals` : 'new'} · {rep.listed} listed{owner.hood ? ' · ' + owner.hood : ''}</small></span>
           <svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2L8 8L2 14" fill="none" stroke="#1E3A2B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
         </a></div>

@@ -615,17 +615,22 @@ img.uav{background:#ddd}
 .citytip{white-space:normal!important;width:max-content;max-width:calc(100vw - 32px);text-align:center}
 
 /* item card: no header strips; owner orbit on the right; RENT IT sign CTA (prototype) */
-.pcard-orb{position:absolute;right:12px;top:10px;width:88px;height:88px}
-.pco-av{position:absolute;left:24px;top:24px;width:40px;height:40px;border-radius:20px;overflow:hidden;background:var(--ink);border:2px solid #fff;box-shadow:0 0 0 1.5px var(--ink);display:grid;place-items:center;text-decoration:none;z-index:1}
-.pco-av img{width:100%;height:100%;object-fit:cover}.pco-av b{color:#fff;font-size:17px;font-weight:900}
-.pcard-orb.solo .pco-av{left:18px;top:18px;width:52px;height:52px;border-radius:26px}
-.pco-ring{position:absolute;inset:0;animation:pfspin 40s linear infinite;z-index:2}
-.pco-sat{position:absolute;width:28px;height:28px;padding:0;border:0;background:none;cursor:pointer}
-.pco-sat>span{display:block;width:100%;height:100%;animation:pfspin 40s linear infinite reverse}
-.pco-sat img{width:28px;height:28px;object-fit:contain;filter:drop-shadow(1px 0 0 #fff) drop-shadow(-1px 0 0 #fff) drop-shadow(0 1px 0 #fff) drop-shadow(0 -1px 0 #fff) drop-shadow(0 1px 2px rgba(30,58,43,.35))}
-.pco-sat img.ph{width:24px;height:24px;margin:2px;border-radius:12px;object-fit:cover;border:1.5px solid #fff}
+.pcard-orb{position:absolute!important;right:10px;top:8px}
 .pcard-rent{position:absolute;right:6px;top:104px;display:block;line-height:0;transition:transform .12s}
 .pcard-rent img{width:96px;height:auto;filter:drop-shadow(0 3px 4px rgba(0,0,0,.25))}
 .pcard-rent:active{transform:scale(.94) rotate(-2deg)}
 .pcard-body{min-height:146px;margin-right:96px}
-@media (prefers-reduced-motion:reduce){.pco-ring,.pco-sat>span{animation:none}}
+
+
+/* owner orbit (card + item page): photo 50px, things 26px hugging its edge */
+.oorb{position:relative;display:block;flex:none;width:84px;height:84px}
+.oorb-av{position:absolute;left:17px;top:17px;width:50px;height:50px;border-radius:25px;overflow:hidden;display:grid;place-items:center;background:var(--ink);z-index:1}
+.oorb-av img,.oorb-av>*{width:50px!important;height:50px!important;border-radius:25px;object-fit:cover}.oorb-av b{color:#fff;font-size:20px;font-weight:900;display:grid;place-items:center}
+.oorb-ring{position:absolute;inset:0;animation:pfspin 40s linear infinite;z-index:2;pointer-events:none}
+.oorb-sat{position:absolute;width:26px;height:26px}
+.oorb-sat>span{display:block;width:100%;height:100%;animation:pfspin 40s linear infinite reverse}
+.oorb-sat img{width:26px;height:26px;object-fit:contain;filter:drop-shadow(1px 0 0 #fff) drop-shadow(-1px 0 0 #fff) drop-shadow(0 1px 0 #fff) drop-shadow(0 -1px 0 #fff) drop-shadow(0 1px 2px rgba(30,58,43,.35))}
+.oorb-sat img.ph{width:22px;height:22px;margin:2px;border-radius:11px;object-fit:cover;border:1.5px solid #fff}
+.pcard{cursor:pointer}
+.owner-orb{gap:10px!important;padding:2px 0}
+@media (prefers-reduced-motion:reduce){.oorb-ring,.oorb-sat>span{animation:none}}
