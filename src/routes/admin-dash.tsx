@@ -71,8 +71,8 @@ export function registerDash(admin: A) {
   admin.get('/admin/texting', async (c) => {
     const u = c.get('user')!;
     const [me, nums, hooks] = await Promise.all([bloo(c, '/me'), bloo(c, '/me/numbers'), bloo(c, '/webhooks')]);
-    const hookList: any[] = Array.isArray(hooks.j) ? hooks.j : hooks.j?.webhooks || hooks.j?.data || [];
-    const ours = hookList.filter(h => String(h.url || h.webhook_url || '').includes(new URL(c.env.APP_URL).host));
+    const hookList: any[] = Array.isArray(hooks.j) ? hooks.j : hooks.j?.webhooks || hooks.j?.data || hooks.j?.items || hooks.j?.results || [];
+    const ours = hookList.filter(h => JSON.stringify(h).includes(new URL(c.env.APP_URL).host));
     const logs = ours[0] ? await bloo(c, `/webhooks/${ours[0].id || ours[0].webhook_id}/logs`) : null;
     const logList: any[] = logs ? (Array.isArray(logs.j) ? logs.j : logs.j?.logs || logs.j?.data || []) : [];
     const t = c.req.query('t');
@@ -91,11 +91,11 @@ export function registerDash(admin: A) {
     return c.html(<Shell c={c} title="Texting check" path="/admin/texting">
       <h3>1 · Blooio account</h3>
       <p>{ok(me.ok)} API key works {me.ok ? '' : `· ${me.status}`} · {ok(nums.ok)} numbers</p>
-      {pre({ me: me.j, numbers: nums.j })}
+      {pre({ me: { ...(me.j || {}), api_key: undefined }, numbers: nums.j })}
       <h3>2 · Webhook (replies + delivery receipts)</h3>
       <p>{ok(ours.length > 0)} webhook pointing at {new URL(c.env.APP_URL).host} · {ok(!!c.env.BLOOIO_WEBHOOK_SECRET)} signing secret set</p>
       {ours.map(h => <p class="hint">{h.url || h.webhook_url} · events: {JSON.stringify(evs(h))}</p>)}
-      {hooks.ok ? null : pre(hooks.j)}
+      {hooks.ok && ours.length ? null : pre(hooks.j)}
       {logList.length ? <><p class="hint">Last deliveries to Lendo:</p>{pre(logList.slice(0, 8).map((l: any) => ({ at: l.created_at || l.timestamp, event: l.event || l.event_type, status: l.status_code || l.response_status || l.status, err: l.error })))}</> : null}
       <h3>3 · Send yourself a test</h3>
       <form method="post" action="/admin/texting/send" class="ad-f"><button class="btn pri sm" type="submit">Text me a test ({u.phone})</button><span class="hint">then reply OK from your phone and reload this page</span></form>
