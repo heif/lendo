@@ -208,8 +208,8 @@
     $('shNm').innerHTML = ''; var o1 = document.createElement('span'); o1.style.fontWeight = '500'; o1.style.display = 'block'; o1.style.fontSize = '.72em'; o1.textContent = own + (/s$/i.test(own) ? '’' : '’s'); $('shNm').appendChild(o1); $('shNm').appendChild(document.createTextNode(it.name.charAt(0).toUpperCase() + it.name.slice(1))); // "Scott’s Projector": item names keep their capital
     $('shOwner').innerHTML = '<span class="av">' + esc(own.charAt(0)) + '</span>' + esc(own) + (it.owner_rating ? ' <span class="pill stars">' + '★★★★★'.slice(0, wholeStars(it.owner_rating)) + '</span>' : ' <span class="pill new">new</span>') + (it.rentals ? ' <span class="n">' + it.rentals + ' rental' + (it.rentals === 1 ? '' : 's') + '</span>' : '');
     var more = Object.keys(known).map(function (k) { return known[k]; }).filter(function (x) { return x.owner_id === it.owner_id && x.id !== it.id; }).slice(0, 5), st = $('shStrip');
-    if (!more.length) st.textContent = 'FOR RENT';
-    else { st.innerHTML = '<span class="ps-l">For rent from ' + esc(own) + '</span>';
+    st.innerHTML = ''; st.hidden = !more.length;
+    if (more.length) { st.innerHTML = '<span class="ps-l">Also for rent from ' + esc(own) + '</span>';
       more.forEach(function (x) { var b = document.createElement('button'); b.type = 'button'; b.className = 'ps-th'; b.title = x.name; b.setAttribute('aria-label', x.name);
         var k = x.avatar_key || x.photo; if (k) { var i = document.createElement('img'); i.src = '/p/' + k; i.alt = ''; b.appendChild(i); }
         b.onclick = function (e) { e.preventDefault(); sel = x.id; refresh(); fillCard(x); }; st.appendChild(b); }); }

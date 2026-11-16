@@ -605,8 +605,9 @@ img.uav{background:#ddd}
 @keyframes lfc3{0%,86%{opacity:0;transform:translate(0,0) scale(.5)}89%{opacity:1;transform:translate(10px,22px) scale(1.1) rotate(10deg)}95%{opacity:.85;transform:translate(18px,40px) scale(1) rotate(25deg)}100%{opacity:0;transform:translate(22px,58px) scale(.85) rotate(38deg)}}
 @media (prefers-reduced-motion:reduce){.rent-out .ro-c,.rent-out .ro-w{animation:none;display:none}}
 
-.pcard-strip .ps-l{font-size:11px;letter-spacing:.6px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-right:8px}
-.pcard-strip:has(.ps-th){height:auto;min-height:32px;padding-top:4px;padding-bottom:4px}
-.pcard-strip .ps-th{flex:0 0 46px;width:46px;height:46px;margin-left:4px;padding:0;border:0;background:none;cursor:pointer}
-.pcard-strip .ps-th img{width:100%;height:100%;object-fit:contain}
+.pcard-more{display:flex;align-items:center;margin:-12px -12px 10px;padding:4px 14px;background:#fff;color:var(--ink);border-bottom:1px solid #E6E2D8}
+.pcard-more[hidden]{display:none}
+.pcard-more .ps-l{font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-right:8px}
+.pcard-more .ps-th{flex:0 0 46px;width:46px;height:46px;margin-left:4px;padding:0;border:0;background:none;cursor:pointer}
+.pcard-more .ps-th img{width:100%;height:100%;object-fit:contain}
 @media (max-width:420px){.scope-hood.crumb .cr-city{display:none}.scope-hood.crumb{max-width:200px;gap:5px;padding-left:12px!important}}
