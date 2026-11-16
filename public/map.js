@@ -666,24 +666,41 @@
     var walkers = [], moving = false, hidden = document.hidden;
     map.on('movestart', function () { moving = true; }); map.on('moveend', function () { moving = false; });
     document.addEventListener('visibilitychange', function () { hidden = document.hidden; });
+    /* streets on screen: road lines from the rendered map (streets, paths, avenues — no highways) */
+    function streetPath() {
+      var fs; try { fs = map.queryRenderedFeatures().filter(function (f) { return f.sourceLayer === 'road' && f.geometry && /LineString/.test(f.geometry.type) && !/motorway|trunk|rail|ferry|service_rail|major_rail|minor_rail|aerialway|link/.test((f.properties && f.properties.class) || ''); }); } catch (e) { return null; }
+      if (!fs.length) return null;
+      for (var tries = 0; tries < 8; tries++) {
+        var f = fs[Math.floor(Math.random() * fs.length)], g = f.geometry, lines = g.type === 'MultiLineString' ? g.coordinates : [g.coordinates];
+        var cs = lines[Math.floor(Math.random() * lines.length)]; if (!cs || cs.length < 2) continue;
+        /* a run of 2+ consecutive points, ~60–160 px long on screen */
+        var k = Math.floor(Math.random() * (cs.length - 1)), path = [cs[k]], px = 0, want = 60 + Math.random() * 100;
+        for (var m = k + 1; m < cs.length && px < want; m++) { var p0 = map.project(cs[m - 1]), p1 = map.project(cs[m]); px += Math.hypot(p1.x - p0.x, p1.y - p0.y); path.push(cs[m]); }
+        if (px < 40) continue;
+        var mid = path[Math.floor(path.length / 2)], b = map.getBounds();
+        if (!b.contains(path[0]) || !b.contains(path[path.length - 1])) continue;
+        if (nearPin(mid[0], mid[1], 10) || nearPin(path[0][0], path[0][1], 10)) continue;
+        return path;
+      }
+      return null;
+    }
     function spawn() {
-      // anywhere in the visible map (not tied to items), away from pins
-      var b = map.getBounds(), w = b.getEast() - b.getWest(), h = b.getNorth() - b.getSouth();
-      var base = { lng: b.getWest() + w * (0.05 + Math.random() * 0.9), lat: b.getSouth() + h * (0.05 + Math.random() * 0.9) };
-      if (nearPin(base.lng, base.lat, 30)) return;
+      var path = streetPath(); if (!path) return;
       var n = Math.random() < 0.55 ? 1 : Math.random() < 0.75 ? 2 : 3, wpx = 12 + (n - 1) * 9;
-      var el = document.createElement('div'); el.className = 'walker'; el.style.width = wpx + 'px';
+      var el = document.createElement('div'); el.className = 'walker'; el.style.width = wpx + 'px'; el.style.opacity = '0';
       var inner = '';
       for (var k = 0; k < n; k++) inner += person(k * 9, 0.7 + Math.random() * 0.2, -Math.random());
       el.innerHTML = '<div class="wf"><svg width="' + wpx + '" height="19" viewBox="0 0 ' + wpx + ' 19" style="overflow:visible">' + inner + '</svg></div>';
-      // straight path, mostly along the street grid (Manhattan ≈ 29° off north)
-      var ang = (Math.random() < 0.5 ? 29 : 119) * Math.PI / 180 + (Math.random() - 0.5) * 0.2, len = 0.0008 + Math.random() * 0.0012;
-      var a = [base.lng, base.lat], bb = [a[0] + Math.sin(ang) * len, a[1] + Math.cos(ang) * len * 0.76];
-      var b2 = bb; a = a; var bnd = b2;
-      if (onWater(a[0], a[1]) || onWater(bnd[0], bnd[1]) || onWater((a[0] + bnd[0]) / 2, (a[1] + bnd[1]) / 2)) return;
-      var wlk = { el: el, face: el.firstChild, a: a, b: bnd, t: Math.random(), dir: 1, speed: 0.000045 + Math.random() * 0.00002, m: new mapboxgl.Marker({ element: el, anchor: 'bottom' }).setLngLat(a).addTo(map), born: Date.now(), life: 40000 + Math.random() * 50000 };
-      wlk.face.style.transform = 'scaleX(' + (bnd[0] >= a[0] ? 1 : -1) + ')';
-      walkers.push(wlk);
+      /* cumulative lengths (degrees, lng scaled by latitude) so speed is even along the street */
+      var cl = Math.cos(path[0][1] * Math.PI / 180), acc = [0];
+      for (var q = 1; q < path.length; q++) acc.push(acc[q - 1] + Math.hypot((path[q][0] - path[q - 1][0]) * cl, path[q][1] - path[q - 1][1]));
+      var wlk = { el: el, face: el.firstChild, path: path, acc: acc, L: acc[acc.length - 1] || 1e-9, t: Math.random(), dir: Math.random() < 0.5 ? 1 : -1, speed: 0.000035 + Math.random() * 0.000015, m: new mapboxgl.Marker({ element: el, anchor: 'bottom' }).setLngLat(path[0]).addTo(map), born: Date.now(), life: 45000 + Math.random() * 45000 };
+      walkers.push(wlk); requestAnimationFrame(function () { el.style.opacity = ''; });
+    }
+    function along(w) {
+      var d = w.t * w.L, a = w.acc, i = 1; while (i < a.length - 1 && a[i] < d) i++;
+      var p0 = w.path[i - 1], p1 = w.path[i], f = (d - a[i - 1]) / ((a[i] - a[i - 1]) || 1e-9);
+      return { ll: [p0[0] + (p1[0] - p0[0]) * f, p0[1] + (p1[1] - p0[1]) * f], east: (p1[0] - p0[0]) * w.dir >= 0 };
     }
     var last = performance.now();
     function tick(now) {
@@ -692,14 +709,10 @@
         var z = map.getZoom(), hide = z < 13.5;
         map.getContainer().classList.toggle('walkers-hidden', hide);
         if (!hide) walkers.forEach(function (w) {
-          var L = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]) || 1e-9;
-          w.t += w.dir * (w.speed * dt / 1000) / L;
-          if (w.t >= 1) { w.t = 1; w.dir = -1; w.face.style.transform = 'scaleX(' + (w.b[0] >= w.a[0] ? -1 : 1) + ')'; }
-          if (w.t <= 0) { w.t = 0; w.dir = 1; w.face.style.transform = 'scaleX(' + (w.b[0] >= w.a[0] ? 1 : -1) + ')'; }
-          var cur = [w.a[0] + (w.b[0] - w.a[0]) * w.t, w.a[1] + (w.b[1] - w.a[1]) * w.t];
-          w.m.setLngLat(cur);
-          w.el.style.opacity = nearPin(cur[0], cur[1], 0) ? '0' : '';
-          if (Date.now() - w.born > w.life) w.done = true;
+          w.t += w.dir * (w.speed * dt / 1000) / w.L;
+          if (w.t >= 1) { w.t = 1; w.dir = -1; } if (w.t <= 0) { w.t = 0; w.dir = 1; }
+          var at = along(w); w.m.setLngLat(at.ll); w.face.style.transform = 'scaleX(' + (at.east ? 1 : -1) + ')';
+          if (!w.fading && Date.now() - w.born > w.life) { w.fading = true; w.el.style.transition = 'opacity 1.2s'; w.el.style.opacity = '0'; setTimeout(function (x) { x.done = true; }, 1300, w); }
         });
         walkers = walkers.filter(function (w) { if (w.done) w.m.remove(); return !w.done; });
         var want = Math.min(MAX_WALKERS, 6 + Math.round(SHOW.length * 0.5));
