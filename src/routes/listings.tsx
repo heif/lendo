@@ -83,8 +83,9 @@ listings.get('/list', async (c) => {
           <div id="tray" class="dn2-tray"></div>
           {/* three big choices */}
           <div class="dn3">
-            <button type="button" class="dn3-b hot" id="stShare"><span class="ic">📤</span>Share</button>
-            <button type="button" class="dn3-b" id="again"><span class="ic">＋</span>List something else</button>
+            <button type="button" class="dn3-b hot" id="stShare"><svg class="ic" width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h1a2 2 0 0 0 2-2a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2" /><circle cx="12" cy="13" r="3" /></svg>Post</button>
+            <button type="button" class="dn3-b hot" id="stSend"><svg class="ic" width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20l1.3-3.9C1.976 12.66 2.874 8.202 6.4 5.7c3.526-2.501 8.59-2.296 11.845.48c3.255 2.777 3.695 7.266 1.029 10.501C16.608 19.917 11.659 20.989 7.7 19z" /></svg>Send</button>
+            <button type="button" class="dn3-b" id="again"><svg class="ic" width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14" /></svg>List another</button>
           </div>
           <a class="dn3-map" href="/">See it on the map</a>
           <div id="shBtns" hidden></div>

@@ -215,8 +215,8 @@ canvas.story{width:132px;height:auto;aspect-ratio:9/16;border-radius:12px;border
 /* posted: big "Posted", two big choices, map as a small link */
 .dn2-ok{font-size:34px;font-weight:900;letter-spacing:-.02em;gap:12px}
 .dn2-tick{width:40px;height:40px;font-size:22px}
-.dn3{grid-template-columns:1fr 1fr}
-#again .ic{font-size:40px;font-weight:900;color:var(--ink)}
+.dn3{grid-template-columns:1fr 1fr 1fr}
+#again .ic{color:var(--ink)}
 .dn3-map{margin:26px 0 8px;font-size:15px;font-weight:700;color:var(--mute);text-decoration:underline}
 /* posted: price as the orange tag (like the item page), whole item taps through */
 a.dn2-tray{text-decoration:none;color:var(--ink)}

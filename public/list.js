@@ -204,6 +204,9 @@
       if (navigator.canShare && navigator.canShare({ files: [f] })) navigator.share({ files: [f], text: SHARE.text, url: SHARE.url }).catch(function () {});
       else if (navigator.share) navigator.share({ text: SHARE.text, url: SHARE.url }).catch(function () {});
       else { try { navigator.clipboard.writeText(SHARE.text + ' ' + SHARE.url); } catch (e) {} $('shToast').style.display = ''; $('shToast').textContent = 'Link copied'; $('shToast').classList.add('on'); setTimeout(function () { $('shToast').classList.remove('on'); }, 2000); } }); };
+    $('stSend').onclick = function () { /* text + link only (iMessage etc.); desktop: copy */
+      if (navigator.share) navigator.share({ text: SHARE.text, url: SHARE.url }).catch(function () {});
+      else { try { navigator.clipboard.writeText(SHARE.text + ' ' + SHARE.url); } catch (e) {} $('shToast').style.display = ''; $('shToast').textContent = 'Link copied'; $('shToast').classList.add('on'); setTimeout(function () { $('shToast').classList.remove('on'); }, 2000); } };
     $('stSave').onclick = function () { blob(dl); };
     function dl(b) { var a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'lendo-story.png'; document.body.appendChild(a); a.click(); a.remove(); }
   }
