@@ -330,7 +330,7 @@
       layout: { 'icon-image': ['get', 'icon'], 'icon-rotate': ['get', 'rot'], 'icon-size': ['case', ['get', 'sel'], 1.15, 1], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'symbol-sort-key': ['case', ['get', 'sel'], 1, 0] } });
     // just-added items: "2h ago" chip hangs right under the pin's own price tag, so it can't be read as a neighbor's
     map.addLayer({ id: 'ages', type: 'symbol', source: 'pins', filter: ['!=', ['get', 'age'], ''],
-      layout: { 'icon-image': ['get', 'age'], 'icon-anchor': 'top', 'icon-offset': [0, -9], 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'symbol-sort-key': ['case', ['get', 'sel'], 1, 0] } });
+      layout: { 'icon-image': ['get', 'age'], 'icon-anchor': 'top', 'icon-offset': [0, -19], 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'symbol-sort-key': ['case', ['get', 'sel'], 1, 0] } });
     if (HOOD_LAYER) addHoods();
     load(); updateHood();
     if (WALKERS) startWalkers();
