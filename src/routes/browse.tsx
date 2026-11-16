@@ -55,7 +55,7 @@ export const homePage = async (c: Ctx, opt: { center?: number[]; zoom?: number; 
   const cfg = JSON.stringify({ user: !!u, ipLoc: !isNaN(vLat) && !isNaN(vLng) ? [vLng, vLat] : null, away, visitorCity: away ? (cf.city || '') : '', wantedPromo: c.env.WANTED_PROMO === 'true', token: c.env.MAPBOX_PUBLIC_TOKEN || '', style: c.env.MAPBOX_STYLE_URL || 'mapbox://styles/mapbox/light-v11', center, zoom: opt.zoom || (() => { const z = parseFloat(c.req.query('z') || ''); return z >= 3 && z <= 18 ? z : 14.5; })(), q: opt.q || "", pinned: !!opt.center, hasHome: !!(u?.lat) || cq.length === 2 && cq.every(n => !isNaN(n)) });
   return c.html(
     <Layout title={u?.hood || 'Near you'} user={u} back={null} badge={badge} htmlClass="mappage"
-      top={<a class="ticker" href="/about" aria-label="Why Lendo"><div class="tk" aria-hidden="true">{[0, 1].map(() => TICKER.map(t => <span>{t}<i>•</i></span>))}</div></a>}
+      top={<a class="ticker" href="/how-it-works" aria-label="How it works"><div class="tk" aria-hidden="true">{[0, 1].map(() => TICKER.map(t => <span>{t}<i>•</i></span>))}</div></a>}
       headerCenter={
         <div class="scope" role="group" aria-label="Where you're looking">
           <button class="scope-hood crumb" id="scHood" type="button" aria-label="Pick a neighborhood or city"><b id="scHoodN">{u?.hood || 'Near you'}</b><span class="cr-city" id="scCityS"></span><span class="cr-n" id="scHoodC">{k.hood || '…'}</span><svg width="12" height="8" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1.5L6 6.5L11 1.5" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
@@ -461,22 +461,40 @@ browse.post('/profile/edit', async (c) => {
   return c.redirect('/u/' + u.id);
 });
 
-// ---------- About ----------
-browse.get('/about', (c) => {
+// ---------- How it works (was /about, "Why Lendo") ----------
+browse.get('/about', (c) => c.redirect('/how-it-works', 301));
+browse.get('/how-it-works', (c) => {
   const u = c.get('user');
-  const G = ['Tife ranezu so raplemo ne grine ne grirami ke romira mifera. Zu pa sopa za kenemi pleta bano quane ple zadu ta rasen.', 'Midudu soquata nonene talo neraba paromi. Palo senso no zaqua ta mo tiba fe tane no zuvi. Zuvi grisosen keti za ke kebota zavipa.', 'Gri soquami tilo quarosen ranosen fefefe. Ta feramo mo zalu quara bo tizulu quabo mo.', 'Tiro soqua talu ta tata neti ba bavi loza bomople. Lo boplepa nelovi sozaso zu pleduro qua ke. Bake ple soba bo tavi lo sonoba sone lu ta du ta.'];
+  const H2 = 'font-size:26px;font-weight:900;letter-spacing:-.02em;margin:0 0 10px';
+  const STEPS: [string, string][] = [
+    ['List', `Snap a photo, set a price per day (from $${parseInt(c.env.MIN_PRICE_CENTS || '800', 10) / 100}). It's on the map`],
+    ['Rent', 'Customers find it on the map, pick days, and their card is held'],
+    ['YES', 'The owner gets a text and replies YES. The card is charged. NO, or no reply, releases the hold'],
+    ['Pickup + return', 'Meet nearby. Photos at pickup and at return'],
+    ['Rate', 'Owner and customer rate each other. Ratings build trust across the neighborhood'],
+  ];
   return c.html(
-    <Layout title="Why Lendo" user={u}>
+    <Layout title="How it works" user={u}>
       <section class="sec" style="border-bottom:0;font-size:15px;line-height:1.5">
-        <h2 style="font-size:26px;font-weight:900;letter-spacing:-.02em;margin:0 0 10px">Zu mi zusen.</h2>
+        <h2 style={H2}>How it works</h2>
+        <ol style="margin:0;padding-left:20px">
+          {STEPS.map(([k, t]) => <li style="margin:0 0 8px"><b>{k}</b> · {t}</li>)}
+        </ol>
+        <p><b>{c.env.FEE_PCT}% fee, paid by the owner out of the rent (will stay low)</b></p>
+        <a class="btn pri full" href="/list" style="margin-top:4px">Rent out your stuff</a>
+      </section>
+      <section class="sec" style="border-bottom:0;font-size:15px;line-height:1.5;padding-top:0">
+        <h2 style={H2}>Why</h2>
+        <p>{TICKER.map(t => t.charAt(0) + t.slice(1).toLowerCase()).join(' · ')}</p>
       </section>
       <figure class="flywheel" id="flywheel">
         <img src="/flywheel.svg" width="532" height="418" alt="The Lendo flywheel: more items listed, more convenient, more rentals, then more money saved and earned, more ratings and trust, more fun, and more neighbors met, which bring more people to try, which brings more items listed. At the center: more local connection and affordability." />
       </figure>
       <section class="sec" style="border-bottom:0;font-size:15px;line-height:1.5;padding-top:0">
-        {G.map(t => <p>{t}</p>)}
-        <p><b>{c.env.FEE_PCT}% fee, paid by the owner out of the rent (will stay low).</b></p>
-        <a class="btn pri full" href="/list" style="margin-top:12px">Rent out your stuff</a>
+        <h2 style={H2}>History</h2>
+        <p>Before Lendo there was a rental counter: Heiferman's Paint &amp; Rental Center and AAA U-Rent-It, the Heiferman family business</p>
+        <p>Painted on the sign: “We rent most everything”</p>
+        <p>Lendo is that counter, spread across the neighborhood. Every owner's shelf is part of it</p>
       </section>
     </Layout>
   );

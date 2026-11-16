@@ -117,7 +117,7 @@ html.mappage .hdr{flex-shrink:0;position:relative}
 @media (prefers-reduced-motion:reduce){.rent-out{animation:none}.tk{animation:none}}
 /* ticker strip under the header */
 .ticker{flex-shrink:0;height:22px;overflow:hidden;background:var(--ink);color:var(--cream);display:flex;align-items:center;position:relative;z-index:900}
-/* flywheel on /about: full page width (breaks out of the 560px column), capped on big screens */
+/* flywheel on /how-it-works: full page width (breaks out of the 560px column), capped on big screens */
 .flywheel{margin:0 0 12px calc(50% - 50vw);width:100vw;display:flex;justify-content:center}
 .flywheel img{display:block;width:100%;max-width:960px;height:auto;padding:0 4px;box-sizing:border-box}
 .tk{display:flex;white-space:nowrap;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:10px;font-weight:700;letter-spacing:1.6px;animation:tick 48s linear infinite;will-change:transform}

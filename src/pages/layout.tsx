@@ -59,7 +59,7 @@ export const Layout: FC<LayoutProps> = (p) => {
                     <a href="/rentals">Your rentals{u.unread ? <span class="badge-n" style="margin-left:6px">{u.unread}</span> : null}</a>
                     <a href="/saved">Saved</a>
                     <a href="/alerts">Search alerts</a>
-                    <a href="/about">Why Lendo</a>
+                    <a href="/how-it-works">How it works</a>
                     {u.admin ? <a href="/admin">Admin</a> : null}
                     <a class="list" href="/list">Rent out your stuff</a>
                     <a href="/logout" style="color:#8A857B;font-weight:600">Log out</a>
@@ -67,7 +67,7 @@ export const Layout: FC<LayoutProps> = (p) => {
                 ) : (
                   <>
                     <a href="/login">Log in</a>
-                    <a href="/about">Why Lendo</a>
+                    <a href="/how-it-works">How it works</a>
                     <a class="list" href="/list">Rent out your stuff</a>
                   </>
                 )}
