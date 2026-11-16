@@ -40,6 +40,10 @@
     ['Books & learning', /book|textbook|microscope|calculator|globe/]
   ];
   var openAisle = null;
+  /* "just added" = listed since this browser's last visit, and always at least the past day (max a week back). A visit = first load after an hour away */
+  var JUST = (function () { var now = Date.now(), d = now - 864e5, prev = 0; try { var o = JSON.parse(localStorage.getItem('lendo_seen') || '{}'); prev = o.prev || 0; if (!o.at || now - o.at > 36e5) { prev = o.at || 0; localStorage.setItem('lendo_seen', JSON.stringify({ prev: prev, at: now })); } } catch (e) {}
+    return Math.max(now - 7 * 864e5, Math.min(d, prev || d)); })();
+  function isJust(it) { return it.created_at && it.created_at > JUST; }
   function aisleOf(it) { var n = (it.name + ' ' + (it.description || '')).toLowerCase(); for (var k = 0; k < AISLES.length; k++) if (AISLES[k][1].test(n)) return AISLES[k][0]; return 'Everything else'; }
   function tile(it) {
     var img = it.avatar_key ? '/p/' + it.avatar_key : it.photo ? '/p/' + it.photo : '';
@@ -57,7 +61,10 @@
     // searching: one flat result grid, no category headers (the header would read as a different word than the search)
     if (q.value.trim() && sorted.length) { grid.innerHTML = '<div class="ai-res">' + sorted.length + ' to rent</div><section class="aisle focus"><div class="ai-row">' + sorted.map(tile).join('') + '</div></section>'; return; }
     if (!names.length) { grid.innerHTML = '<div class="hint" style="padding:24px 16px">Nothing here yet. Be the first — <a href="/list">list something</a>.</div>'; return; }
-    grid.innerHTML = (openAisle ? '<button type="button" class="ai-back" data-aisle="">‹ All categories</button>' : '') + (openAisle ? [openAisle] : names).map(function (n) {
+    var just = openAisle ? [] : items.filter(isJust).sort(function (a, b) { return b.created_at - a.created_at; });
+    grid.innerHTML = (openAisle ? '<button type="button" class="ai-back" data-aisle="">‹ All categories</button>' : '') +
+      (just.length ? '<section class="aisle ai-just"><div class="ai-h" style="cursor:default"><h2>Just added</h2><span class="ai-n">' + just.length + '</span></div><div class="ai-row">' + just.slice(0, 24).map(tile).join('') + '</div></section>' : '') +
+      (openAisle ? [openAisle] : names).map(function (n) {
       var list = groups[n], focus = n === openAisle;
       return '<section class="aisle' + (focus ? ' focus' : '') + '"><button type="button" class="ai-h" data-aisle="' + (focus ? '' : esc(n)) + '"><h2>' + esc(n) + '</h2><span class="ai-n">' + list.length + '</span>' + (focus ? '' : '<span class="ai-all">All ›</span>') + '</button>' +
         '<div class="ai-row">' + (focus ? list : list.slice(0, 24)).map(tile).join('') + '</div></section>';
