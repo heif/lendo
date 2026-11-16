@@ -97,12 +97,16 @@ export async function actOn(env: Env, user: User, it: Intent, ctx: { rental: Ren
       return true;
     case 'find': {
       const q = (it.query || '').trim().slice(0, 40); if (!q) return false;
-      let lat = user.lat ?? 40.7348, lng = user.lng ?? -73.9937, d = 0.05, where = user.hood || null;
-      const pl = placeFor(it.place); if (pl) { lat = pl.lat; lng = pl.lng; d = pl.d; where = pl.name; }
-      const rows = (await env.DB.prepare(`SELECT id, name, price_cents, hood FROM listings WHERE status = 'live' AND name LIKE ? AND lat BETWEEN ? AND ? AND lng BETWEEN ? AND ? ORDER BY ((lat - ?) * (lat - ?) + (lng - ?) * (lng - ?)) LIMIT 3`)
-        .bind(`%${q}%`, lat - d, lat + d, lng - d * 1.3, lng + d * 1.3, lat, lat, lng, lng).all<{ id: string; name: string; price_cents: number; hood: string | null }>()).results;
-      if (rows.length) await textUser(env, user, `${q} for rent ${where ? 'near ' + where : 'nearby'}:\n${rows.map(r => `${r.name} ${money(r.price_cents)}/day${r.hood ? ' · ' + r.hood : ''} ${url}/i/${r.id}`).join('\n')}`, 'rental');
-      else await textUser(env, user, `No ${q} for rent ${where ? 'near ' + where : 'nearby'} yet — alert on, you'll get a text when one's listed. Know someone who might have one? ${url}/list`, 'rental');
+      let lat = user.lat ?? 40.7348, lng = user.lng ?? -73.9937, d = 0.05, z = 13, where = user.hood || null;
+      const pl = placeFor(it.place); if (pl) { lat = pl.lat; lng = pl.lng; d = pl.d; z = pl.z; where = pl.name; }
+      const box = [`%${q}%`, lat - d, lat + d, lng - d * 1.3, lng + d * 1.3];
+      const hit = await env.DB.prepare(`SELECT COUNT(*) n, MIN(price_cents) lo FROM listings WHERE status = 'live' AND name LIKE ? AND lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?`).bind(...box).first<{ n: number; lo: number | null }>();
+      const n = hit?.n || 0, near = where ? 'near ' + where : 'nearby';
+      /* link to the map search, not one item: customer sees every match + can narrow */
+      const link = `${url}/?q=${encodeURIComponent(q)}&c=${lng.toFixed(4)},${lat.toFixed(4)}&z=${z}`;
+      const many = n === 1 ? q : /s$/i.test(q) ? q : q + 's';
+      if (n) await textUser(env, user, `${n} ${many} for rent ${near}, from ${money(hit!.lo || 0)}/day ${link} · Reply with anything else you need`, 'rental');
+      else await textUser(env, user, `No ${q} for rent ${near} yet — alert on, you'll get a text when one's listed. Know someone who might have one? ${url}/list`, 'rental');
       await saveSearch(env, user, q, lat, lng, where);
       return true;
     }
@@ -151,9 +155,9 @@ export async function intentContext(env: Env, user: User, rental: Rental | null)
 }
 
 // "in iowa city" / "near park slope" → that city or hood instead of the sender's home
-function placeFor(p0?: string | null): { name: string; lat: number; lng: number; d: number } | null {
+function placeFor(p0?: string | null): { name: string; lat: number; lng: number; d: number; z: number } | null {
   const p = (p0 || '').toLowerCase().replace(/[^a-z ]/g, '').trim(); if (p.length < 2) return null;
-  for (const c of CITIES) for (const h of c.hoods) if (h.name.toLowerCase() === p) return { name: h.name, lat: h.lat, lng: h.lng, d: 0.03 };
-  for (const c of CITIES) { const n = c.name.toLowerCase(); if (n === p || n.includes(p) || p.includes(n) || (c as any).short?.toLowerCase() === p) return { name: c.name, lat: c.lat, lng: c.lng, d: 0.12 }; }
+  for (const c of CITIES) for (const h of c.hoods) if (h.name.toLowerCase() === p) return { name: h.name, lat: h.lat, lng: h.lng, d: 0.03, z: 14 };
+  for (const c of CITIES) { const n = c.name.toLowerCase(); if (n === p || n.includes(p) || p.includes(n) || (c as any).short?.toLowerCase() === p) return { name: c.name, lat: c.lat, lng: c.lng, d: 0.12, z: (c as any).zoom || 11 }; }
   return null;
 }

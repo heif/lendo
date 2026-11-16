@@ -51,7 +51,7 @@ export const homePage = async (c: Ctx, opt: { center?: number[]; zoom?: number; 
   const inLive = !isNaN(vLat) && !isNaN(vLng) && CITIES.some(ct => ct.id === 'nyc' && vLng >= ct.bbox[0] && vLng <= ct.bbox[2] && vLat >= ct.bbox[1] && vLat <= ct.bbox[3]);
   const away = !u?.lat && !isNaN(vLat) && !inLive;
   const mapbox = !!c.env.MAPBOX_PUBLIC_TOKEN;
-  const cfg = JSON.stringify({ user: !!u, ipLoc: !isNaN(vLat) && !isNaN(vLng) ? [vLng, vLat] : null, away, visitorCity: away ? (cf.city || '') : '', wantedPromo: c.env.WANTED_PROMO === 'true', token: c.env.MAPBOX_PUBLIC_TOKEN || '', style: c.env.MAPBOX_STYLE_URL || 'mapbox://styles/mapbox/light-v11', center, zoom: opt.zoom || 14.5, q: opt.q || "", pinned: !!opt.center, hasHome: !!(u?.lat) || cq.length === 2 && cq.every(n => !isNaN(n)) });
+  const cfg = JSON.stringify({ user: !!u, ipLoc: !isNaN(vLat) && !isNaN(vLng) ? [vLng, vLat] : null, away, visitorCity: away ? (cf.city || '') : '', wantedPromo: c.env.WANTED_PROMO === 'true', token: c.env.MAPBOX_PUBLIC_TOKEN || '', style: c.env.MAPBOX_STYLE_URL || 'mapbox://styles/mapbox/light-v11', center, zoom: opt.zoom || (() => { const z = parseFloat(c.req.query('z') || ''); return z >= 3 && z <= 18 ? z : 14.5; })(), q: opt.q || "", pinned: !!opt.center, hasHome: !!(u?.lat) || cq.length === 2 && cq.every(n => !isNaN(n)) });
   return c.html(
     <Layout title={u?.hood || 'Near you'} user={u} back={null} badge={badge} htmlClass="mappage"
       top={<a class="ticker" href="/about" aria-label="Why Lendo"><div class="tk" aria-hidden="true">{[0, 1].map(() => TICKER.map(t => <span>{t}<i>•</i></span>))}</div></a>}
