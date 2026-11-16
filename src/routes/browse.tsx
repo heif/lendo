@@ -87,7 +87,7 @@ export const homePage = async (c: Ctx, opt: { center?: number[]; zoom?: number; 
           <div class="places-hoods" id="plHoods"></div>
         </div>
         <div class="pcard" id="sheet" role="dialog" aria-label="Selected item">
-          <div class="pcard-strip">FOR RENT</div>
+          <div class="pcard-strip" id="shStrip">FOR RENT</div>
           <button class="pcard-x" id="shClose" aria-label="Close"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" stroke-width="2.2" stroke-linecap="round" /></svg></button>
           <a class="pcard-body" id="shLink" href="#">
             <span class="pcard-img"><img id="shImg" alt="" /><span class="pcard-price" id="shPr"></span></span>

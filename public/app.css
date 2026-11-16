@@ -604,3 +604,7 @@ img.uav{background:#ddd}
 @keyframes lfc2{0%,85%{opacity:0;transform:translate(0,0) scale(.5)}88%{opacity:1;transform:translate(-3px,24px) scale(1.15)}94%{opacity:.85;transform:translate(-6px,42px) scale(1) rotate(12deg)}100%{opacity:0;transform:translate(-8px,62px) scale(.85) rotate(20deg)}}
 @keyframes lfc3{0%,86%{opacity:0;transform:translate(0,0) scale(.5)}89%{opacity:1;transform:translate(10px,22px) scale(1.1) rotate(10deg)}95%{opacity:.85;transform:translate(18px,40px) scale(1) rotate(25deg)}100%{opacity:0;transform:translate(22px,58px) scale(.85) rotate(38deg)}}
 @media (prefers-reduced-motion:reduce){.rent-out .ro-c,.rent-out .ro-w{animation:none;display:none}}
+
+.pcard-strip .ps-l{font-size:11px;letter-spacing:.6px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-right:8px}
+.pcard-strip .ps-th{flex:0 0 24px;width:24px;height:24px;margin-left:4px;padding:0;border:0;border-radius:6px;background:#F5F3EE;overflow:hidden;cursor:pointer}
+.pcard-strip .ps-th img{width:100%;height:100%;object-fit:contain}
