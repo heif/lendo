@@ -606,6 +606,7 @@ img.uav{background:#ddd}
 @media (prefers-reduced-motion:reduce){.rent-out .ro-c,.rent-out .ro-w{animation:none;display:none}}
 
 .pcard-strip .ps-l{font-size:11px;letter-spacing:.6px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-right:8px}
-.pcard-strip .ps-th{flex:0 0 24px;width:24px;height:24px;margin-left:4px;padding:0;border:0;border-radius:6px;background:#F5F3EE;overflow:hidden;cursor:pointer}
+.pcard-strip:has(.ps-th){height:auto;min-height:32px;padding-top:4px;padding-bottom:4px}
+.pcard-strip .ps-th{flex:0 0 46px;width:46px;height:46px;margin-left:4px;padding:0;border:0;background:none;cursor:pointer}
 .pcard-strip .ps-th img{width:100%;height:100%;object-fit:contain}
 @media (max-width:420px){.scope-hood.crumb .cr-city{display:none}.scope-hood.crumb{max-width:200px;gap:5px;padding-left:12px!important}}
