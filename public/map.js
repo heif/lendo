@@ -126,8 +126,10 @@
     var groups = {}; arr.forEach(function (_, i) { var r = find(i); (groups[r] = groups[r] || []).push(i); });
     Object.keys(groups).forEach(function (k) {
       var g = groups[k], n = g.length;
-      if (n === 1 || n > 8) { g.forEach(function (i) { POS[arr[i].id] = [arr[i].lng, arr[i].lat]; }); return; }
+      if (n === 1 || n > 40) { g.forEach(function (i) { POS[arr[i].id] = [arr[i].lng, arr[i].lat]; }); return; }
       var clat = 0, clng = 0; g.forEach(function (i) { clat += arr[i].lat / n; clng += arr[i].lng / n; });
+      /* bigger knots (one owner's whole shelf): sunflower spiral, ~a pin apart, so most still get a price tag */
+      if (n > 8) { var c0 = PIN_W * 0.6 * mpp; g.forEach(function (i, t) { var rr = Math.min(c0 * Math.sqrt(t + 0.5), 400), a = t * 2.39996; POS[arr[i].id] = [clng + rr * Math.sin(a) / (111320 * cosLat), clat + rr * Math.cos(a) / 111320]; }); return; }
       var rpx = n === 2 ? 46 : Math.min(130, 48 / Math.sin(Math.PI / n)), rm = Math.min(rpx * mpp, 250), a0 = (hid(arr[g[0]].id) % 628) / 100;
       g.forEach(function (i, t) { var a = a0 + 6.2832 * t / n; POS[arr[i].id] = [clng + rm * Math.sin(a) / (111320 * cosLat), clat + rm * Math.cos(a) / 111320]; });
     });
