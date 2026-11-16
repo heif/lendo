@@ -334,7 +334,7 @@
         var pb = map.getBounds(), w = pb.getEast() - pb.getWest(), h = pb.getNorth() - pb.getSouth();
         items = Object.keys(known).map(function (k) { return known[k]; }).filter(function (it) { return it.lng > pb.getWest() - w * .5 && it.lng < pb.getEast() + w * .5 && it.lat > pb.getSouth() - h * .5 && it.lat < pb.getNorth() + h * .5; })
           .sort(function (a, b2) { return Math.hypot(a.lat - cc.lat, (a.lng - cc.lng) * .76) - Math.hypot(b2.lat - cc.lat, (b2.lng - cc.lng) * .76); }).slice(0, 600);
-        $('toggle').hidden = !items.length && !listMode && !qq; if (!items.length && listMode && !qq) setList(false); itemsRev++; refresh(); if (!listMode) renderGrid(items); setKpi(j); if (!items.length && !centered && !qq) goNearest(); if (qq) { searchFeedback(qq, items.length); logSearch(qq, items.length); } centered = true; });
+        $('toggle').hidden = !items.length && !listMode && !qq; if (!items.length && listMode && !qq) setList(false); itemsRev++; refresh(); if (!listMode) renderGrid(items); setKpi(j); if (!centered && !qq && inView() < 6) goNearest(); if (qq) { searchFeedback(qq, items.length); logSearch(qq, items.length); } centered = true; });
   }
   // log what people search for (settled queries only, once each) → /admin/log demand signal
   var logT = 0, logged = '';
@@ -353,9 +353,15 @@
   // empty first view → center on the closest live item so the map never opens blank
   var centered = !!RESTORED;
   map.on('moveend', function () { try { var c = map.getCenter(); sessionStorage.setItem('lendo_view', JSON.stringify({ c: [c.lng, c.lat], z: map.getZoom(), t: Date.now() })); } catch (e) {} });
+  function inView() { var b = map.getBounds(); return items.filter(function (it) { return b.contains([it.lng, it.lat]); }).length; }
+  /* first view shows at least 6 real items with prices: zoom out to fit the 6 nearest */
   function goNearest() {
     var c = map.getCenter();
-    fetch('/api/listings?near=' + c.lng + ',' + c.lat + '&limit=1').then(function (r) { return r.json(); }).then(function (j) { var it = j.listings && j.listings[0]; if (it && it.lat != null) map.easeTo({ center: [it.lng, it.lat], zoom: Math.max(map.getZoom(), 14.5), duration: 900 }); }).catch(function () {});
+    fetch('/api/listings?near=' + c.lng + ',' + c.lat + '&limit=6').then(function (r) { return r.json(); }).then(function (j) {
+      var ls = (j.listings || []).filter(function (it) { return it.lat != null; }); if (!ls.length) return;
+      var bb = new mapboxgl.LngLatBounds(); bb.extend([c.lng, c.lat]); ls.forEach(function (it) { bb.extend([it.lng, it.lat]); });
+      map.fitBounds(bb, { padding: { top: 150, bottom: 90, left: 50, right: 50 }, maxZoom: Math.max(map.getZoom(), 14.5), duration: 900 });
+    }).catch(function () {});
   }
   map.on('zoomend', function () { refresh(); });
   var moveT; map.on('moveend', function () { clearTimeout(moveT); moveT = setTimeout(function () { load(); updateHood(); }, 300); });
