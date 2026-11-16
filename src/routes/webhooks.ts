@@ -93,6 +93,8 @@ async function blooioInbound(c: Context<{ Bindings: Env; Variables: Vars }>) {
 }
 
 // One brain for everything a person sends Lendo — by text or typed in the web inbox.
+const FIND_RE = /^\s*(i\s+)?(rent|need|looking for|anyone have|anybody have|does anyone have|who has|find|borrow|want to rent|wanna rent)\b/i;
+
 export async function handleText(c: Context<{ Bindings: Env; Variables: Vars }>, user: User, text: string, via: 'text' | 'web') {
   const kw = text.toUpperCase().replace(/[^A-Z ]/g, '').trim();
   await c.env.DB.prepare('INSERT INTO inbound_texts (id, user_id, body, via, created_at) VALUES (?,?,?,?,?)').bind(crypto.randomUUID(), user.id, text.slice(0, 500), via, Date.now()).run().catch(() => {});
@@ -149,7 +151,9 @@ export async function handleText(c: Context<{ Bindings: Env; Variables: Vars }>,
   const r = await activeRentalFor(c.env, user.id);
   if (kw !== 'HERE' && kw !== 'IM HERE' && text.length > 1 && c.env.ANTHROPIC_API_KEY) {
     const ctx = await intentContext(c.env, user, r);
-    const intent = await parseIntent(c.env, user, text, ctx);
+    /* "rent a speaker", "need a drill" = a search, never words for the other person in a rental */
+    const looking = FIND_RE.test(text);
+    const intent = await parseIntent(c.env, user, text, looking ? { ...ctx, rental: null, role: null, item: null, other: null } : ctx);
     if (intent && await actOn(c.env, user, intent, ctx, text)) return c.json({ ok: true });
   }
   // a newer pre-rental question thread wins for plain replies

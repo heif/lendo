@@ -27,7 +27,7 @@ export async function parseIntent(env: Env, user: User, text: string, ctx: { ren
   const sys = `You route text messages sent to Lendo, a neighbor-to-neighbor rental service, into ONE action. Reply with JSON only, no prose.
 Actions:
 - {"action":"message","text":"..."}  — words meant for the other person in their active rental (pickup times, questions, "running late", thanks). Keep the text as written.
-- {"action":"find","query":"..."}  — they want to rent something ("need a ladder saturday", "anyone have a projector"). query = the thing, 1-3 words. Add "place":"..." only if they name a city or neighborhood ("in iowa city", "near park slope").
+- {"action":"find","query":"..."}  — they want to rent something ("need a ladder saturday", "anyone have a projector", "rent a speaker in nyc"). A text that starts with rent / need / looking for / anyone have is ALWAYS find, even with an active rental. query = the thing, 1-3 words. Add "place":"..." only if they name a city or neighborhood ("in iowa city", "near park slope").
 - {"action":"change_price","item":"<one of their listing names or null>","price_usd":10}  — an owner changing a listing's daily price.
 - {"action":"cancel"}  — the customer wants to cancel their rental or request.
 - {"action":"extend","until":"YYYY-MM-DD or null"}  — the customer wants to keep the item longer.

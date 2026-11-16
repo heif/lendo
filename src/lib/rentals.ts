@@ -136,7 +136,9 @@ export async function relay(env: Env, r: Rental, from: User, body: string, via: 
   await addMessage(env, r.id, from.id, body, via);
   const toId = from.id === r.owner_id ? r.renter_id : r.owner_id;
   const to = (await userById(env.DB, toId))!;
-  await textUser(env, to, `${firstName(from.name)}: ${body}`, 'chat', r.id); /* a person's words: no confirm ask; a reply goes back to them */
+  const res = await textUser(env, to, `${firstName(from.name)}: ${body}`, 'chat', r.id); /* a person's words: no confirm ask; a reply goes back to them */
+  /* didn't reach their phone (paused / STOP): tell the sender instead of silence */
+  if (via === 'text' && !res?.ok) await textUser(env, from, `${firstName(to.name)} isn't getting texts right now — your message is in the chat ${env.APP_URL}/r/${r.id}`, 'rental', r.id);
 }
 
 // the rental a texter most likely means (newest active one they're part of)

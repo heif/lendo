@@ -49,7 +49,8 @@ export async function textUser(env: Env, user: User, text: string, category: Tex
   // and Blooio allows only 3 outbound on a new conversation. So: no links, and ask for a reply.
   /* Blooio stops a conversation after 6 texts in a row with no reply (429 streak_limit). The 5th asks for a reply; past 6 we hold instead of failing */
   const streak = await textStreak(env, user.id);
-  if (streak >= STREAK_MAX && category !== 'login') { await logEvent(env.DB, 'text.suppressed', { user: user.id, rental: rentalId, data: { category, why: `waiting for a reply (${streak} unanswered)`, body: text.slice(0, 300) } });
+  /* a conversation they've never replied to: Blooio allows only 3 */
+  if (streak >= (user.replied ? STREAK_MAX : 3) && category !== 'login') { await logEvent(env.DB, 'text.suppressed', { user: user.id, rental: rentalId, data: { category, why: `waiting for a reply (${streak} unanswered)`, body: text.slice(0, 300) } });
     await env.DB.prepare('INSERT INTO outbound_texts (id, user_id, body, category, rental_id, provider_id, created_at) VALUES (?,?,?,?,?,?,?)').bind(id('t'), user.id, text, category, rentalId ?? null, null, now()).run(); /* still shows in the web inbox */
     return { ok: false, error: 'streak' }; }
   if (user.replied && category !== 'login' && category !== 'chat' && !asksReply(text)) text = text + ' · ' + (category === 'alert' || category === 'nudge' || category === 'milestone' ? KEEP_ASK : CONFIRM_ASK);
