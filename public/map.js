@@ -108,7 +108,7 @@
   // Recomputed only when the item set or the zoom band changes; panning changes nothing, so pins never jump or flicker.
   var GMARKS = {};                       // ghost markers by cell key (shared with walkers)
   var POS = {}, SHOW = [], HIDE = [], itemsRev = 0, layoutKey = '', OBST = [];
-  var PIN_W = 76, PIN_H = 76, MAX_SHOWN = 140, PIC_CAP = 150, MINI = {};
+  var PIN_W = 76, PIN_H = 76, MAX_SHOWN = 140, PIC_CAP = 0, MINI = {}; /* PIC_CAP 0: an item picture always carries its price; the rest are small dots */
   function hid(s) { var h = 0; for (var k = 0; k < s.length; k++) h = (h * 31 + s.charCodeAt(k)) | 0; return Math.abs(h); }
   function worldPx(lng, lat, z) { var sc = 512 * Math.pow(2, z), sy = Math.sin(lat * Math.PI / 180); return [(lng + 180) / 360 * sc, (0.5 - Math.log((1 + sy) / (1 - sy)) / (4 * Math.PI)) * sc]; }
   // Small knots of nearby items (≤ 8 within a pin's width of each other, e.g. one owner's things) fan out in a ring
