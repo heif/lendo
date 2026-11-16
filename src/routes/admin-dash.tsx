@@ -4,6 +4,8 @@ import type { Env, Vars } from '../lib/env';
 import { Layout } from '../pages/layout';
 import { money } from '../lib/util';
 import { logEvent } from '../lib/log';
+import { CONFIRM_ASK, textStreak } from '../lib/blooio';
+import { id as newId, now as nowMs } from '../lib/util';
 
 type A = Hono<{ Bindings: Env; Variables: Vars }>;
 const DAY = 86400000;
@@ -26,7 +28,7 @@ const NAV_CSS = `.adn{position:sticky;top:0;z-index:20;background:var(--cream,#F
 .adn a{padding:5px 9px;border-radius:8px;font-size:12.5px;font-weight:700;text-decoration:none;color:var(--ink);opacity:.7}.adn a:hover{opacity:1;background:rgba(30,58,43,.06)}
 .adn a.on{opacity:1;background:var(--ink);color:#fff}.adn i{width:1px;align-self:stretch;margin:4px 5px;background:rgba(30,58,43,.18)}
 .adn sup{font-size:10px;font-weight:800;color:#fff;background:#FF4F00;border-radius:999px;padding:0 5px;margin-left:3px;vertical-align:2px}`;
-const NAV: ([string, string, ('review' | 'error')?] | null)[] = [['/admin', 'Home'], ['/admin/log', 'Log'], ['/admin/rentals', 'Rentals'], ['/admin/users', 'Users'], ['/admin/texts', 'Texts'], ['/admin/searches', 'Searches'], ['/admin/log?kind=error', 'Errors', 'error'], null, ['/admin/review', 'Photos', 'review'], ['/admin/promo', 'Promo'], ['/admin/pricing', 'Pricing'], ['/admin/wanted', 'Wanted'], ['/admin/debug', 'System'], ['/admin/access', 'Access']];
+const NAV: ([string, string, ('review' | 'error')?] | null)[] = [['/admin', 'Home'], ['/admin/log', 'Log'], ['/admin/rentals', 'Rentals'], ['/admin/users', 'Users'], ['/admin/texts', 'Texts'], ['/admin/texting', 'Texting check'], ['/admin/searches', 'Searches'], ['/admin/log?kind=error', 'Errors', 'error'], null, ['/admin/review', 'Photos', 'review'], ['/admin/promo', 'Promo'], ['/admin/pricing', 'Pricing'], ['/admin/wanted', 'Wanted'], ['/admin/debug', 'System'], ['/admin/access', 'Access']];
 export async function AdminNav({ c, path }: { c: any; path: string }) {
   const [rv, er] = await Promise.all([
     c.env.DB.prepare(`SELECT COUNT(*) n FROM listings WHERE status = 'review'`).first().catch(() => null),
@@ -59,6 +61,66 @@ const one = async <T,>(c: any, sql: string, ...b: unknown[]) => (await c.env.DB.
 const all = async <T,>(c: any, sql: string, ...b: unknown[]) => ((await c.env.DB.prepare(sql).bind(...b).all().catch(() => ({ results: [] }))).results) as T[];
 
 export function registerDash(admin: A) {
+  // ---------- Texting check: is Blooio set up, are texts going out, are replies + receipts coming back ----------
+  const bloo = async (c: any, path: string, init?: RequestInit) => {
+    if (!c.env.BLOOIO_API_KEY) return { ok: false, status: 0, j: { error: 'BLOOIO_API_KEY not set (dev mode: texts only logged)' } };
+    const r = await fetch(c.env.BLOOIO_API_BASE.replace(/\/$/, '') + path, { ...init, headers: { Authorization: `Bearer ${c.env.BLOOIO_API_KEY}`, 'Content-Type': 'application/json', ...(init?.headers || {}) } }).catch((e: any) => ({ ok: false, status: 0, json: async () => ({ error: String(e) }), text: async () => String(e) } as any));
+    let j: any = null; try { j = await r.json(); } catch { j = null; }
+    return { ok: r.ok, status: r.status, j };
+  };
+  admin.get('/admin/texting', async (c) => {
+    const u = c.get('user')!;
+    const [me, nums, hooks] = await Promise.all([bloo(c, '/me'), bloo(c, '/me/numbers'), bloo(c, '/webhooks')]);
+    const hookList: any[] = Array.isArray(hooks.j) ? hooks.j : hooks.j?.webhooks || hooks.j?.data || [];
+    const ours = hookList.filter(h => String(h.url || h.webhook_url || '').includes(new URL(c.env.APP_URL).host));
+    const logs = ours[0] ? await bloo(c, `/webhooks/${ours[0].id || ours[0].webhook_id}/logs`) : null;
+    const logList: any[] = logs ? (Array.isArray(logs.j) ? logs.j : logs.j?.logs || logs.j?.data || []) : [];
+    const t = c.req.query('t');
+    const sent = t ? await one<any>(c, `SELECT * FROM outbound_texts WHERE id = ?`, t) : null;
+    const st = sent?.provider_id && !String(sent.provider_id).startsWith('dev_') ? await bloo(c, `/chats/${encodeURIComponent(u.phone)}/messages/${encodeURIComponent(sent.provider_id)}/status`) : null;
+    const [lastIn, ins, stats, fails, streak] = await Promise.all([
+      one<{ value: string }>(c, `SELECT value FROM settings WHERE key = 'last_inbound'`),
+      all<any>(c, `SELECT i.created_at, i.body, i.via, u.name FROM inbound_texts i LEFT JOIN users u ON u.id = i.user_id WHERE i.via = 'text' ORDER BY i.created_at DESC LIMIT 8`),
+      all<any>(c, `SELECT at, data FROM events WHERE kind = 'text.status' ORDER BY id DESC LIMIT 10`),
+      all<any>(c, `SELECT at, kind, data FROM events WHERE kind IN ('text.failed','text.suppressed') ORDER BY id DESC LIMIT 8`),
+      textStreak(c.env, u.id),
+    ]);
+    const evs = (h: any) => (h.events || h.event_types || h.types || h.subscribed_events || h.type || 'all') as any;
+    const ok = (b: boolean) => <b style={'color:' + (b ? '#1F8A4C' : '#c22')}>{b ? '✓' : '✕'}</b>;
+    const pre = (x: unknown) => <pre style="white-space:pre-wrap;word-break:break-word;font-size:11px;background:#fff;border-radius:10px;padding:8px;margin:6px 0">{JSON.stringify(x, null, 1).slice(0, 1500)}</pre>;
+    return c.html(<Shell c={c} title="Texting check" path="/admin/texting">
+      <h3>1 · Blooio account</h3>
+      <p>{ok(me.ok)} API key works {me.ok ? '' : `· ${me.status}`} · {ok(nums.ok)} numbers</p>
+      {pre({ me: me.j, numbers: nums.j })}
+      <h3>2 · Webhook (replies + delivery receipts)</h3>
+      <p>{ok(ours.length > 0)} webhook pointing at {new URL(c.env.APP_URL).host} · {ok(!!c.env.BLOOIO_WEBHOOK_SECRET)} signing secret set</p>
+      {ours.map(h => <p class="hint">{h.url || h.webhook_url} · events: {JSON.stringify(evs(h))}</p>)}
+      {hooks.ok ? null : pre(hooks.j)}
+      {logList.length ? <><p class="hint">Last deliveries to Lendo:</p>{pre(logList.slice(0, 8).map((l: any) => ({ at: l.created_at || l.timestamp, event: l.event || l.event_type, status: l.status_code || l.response_status || l.status, err: l.error })))}</> : null}
+      <h3>3 · Send yourself a test</h3>
+      <form method="post" action="/admin/texting/send" class="ad-f"><button class="btn pri sm" type="submit">Text me a test ({u.phone})</button><span class="hint">then reply OK from your phone and reload this page</span></form>
+      {sent ? <><p>Sent: “{sent.body}” · Blooio id {sent.provider_id || <b style="color:#c22">none (not sent)</b>}</p>{st ? pre(st.j) : null}</> : null}
+      <p class="hint">Your unanswered streak: <b>{streak}</b> of 6 (Blooio pauses at 6)</p>
+      <h3>4 · Coming back in</h3>
+      <p class="hint">Last webhook hit: {lastIn?.value || 'never'}</p>
+      <div class="ad-wrap"><table class="ad-t"><tr><th>When</th><th>From</th><th>Text</th></tr>{ins.map(r => <tr><td style="white-space:nowrap">{when(r.created_at)}</td><td>{r.name}</td><td>{r.body}</td></tr>)}</table></div>
+      <p class="hint" style="margin-top:10px">Delivery receipts (latest):</p>
+      <div class="ad-wrap"><table class="ad-t"><tr><th>When</th><th>Receipt</th></tr>{stats.map(r => <tr><td style="white-space:nowrap">{when(r.at)}</td><td class="d">{r.data}</td></tr>)}</table>{stats.length ? null : <p class="hint" style="color:#c22">No receipts yet — the webhook may only be subscribed to incoming messages</p>}</div>
+      <p class="hint" style="margin-top:10px">Failed / held (latest):</p>
+      <div class="ad-wrap"><table class="ad-t"><tr><th>When</th><th></th><th>Detail</th></tr>{fails.map(r => <tr><td style="white-space:nowrap">{when(r.at)}</td><td class="ad-kind">{r.kind}</td><td class="d">{r.data}</td></tr>)}</table></div>
+    </Shell>);
+  });
+  admin.post('/admin/texting/send', async (c) => {
+    const u = c.get('user')!;
+    const body = `Lendo test ${new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })} · ${CONFIRM_ASK}`; /* ends with the confirm ask, so an OK back is acked silently (never relayed into a rental) */
+    const { sendRaw } = await import('../lib/blooio');
+    const r = await sendRaw(c.env, u.phone, body);
+    const tid = newId('t');
+    await c.env.DB.prepare('INSERT INTO outbound_texts (id, user_id, body, category, rental_id, provider_id, created_at) VALUES (?,?,?,?,?,?,?)').bind(tid, u.id, body, 'chat', null, r.ok ? (r.message_id || 'sent') : null, nowMs()).run();
+    await logEvent(c.env.DB, r.ok ? 'text.test' : 'text.failed', { user: u.id, data: { body, id: r.message_id, err: r.error || null } });
+    return c.redirect('/admin/texting?t=' + tid);
+  });
+
   // ---------- Access: owner grants view / full admin to users ----------
   admin.get('/admin/access', async (c) => {
     const owners = (c.env.ADMIN_PHONES || '').split(',').map(x => x.trim()).filter(Boolean);
