@@ -1,5 +1,5 @@
 import { getCookie } from 'hono/cookie';
-import { bonusOpen } from '../lib/db';
+import { bonusOpen, nycLeft, NYC_CAP } from '../lib/db';
 import { hereOf } from '../lib/places';
 import { DEPOSIT_CENTS } from '../lib/stripe';
 import { Hono } from 'hono';
@@ -33,8 +33,10 @@ listings.get('/list', async (c) => {
   const cfg = JSON.stringify({ minPrice: parseInt(c.env.MIN_PRICE_CENTS, 10) / 100, hood: u?.hood || '', user: u ? { name: u.name || '', hood: u.hood || '', replied: !!u.replied } : null, sms: smsHref(c.env, 'OK'), shareUrl: u ? c.env.APP_URL + ((u as any).handle ? '/' + (u as any).handle : '/u/' + u.id) : c.env.APP_URL });
   return c.html(
     <Layout title="Rent out your stuff" user={u} promo={false} htmlClass="mappage" head={<link rel="stylesheet" href="/list.css" />}>
-      {await bonusOpen(c.env.DB, u, hereOf(c, u)) ? <details class="lbonus"><summary><span class="lb-t">$10 BONUS TODAY · list 10 things</span><i aria-label="How it works">i</i></summary>
-        <ol><li>List 10 things you own</li><li>Quick 2-min video check</li><li>$10 to you — plus a $10 rental gift card</li></ol></details> : null}
+      {await bonusOpen(c.env.DB, u, hereOf(c, u)) ? await (async () => { const left = await nycLeft(c.env.DB), f = left / NYC_CAP, C = 2 * Math.PI * 9;
+        return <details class="lbonus"><summary><span class="lb-t">$10 FOR 10 ITEMS<small>first 10K items NYC</small></span>
+          <span class="lb-ring" title={`${left.toLocaleString('en-US')} of 10,000 left`}><svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="3.5" /><circle cx="12" cy="12" r="9" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-dasharray={`${(C * f).toFixed(1)} ${C.toFixed(1)}`} transform="rotate(-90 12 12)" /></svg><b>{left >= 1000 ? (Math.floor(left / 100) / 10).toFixed(1).replace(/\.0$/, '') + 'K' : left}</b><small>left</small></span><i aria-label="How it works">i</i></summary>
+          <ol><li>List 10 things you own</li><li>Quick 2-min video check</li><li>$10 to you — plus a $10 rental gift card</li></ol></details>; })() : null}
       {/* ideas */}
       <section id="st-ideas" class="lf">
         <div class="lf-scroll">

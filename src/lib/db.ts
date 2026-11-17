@@ -100,9 +100,17 @@ export async function setRentalStatus(db: D1Database, rid: string, status: Renta
 /* List-10 bonus ($10 today + $10 rental gift card) still open for this person? Guests: yes. Paid or 10+ already listed: no */
 export async function bonusOpen(db: D1Database, u: { id: string } | null | undefined, here?: [number, number] | null): Promise<boolean> {
   if (!here || !inNycMetro(here[0], here[1])) return false; /* the $10 List-10 promo runs in NYC only */
+  if ((await nycLeft(db)) <= 0) return false; /* first 10,000 NYC items only */
   if (!u) return true;
   const done = await db.prepare(`SELECT 1 FROM settings WHERE key = ?`).bind('promo10_' + u.id).first();
   if (done) return false;
   const n = (await db.prepare(`SELECT COUNT(*) n FROM listings WHERE owner_id = ? AND status IN ('live','paused') AND demo = 0`).bind(u.id).first<{ n: number }>())?.n ?? 0;
   return n < 10;
+}
+
+/* $10-for-10 promo: first 10,000 real items listed in the NYC metro */
+export const NYC_CAP = 10000;
+export async function nycLeft(db: D1Database): Promise<number> {
+  const n = (await db.prepare(`SELECT COUNT(*) n FROM listings WHERE demo = 0 AND lat BETWEEN 40.03 AND 41.37 AND lng BETWEEN -74.86 AND -73.10`).first<{ n: number }>().catch(() => null))?.n ?? 0;
+  return Math.max(0, NYC_CAP - n);
 }

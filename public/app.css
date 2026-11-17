@@ -713,3 +713,5 @@ a.ac-pill{text-decoration:none;color:inherit}
   .gp-in button{border:0;background:var(--orange);color:#fff;font-weight:900;font-size:18px;width:42px;cursor:pointer}.gp-in button:disabled{opacity:.55;cursor:default}
 }
 @media (pointer:coarse){.gpanel{display:none!important}}
+.lbonus .lb-ring{margin-left:auto;display:inline-flex;align-items:center;gap:4px;font-size:12px}.lbonus .lb-ring b{font-weight:900}.lbonus .lb-ring small{font-weight:700;opacity:.85}.lbonus .lb-ring+i{margin-left:6px}
+.lbonus .lb-t{line-height:1.15}.lbonus .lb-t small{display:block;font-size:11.5px;font-weight:700;opacity:.9}
