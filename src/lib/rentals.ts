@@ -58,7 +58,7 @@ export async function accept(env: Env, r0: Rental, rentCents?: number): Promise<
   // owner is asked for a pickup time right after YES (no pickup hours); their reply relays to the customer, SKIP leaves it to the customer
   await textUser(env, renter, `${firstName(owner.name)} said yes!${gift} ${paidLine[0].toUpperCase() + paidLine.slice(1)}.${spot} Next: sign your promise to ${firstName(owner.name)} (3 quick checks) ${url}#promise`, 'money', r.id);
   await textUser(env, owner, `${r.rent_cents === 0 ? 'Done — lending it free' : `Done. ${firstName(renter.name)} paid`}. When can ${firstName(renter.name)} pick it up? Reply a time (like "after 6"), or SKIP`, 'rental', r.id);
-  if ((r.deposit_cents || 0) > 0) await textUser(env, renter, `Heads up: at pickup there's a ${money(r.deposit_cents!)} hold on your card — not a charge, released when you return the ${listing.name}. Questions? Just reply`, 'rental', r.id);
+  if ((r.deposit_cents || 0) > 0) await textUser(env, renter, `Heads up: at pickup there's a ${money(r.deposit_cents!)} hold (not a charge) on your card, released when you return the ${listing.name}. Questions? Just reply`, 'rental', r.id);
   if (!owner.stripe_account_id && r.rent_cents > 0) {
     await textUser(env, owner, `Where should your ${money(payoutOf(r))} go? Add a debit card or bank, takes 30 sec: ${env.APP_URL}/payout`, 'money', r.id);
   }
@@ -225,7 +225,7 @@ export async function holdDeposit(env: Env, r: Rental): Promise<'held' | 'failed
   const { owner, renter, listing } = await parties(env, r);
   if (res === 'held') {
     await addMessage(env, r.id, null, `${money(r.deposit_cents!)} hold on ${firstName(renter.name)}'s card · OK to hand over`, 'system');
-    await textUser(env, renter, `${money(r.deposit_cents!)} hold is on your card until the ${listing.name} is back with ${firstName(owner.name)}. Reply OK to confirm`, 'money', r.id);
+    await textUser(env, renter, `${money(r.deposit_cents!)} hold (not a charge) is on your card until the ${listing.name} is back with ${firstName(owner.name)}. Reply OK to confirm`, 'money', r.id);
   } else {
     await addMessage(env, r.id, null, `${firstName(renter.name)}'s card didn't take the ${money(r.deposit_cents!)} hold · hold off on handing it over`, 'system');
     await textUser(env, renter, `Your card didn't take the ${money(r.deposit_cents!)} hold for the ${listing.name}. Add a card so ${firstName(owner.name)} can hand it over: ${env.APP_URL}/r/${r.id}/card`, 'money', r.id);

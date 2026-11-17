@@ -267,7 +267,7 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
             : <div class="grdpick" style="margin-top:4px">{GRADES.map(g => <label><input type="radio" name="grade" value={g} checked={g === gr.letter} /><Grade g={g} /></label>)}</div>}
         </div>
         <input type="hidden" name="hold_set" value="1" />
-        <label class={'q-hold edit-hold' + ((it.deposit_cents || 0) > 0 ? ' on' : '')} style="margin:4px 0 14px"><span>Worth over $150 now?<small>On: customers get a $150 hold at pickup, released at return</small></span><input type="checkbox" name="hold" value="1" checked={(it.deposit_cents || 0) > 0} onchange="this.parentNode.classList.toggle('on',this.checked)" /><i></i></label>
+        <label class={'q-hold edit-hold' + ((it.deposit_cents || 0) > 0 ? ' on' : '')} style="margin:4px 0 14px"><span>Worth over $150 now?<small>On: customers get a $150 hold (not a charge) at pickup, released at return</small></span><input type="checkbox" name="hold" value="1" checked={(it.deposit_cents || 0) > 0} onchange="this.parentNode.classList.toggle('on',this.checked)" /><i></i></label>
         <label class="field"><span>Description</span><textarea name="description" id="desc" maxlength={600} placeholder="Model · what’s included · condition · good for">{it.description || ''}</textarea></label>
         <div class="dmeter" id="dmeter"></div>
         <script src="/details.js"></script>

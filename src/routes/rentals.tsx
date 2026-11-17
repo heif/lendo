@@ -280,11 +280,11 @@ f.addEventListener('change',ok);f.addEventListener('submit',function(){document.
         <div class="rdock">
           {(r.deposit_cents || 0) > 0 && (stage === 1 || stage === 2) && r.deposit_status !== 'released' ? (() => {
             const amt = money(r.deposit_cents!), nm = firstName(other.name), st = r.deposit_status;
-            if (st === 'held') return <div class="rhold ok">✓ {amt} hold on {isOwner ? nm + "'s" : 'your'} card{isOwner && stage === 1 ? ' · OK to hand over' : ' · released at return'}</div>;
+            if (st === 'held') return <div class="rhold ok">✓ {amt} hold (not a charge) on {isOwner ? nm + "'s" : 'your'} card{isOwner && stage === 1 ? ' · OK to hand over' : ' · released at return'}</div>;
             if (st === 'failed') return isOwner
               ? <form class="rhold bad" method="post" action={'/r/' + r.id + '/hold'}>✕ {nm}'s card didn't take the {amt} hold — hold off on handing it over <button type="submit">Try again</button></form>
               : <div class="rhold bad">Your card didn't take the {amt} hold · <a href={'/r/' + r.id + '/card'}>Add a card</a></div>;
-            return stage === 1 ? <div class="rhold">{isOwner ? `${amt} hold goes on ${nm}'s card on pickup day` : `Heads up: ${amt} hold on your card at pickup · released at return`}</div> : null;
+            return stage === 1 ? <div class="rhold">{isOwner ? `${amt} hold (not a charge) goes on ${nm}'s card on pickup day` : `Heads up: ${amt} hold (not a charge) on your card at pickup · released at return`}</div> : null;
           })() : null}
           {stage === 1 || stage === 2 ? <div class="rchips">
             {isOwner ? <>

@@ -200,6 +200,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
               <button type="button" class="btn" data-q="1" style="flex:1;height:48px;flex-direction:column;line-height:1.1"><b style="font-size:16px">1 day</b><small style="font-size:12px;font-weight:700">{money(it.price_cents)}</small></button>
               {it.week_cents && it.week_cents < it.price_cents * 7 ? <button type="button" class="btn" data-q="7" style="flex:1.3;height:48px;flex-direction:column;line-height:1.1;position:relative"><b style="font-size:16px">1 week</b><small style="font-size:12px;font-weight:700">{money(it.week_cents)} <s style="color:var(--mute);font-weight:600">{money(it.price_cents * 7)}</s></small><span style="position:absolute;right:-6px;top:-9px;background:var(--orange);color:#fff;border:1.5px solid var(--ink);border-radius:8px;font-size:10px;font-weight:900;padding:2px 6px">{Math.round(100 - it.week_cents / (it.price_cents * 7) * 100)}% OFF</span></button> : null}
             </div>
+            {(it.deposit_cents || 0) > 0 ? <div class="ihold">{money(it.deposit_cents!)} hold (not a charge) on your card at pickup · released at return</div> : null}
             <div class="days-hd">{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((w, i) => <span>{w}</span>)}</div>
             <div class="days" id="days" style={`--lead:${new Date(days[0] + 'T12:00:00Z').getUTCDay()}`}>
               {days.map((d, i) => {
