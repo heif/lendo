@@ -77,6 +77,7 @@ export function registerDash(admin: A) {
     const B = (rid: string, act: string, l: string) => <form method="post" action={`/admin/paytest/${rid}/${act}`} style="display:inline"><button class="btn sm" type="submit">{l}</button></form>;
     return c.html(<Shell c={c} title="Payments test" path="/admin/paytest">
       <div class="hint" style="margin-bottom:10px">Stripe TEST mode. Rent something on your phone with test card 4242 4242 4242 4242 (any future date, any CVC), then play the owner here. Each step runs the real code path; Stripe state is read live</div>
+      <form method="post" action="/admin/paytest/item" class="row" style="gap:6px;margin-bottom:12px;align-items:center"><span class="hint">Test item (not yours):</span><input name="lid" placeholder="listing id, e.g. l_…" style="height:34px;border:1.5px solid #e3dfd6;border-radius:8px;padding:0 8px;width:220px" /><select name="dep"><option value="15000">$150 hold ON</option><option value="0">hold off</option></select><button class="btn sm pri" type="submit">Set</button></form>
       <div class="ad-wrap"><table class="ad-t"><tr><th>Rental</th><th>Status</th><th>Rent payment (Stripe)</th><th>$150 hold</th><th>Owner actions</th></tr>
         {rows.map((r, i) => <tr><td><a href={'/r/' + r.id}>{r.item}</a><br /><span class="hint">{r.id} · {r.start_day}→{r.end_day} · {money(r.total_cents)}</span></td><td>{r.status}</td><td>{piRows[i][0]}</td>
           <td>{r.deposit_cents ? `${r.deposit_status || ''} · ${piRows[i][1]}${r.stripe_pm ? ' · card saved' : ' · no card saved'}` : 'off'}</td>
@@ -85,6 +86,13 @@ export function registerDash(admin: A) {
             {r.status === 'picked_up' ? <>{r.deposit_status === 'held' ? B(r.id, 'renew', 'Renew hold') : null} {B(r.id, 'return', 'Returned')}</> : null}</td></tr>)}
       </table></div>
     </Shell>);
+  });
+  admin.post('/admin/paytest/item', async (c) => {
+    if (!testMode(c)) return c.notFound();
+    const f = await c.req.parseBody(); const lid = String(f.lid || '').trim(), dep = f.dep === '15000' ? 15000 : 0;
+    await c.env.DB.prepare('UPDATE listings SET deposit_cents = ? WHERE id = ?').bind(dep, lid).run();
+    await logEvent(c.env.DB, 'admin.paytest', { user: c.get('user')!.id, listing: lid, cents: dep, data: { act: 'item_hold' } });
+    return c.redirect('/admin/paytest');
   });
   admin.post('/admin/paytest/:id/:act', async (c) => {
     if (!testMode(c)) return c.notFound();
