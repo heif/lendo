@@ -146,7 +146,7 @@ html.mappage .hdr{flex-shrink:0;position:relative}
 .pcard-txt{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:5px;padding-top:2px}
 .pcard-name{font-size:20px;font-weight:800;line-height:1.2;letter-spacing:-.3px}
 .pcard-owner{display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;white-space:nowrap;overflow:hidden}
-.pcard-owner .av{width:16px;height:16px;border-radius:8px;background:var(--ink);color:#fff;font-size:9px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;border:1.5px solid #fff;box-shadow:0 0 0 1px var(--ink)}
+.pcard-owner .av{display:none!important;width:16px;height:16px;border-radius:8px;background:var(--ink);color:#fff;font-size:9px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;border:1.5px solid #fff;box-shadow:0 0 0 1px var(--ink)}
 .pcard-owner .pill{padding:0 5px;border-radius:999px;border:1.2px solid var(--ink);background:var(--mint);font-size:10px;font-weight:900}
 .pcard-owner .pill.new{background:#fff;color:var(--mute);border-color:var(--line)}
 .pcard-owner .n{font-size:11px;font-weight:600;color:var(--ink2)}
