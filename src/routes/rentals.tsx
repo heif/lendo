@@ -136,7 +136,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
             <div>{r.status === 'inquiry' ? (isOwner ? 'Question about your item' : 'Questions before renting') : <>{fmtRange(r.start_day, r.end_day)} · {isOwner ? `you earn ${money(payoutOf(r) + xRent)}${r.status === 'held' ? ` after ${c.env.FEE_PCT}% fee` : ''}` : `${money(r.total_cents + xTotal)}${r.status === 'held' ? ' held' : ' paid'}`}</>}</div></div>
         </a>
         {r.status !== 'inquiry' && !dead ? (() => { const nm = firstName(other.name), spot = r.meet_spot || (spots.length === 1 ? spots[0] : '');
-          const chg = <u onclick="var d=document.querySelector('.rstrip');d.open=!d.open">Change</u>;
+          const chg = spots.length > 1 ? <u onclick="var d=document.querySelector('.rstrip');d.open=!d.open">Change</u> : null;
           const S: [string, any][] = [
             [isOwner ? `${nm} asked` : 'You asked', stage === 0 && !isOwner ? 'card held' : null],
             [stage === 0 ? (isOwner ? 'Say YES or NO' : `Waiting for ${nm}’s YES`) : (isOwner ? 'You said YES' : `${nm} said YES`), stage === 0 && !isOwner ? <button type="submit" form="cancelForm">Cancel</button> : stage === 1 && !isOwner ? <button type="submit" form="cancelForm">Cancel</button> : null],
@@ -152,11 +152,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
             <summary><span>📍 <b>{r.meet_spot || (spots.length === 1 ? spots[0] : 'Pick a meet spot')}</b> <span class="hint">· {stage === 1 ? 'pickup ' + dayWord(r.start_day, it.lng) + timeWord(r.pickup_time) : 'back ' + dayWord(r.end_day, it.lng) + timeWord(r.return_time)}</span></span><u>Change</u></summary>
             <div class="rstrip-in">
               {spots.length ? <form method="post" action={'/r/' + r.id + '/spot'} class="row" style="gap:6px;flex-wrap:wrap">{spots.map(sp => <button class={'btn sm' + (sp === r.meet_spot ? ' pri' : '')} name="spot" value={sp} type="submit">📍 {sp}</button>)}</form> : null}
-              <form method="post" action={'/r/' + r.id + '/time'} class="row" style="gap:6px;align-items:center">
-                <input type="hidden" name="kind" value={stage === 1 ? 'pickup' : 'return'} />
-                <span class="hint">{stage === 1 ? 'Pickup' : 'Return'} {dayWord(stage === 1 ? r.start_day : r.end_day, it.lng)} around</span>
-                <select name="t" onchange="this.form.submit()" class="rtime">{[<option value="">time…</option>, ...TIMES.map(t => <option value={t} selected={t === (stage === 1 ? r.pickup_time : r.return_time)}>{fmtHM(t)}</option>)]}</select>
-              </form>
+
             </div>
           </details>
         ) : null}
@@ -292,7 +288,7 @@ f.addEventListener('change',ok);f.addEventListener('submit',function(){document.
               <form method="post" action={'/r/' + r.id + (stage === 1 ? '/pickup' : '/return')} enctype="multipart/form-data" onsubmit={`return confirm('${stage === 1 ? 'Mark picked up' : 'Mark returned'} without a photo?')`}><button class="rchip" type="submit">✓ No photo</button></form>
             </> : null}
             {meetDue(stage === 1 ? r.start_day : r.end_day, stage === 1 ? r.pickup_time : r.return_time, it.lng) ? <><a class="rchip sms-only" href={smsHref(c.env, "I'm here")} style="text-decoration:none">👋 I’m here</a><form method="post" action={'/r/' + r.id + '/msg'} class="web-only"><input type="hidden" name="body" value="I'm here" /><button class="rchip" type="submit">👋 I’m here</button></form></> : null}
-            <button type="button" class="rchip" onclick="var d=document.querySelector('.rstrip');d.open=true;d.scrollIntoView({block:'start',behavior:'smooth'})">⏱ {(stage === 1 ? r.pickup_time : r.return_time) ? fmtHM((stage === 1 ? r.pickup_time : r.return_time)!) : 'Time'}</button>
+
           </div> : null}
           <form method="post" action={'/r/' + r.id + '/msg'} class="compose" style="position:static;padding:6px 0 0">
             <input name="body" placeholder={`Message ${firstName(other.name)}`} required maxlength={500} autocomplete="off" />
