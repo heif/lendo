@@ -4,6 +4,18 @@
   var forms = document.querySelectorAll('form[data-promo]'); if (!forms.length || !$('optin')) return;
   if (/(^|; )lendo_p=1/.test(document.cookie)) { forms.forEach(function (f) { f.remove(); }); return; }
   forms.forEach(function (f) { f.hidden = false; });
+  /* A/B test (exp 'gift5'): A = "Free $5 off rental", B = "Free $5 gift card" — 50/50, sticky per browser */
+  var V = (document.cookie.match(/(?:^|; )lendo_ab_gift=(a|b)/) || [])[1];
+  if (!V) { V = Math.random() < 0.5 ? 'a' : 'b'; document.cookie = 'lendo_ab_gift=' + V + ';path=/;max-age=34560000;samesite=lax'; }
+  var BODY = V === 'a' ? 'Free $5 off rental please' : 'Free $5 gift card please', PHONE = matchMedia('(pointer:coarse)').matches;
+  document.querySelectorAll('.giftbtn').forEach(function (g) {
+    var t = g.querySelector('.gb-tx'); if (t) t.innerHTML = V === 'a' ? 'Free $5<br>off rental' : 'Free $5<br>gift card';
+    g.href = g.href.replace(/body=[^&]*/, 'body=' + encodeURIComponent(BODY));
+    g.addEventListener('click', function () { ab('click'); });
+  });
+  var qd = $('gpQr'); if (qd) qd.dataset.sms = qd.dataset.sms.replace(/:[^:]*$/, ':' + BODY);
+  function ab(ev) { try { var b = JSON.stringify({ exp: 'gift5', var: V, ev: ev, phone: PHONE }); if (navigator.sendBeacon) navigator.sendBeacon('/api/ab', b); else fetch('/api/ab', { method: 'POST', body: b, keepalive: true }); } catch (e) {} }
+  try { if (!sessionStorage.getItem('ab_gift_seen')) { sessionStorage.setItem('ab_gift_seen', '1'); ab('view'); } } catch (e) { ab('view'); }
   var active = null, fmtPhone = function (d) { return d.length > 6 ? '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6) : d.length > 3 ? '(' + d.slice(0, 3) + ') ' + d.slice(3) : d; };
   forms.forEach(function (form) {
     var inp = form.querySelector('input'), btn = form.querySelector('button'), digits = function () { return inp.value.replace(/\D/g, '').slice(0, 10); };
@@ -23,7 +35,7 @@
   $('optNo').addEventListener('click', function () { $('optin').hidden = true; });
   $('optYes').addEventListener('click', function () {
     if (!active) return; var a = active; $('optin').hidden = true; a.btn.disabled = true; a.btn.dataset.t = a.btn.textContent; a.btn.textContent = '…';
-    var fd = new FormData(); fd.append('phone', a.digits);
+    var fd = new FormData(); fd.append('phone', a.digits); fd.append('var', V);
     fetch('/promo', { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (j) {
       forms.forEach(function (f) { f.className = 'promo done' + (f.classList.contains('incard') ? ' incard' : ''); f.innerHTML = j.ok ? '✓ $5 off saved · check your texts' : 'Hmm — try again'; });
       if (j.ok) setTimeout(function () { forms.forEach(function (f) { f.remove(); }); }, 6000);

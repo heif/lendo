@@ -1,3 +1,4 @@
+import { getCookie } from 'hono/cookie';
 // Public read API — agents welcome. No auth for reads; writes come later (keys + scopes).
 import { Hono } from 'hono';
 import { logEvent } from '../lib/log';
@@ -20,6 +21,13 @@ api.use('/api/search-log', loadUser);
 api.use('/api/*', async (c, next) => { await next(); c.header('access-control-allow-origin', '*'); c.header('cache-control', 'no-store'); });
 
 // settled search queries (map.js beacon) → events 'search'
+/* A/B beacons: { exp: 'gift5', var: 'a'|'b', ev: 'view'|'click' } — visitor from the lendo_v cookie */
+api.post('/api/ab', async (c) => {
+  let j: any; try { j = JSON.parse(await c.req.text()); } catch { return c.body(null, 204); }
+  if (j?.exp !== 'gift5' || !['a', 'b'].includes(j.var) || !['view', 'click'].includes(j.ev)) return c.body(null, 204);
+  await logEvent(c.env.DB, 'ab.gift5', { user: c.get('user')?.id ?? null, data: { ev: j.ev, var: j.var, v: getCookie(c, 'lendo_v') || null, phone: !!j.phone } });
+  return c.body(null, 204);
+});
 api.post('/api/search-log', async (c) => {
   let j: any; try { j = JSON.parse(await c.req.text()); } catch { return c.body(null, 204); }
   const q = String(j?.q || '').trim().slice(0, 80);

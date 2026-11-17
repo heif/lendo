@@ -97,11 +97,12 @@ async function blooioInbound(c: Context<{ Bindings: Env; Variables: Vars }>) {
     const nu = await ensureUser(c.env.DB, phone);
     await c.env.DB.prepare('UPDATE users SET replied = 1 WHERE id = ?').bind(nu.id).run(); nu.replied = 1;
     await logEvent(c.env.DB, 'user.signup', { user: nu.id, data: { via: 'text' } });
-    const gift = /\$5|gift/i.test(text);
+    const gift = /\$5|gift/i.test(text), giftVar = /off rental/i.test(text) ? 'a' : 'b'; /* A/B: "$5 off rental" vs "$5 gift card" */
+    if (gift) await logEvent(c.env.DB, 'ab.gift5', { user: nu.id, data: { ev: 'claim', var: giftVar, via: 'text' } });
     if (gift) await c.env.DB.prepare('UPDATE users SET promo_cents = 500, promo_claimed_at = ? WHERE id = ? AND promo_claimed_at IS NULL').bind(Date.now(), nu.id).run();
     const link = await loginLink(c.env, phone);
     await textUser(c.env, nu, gift
-      ? `Welcome to Lendo! Your $5 gift card is on your first rental. You're in: ${link} · Reply STOP to opt out`
+      ? `Welcome to Lendo! ${giftVar === 'a' ? '$5 off' : 'Your $5 gift card is on'} your first rental${giftVar === 'a' ? ' is on' : ''}. You're in: ${link} · Reply STOP to opt out`
       : `Welcome to Lendo! You're in: ${link} · Reply STOP to opt out`, 'login');
     if (gift) return c.json({ ok: true, welcomed: true });
     return handleText(c, nu, text, 'text'); /* "Hi! I need a ladder" → matches */

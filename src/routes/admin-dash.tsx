@@ -29,7 +29,7 @@ const NAV_CSS = `.adn{position:sticky;top:0;z-index:20;background:var(--cream,#F
 .adn a{padding:5px 9px;border-radius:8px;font-size:12.5px;font-weight:700;text-decoration:none;color:var(--ink);opacity:.7}.adn a:hover{opacity:1;background:rgba(30,58,43,.06)}
 .adn a.on{opacity:1;background:var(--ink);color:#fff}.adn i{width:1px;align-self:stretch;margin:4px 5px;background:rgba(30,58,43,.18)}
 .adn sup{font-size:10px;font-weight:800;color:#fff;background:#FF4F00;border-radius:999px;padding:0 5px;margin-left:3px;vertical-align:2px}`;
-const NAV: ([string, string, ('review' | 'error' | 'flag')?] | null)[] = [['/admin', 'Home'], ['/admin/flags', 'Flags', 'flag'], ['/admin/log', 'Log'], ['/admin/rentals', 'Rentals'], ['/admin/users', 'Users'], ['/admin/texts', 'Texts'], ['/admin/texting', 'Texting check'], ['/admin/searches', 'Searches'], ['/admin/log?kind=error', 'Errors', 'error'], null, ['/admin/review', 'Photos', 'review'], ['/admin/promo', 'Promo'], ['/admin/pricing', 'Pricing'], ['/admin/wanted', 'Wanted'], ['/admin/debug', 'System'], ['/admin/access', 'Access']];
+const NAV: ([string, string, ('review' | 'error' | 'flag')?] | null)[] = [['/admin', 'Home'], ['/admin/flags', 'Flags', 'flag'], ['/admin/log', 'Log'], ['/admin/rentals', 'Rentals'], ['/admin/users', 'Users'], ['/admin/texts', 'Texts'], ['/admin/texting', 'Texting check'], ['/admin/searches', 'Searches'], ['/admin/log?kind=error', 'Errors', 'error'], null, ['/admin/review', 'Photos', 'review'], ['/admin/promo', 'Promo'], ['/admin/ab', 'A/B'], ['/admin/pricing', 'Pricing'], ['/admin/wanted', 'Wanted'], ['/admin/debug', 'System'], ['/admin/access', 'Access']];
 export async function AdminNav({ c, path }: { c: any; path: string }) {
   const [rv, er, fl] = await Promise.all([
     c.env.DB.prepare(`SELECT COUNT(*) n FROM listings WHERE status = 'review'`).first().catch(() => null),
@@ -63,6 +63,20 @@ const one = async <T,>(c: any, sql: string, ...b: unknown[]) => (await c.env.DB.
 const all = async <T,>(c: any, sql: string, ...b: unknown[]) => ((await c.env.DB.prepare(sql).bind(...b).all().catch(() => ({ results: [] }))).results) as T[];
 
 export function registerDash(admin: A) {
+  // ---------- A/B: $5 button copy (exp gift5) ----------
+  admin.get('/admin/ab', async (c) => {
+    const rows = (await c.env.DB.prepare(`SELECT json_extract(data,'$.var') var, json_extract(data,'$.ev') ev, COUNT(*) n, COUNT(DISTINCT COALESCE(json_extract(data,'$.v'), user_id)) u FROM events WHERE kind = 'ab.gift5' GROUP BY 1, 2`).all<{ var: string; ev: string; n: number; u: number }>()).results;
+    const g = (v: string, ev: string, uniq = false) => { const r = rows.find(x => x.var === v && x.ev === ev); return r ? (uniq ? r.u : r.n) : 0; };
+    const pct = (a: number, b: number) => b ? (100 * a / b).toFixed(1) + '%' : '—';
+    const V = [['a', 'Free $5 off rental'], ['b', 'Free $5 gift card']];
+    return c.html(<Shell c={c} title="A/B" path="/admin/ab">
+      <h3>$5 button copy · 50/50 per browser, logged-out only</h3>
+      <table class="ad-t"><tr><th>Variant</th><th>Visitors saw it</th><th>Clicks</th><th>Click rate</th><th>Claimed $5</th><th>Claim rate</th></tr>
+        {V.map(([v, l]) => { const seen = g(v, 'view', true), cl = g(v, 'click'), cm = g(v, 'claim'); return <tr><td><b>{v.toUpperCase()}</b> · {l}</td><td>{seen}</td><td>{cl}</td><td>{pct(cl, seen)}</td><td>{cm}</td><td><b>{pct(cm, seen)}</b></td></tr>; })}
+      </table>
+      <div class="hint" style="margin-top:8px">Claimed = a new $5 by text (phones, QR) or phone # (computers). A few hundred visitors per side before reading much into it</div>
+    </Shell>);
+  });
   // ---------- Flags: queue + routing (category → owner / admins / agent) ----------
   admin.get('/admin/flags', async (c) => {
     const st = c.req.query('status') || 'open';

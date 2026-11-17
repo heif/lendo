@@ -164,6 +164,7 @@ auth.post('/promo', async (c) => {
   if (!phone) return c.json({ ok: false, error: 'bad phone' }, 400);
   const user = await ensureUser(c.env.DB, phone);
   const fresh = !user.promo_claimed_at;
+  if (fresh) await logEvent(c.env.DB, 'ab.gift5', { user: user.id, data: { ev: 'claim', var: f.var === 'a' ? 'a' : 'b', via: 'phone' } });
   if (fresh) await c.env.DB.prepare('UPDATE users SET promo_cents = 500, promo_claimed_at = ? WHERE id = ?').bind(Date.now(), user.id).run();
   c.executionCtx.waitUntil(sendRaw(c.env, phone, fresh
     ? `$5 off your first rental is saved to this number. Save contact + reply OK so rental texts reach you ${c.env.APP_URL}/lendo.vcf`
