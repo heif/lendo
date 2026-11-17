@@ -114,3 +114,19 @@ export async function nycLeft(db: D1Database): Promise<number> {
   const n = (await db.prepare(`SELECT COUNT(*) n FROM listings WHERE demo = 0 AND lat BETWEEN 40.03 AND 41.37 AND lng BETWEEN -74.86 AND -73.10`).first<{ n: number }>().catch(() => null))?.n ?? 0;
   return Math.max(0, NYC_CAP - n);
 }
+
+/* owners who never texted Lendo back can't get rental requests (Blooio blocks after 3) → their listings pause after 1h */
+export async function pauseUntexted(env: Env): Promise<number> {
+  const cut = Date.now() - 3600_000;
+  const rows = (await env.DB.prepare(`SELECT l.id, l.owner_id FROM listings l JOIN users u ON u.id = l.owner_id WHERE l.status = 'live' AND l.demo = 0 AND l.created_at < ? AND COALESCE(u.replied, 0) = 0 LIMIT 200`).bind(cut).all<{ id: string; owner_id: string }>()).results;
+  for (const r of rows) {
+    await env.DB.prepare(`UPDATE listings SET status = 'paused', paused_why = 'notext' WHERE id = ? AND status = 'live'`).bind(r.id).run();
+    await logEvent(env.DB, 'listing.paused_notext', { user: r.owner_id, listing: r.id });
+  }
+  return rows.length;
+}
+export async function unpauseTexted(db: D1Database, uid: string): Promise<number> {
+  const rows = (await db.prepare(`SELECT id FROM listings WHERE owner_id = ? AND paused_why = 'notext'`).bind(uid).all<{ id: string }>()).results;
+  for (const r of rows) { await db.prepare(`UPDATE listings SET status = 'live', paused_why = NULL WHERE id = ?`).bind(r.id).run(); await logEvent(db, 'listing.unpaused_text', { user: uid, listing: r.id }); }
+  return rows.length;
+}

@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { logEvent } from '../lib/log';
-import { CHAT_SVG, SEND_SVG } from '../lib/icons';
+import { CHAT_SVG, SEND_SVG, X_SVG } from '../lib/icons';
 import { localToday, tzFor } from '../lib/util';
 import { shortName } from '../lib/util';
 import { handleText } from './webhooks';
@@ -213,9 +213,9 @@ rentals.get('/r/:id', requireUser, async (c) => {
           const when = r.promise_at ? new Date(r.promise_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) : '';
           const view = (
             <dialog id="promView" class="psheet"><div class="psheet-in">
-              <div class="psheet-h"><b>{isOwner ? `${cu}’s promise to you` : `Your promise to ${ow}`}</b><button type="button" class="psheet-x" aria-label="Close" onclick="this.closest('dialog').close()">✕</button></div>
+              <div class="psheet-h"><b>{isOwner ? `${cu}’s promise to you` : `Your promise to ${ow}`}</b><button type="button" class="psheet-x" aria-label="Close" onclick="this.closest('dialog').close()" dangerouslySetInnerHTML={{ __html: X_SVG }} /></div>
               <div class="hint">{it.name} · {fmtRange(r.start_day, r.end_day)}</div>
-              <div class="plist">{PROMISES(ow).map(t => <div class="pitem"><span class="pbox on">✓</span><span>{t}</span></div>)}</div>
+              <div class="plist">{PROMISES(ow).map(t => <div class="prom"><span class="pbox on">✓</span><span>{t}</span></div>)}</div>
               <div class="psig">{r.promise_sig ? <img src={'/p/' + r.promise_sig} alt="Signature" /> : null}<div class="hint row" style="justify-content:space-between"><span>Signed by {isOwner ? cu : 'you'}</span><span>{when}</span></div></div>
               <div class="hint" style="text-align:center;margin-top:8px">{isOwner ? 'You have a copy' : `${ow} has a copy too`}</div>
             </div></dialog>
@@ -226,9 +226,9 @@ rentals.get('/r/:id', requireUser, async (c) => {
           return (<>
             <div class="hint" style="text-align:center">Sign your promise to {ow} before pickup · 3 quick checks</div>
             <dialog id="promSign" class="psheet"><form method="post" action={'/r/' + r.id + '/promise'} class="psheet-in" id="promForm">
-              <div class="psheet-h"><b>Your promise to {ow}</b><button type="button" class="psheet-x" aria-label="Close" onclick="this.closest('dialog').close()">✕</button></div>
+              <div class="psheet-h"><b>Your promise to {ow}</b><button type="button" class="psheet-x" aria-label="Close" onclick="this.closest('dialog').close()" dangerouslySetInnerHTML={{ __html: X_SVG }} /></div>
               <div class="hint">Neighbor to neighbor. Tap each one</div>
-              <div class="plist">{PROMISES(ow).map((t, i) => <label class="pitem"><input type="checkbox" name={'p' + i} required /><span class="pbox"></span><span>{t}</span></label>)}</div>
+              <div class="plist">{PROMISES(ow).map((t, i) => <label class="prom"><input type="checkbox" name={'p' + i} required /><span class="pbox"></span><span>{t}</span></label>)}</div>
               <div class="psig"><div class="row" style="justify-content:space-between;align-items:center"><b style="font-size:13px">Sign with your finger</b><button type="button" class="btn sm" id="sigClear" style="height:30px">Clear</button></div>
                 <canvas id="sigpad" width="640" height="200" aria-label="Signature pad"></canvas>
                 <div class="hint">Your finger signature is your signature</div></div>

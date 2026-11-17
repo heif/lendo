@@ -1,3 +1,4 @@
+import { logEvent } from './log';
 // Plain-English texting: Claude turns a text into one of a few actions. Anything touching money or bookings
 // is parked in pending_actions and only runs after the sender replies YES.
 import type { Env, Listing, Rental, User } from './env';
@@ -18,6 +19,7 @@ export type Intent =
   | { action: 'cancel' }
   | { action: 'extend'; until: string | null }
   | { action: 'list' }
+  | { action: 'ask_lendo'; answer: string; sure: boolean }
   | { action: 'help' };
 
 const MODEL = 'claude-haiku-5-5';
@@ -32,7 +34,16 @@ Actions:
 - {"action":"cancel"}  — the customer wants to cancel their rental or request.
 - {"action":"extend","until":"YYYY-MM-DD or null"}  — the customer wants to keep the item longer.
 - {"action":"list"}  — they want to list / rent out their own stuff.
+- {"action":"ask_lendo","answer":"...","sure":true}  — a question for Lendo itself, not the other person: how holds, charges, refunds, payouts, fees, cancelling, safety, problems or the site work ("how do I know I'll get the money back", "when do I get paid", "what's this $150"). Answer it yourself in 1-2 short lines from LENDO FACTS only, plain words, no trailing period. If the facts don't cover it, "sure":false and answer "A person at Lendo will text you back". Questions about the item, pickup or timing are "message", not this.
 - {"action":"help"}  — anything else, or unclear.
+LENDO FACTS
+- Renting: the customer's card is held when they request; charged only when the owner says YES. NO or no answer in 24h = hold released, nothing charged
+- Cancel before YES = free. After YES = half back
+- $150 hold: only on items the owner says are worth over $150. A hold, not a charge: the bank reserves $150 from pickup day, Lendo releases it when the item is returned, and the bank drops it within a few days. Never charged automatically. Renewed every 6 days if the rental is longer
+- If something goes wrong (damage, missing, not returned), a person at Lendo looks at it; flag it on the rental page
+- Owners get the rent minus Lendo's 15% fee, paid after pickup via Stripe; set up at lendo.co/payout
+- Payments run through Stripe; Lendo never sees full card numbers
+- Customers pay rent + sales tax; owners can give a discount or lend free
 Today is ${localToday()}.`;
   const facts = [
     ctx.rental ? `Active rental: they are the ${ctx.role} of "${ctx.item}" with ${ctx.other}, ${ctx.rental.start_day} to ${ctx.rental.end_day}, status ${ctx.rental.status}.` : 'No active rental.',
@@ -42,7 +53,7 @@ Today is ${localToday()}.`;
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: MODEL, max_tokens: 200, system: sys, messages: [{ role: 'user', content: `${facts}\n\nText: ${JSON.stringify(text.slice(0, 600))}` }] }),
+      body: JSON.stringify({ model: MODEL, max_tokens: 300, system: sys, messages: [{ role: 'user', content: `${facts}\n\nText: ${JSON.stringify(text.slice(0, 600))}` }] }),
     });
     if (!r.ok) { console.warn('intent http', r.status, await r.text()); return null; }
     const j: any = await r.json();
@@ -132,6 +143,12 @@ export async function actOn(env: Env, user: User, it: Intent, ctx: { rental: Ren
     case 'extend': {
       if (!ctx.rental || ctx.role !== 'customer') return false;
       await textUser(env, user, `Pick a new return date here ${url}/r/${ctx.rental.id}`, 'rental', ctx.rental.id);
+      return true;
+    }
+    case 'ask_lendo': {
+      const a = String(it.answer || '').replace(/\.\s*$/, '').slice(0, 320); if (!a) return false;
+      await textUser(env, user, `Lendo: ${a}${ctx.rental ? ` ${url}/r/${ctx.rental.id}` : ''}`, 'rental', ctx.rental?.id);
+      await logEvent(env.DB, 'text.ask_lendo', { user: user.id, rental: ctx.rental?.id ?? null, data: { q: raw.slice(0, 300), a, sure: it.sure !== false } });
       return true;
     }
     case 'list':

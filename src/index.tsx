@@ -1,3 +1,4 @@
+import { pauseUntexted } from './lib/db';
 import { iconsDone, makeWantedIcon, auditIcons } from './lib/wanted-icons';
 import { getCookie, setCookie } from 'hono/cookie';
 import { logEvent } from './lib/log';
@@ -75,6 +76,7 @@ export default {
     try { await backfillUrls(env, 150); } catch (e) { console.warn('urls', e); }
     try { await nudgePromises(env); } catch (e) { console.warn('promise nudge', e); }
     try { await expireExtensions(env); } catch (e) { console.warn('ext expire', e); }
+    try { const p = await pauseUntexted(env); if (p) console.log(`paused ${p} listings: owner never texted back`); } catch (e) { console.warn('notext pause', e); }
     const n = await expireHolds(env);
     if (n) console.log(`expired ${n} held requests`);
     try { const c = await chaseHolds(env); if (c) console.log(`chase: ${c} texts`); } catch (e) { console.warn('chase', e); }

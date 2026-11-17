@@ -1,3 +1,4 @@
 // Lendo icons: chunky strokes (≥3), round caps, simple shapes
 export const SEND_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V5M5.5 11.5L12 5l6.5 6.5" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 export const CHAT_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4c5 0 8.5 3.1 8.5 7.2s-3.500 7.200-8.500 7.200c-1 0-2-.1-2.900-.4L4.500 20l1.200-3.700C4.300 15 3.500 13.200 3.500 11.200 3.500 7.100 7 4 12 4Z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/></svg>';
+export const X_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/></svg>';

@@ -8,7 +8,7 @@ import type Stripe from 'stripe';
 import type { Env, Rental, User, Vars } from '../lib/env';
 import { cardFromSetup, rememberCard, stripe } from '../lib/stripe';
 import { parseInbound, textUser } from '../lib/blooio';
-import { ensureUser, rentalById, userByPhone } from '../lib/db';
+import { ensureUser, rentalById, unpauseTexted, userByPhone } from '../lib/db';
 import { loginLink } from '../lib/auth';
 import { accept, activeRentalFor, decline, holdDeposit, markHeld, relay } from '../lib/rentals';
 import { hmacHex, normPhone, timingSafeEq, firstName } from '../lib/util';
@@ -122,6 +122,7 @@ export async function handleText(c: Context<{ Bindings: Env; Variables: Vars }>,
   const kw = text.toUpperCase().replace(/[^A-Z ]/g, '').trim();
   await c.env.DB.prepare('INSERT INTO inbound_texts (id, user_id, body, via, created_at) VALUES (?,?,?,?,?)').bind(crypto.randomUUID(), user.id, text.slice(0, 500), via, Date.now()).run().catch(() => {});
   if (!user.replied && via === 'text') { await c.env.DB.prepare('UPDATE users SET replied = 1 WHERE id = ?').bind(user.id).run(); user.replied = 1; }
+  if (via === 'text') await unpauseTexted(c.env.DB, user.id).catch(() => 0);
   if (kw === 'OK' || kw === 'OKAY' || kw === 'K' || kw === 'GOT IT' || kw === 'THANKS' || kw === 'THANK YOU') {
     /* OK to a Lendo confirm ask = acknowledged; no reply (the inbound text already reset Blooio's count) */
     const last = await c.env.DB.prepare(`SELECT body FROM outbound_texts WHERE user_id = ? ORDER BY created_at DESC LIMIT 1`).bind(user.id).first<{ body: string }>().catch(() => null);
