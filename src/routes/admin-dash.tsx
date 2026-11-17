@@ -335,7 +335,7 @@ export function registerDash(admin: A) {
 
   // ---------- Activity log: filter by kind (prefix ok: "money."), user, rental, listing, text; CSV ----------
   /* fake showcase data (users.demo / listings.demo) lives only under the Demo tab */
-  const DEMO_EV = `(e.user_id IN (SELECT id FROM users WHERE demo = 1) OR e.listing_id IN (SELECT id FROM listings WHERE demo = 1) OR e.rental_id IN (SELECT r.id FROM rentals r JOIN listings l ON l.id = r.listing_id WHERE l.demo = 1))`;
+  const DEMO_EV = `(COALESCE(e.user_id, '') IN (SELECT id FROM users WHERE demo = 1) OR COALESCE(e.listing_id, '') IN (SELECT id FROM listings WHERE demo = 1) OR COALESCE(e.rental_id, '') IN (SELECT r.id FROM rentals r JOIN listings l ON l.id = r.listing_id WHERE l.demo = 1))`;
   const demoNav = (on: string) => <nav class="ad-sub"><b style="margin-right:6px">Fake showcase data:</b>{[['/admin/demo', 'Summary'], ['/admin/users?demo=1', 'Users'], ['/admin/rentals?demo=1', 'Rentals'], ['/admin/log?demo=1', 'Log'], ['/admin/texts?demo=1', 'Texts']].map(([h, t]) => <a href={h} class={on === h ? 'on' : ''}>{t}</a>)}</nav>;
   admin.get('/admin/demo', async (c) => {
     const n = await one<{ u: number; l: number; r: number; e: number }>(c, `SELECT (SELECT COUNT(*) FROM users WHERE demo = 1) u, (SELECT COUNT(*) FROM listings WHERE demo = 1) l, (SELECT COUNT(*) FROM rentals WHERE listing_id IN (SELECT id FROM listings WHERE demo = 1)) r, (SELECT COUNT(*) FROM events e WHERE ${DEMO_EV}) e`);
