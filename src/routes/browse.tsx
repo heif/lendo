@@ -1,5 +1,6 @@
 import { Hono, type Context } from 'hono';
 import { smsHref } from '../lib/blooio';
+import { Flag } from '../lib/flags';
 import { logEvent } from '../lib/log';
 import { localToday } from '../lib/util';
 import { SOCIALS, SocialIcons, socialHandle } from '../lib/socials';
@@ -220,6 +221,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
           </div>); })()}
       </section>
       {!isOwner && it.status === 'live' && !it.demo ? <section class="sec charges" id="charges" hidden /> : null}
+      {!isOwner && !it.demo ? <div class="flagrow"><Flag kind="item" target={it.id} back={'/i/' + it.id} user={u} label="Flag" /></div> : null /* quiet, at the bottom */}
       {!u ? <div style="height:84px"></div> : null /* room for the floating phone/$5 OFF bar; logged in there is no bar, so no gap */}
       {it.demo ? <div class="flash" id="demoNote" hidden style="margin:0 16px 90px">This one’s a demo — Iowa City is a preview of what a Lendo neighborhood looks like full. Nothing gets charged. <a href="/list">List your real stuff →</a></div> : null}
       {!isOwner && it.status === 'live' ? (
@@ -316,6 +318,7 @@ export const personPage = async (c: Ctx, uid: string) => {
             <SocialIcons u={who} />
             {me && (who as any).handle ? <div class="pf-links"><span class="pf-link">lendo.co/{(who as any).handle}</span><button type="button" class="pf-share" onclick={`var u=location.origin+location.pathname;navigator.share?navigator.share({text:'My stuff for rent on Lendo',url:u}):(navigator.clipboard.writeText(u),toast('Link copied'))`} aria-label="Share my page"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7.5 7.5L12 3l4.5 4.5" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /><path d="M6 11H5v10h14V11h-1" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg></button></div> : null}
           </div>
+          {!me ? <Flag kind="user" target={who.id} back={'/u/' + who.id} user={c.get('user')} cls="pf-flag" /> : null}
           {me ? <a class="pf-editbtn" href="/profile/edit" aria-label="Edit profile"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linejoin="round" /><path d="M13.5 6.5l4 4" stroke="#1E3A2B" stroke-width="2.2" /></svg></a> : null}
         </div>
         {me ? <div class="pf-earn"><span><b>{money(earned?.s || 0)}</b> earned · {earned?.n || 0} rental{earned?.n === 1 ? '' : 's'}</span><a href="/payout">Get paid</a></div> : null}

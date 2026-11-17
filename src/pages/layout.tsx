@@ -101,7 +101,8 @@ export const Layout: FC<LayoutProps> = (p) => {
 document.addEventListener('click',function(e){document.querySelectorAll('details.acct[open]').forEach(function(d){if(!d.contains(e.target))d.removeAttribute('open')})});
 window.toast=function(t){var d=document.createElement('div');d.className='toast';d.textContent=t;document.body.appendChild(d);setTimeout(function(){d.remove()},2200)};
 </script>`)}
-      </body>
+      <script dangerouslySetInnerHTML={{ __html: "(function(){var q=location.search;if(!/[?&]flag(ged|err)=1/.test(q))return;var d=document.createElement('div');d.className='flagthx';d.textContent=/flagged/.test(q)?'Thanks \u2014 a person at Lendo will look at it':'Couldn\u2019t send that \u2014 try again';document.body.appendChild(d);setTimeout(function(){d.remove()},4000);try{history.replaceState(null,'',location.pathname+q.replace(/[?&]flag(ged|err)=1/,'').replace(/^&/,'?'))}catch(e){}})()" }} />
+</body>
     </html>
   )}`;
 };

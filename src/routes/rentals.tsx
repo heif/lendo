@@ -10,6 +10,7 @@ import type { Env, Listing, Rental, User, Vars } from '../lib/env';
 import type { Context } from 'hono';
 type Ctx = Context<{ Bindings: Env; Variables: Vars }>;
 import { Layout } from '../pages/layout';
+import { createFlag, Flag, FLAGGABLE, type FlagKind } from '../lib/flags';
 import { requireUser } from '../lib/auth';
 import { addMessage, busyDays, firstPhotos, listingById, photosFor, rentalById, userById } from '../lib/db';
 import { id, money, now, daysBetween, dayStr, addDays, fmtRange, rentFor, firstName, fmtDay } from '../lib/util';
@@ -181,7 +182,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
         <div class="msgs">
           {msgs.results.map(m => {
             const me = m.sender_id === u.id, sys = !m.sender_id;
-            return <div class={'msg' + (me ? ' me' : sys ? ' sys' : '')}><div class="bub"><Linked t={m.body} /></div><div class="meta">{sys ? '' : (me ? 'You' : firstName(m.sender_name)) + (m.via === 'text' ? ' · by text' : '') + ' · '}{fmtT(m.created_at)}</div></div>;
+            return <div class={'msg' + (me ? ' me' : sys ? ' sys' : '')}><div class="bub"><Linked t={m.body} />{!me && !sys && FLAGGABLE.test(m.body) ? <Flag kind="message" target={String(m.id)} rental={r.id} back={'/r/' + r.id} user={u} cls="msgflag" /> : null /* flag only shows on flaggable text */}</div><div class="meta">{sys ? '' : (me ? 'You' : firstName(m.sender_name)) + (m.via === 'text' ? ' · by text' : '') + ' · '}{fmtT(m.created_at)}</div></div>;
           })}
         </div>
 
@@ -244,6 +245,7 @@ f.addEventListener('change',ok);f.addEventListener('submit',function(){document.
             <button class="btn pri full" type="submit" style="margin-top:8px">Rate</button>
           </form>
         ) : myRating ? <div class="hint">You gave {myRating >= 3 ? '👍' : '👎'}</div> : null}
+        {isOwner && (r.status === 'returned' || r.status === 'closed') ? <div class="flagrow" style="justify-content:flex-start"><Flag kind="rental" target={r.id} rental={r.id} back={'/r/' + r.id} user={u} label="Problem with the return?" /></div> : null}
 
       </div>
       {!dead ? (
@@ -559,4 +561,18 @@ rentals.post('/payout', requireUser, async (c) => {
   const r = await connectOnboardingUrl(c.env, u);
   if (!r) return c.redirect('/payout');
   return c.redirect(r.url, 303);
+});
+
+// ---------- Flags ----------
+rentals.post('/flag', requireUser, async (c) => {
+  const u = c.get('user')!; const f = await c.req.parseBody();
+  const kind = String(f.kind) as FlagKind, target = String(f.id || '').slice(0, 64), back = String(f.back || '/');
+  const safeBack = back.startsWith('/') && !back.startsWith('//') ? back : '/';
+  let rental: string | null = f.rental ? String(f.rental).slice(0, 64) : null;
+  /* must be able to see what they flag: a rental/message only by its parties */
+  if (rental) { const r = await rentalById(c.env.DB, rental); if (!r || (r.owner_id !== u.id && r.renter_id !== u.id)) return c.notFound();
+    if (kind === 'message') { const m = await c.env.DB.prepare('SELECT 1 FROM messages WHERE id = ? AND rental_id = ?').bind(target, rental).first(); if (!m) return c.notFound(); } }
+  else if (kind === 'rental' || kind === 'message') return c.notFound();
+  const fid = await createFlag(c.env, u, kind, target, String(f.reason || ''), String(f.note || '').trim().slice(0, 500), rental, c.executionCtx);
+  return c.redirect(safeBack + (safeBack.includes('?') ? '&' : '?') + (fid ? 'flagged=1' : 'flagerr=1'));
 });

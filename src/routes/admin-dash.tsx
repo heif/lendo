@@ -1,6 +1,7 @@
 // Admin dashboard: KPIs, money, activity log, rentals, users, texts, searches, errors. Admin-only (guarded in admin.tsx).
 import type { Hono } from 'hono';
 import type { Env, Vars } from '../lib/env';
+import { CATEGORIES, REASONS, routeFor, routes } from '../lib/flags';
 import { Layout } from '../pages/layout';
 import { money } from '../lib/util';
 import { logEvent } from '../lib/log';
@@ -28,13 +29,14 @@ const NAV_CSS = `.adn{position:sticky;top:0;z-index:20;background:var(--cream,#F
 .adn a{padding:5px 9px;border-radius:8px;font-size:12.5px;font-weight:700;text-decoration:none;color:var(--ink);opacity:.7}.adn a:hover{opacity:1;background:rgba(30,58,43,.06)}
 .adn a.on{opacity:1;background:var(--ink);color:#fff}.adn i{width:1px;align-self:stretch;margin:4px 5px;background:rgba(30,58,43,.18)}
 .adn sup{font-size:10px;font-weight:800;color:#fff;background:#FF4F00;border-radius:999px;padding:0 5px;margin-left:3px;vertical-align:2px}`;
-const NAV: ([string, string, ('review' | 'error')?] | null)[] = [['/admin', 'Home'], ['/admin/log', 'Log'], ['/admin/rentals', 'Rentals'], ['/admin/users', 'Users'], ['/admin/texts', 'Texts'], ['/admin/texting', 'Texting check'], ['/admin/searches', 'Searches'], ['/admin/log?kind=error', 'Errors', 'error'], null, ['/admin/review', 'Photos', 'review'], ['/admin/promo', 'Promo'], ['/admin/pricing', 'Pricing'], ['/admin/wanted', 'Wanted'], ['/admin/debug', 'System'], ['/admin/access', 'Access']];
+const NAV: ([string, string, ('review' | 'error' | 'flag')?] | null)[] = [['/admin', 'Home'], ['/admin/flags', 'Flags', 'flag'], ['/admin/log', 'Log'], ['/admin/rentals', 'Rentals'], ['/admin/users', 'Users'], ['/admin/texts', 'Texts'], ['/admin/texting', 'Texting check'], ['/admin/searches', 'Searches'], ['/admin/log?kind=error', 'Errors', 'error'], null, ['/admin/review', 'Photos', 'review'], ['/admin/promo', 'Promo'], ['/admin/pricing', 'Pricing'], ['/admin/wanted', 'Wanted'], ['/admin/debug', 'System'], ['/admin/access', 'Access']];
 export async function AdminNav({ c, path }: { c: any; path: string }) {
-  const [rv, er] = await Promise.all([
+  const [rv, er, fl] = await Promise.all([
     c.env.DB.prepare(`SELECT COUNT(*) n FROM listings WHERE status = 'review'`).first().catch(() => null),
     c.env.DB.prepare(`SELECT COUNT(*) n FROM events WHERE kind = 'error' AND at > ?`).bind(Date.now() - DAY).first().catch(() => null),
+    c.env.DB.prepare(`SELECT COUNT(*) n FROM flags WHERE status != 'done'`).first().catch(() => null),
   ]);
-  const badge = { review: (rv as any)?.n || 0, error: (er as any)?.n || 0 };
+  const badge = { review: (rv as any)?.n || 0, error: (er as any)?.n || 0, flag: (fl as any)?.n || 0 };
   const viewOnly = c.get('user')?.admin_level === 'view';
   return <nav class="adn">{viewOnly ? <p class="hint" style="margin:0 0 4px;font-size:12px">View-only access · buttons won't save</p> : null}<style dangerouslySetInnerHTML={{ __html: NAV_CSS }} /><div>{NAV.filter(n => !n || n[0] !== '/admin/access' || c.get('user')?.admin_level === 'owner').map(n => n ? <a href={n[0]} class={n[0] === path ? 'on' : ''}>{n[1]}{n[2] && badge[n[2]] ? <sup>{badge[n[2]]}</sup> : null}</a> : <i />)}</div><script dangerouslySetInnerHTML={{ __html: `(function(){var a=document.querySelector('.adn a.on');if(a)a.parentNode.scrollLeft=a.offsetLeft-60})()` }} /></nav>;
 }
@@ -61,6 +63,54 @@ const one = async <T,>(c: any, sql: string, ...b: unknown[]) => (await c.env.DB.
 const all = async <T,>(c: any, sql: string, ...b: unknown[]) => ((await c.env.DB.prepare(sql).bind(...b).all().catch(() => ({ results: [] }))).results) as T[];
 
 export function registerDash(admin: A) {
+  // ---------- Flags: queue + routing (category → owner / admins / agent) ----------
+  admin.get('/admin/flags', async (c) => {
+    const st = c.req.query('status') || 'open';
+    const rows = (await c.env.DB.prepare(`SELECT f.*, u.name reporter FROM flags f LEFT JOIN users u ON u.id = f.reporter_id ${st === 'all' ? '' : st === 'done' ? "WHERE f.status = 'done'" : "WHERE f.status != 'done'"} ORDER BY CASE f.category WHEN 'safety' THEN 0 WHEN 'money' THEN 1 ELSE 2 END, f.created_at DESC LIMIT 200`).all<any>().catch(() => ({ results: [] as any[] }))).results;
+    const rt = await routes(c.env);
+    const admins = (await c.env.DB.prepare(`SELECT id, name FROM users WHERE admin_role = 'full'`).all<{ id: string; name: string }>()).results;
+    const who = [['owner', 'Owner (you)'], ...admins.map(a => [a.id, a.name || a.id]), ['agent', 'Agent (Claude suggests)']];
+    const nm = (w: string) => (who.find(x => x[0] === w) || [w, w])[1];
+    const link = (f: any) => f.kind === 'item' ? '/i/' + f.target_id : f.kind === 'user' ? '/u/' + f.target_id : '/admin/log?rental=' + (f.rental_id || f.target_id);
+    const label = (f: any) => (REASONS as any)[f.kind]?.find((x: string[]) => x[0] === f.reason)?.[1] || f.reason;
+    return c.html(<Shell c={c} title="Flags" path="/admin/flags">
+      <div class="row" style="gap:8px;margin:6px 0 12px">{[['open', 'Open'], ['done', 'Done'], ['all', 'All']].map(([k, l]) => <a class={'btn sm' + (st === k ? ' pri' : '')} href={'/admin/flags?status=' + k}>{l}</a>)}</div>
+      {rows.length ? rows.map(f => <div class="card" style={'padding:12px;margin-bottom:8px' + (f.category === 'safety' || f.category === 'money' ? ';border:2px solid #FF4F00' : '')}>
+        <div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><b>{CATEGORIES.find(x => x[0] === f.category)?.[1] || f.category} · {label(f)}</b>
+          <span class="hint">{f.kind} · <a href={link(f)}>open</a> · by {f.reporter || f.reporter_id} · {new Date(f.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span></div>
+        {f.note ? <div style="margin-top:6px">“{f.note}”</div> : null}
+        {f.agent_note ? <div class="hint" style="margin-top:6px;background:#F5F3EE;border-radius:8px;padding:6px 8px">🤖 {f.agent_note}</div> : null}
+        <form method="post" action={'/admin/flags/' + f.id} class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center">
+          <select name="status">{['new', 'looking', 'done'].map(x => <option value={x} selected={f.status === x}>{x}</option>)}</select>
+          <select name="assignee">{who.filter(w => w[0] !== 'agent').map(([v, l]) => <option value={v} selected={(f.assignee || '').split(',')[0] === v}>{l}</option>)}</select>
+          <input name="admin_note" value={f.admin_note || ''} placeholder="Note" style="flex:1;min-width:140px;height:34px;border:1.5px solid #e3dfd6;border-radius:8px;padding:0 8px" />
+          <button class="btn sm pri" type="submit">Save</button>
+        </form>
+      </div>) : <div class="hint">No flags here</div>}
+      <h3 style="margin:22px 0 6px">Routing</h3>
+      <div class="hint" style="margin-bottom:8px">Who gets each kind. Safety + money text them right away; the rest wait here. Agent = Claude adds a suggestion, never acts</div>
+      <form method="post" action="/admin/flags/routes" class="card" style="padding:12px">
+        {CATEGORIES.map(([k, l]) => <div class="row" style="gap:10px;padding:6px 0;border-bottom:1px solid #eee;flex-wrap:wrap"><b style="width:200px">{l}</b>
+          {who.map(([v, wl]) => <label style="display:inline-flex;gap:4px;align-items:center;font-size:13px"><input type="checkbox" name={'r_' + k} value={v} checked={routeFor(rt, k).includes(v)} />{wl}</label>)}</div>)}
+        <button class="btn pri sm" type="submit" style="margin-top:10px">Save routing</button>
+      </form>
+      <div class="hint" style="margin-top:6px">Now: {CATEGORIES.map(([k, l]) => `${l} → ${routeFor(rt, k).map(nm).join(' + ')}`).join(' · ')}</div>
+    </Shell>);
+  });
+  admin.post('/admin/flags/routes', async (c) => {
+    const f = await c.req.parseBody({ all: true }); const out: Record<string, string[]> = {};
+    for (const [k] of CATEGORIES) { const v = f['r_' + k]; out[k] = ([] as unknown[]).concat(v || []).map(String).slice(0, 10); }
+    await c.env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('flag_routes', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(JSON.stringify(out)).run();
+    await logEvent(c.env.DB, 'admin.flag_routes', { user: c.get('user')!.id, data: out });
+    return c.redirect('/admin/flags');
+  });
+  admin.post('/admin/flags/:id', async (c) => {
+    const f = await c.req.parseBody(); const st = ['new', 'looking', 'done'].includes(String(f.status)) ? String(f.status) : 'new';
+    await c.env.DB.prepare('UPDATE flags SET status = ?, assignee = ?, admin_note = ?, updated_at = ? WHERE id = ?').bind(st, String(f.assignee || '').slice(0, 64), String(f.admin_note || '').slice(0, 500) || null, Date.now(), c.req.param('id')).run();
+    await logEvent(c.env.DB, 'admin.flag', { user: c.get('user')!.id, data: { id: c.req.param('id'), status: st, assignee: f.assignee } });
+    return c.redirect('/admin/flags');
+  });
+
   // ---------- Texting check: is Blooio set up, are texts going out, are replies + receipts coming back ----------
   const bloo = async (c: any, path: string, init?: RequestInit) => {
     if (!c.env.BLOOIO_API_KEY) return { ok: false, status: 0, j: { error: 'BLOOIO_API_KEY not set (dev mode: texts only logged)' } };
