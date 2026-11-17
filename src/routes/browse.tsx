@@ -1,4 +1,5 @@
 import { Hono, type Context } from 'hono';
+import { smsHref } from '../lib/blooio';
 import { logEvent } from '../lib/log';
 import { localToday } from '../lib/util';
 import { SOCIALS, SocialIcons, socialHandle } from '../lib/socials';
@@ -73,6 +74,8 @@ export const homePage = async (c: Ctx, opt: { center?: number[]; zoom?: number; 
           <a class="rent-out" href="/list"><span class="ro-l">RENT OUT YOUR STUFF</span><span class="ro-s">RENT YOURS OUT</span><i class="ro-c ro-c1" aria-hidden="true">$</i><i class="ro-c ro-c2" aria-hidden="true">$</i><i class="ro-c ro-c3" aria-hidden="true">$</i><i class="ro-w" aria-hidden="true"><b></b><b></b><b></b></i></a>
         </div>
         <div class="kpi" id="kpi" hidden><b id="kpiN">{k.global}</b><span id="kpiL">things to rent</span></div>
+        {/* Text Lendo: opens Messages to Lendo's number; a plain-words text gets matches + a map link back (anyone, logged in or not) */}
+        {c.env.LENDO_NUMBER ? <a class="tlbar sms-only" href={smsHref(c.env, 'Hi! I need ')}>Text Lendo what you need<b aria-hidden="true">↑</b></a> : null}
         <button type="button" class="locbtn" id="locate" aria-label="Go to my location"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.6" fill="#1A73E8" /><circle cx="12" cy="12" r="7.2" fill="none" stroke="#1E3A2B" stroke-width="2" /><path d="M12 1.8v3.4M12 18.8v3.4M1.8 12h3.4M18.8 12h3.4" stroke="#1E3A2B" stroke-width="2" stroke-linecap="round" /></svg></button>
         <div class="wsheet" id="wsheet" role="dialog" aria-label="Wanted item" hidden>
           <button class="pcard-x" id="wsClose" aria-label="Close"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" stroke-width="2.2" stroke-linecap="round" /></svg></button>
