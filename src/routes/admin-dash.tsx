@@ -1,6 +1,9 @@
 // Admin dashboard: KPIs, money, activity log, rentals, users, texts, searches, errors. Admin-only (guarded in admin.tsx).
 import type { Hono } from 'hono';
 import type { Env, Vars } from '../lib/env';
+import { accept, customerCancel, decline, holdDeposit, pickedUp, returned } from '../lib/rentals';
+import { placeDeposit, stripe } from '../lib/stripe';
+import { rentalById } from '../lib/db';
 import { CATEGORIES, REASONS, routeFor, routes } from '../lib/flags';
 import { Layout } from '../pages/layout';
 import { money } from '../lib/util';
@@ -29,7 +32,7 @@ const NAV_CSS = `.adn{position:sticky;top:0;z-index:20;background:var(--cream,#F
 .adn a{padding:5px 9px;border-radius:8px;font-size:12.5px;font-weight:700;text-decoration:none;color:var(--ink);opacity:.7}.adn a:hover{opacity:1;background:rgba(30,58,43,.06)}
 .adn a.on{opacity:1;background:var(--ink);color:#fff}.adn i{width:1px;align-self:stretch;margin:4px 5px;background:rgba(30,58,43,.18)}
 .adn sup{font-size:10px;font-weight:800;color:#fff;background:#FF4F00;border-radius:999px;padding:0 5px;margin-left:3px;vertical-align:2px}`;
-const NAV: ([string, string, ('review' | 'error' | 'flag')?] | null)[] = [['/admin', 'Home'], ['/admin/flags', 'Flags', 'flag'], ['/admin/log', 'Log'], ['/admin/rentals', 'Rentals'], ['/admin/users', 'Users'], ['/admin/texts', 'Texts'], ['/admin/texting', 'Texting check'], ['/admin/searches', 'Searches'], ['/admin/log?kind=error', 'Errors', 'error'], null, ['/admin/review', 'Photos', 'review'], ['/admin/promo', 'Promo'], ['/admin/ab', 'A/B'], ['/admin/pricing', 'Pricing'], ['/admin/wanted', 'Wanted'], ['/admin/debug', 'System'], ['/admin/access', 'Access']];
+const NAV: ([string, string, ('review' | 'error' | 'flag')?] | null)[] = [['/admin', 'Home'], ['/admin/flags', 'Flags', 'flag'], ['/admin/log', 'Log'], ['/admin/rentals', 'Rentals'], ['/admin/users', 'Users'], ['/admin/texts', 'Texts'], ['/admin/texting', 'Texting check'], ['/admin/searches', 'Searches'], ['/admin/log?kind=error', 'Errors', 'error'], null, ['/admin/review', 'Photos', 'review'], ['/admin/promo', 'Promo'], ['/admin/ab', 'A/B'], ['/admin/paytest', 'Pay test'], ['/admin/pricing', 'Pricing'], ['/admin/wanted', 'Wanted'], ['/admin/debug', 'System'], ['/admin/access', 'Access']];
 export async function AdminNav({ c, path }: { c: any; path: string }) {
   const [rv, er, fl] = await Promise.all([
     c.env.DB.prepare(`SELECT COUNT(*) n FROM listings WHERE status = 'review'`).first().catch(() => null),
@@ -63,6 +66,41 @@ const one = async <T,>(c: any, sql: string, ...b: unknown[]) => (await c.env.DB.
 const all = async <T,>(c: any, sql: string, ...b: unknown[]) => ((await c.env.DB.prepare(sql).bind(...b).all().catch(() => ({ results: [] }))).results) as T[];
 
 export function registerDash(admin: A) {
+  // ---------- Payments test console (Stripe TEST mode only; owner admin): play the owner's side of a rental ----------
+  const testMode = (c: any) => (c.env.STRIPE_SECRET_KEY || '').startsWith('sk_test') && c.get('user')?.admin_level === 'owner';
+  admin.get('/admin/paytest', async (c) => {
+    if (!testMode(c)) return c.html(<Shell c={c} title="Payments test" path="/admin/paytest"><div class="hint">Only in Stripe test mode, for the owner admin</div></Shell>);
+    const rows = (await c.env.DB.prepare(`SELECT r.*, l.name item, l.deposit_cents l_dep FROM rentals r JOIN listings l ON l.id = r.listing_id WHERE r.updated_at > ? ORDER BY r.updated_at DESC LIMIT 15`).bind(Date.now() - 3 * DAY).all<any>()).results;
+    const s = stripe(c.env);
+    const st = async (pi?: string | null) => { if (!s || !pi) return '—'; try { const x = await s.paymentIntents.retrieve(pi); return `${x.status} · ${money(x.amount)}${x.amount_received ? ' · got ' + money(x.amount_received) : ''}`; } catch (e: any) { return 'err ' + String(e?.message || e).slice(0, 40); } };
+    const piRows = await Promise.all(rows.map(async r => [await st(r.stripe_payment_intent), await st(r.deposit_pi)]));
+    const B = (rid: string, act: string, l: string) => <form method="post" action={`/admin/paytest/${rid}/${act}`} style="display:inline"><button class="btn sm" type="submit">{l}</button></form>;
+    return c.html(<Shell c={c} title="Payments test" path="/admin/paytest">
+      <div class="hint" style="margin-bottom:10px">Stripe TEST mode. Rent something on your phone with test card 4242 4242 4242 4242 (any future date, any CVC), then play the owner here. Each step runs the real code path; Stripe state is read live</div>
+      <div class="ad-wrap"><table class="ad-t"><tr><th>Rental</th><th>Status</th><th>Rent payment (Stripe)</th><th>$150 hold</th><th>Owner actions</th></tr>
+        {rows.map((r, i) => <tr><td><a href={'/r/' + r.id}>{r.item}</a><br /><span class="hint">{r.id} · {r.start_day}→{r.end_day} · {money(r.total_cents)}</span></td><td>{r.status}</td><td>{piRows[i][0]}</td>
+          <td>{r.deposit_cents ? `${r.deposit_status || ''} · ${piRows[i][1]}${r.stripe_pm ? ' · card saved' : ' · no card saved'}` : 'off'}</td>
+          <td style="white-space:nowrap">{r.status === 'held' ? <>{B(r.id, 'yes', 'YES')} {B(r.id, 'no', 'NO')}</> : null}
+            {r.status === 'confirmed' ? <>{r.deposit_cents && r.deposit_status !== 'held' ? B(r.id, 'hold', 'Place $150 hold') : null} {B(r.id, 'pickup', 'Handed over')} {B(r.id, 'cancel', 'Customer cancels')}</> : null}
+            {r.status === 'picked_up' ? <>{r.deposit_status === 'held' ? B(r.id, 'renew', 'Renew hold') : null} {B(r.id, 'return', 'Returned')}</> : null}</td></tr>)}
+      </table></div>
+    </Shell>);
+  });
+  admin.post('/admin/paytest/:id/:act', async (c) => {
+    if (!testMode(c)) return c.notFound();
+    const r = await rentalById(c.env.DB, c.req.param('id')); if (!r) return c.notFound();
+    const act = c.req.param('act');
+    if (act === 'yes') await accept(c.env, r);
+    else if (act === 'no') await decline(c.env, r, 'declined');
+    else if (act === 'hold') await holdDeposit(c.env, r);
+    else if (act === 'pickup') await pickedUp(c.env, r, null);
+    else if (act === 'return') await returned(c.env, r, null);
+    else if (act === 'cancel') await customerCancel(c.env, r);
+    else if (act === 'renew') await placeDeposit(c.env, r, true);
+    await logEvent(c.env.DB, 'admin.paytest', { user: c.get('user')!.id, rental: r.id, data: { act } });
+    return c.redirect('/admin/paytest');
+  });
+
   // ---------- A/B: $5 button copy (exp gift5) ----------
   admin.get('/admin/ab', async (c) => {
     const rows = (await c.env.DB.prepare(`SELECT json_extract(data,'$.var') var, json_extract(data,'$.ev') ev, COUNT(*) n, COUNT(DISTINCT COALESCE(json_extract(data,'$.v'), user_id)) u FROM events WHERE kind = 'ab.gift5' GROUP BY 1, 2`).all<{ var: string; ev: string; n: number; u: number }>()).results;
