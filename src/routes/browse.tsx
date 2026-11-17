@@ -156,7 +156,7 @@ export const itemPage = async (c: Ctx, lid: string, pretty = false) => {
       <div class={photos.length > 1 ? 'hero gal' : 'hero'}>
         <Grade g={gr.letter} cls="onphoto" />
         {photos[0] ? <img id="heroImg" data-trim="1" src={cutoutUrl(c.env, photos[0].r2_key)} alt={it.name}  /> : it.avatar_key ? <img id="heroImg" class="trimme" crossorigin="anonymous" src={'/p/' + it.avatar_key} alt={it.name} /> : <div class="hint">no photo yet</div>}
-        <script src="/trim.js" defer></script>
+        
         {photos.length > 1 ? <>
           <button type="button" class="gal-nav prev" id="galPrev" aria-label="Previous photo"><svg width="12" height="18" viewBox="0 0 12 18"><path d="M9 2L3 9l6 7" fill="none" stroke="#1E3A2B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
           <button type="button" class="gal-nav next" id="galNext" aria-label="Next photo"><svg width="12" height="18" viewBox="0 0 12 18"><path d="M3 2l6 7-6 7" fill="none" stroke="#1E3A2B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
@@ -275,7 +275,7 @@ browse.get('/saved', async (c) => {
     <Layout title="Saved" user={u}>
       <div class="itemgrid">
         {rows.results.length ? rows.results.map(it => (
-          <a class="itemcard" href={'/i/' + it.id}>{ph[it.id] ? <img src={'/c/' + ph[it.id]} alt="" /> : <div class="ph">no photo</div>}<div class="b"><div class="pr">{money(it.price_cents)}<span style="font-size:11px;font-weight:700">/day</span></div><div class="nm">{it.name}</div></div></a>
+          <a class="itemcard" href={'/i/' + it.id}>{ph[it.id] ? <img src={'/c/' + ph[it.id]} data-trim="1" alt="" /> : <div class="ph">no photo</div>}<div class="b"><div class="pr">{money(it.price_cents)}<span style="font-size:11px;font-weight:700">/day</span></div><div class="nm">{it.name}</div></div></a>
         )) : <div class="hint" style="grid-column:1/-1;padding:24px">Nothing saved yet. Tap ♡ on an item.</div>}
       </div>
     </Layout>
@@ -359,7 +359,7 @@ export const personPage = async (c: Ctx, uid: string) => {
           </div> : null}
         </div>
       </section>
-      <script src="/trim.js"></script>
+      
       {nItems >= 10 ? <>
         <script src="/pinball.js"></script>
         {raw(`<script>lendoBounce(${JSON.stringify(String(nItems))}, ${Math.min(nItems, 40)}, 5000)</script>`)}

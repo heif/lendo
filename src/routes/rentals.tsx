@@ -131,7 +131,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
       <div class="rcard">
         {/* 3A: compact header (who · item · dates · $) + pinned where/when strip */}
         <a class="rhd" href={'/i/' + it.id}>
-          {it.avatar_key ? <img class="cut" src={'/p/' + it.avatar_key} alt="" /> : photos[0] ? <img class="cut" src={'/c/' + photos[0].r2_key + '?s=200'} alt="" /> : <span class="rhd-ph"></span>}
+          {it.avatar_key ? <img class="cut" data-trim="1" src={'/p/' + it.avatar_key} alt="" /> : photos[0] ? <img class="cut" data-trim="1" src={'/c/' + photos[0].r2_key + '?s=200'} alt="" /> : <span class="rhd-ph"></span>}
           <div><b>{firstName(other.name)} · {it.name}</b>
             <div>{r.status === 'inquiry' ? (isOwner ? 'Question about your item' : 'Questions before renting') : <>{fmtRange(r.start_day, r.end_day)} · {isOwner ? `you earn ${money(payoutOf(r) + xRent)}${r.status === 'held' ? ` after ${c.env.FEE_PCT}% fee` : ''}` : `${money(r.total_cents + xTotal)}${r.status === 'held' ? ' held' : ' paid'}`}</>}</div></div>
         </a>
@@ -488,7 +488,7 @@ rentals.get('/rentals', requireUser, async (c) => {
       <div style="height:12px"></div>
       {rows.results.length ? rows.results.map(r => (
         <a class="inboxrow" href={'/r/' + r.id}>
-          {ph[r.listing_id] ? <img class="cut" src={'/c/' + ph[r.listing_id] + '?s=200'} alt="" /> : <div class="ph"></div>}
+          {ph[r.listing_id] ? <img class="cut" data-trim="1" src={'/c/' + ph[r.listing_id] + '?s=200'} alt="" /> : <div class="ph"></div>}
           <div style="min-width:0;flex:1">
             <div style="font-weight:800">{r.item}</div>
             <div style="font-size:13px">{r.status === 'inquiry' ? (r.owner_id === u.id ? `${firstName(r.renter_name)} asked` : `asked ${firstName(r.owner_name)}`) : <>{fmtRange(r.start_day, r.end_day)} · {r.owner_id === u.id ? `to ${firstName(r.renter_name)} · +${money(payoutOf(r) + (r.x_rent || 0))}` : `from ${firstName(r.owner_name)} · ${money(r.total_cents + (r.x_total || 0))}`}</>}</div>
