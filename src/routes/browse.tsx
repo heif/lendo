@@ -16,7 +16,7 @@ import { cutoutUrl } from '../lib/cutout';
 import { CITIES } from '../lib/places';
 import { hereOf, inNycMetro } from '../lib/places';
 import { bonusOpen, counts, firstPhotos, listingById, photosFor, reputation, userById, busyDays } from '../lib/db';
-import { money, fmtDay, dayStr, addDays, firstName, fuzz , starStr } from '../lib/util';
+import { money, fmtDay, fmtRange, dayStr, addDays, firstName, fuzz , starStr } from '../lib/util';
 import { taxRateFor } from '../lib/money';
 import { geocodePlace } from '../lib/geo';
 import { assignHood, loadHoods } from '../lib/hoods';
@@ -149,6 +149,8 @@ export const itemPage = async (c: Ctx, lid: string, pretty = false) => {
   const oph = await firstPhotos(c.env.DB, others.filter(o => !o.avatar_key).map(o => o.id));
   const review = await c.env.DB.prepare(`SELECT r.renter_review rv, u.name nm FROM rentals r JOIN users u ON u.id = r.renter_id WHERE r.owner_id = ? AND r.renter_review IS NOT NULL ORDER BY r.updated_at DESC LIMIT 1`).bind(owner.id).first<{ rv: string; nm: string }>();
   const saved = u ? !!(await c.env.DB.prepare('SELECT 1 FROM saved WHERE user_id = ? AND listing_id = ?').bind(u.id, it.id).first()) : false;
+  /* viewer already renting this: a smart link to their rental */
+  const mine = u && !isOwner ? await c.env.DB.prepare(`SELECT id, status, start_day, end_day FROM rentals WHERE listing_id = ? AND renter_id = ? AND status IN ('held','confirmed','picked_up','returned') ORDER BY created_at DESC LIMIT 1`).bind(it.id, u.id).first<{ id: string; status: string; start_day: string; end_day: string }>().catch(() => null) : null;
   const gr = await shownGrade(c.env, it.id, it.grade);
   const ir = await c.env.DB.prepare('SELECT COUNT(*) n, SUM(item_rating >= 3) up FROM rentals WHERE listing_id = ? AND item_rating IS NOT NULL').bind(it.id).first<{ n: number; up: number }>().catch(() => null);
   return c.html(
@@ -171,6 +173,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
         <div class="pr"><b class="price">{money(it.price_cents)}</b><span style="font-size:15px">/day</span>
         </div>
       </div>
+      {mine ? <a class="myrent" href={'/r/' + mine.id}><b>{({ held: 'You asked to rent this', confirmed: 'You’re renting this', picked_up: 'You have this now', returned: 'You rented this' } as Record<string, string>)[mine.status]}</b><span>{fmtRange(mine.start_day, mine.end_day)} · {mine.status === 'held' ? 'waiting for YES' : mine.status === 'returned' ? 'rate it' : 'open rental'}</span><i dangerouslySetInnerHTML={{ __html: '<svg width="12" height="18" viewBox="0 0 12 18"><path d="M3 2l6 7-6 7" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>' }} /></a> : null}
       <section class="sec" style="padding:12px 16px 14px">
         <div class="row" style="justify-content:space-between;align-items:flex-start">
           <h2 style="margin:0;font-size:20px;font-weight:800;line-height:1.25">{(() => { const f = (owner.name || 'Neighbor').split(' ')[0]; const nm = it.name.charAt(0).toUpperCase() + it.name.slice(1); return <><span style="font-weight:500;display:block;font-size:.72em">{f + (/s$/i.test(f) ? '’' : '’s')}</span>{nm}</>; })()}</h2>
