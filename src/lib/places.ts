@@ -69,7 +69,19 @@ export const WANTED_ALL: { key: string; label: string; emoji: string }[] = [
   ['dolly', 'hand truck', '📦'],
   ['wheelbarrow', 'wheelbarrow', '🛒'],
   ['studfinder', 'laser level', '📏'],
+  ['snowboots', 'snow boots', '🥾'], ['snowblower', 'snow blower', '❄️'], ['shovel', 'snow shovel', '🧹'], ['heater', 'space heater', '🔥'], ['humidifier', 'humidifier', '💧'],
+  ['parka', 'winter parka', '🧥'], ['lights', 'holiday lights', '✨'], ['treestand', 'tree stand', '🎄'], ['roaster', 'roasting pan', '🍗'], ['fryer', 'turkey fryer', '🦃'],
+  ['snowshoes', 'snowshoes', '❄️'], ['foldtable', 'folding table', '🪑'],
 ].map(w => ({ key: w[0], label: w[1], emoji: w[2] }));
+
+// Seasonal: these show up more often on the map and lead the "What have you got?" list in their months (northern hemisphere)
+export const SEASONAL: Record<string, string[]> = {
+  winter: ['snowboots', 'sled', 'skis', 'snowboard', 'skates', 'snowblower', 'shovel', 'heater', 'humidifier', 'parka', 'lights', 'treestand', 'roaster', 'fryer', 'snowshoes', 'foldtable', 'dinnerware', 'luggage'],
+  spring: ['bike', 'mower', 'trimmer', 'pwasher', 'blower', 'wheelbarrow', 'paddle', 'tent', 'pickle', 'racket', 'carpet', 'sprayer'],
+  summer: ['kayak', 'paddle', 'beachchair', 'umbrella', 'tent', 'picnic', 'bike', 'escooter', 'luggage', 'projector', 'speaker', 'generator'],
+  fall: ['blower', 'tent', 'backpack', 'projector', 'dinnerware', 'foldtable', 'roaster', 'heater', 'carpet', 'shopvac', 'lights', 'arch'],
+};
+export function seasonNow(d = new Date()): string { const m = d.getUTCMonth(); return m === 10 || m === 11 || m <= 1 ? 'winter' : m <= 4 ? 'spring' : m <= 7 ? 'summer' : 'fall'; }
 // Local shorthand for tight spots (header pills). Only names locals actually use.
 export const SHORT: Record<string, string> = {
   'Iowa City': 'IC', 'Chicago': 'Chi', 'Austin': 'ATX', 'London': 'LDN', 'Toronto': 'TO', 'Denver': 'DEN', 'Berlin': 'BER',

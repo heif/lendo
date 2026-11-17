@@ -9,7 +9,7 @@ import type { Env, Listing, Vars } from '../lib/env';
 import { firstPhotos, listingById, photosFor, reputation, userById } from '../lib/db';
 import { emojiFor } from '../lib/emoji';
 import { loadHoods, hoodAt } from '../lib/hoods';
-import { CITIES, WANTED_ALL, short, hoodDisplay } from '../lib/places';
+import { CITIES, SEASONAL, WANTED_ALL, seasonNow, short, hoodDisplay } from '../lib/places';
 import { iconsDone } from '../lib/wanted-icons';
 
 export const api = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -168,7 +168,7 @@ api.get('/api/places', async (c) => {
     const hoods = ct.hoods.map((h, i) => ({ ...h, n: per[i] }));
     return { id: ct.id, name: ct.name, short: short(ct.name), lat: ct.lat, lng: ct.lng, zoom: ct.zoom, n: inCity.length, live: inCity.length > 0, hoods };
   });
-  const res = new Response(JSON.stringify({ cities, total: pts.length, wanted: WANTED_ALL.filter(w => !off.has(w.key)).map(w => ({ ...w, icon: icons.has(w.key) ? `/p/wanted/${w.key}.png` : null })) }), { headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=120' } });
+  const res = new Response(JSON.stringify({ cities, total: pts.length, wanted: WANTED_ALL.filter(w => !off.has(w.key)).map(w => ({ ...w, icon: icons.has(w.key) ? `/p/wanted/${w.key}.png` : null, season: SEASONAL[seasonNow()].includes(w.key) })) }), { headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=120' } });
   c.executionCtx.waitUntil(caches.default.put(cacheKey, res.clone()));
   return res;
 });

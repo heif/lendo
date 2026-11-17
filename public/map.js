@@ -629,11 +629,13 @@
           var k = zb + ':' + x + ',' + y; keep[k] = 1; n++;
           if (marks[k]) { chosen[x + ',' + y] = marks[k]._wkey; continue; }
           // pick a kind no neighbor (within 2 cells) already shows, so the same item doesn't repeat in one area
-          var wi = h % want.length, w = null;
-          for (var tries = 0; tries < want.length; tries++) { var cand = want[(wi + tries) % want.length], clash = false;
+          /* about half the ghosts come from what's in season (winter: boots, sleds, heaters…) */
+          var SEA = want.filter(function (x) { return x.season; }), pool = SEA.length >= 4 && (h >>> 24) % 2 === 0 ? SEA : want;
+          var wi = h % pool.length, w = null;
+          for (var tries = 0; tries < pool.length; tries++) { var cand = pool[(wi + tries) % pool.length], clash = false;
             for (var dx = -2; dx <= 2 && !clash; dx++) for (var dy = -2; dy <= 2; dy++) { if (chosen[(x + dx) + ',' + (y + dy)] === cand.key) { clash = true; break; } }
             if (!clash) { w = cand; break; } }
-          if (!w) w = want[wi]; chosen[x + ',' + y] = w.key;
+          if (!w) w = pool[wi]; chosen[x + ',' + y] = w.key;
           var el = document.createElement('a'); el.href = '/list?want=' + encodeURIComponent(w.label);
           (function (w, el) { el.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); if (w.icon) { $('wsEm').innerHTML = '<img alt="" class="wsimg">'; var pim = $('wsEm').firstChild; fitIcon(w, pim); var fit = function () { var r = Math.min(120 / (parseFloat(pim.style.width) || 1), 104 / (parseFloat(pim.style.height) || 1)); pim.style.width = Math.round(parseFloat(pim.style.width) * r) + 'px'; pim.style.height = Math.round(parseFloat(pim.style.height) * r) + 'px'; }; if (pim.style.width) fit(); else pim.addEventListener('load', fit, { once: true }); } else $('wsEm').textContent = w.emoji; $('wsName').textContent = w.label; $('wsGo').href = el.href; var ws = $('wsheet'); ws.hidden = false; placePoster(ws, el); }); })(w, el);
           if (PROMO) { el.className = 'wanted'; el.setAttribute('aria-label', 'Wanted: ' + w.label + '. Reward for listing.'); el.innerHTML = '<b>WANTED</b><i>' + w.emoji + '</i><em>' + w.label + '</em><strong>REWARD</strong><small>for listing</small>'; }
