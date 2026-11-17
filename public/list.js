@@ -162,27 +162,31 @@
     var cv = $('story'), g = cv.getContext('2d'), W = 1080, H = 1920, F = '"Helvetica Neue",Helvetica,Arial,sans-serif';
     var one = shots.length === 1, minP = Math.min.apply(null, shots.map(function (s) { return s.price; }));
     function base(imgs) {
+      /* 1080×1920 for Stories, but everything that matters sits in the middle 4:5 band (y 285–1635):
+         Instagram's composer opens shared images cropped to 4:5 */
       g.fillStyle = '#F5F3EE'; g.fillRect(0, 0, W, H);
-      g.fillStyle = '#1E3A2B'; g.font = '900 64px ' + F; g.textBaseline = 'alphabetic'; g.fillText('👋 Lendo', 80, 150);
-      g.fillStyle = '#FF4F00'; g.font = '900 46px ' + F; g.fillText('FOR RENT' + (CFG.hood ? ' · ' + CFG.hood.toUpperCase() : ''), 80, 250);
+      g.fillStyle = '#1E3A2B'; g.fillRect(0, 0, W, 285); g.fillRect(0, 1635, W, H - 1635);
+      g.textBaseline = 'alphabetic'; g.textAlign = 'center'; g.fillStyle = '#F5F3EE'; g.font = '700 34px ui-monospace,Menlo,monospace'; g.fillText('MAKE MONEY · SAVE SPACE · BUY LESS', W / 2, 160);
+      g.fillStyle = '#FF4F00'; g.font = '900 40px ' + F; g.fillText('NEIGHBORS RENTING TO NEIGHBORS', W / 2, 1790);
+      g.textAlign = 'left'; g.fillStyle = '#1E3A2B'; g.font = '900 48px ' + F; g.fillText('👋 Lendo', 70, 360);
+      g.textAlign = 'right'; g.fillStyle = '#FF4F00'; g.font = '900 38px ' + F; g.fillText('FOR RENT' + (CFG.hood ? ' · ' + CFG.hood.toUpperCase().slice(0, 22) : ''), W - 70, 358);
       // item(s)
-      var box = { x: 90, y: 300, w: 900, h: 900 };
+      var box = { x: 110, y: 400, w: 860, h: 600 };
       var n = imgs.length, cols = n === 1 ? 1 : 2, rows = Math.ceil(Math.min(n, 4) / cols), cw = box.w / cols, ch = box.h / rows;
-      imgs.slice(0, 4).forEach(function (im, k) { if (!im) return; var cx = box.x + (k % cols) * cw, cy = box.y + Math.floor(k / cols) * ch, sc = Math.min((cw - 40) / im.width, (ch - 40) / im.height);
+      imgs.slice(0, 4).forEach(function (im, k) { if (!im) return; var cx = box.x + (k % cols) * cw, cy = box.y + Math.floor(k / cols) * ch, sc = Math.min((cw - 30) / im.width, (ch - 30) / im.height);
         var w = im.width * sc, h = im.height * sc; g.drawImage(im, cx + (cw - w) / 2, cy + (ch - h) / 2, w, h); });
       // name + price
-      g.fillStyle = '#1E3A2B'; g.textAlign = 'center'; g.font = '900 104px ' + F;
-      var title = one ? shots[0].name.trim() : shots.length + ' things to rent'; while (g.measureText(title).width > 920 && title.length > 4) title = title.slice(0, -2);
-      g.fillText(title, W / 2, 1340);
-      var tag = (one ? '$' + shots[0].price : 'from $' + minP) + '/day'; g.font = '900 76px ' + F; var tw = g.measureText(tag).width + 70;
-      g.fillStyle = '#1E3A2B'; g.fillRect(W / 2 - tw / 2 + 8, 1392, tw, 112); g.fillStyle = '#FF4F00'; g.fillRect(W / 2 - tw / 2, 1384, tw, 112); g.fillStyle = '#fff'; g.fillText(tag, W / 2, 1468);
-      // QR
-      try { var q = qrcode(0, 'M'); q.addData(url); q.make(); var m = q.getModuleCount(), S = 280, cell = S / m, qx = 80, qy = 1560;
-        g.fillStyle = '#fff'; g.fillRect(qx - 16, qy - 16, S + 32, S + 32); g.fillStyle = '#1E3A2B';
+      g.fillStyle = '#1E3A2B'; g.textAlign = 'center'; g.font = '900 88px ' + F;
+      var title = one ? shots[0].name.trim() : shots.length + ' things to rent'; if (g.measureText(title).width > 940) { while (g.measureText(title + '…').width > 940 && title.length > 4) title = title.slice(0, -1); title += '…'; }
+      g.fillText(title, W / 2, 1105);
+      var tag = (one ? '$' + shots[0].price : 'from $' + minP) + '/day'; g.font = '900 68px ' + F; var tw = g.measureText(tag).width + 64;
+      g.fillStyle = '#1E3A2B'; g.fillRect(W / 2 - tw / 2 + 8, 1146, tw, 100); g.fillStyle = '#FF4F00'; g.fillRect(W / 2 - tw / 2, 1138, tw, 100); g.fillStyle = '#fff'; g.fillText(tag, W / 2, 1212);
+      // QR + scan line
+      try { var q = qrcode(0, 'M'); q.addData(url); q.make(); var m = q.getModuleCount(), S = 230, cell = S / m, qx = 110, qy = 1300;
+        g.fillStyle = '#fff'; g.fillRect(qx - 14, qy - 14, S + 28, S + 28); g.fillStyle = '#1E3A2B';
         for (var r = 0; r < m; r++) for (var c2 = 0; c2 < m; c2++) if (q.isDark(r, c2)) g.fillRect(qx + c2 * cell, qy + r * cell, Math.ceil(cell), Math.ceil(cell)); } catch (e) {}
-      g.textAlign = 'left'; g.fillStyle = '#1E3A2B'; g.font = '900 58px ' + F; g.fillText('Scan to rent', 420, 1660);
-      g.font = '700 40px ' + F; g.fillStyle = '#4A463F'; g.fillText(url.replace(/^https?:\/\//, '').slice(0, 30), 420, 1730);
-      g.fillText('Neighbors renting to neighbors', 420, 1790);
+      g.textAlign = 'left'; g.fillStyle = '#1E3A2B'; g.font = '900 56px ' + F; g.fillText('Scan to rent', 390, 1395);
+      g.font = '700 34px ' + F; g.fillStyle = '#4A463F'; var u2 = url.replace(/^https?:\/\//, ''); while (g.measureText(u2).width > 620 && u2.length > 10) u2 = u2.slice(0, -1); g.fillText(u2, 390, 1458);
     }
     // cutouts load async; draw with photos first, swap to cutouts as they arrive
     var imgs = shots.slice(0, 4).map(function () { return null; });
