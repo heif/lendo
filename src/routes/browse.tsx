@@ -1,6 +1,7 @@
 import { Hono, type Context } from 'hono';
 import { GIFT_TEXT, smsHref } from '../lib/blooio';
 import { Flag } from '../lib/flags';
+import { SEND_SVG } from '../lib/icons';
 import { logEvent } from '../lib/log';
 import { localToday } from '../lib/util';
 import { SOCIALS, SocialIcons, socialHandle } from '../lib/socials';
@@ -183,7 +184,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
           : <details class="askd" ontoggle="if(this.open)this.querySelector('textarea').focus()"><summary class="askbtn">Ask a question</summary>
               <form class="askf" method="post" action={'/i/' + it.id + '/ask'} onsubmit={`event.preventDefault();var f=this,b=f.querySelector('button');if(!f.body.value.trim())return;b.disabled=true;fetch(f.action,{method:'POST',body:new FormData(f),headers:{accept:'application/json'}}).then(function(r){return r.json()}).then(function(j){if(!j.rid)throw 0;var d=document.createElement('div');d.className='askok';d.innerHTML='✓ Sent to ${(owner.name || 'the owner').split(' ')[0].replace(/[^\p{L}\p{N} .-]/gu, '')} · <a href="/r/'+j.rid+'">Open chat</a>';f.parentNode.replaceWith(d)}).catch(function(){b.disabled=false;f.submit()})`}>
                 <textarea name="body" rows={1} maxlength={500} placeholder="Is it free Saturday?" required oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
-                <button type="submit" aria-label="Send">↑</button>
+                <button type="submit" aria-label="Send" dangerouslySetInnerHTML={{ __html: SEND_SVG }} />
               </form></details>) : null}
         <div class="row" style="gap:8px;align-items:center"><a href={'/u/' + owner.id} class="owner-row owner-tight owner-orb" style="flex:1;min-width:0">
           <OwnerOrbit name={owner.name} photo={owner.photo_key} items={others.map(o => ({ src: '/p/' + (o.avatar_key || oph[o.id]), cut: !!o.avatar_key })).filter(x => !x.src.endsWith('undefined'))} />

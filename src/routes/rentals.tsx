@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { logEvent } from '../lib/log';
+import { SEND_SVG } from '../lib/icons';
 import { localToday, tzFor } from '../lib/util';
 import { shortName } from '../lib/util';
 import { handleText } from './webhooks';
@@ -268,7 +269,7 @@ f.addEventListener('change',ok);f.addEventListener('submit',function(){document.
           </div> : null}
           <form method="post" action={'/r/' + r.id + '/msg'} class="compose" style="position:static;padding:6px 0 0">
             <input name="body" placeholder={`Message ${firstName(other.name)}`} required maxlength={500} autocomplete="off" />
-            <button type="submit" aria-label="Send">↑</button>
+            <button type="submit" aria-label="Send" dangerouslySetInnerHTML={{ __html: SEND_SVG }} />
           </form>
         </div>
       ) : null}
@@ -521,7 +522,7 @@ rentals.get('/inbox', requireUser, async (c) => {
       </div>
       <form method="post" action="/inbox" class="compose">
         <input name="body" placeholder="Message Lendo (same as texting us)" required maxlength={500} autocomplete="off" />
-        <button type="submit" aria-label="Send">↑</button>
+        <button type="submit" aria-label="Send" dangerouslySetInnerHTML={{ __html: SEND_SVG }} />
       </form>
       <script dangerouslySetInnerHTML={{ __html: `window.scrollTo(0, document.body.scrollHeight)` }} />
     </Layout>
