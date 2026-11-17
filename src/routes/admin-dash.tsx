@@ -66,6 +66,7 @@ export function registerDash(admin: A) {
   // ---------- A/B: $5 button copy (exp gift5) ----------
   admin.get('/admin/ab', async (c) => {
     const rows = (await c.env.DB.prepare(`SELECT json_extract(data,'$.var') var, json_extract(data,'$.ev') ev, COUNT(*) n, COUNT(DISTINCT COALESCE(json_extract(data,'$.v'), user_id)) u FROM events WHERE kind = 'ab.gift5' GROUP BY 1, 2`).all<{ var: string; ev: string; n: number; u: number }>()).results;
+    const rows2 = (await c.env.DB.prepare(`SELECT json_extract(data,'$.var') var, json_extract(data,'$.ev') ev, COUNT(*) n, COUNT(DISTINCT COALESCE(json_extract(data,'$.v'), user_id)) u FROM events WHERE kind = 'ab.list10' GROUP BY 1, 2`).all<{ var: string; ev: string; n: number; u: number }>()).results;
     const g = (v: string, ev: string, uniq = false) => { const r = rows.find(x => x.var === v && x.ev === ev); return r ? (uniq ? r.u : r.n) : 0; };
     const pct = (a: number, b: number) => b ? (100 * a / b).toFixed(1) + '%' : '—';
     const V = [['a', 'Free $5 off rental'], ['b', 'Free $5 gift card']];
@@ -75,6 +76,10 @@ export function registerDash(admin: A) {
         {V.map(([v, l]) => { const seen = g(v, 'view', true), cl = g(v, 'click'), cm = g(v, 'claim'); return <tr><td><b>{v.toUpperCase()}</b> · {l}</td><td>{seen}</td><td>{cl}</td><td>{pct(cl, seen)}</td><td>{cm}</td><td><b>{pct(cm, seen)}</b></td></tr>; })}
       </table>
       <div class="hint" style="margin-top:8px">Claimed = a new $5 by text (phones, QR) or phone # (computers). A few hundred visitors per side before reading much into it</div>
+      <h3 style="margin-top:28px">List-10 promo copy · 1/3 each, ribbon + list-flow strip</h3>
+      <table class="ad-t"><tr><th>Variant</th><th>Visitors saw it</th><th>Clicked Rent yours out</th><th>Click rate</th><th>Listed 1+</th><th>Rate</th><th>Reached 10</th></tr>
+        {[['a', '$10 BONUS TODAY'], ['b', 'GET $10 CASH'], ['c', '$1/ITEM TODAY']].map(([v, l]) => { const q = (ev: string, uniq = false) => { const r = rows2.find(x => x.var === v && x.ev === ev); return r ? (uniq ? r.u : r.n) : 0; }; const seen = q('view', true), cl = q('click'), li = q('listed'); return <tr><td><b>{v.toUpperCase()}</b> · {l}</td><td>{seen}</td><td>{cl}</td><td>{pct(cl, seen)}</td><td>{li}</td><td><b>{pct(li, seen)}</b></td><td>{q('ten')}</td></tr>; })}
+      </table>
     </Shell>);
   });
   // ---------- Flags: queue + routing (category → owner / admins / agent) ----------

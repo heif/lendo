@@ -24,8 +24,9 @@ api.use('/api/*', async (c, next) => { await next(); c.header('access-control-al
 /* A/B beacons: { exp: 'gift5', var: 'a'|'b', ev: 'view'|'click' } — visitor from the lendo_v cookie */
 api.post('/api/ab', async (c) => {
   let j: any; try { j = JSON.parse(await c.req.text()); } catch { return c.body(null, 204); }
-  if (j?.exp !== 'gift5' || !['a', 'b'].includes(j.var) || !['view', 'click'].includes(j.ev)) return c.body(null, 204);
-  await logEvent(c.env.DB, 'ab.gift5', { user: c.get('user')?.id ?? null, data: { ev: j.ev, var: j.var, v: getCookie(c, 'lendo_v') || null, phone: !!j.phone } });
+  const ok = (j?.exp === 'gift5' && ['a', 'b'].includes(j.var)) || (j?.exp === 'list10' && ['a', 'b', 'c'].includes(j.var));
+  if (!ok || !['view', 'click'].includes(j.ev)) return c.body(null, 204);
+  await logEvent(c.env.DB, 'ab.' + j.exp, { user: c.get('user')?.id ?? null, data: { ev: j.ev, var: j.var, v: getCookie(c, 'lendo_v') || null, phone: !!j.phone } });
   return c.body(null, 204);
 });
 api.post('/api/search-log', async (c) => {
