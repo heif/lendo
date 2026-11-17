@@ -662,3 +662,10 @@ body:has(#sheet.on) .tlbar,body:has(#wsheet:not([hidden])) .tlbar,.mapwrap.listi
 a.ac-pill{text-decoration:none;color:inherit}
 
 .mapctl .listtoggle{width:40px;padding:0!important;justify-content:center}
+
+/* List-10 bonus: corner ribbon on Rent yours out (A2) + thin strip on the list flow (B1) */
+.rent-out .ro-bonus{position:absolute;top:-10px;right:-9px;z-index:2;background:var(--orange);color:#fff;font-size:9px;font-weight:900;letter-spacing:.2px;line-height:1;padding:3px 7px;border-radius:3px;transform:rotate(8deg);box-shadow:0 2px 4px rgba(0,0,0,.25);pointer-events:none;white-space:nowrap}
+.lbonus{background:var(--orange);color:#fff;font-size:13px;font-weight:900;position:relative;z-index:5}
+.lbonus summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 14px}.lbonus summary::-webkit-details-marker{display:none}
+.lbonus summary i{margin-left:auto;width:20px;height:20px;border-radius:10px;background:rgba(255,255,255,.25);display:grid;place-items:center;font-style:normal;font-size:12px}
+.lbonus ol{margin:0;padding:0 14px 10px 32px;font-size:13px;font-weight:700;line-height:1.5}

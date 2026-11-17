@@ -95,3 +95,12 @@ export async function setRentalStatus(db: D1Database, rid: string, status: Renta
   await db.prepare(`UPDATE rentals SET ${sets} WHERE id = ?`).bind(status, now(), ...keys.map(k => extra[k]), rid).run();
   await logEvent(db, 'rental.' + status, { rental: rid, data: { from: was?.status ?? null, ...extra } });
 }
+
+/* List-10 bonus ($10 today + $10 rental gift card) still open for this person? Guests: yes. Paid or 10+ already listed: no */
+export async function bonusOpen(db: D1Database, u: { id: string } | null | undefined): Promise<boolean> {
+  if (!u) return true;
+  const done = await db.prepare(`SELECT 1 FROM settings WHERE key = ?`).bind('promo10_' + u.id).first();
+  if (done) return false;
+  const n = (await db.prepare(`SELECT COUNT(*) n FROM listings WHERE owner_id = ? AND status IN ('live','paused') AND demo = 0`).bind(u.id).first<{ n: number }>())?.n ?? 0;
+  return n < 10;
+}

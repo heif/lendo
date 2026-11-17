@@ -268,11 +268,14 @@ admin.post('/admin/promo/:uid', async (c) => {
   let cash = 'cash waits for a payout account';
   const s = stripe(c.env);
   if (s && who.stripe_account_id) {
-    try { await s.transfers.create({ amount: 1000, currency: 'usd', destination: who.stripe_account_id, metadata: { promo: 'list10', user_id: uid } }, { idempotencyKey: 'promo10_' + uid }); cash = '$10 cash sent'; }
+    try { await s.transfers.create({ amount: 1000, currency: 'usd', destination: who.stripe_account_id, metadata: { promo: 'list10', user_id: uid } }, { idempotencyKey: 'promo10_' + uid }); cash = '$10 cash sent';
+      /* "$10 BONUS TODAY": push it to their bank/debit card now (Instant Payout, ~30 min); else it goes on their normal payout schedule */
+      try { await s.payouts.create({ amount: 1000, currency: 'usd', method: 'instant' }, { stripeAccount: who.stripe_account_id, idempotencyKey: 'promo10_ip_' + uid }); cash = '$10 cash sent (instant)'; }
+      catch (e: any) { await logEvent(c.env.DB, 'money.instant_payout_failed', { user: uid, cents: 1000, data: { err: String(e?.message || e).slice(0, 200) } }); } }
     catch (e: any) { cash = 'cash failed: ' + String(e?.message || e).slice(0, 80); }
   }
   await c.env.DB.prepare('UPDATE settings SET value = ? WHERE key = ?').bind(`${new Date().toISOString().slice(0, 10)} · ${cash} · $10 credit added`, key).run();
   await logEvent(c.env.DB, 'admin.promo_paid', { user: uid, cents: 1000, data: { by: c.get('user')?.id, cash } });
-  c.executionCtx.waitUntil(textUser(c.env, who, cash === '$10 cash sent' ? `Lendo: $10 sent for listing 10 things, plus $10 toward your next rental` : `Lendo: $10 toward your next rental is on your account. Set up payouts to get your $10 cash ${c.env.APP_URL}/payout`, 'money').catch(() => {}));
+  c.executionCtx.waitUntil(textUser(c.env, who, cash.startsWith('$10 cash sent') ? `Lendo: $10 sent for listing 10 things, plus $10 toward your next rental` : `Lendo: $10 toward your next rental is on your account. Set up payouts to get your $10 cash ${c.env.APP_URL}/payout`, 'money').catch(() => {}));
   return c.redirect('/admin/promo');
 });

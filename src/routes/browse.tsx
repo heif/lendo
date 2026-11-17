@@ -12,7 +12,7 @@ import type { Env, Listing, Vars } from '../lib/env';
 import { Layout } from '../pages/layout';
 import { cutoutUrl } from '../lib/cutout';
 import { CITIES } from '../lib/places';
-import { counts, firstPhotos, listingById, photosFor, reputation, userById, busyDays } from '../lib/db';
+import { bonusOpen, counts, firstPhotos, listingById, photosFor, reputation, userById, busyDays } from '../lib/db';
 import { money, fmtDay, dayStr, addDays, firstName, fuzz , starStr } from '../lib/util';
 import { taxRateFor } from '../lib/money';
 import { geocodePlace } from '../lib/geo';
@@ -40,6 +40,7 @@ export function staticMapUrl(env: Env, lat: number, lng: number, w = 600, h = 22
 // ---------- Map (home) ----------
 export const homePage = async (c: Ctx, opt: { center?: number[]; zoom?: number; q?: string; title?: string } = {}) => {
   const u = c.get('user');
+  const bonus = await bonusOpen(c.env.DB, u);
   const k = await counts(c.env.DB, u?.hood ?? null);
   let center = u?.lat && u?.lng ? [u.lng, u.lat] : [-73.997, 40.7465]; // [lng, lat]; Chelsea default
   const cq = (c.req.query('c') || '').split(',').map(parseFloat); // ?c=lng,lat deep link (shares, debugging)
@@ -71,7 +72,7 @@ export const homePage = async (c: Ctx, opt: { center?: number[]; zoom?: number; 
           <button class="btn sm listtoggle" id="toggle" type="button" aria-label="Map or grid of items"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2" fill="#1E3A2B" /><rect x="13" y="3" width="8" height="8" rx="2" fill="#1E3A2B" /><rect x="3" y="13" width="8" height="8" rx="2" fill="#1E3A2B" /><rect x="13" y="13" width="8" height="8" rx="2" fill="#1E3A2B" /></svg></button>
           <span class="qwrap"><input id="q" type="search" placeholder="Rent a…" aria-label="Search" autocomplete="off" /><button type="button" class="qclr" id="qClr" aria-label="Clear search" hidden>×</button></span>
           <div class="alertchip" id="alertChip" hidden></div>
-          <a class="rent-out" href="/list"><span class="ro-l">RENT OUT YOUR STUFF</span><span class="ro-s">RENT YOURS OUT</span><i class="ro-c ro-c1" aria-hidden="true">$</i><i class="ro-c ro-c2" aria-hidden="true">$</i><i class="ro-c ro-c3" aria-hidden="true">$</i><i class="ro-w" aria-hidden="true"><b></b><b></b><b></b></i></a>
+          <a class="rent-out" href="/list">{bonus ? <span class="ro-bonus" aria-label="$10 bonus today">$10 BONUS TODAY</span> : null}<span class="ro-l">RENT OUT YOUR STUFF</span><span class="ro-s">RENT YOURS OUT</span><i class="ro-c ro-c1" aria-hidden="true">$</i><i class="ro-c ro-c2" aria-hidden="true">$</i><i class="ro-c ro-c3" aria-hidden="true">$</i><i class="ro-w" aria-hidden="true"><b></b><b></b><b></b></i></a>
         </div>
         <div class="kpi" id="kpi" hidden><b id="kpiN">{k.global}</b><span id="kpiL">things to rent</span></div>
         {/* Text Lendo: opens Messages to Lendo's number; a plain-words text gets matches + a map link back (anyone, logged in or not) */}
