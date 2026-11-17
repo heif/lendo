@@ -734,3 +734,5 @@ a.ac-pill{text-decoration:none;color:inherit}
 .rsteps li.done{color:var(--ink)}.rsteps li.done i{background:var(--ink);border-color:var(--ink)}
 .rsteps li.now{color:var(--ink)}.rsteps li.now b{font-weight:900;font-size:16px}.rsteps li.now i{background:var(--orange);border-color:var(--ink)}
 .rcard .card{border:0!important;padding:0;background:none}
+/* item pictures are always cut-outs: show whole, on white */
+.rhd img.cut,.inboxrow img.cut,.itemcard img{object-fit:contain;background:#fff}

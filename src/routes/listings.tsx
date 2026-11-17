@@ -250,7 +250,7 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
         <div class="phm">
           {photos.map((p, i) => <div class="phm-it">
             {/* cover shows the cut-out, like the item page and map */}
-            <img src={i === 0 ? cutoutUrl(c.env, p.r2_key, 400, 400) : '/p/' + p.r2_key} alt="" style={i === 0 ? 'object-fit:contain;background:#fff' : undefined} />
+            <img src={cutoutUrl(c.env, p.r2_key, 400, 400)} alt="" style="object-fit:contain;background:#fff" />
             {i === 0 ? <span class="phm-cover">cover</span> : <button type="submit" formaction={`/listings/${it.id}/photos/${p.id}/cover`} formnovalidate class="phm-mk">make cover</button>}
             <button type="submit" formaction={`/listings/${it.id}/photos/${p.id}/delete`} formnovalidate class="phm-x" aria-label="Remove photo">×</button>
           </div>)}

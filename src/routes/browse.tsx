@@ -155,13 +155,13 @@ export const itemPage = async (c: Ctx, lid: string, pretty = false) => {
     <Layout title={it.name} headerCenter={<span />} user={u} flash={c.req.query('canceled') ? 'Checkout canceled — nothing was charged.' : null}>
       <div class={photos.length > 1 ? 'hero gal' : 'hero'}>
         <Grade g={gr.letter} cls="onphoto" />
-        {photos[0] ? <img id="heroImg" data-trim="1" src={cutoutUrl(c.env, photos[0].r2_key)} alt={it.name} onerror={`this.onerror=null;this.src='/p/${photos[0].r2_key}'`} /> : it.avatar_key ? <img id="heroImg" class="trimme" crossorigin="anonymous" src={'/p/' + it.avatar_key} alt={it.name} /> : <div class="hint">no photo yet</div>}
+        {photos[0] ? <img id="heroImg" data-trim="1" src={cutoutUrl(c.env, photos[0].r2_key)} alt={it.name}  /> : it.avatar_key ? <img id="heroImg" class="trimme" crossorigin="anonymous" src={'/p/' + it.avatar_key} alt={it.name} /> : <div class="hint">no photo yet</div>}
         <script src="/trim.js" defer></script>
         {photos.length > 1 ? <>
           <button type="button" class="gal-nav prev" id="galPrev" aria-label="Previous photo"><svg width="12" height="18" viewBox="0 0 12 18"><path d="M9 2L3 9l6 7" fill="none" stroke="#1E3A2B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
           <button type="button" class="gal-nav next" id="galNext" aria-label="Next photo"><svg width="12" height="18" viewBox="0 0 12 18"><path d="M3 2l6 7-6 7" fill="none" stroke="#1E3A2B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
           <div class="gal-dots" id="galDots">{photos.map((_, i) => <i class={i ? '' : 'on'} />)}</div>
-          {raw(`<script>(function(){var S=${JSON.stringify(photos.map(p => ({ c: cutoutUrl(c.env, p.r2_key), o: '/p/' + p.r2_key })))},i=0,im=document.getElementById('heroImg'),d=document.getElementById('galDots').children;
+          {raw(`<script>(function(){var S=${JSON.stringify(photos.map(p => ({ c: cutoutUrl(c.env, p.r2_key), o: cutoutUrl(c.env, p.r2_key) })))},i=0,im=document.getElementById('heroImg'),d=document.getElementById('galDots').children;
 S.forEach(function(p){var x=new Image();x.src=p.c;});
 function go(n){i=(n+S.length)%S.length;im.onerror=function(){this.onerror=null;this.src=S[i].o;};im.src=S[i].c;for(var k=0;k<d.length;k++)d[k].className=k===i?'on':'';}
 document.getElementById('galPrev').onclick=function(){go(i-1)};document.getElementById('galNext').onclick=function(){go(i+1)};
@@ -187,7 +187,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
                 <button type="submit" aria-label="Send" dangerouslySetInnerHTML={{ __html: SEND_SVG }} />
               </form></details>) : null}
         <div class="row" style="gap:8px;align-items:center"><a href={'/u/' + owner.id} class="owner-row owner-tight owner-orb" style="flex:1;min-width:0">
-          <OwnerOrbit name={owner.name} photo={owner.photo_key} items={others.map(o => ({ src: '/p/' + (o.avatar_key || oph[o.id]), cut: !!o.avatar_key })).filter(x => !x.src.endsWith('undefined'))} />
+          <OwnerOrbit name={owner.name} photo={owner.photo_key} items={others.map(o => ({ src: o.avatar_key ? '/p/' + o.avatar_key : '/c/' + oph[o.id] + '?s=200', cut: true })).filter(x => !x.src.endsWith('undefined'))} />
           <span class="owner-txt"><b>{shortName(owner.name)}</b><small>{rep.as_owner_avg ? `${starStr(rep.as_owner_avg)} · ${rep.rentals} rentals` : 'new'} · {rep.listed} listed{owner.hood ? ' · ' + owner.hood : ''}</small></span>
           <svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2L8 8L2 14" fill="none" stroke="#1E3A2B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
         </a>{!isOwner && !it.demo ? <Flag kind="item" target={it.id} back={'/i/' + it.id} user={u} cls="iflag" /> : null}</div>
@@ -275,7 +275,7 @@ browse.get('/saved', async (c) => {
     <Layout title="Saved" user={u}>
       <div class="itemgrid">
         {rows.results.length ? rows.results.map(it => (
-          <a class="itemcard" href={'/i/' + it.id}>{ph[it.id] ? <img src={'/p/' + ph[it.id]} alt="" /> : <div class="ph">no photo</div>}<div class="b"><div class="pr">{money(it.price_cents)}<span style="font-size:11px;font-weight:700">/day</span></div><div class="nm">{it.name}</div></div></a>
+          <a class="itemcard" href={'/i/' + it.id}>{ph[it.id] ? <img src={'/c/' + ph[it.id]} alt="" /> : <div class="ph">no photo</div>}<div class="b"><div class="pr">{money(it.price_cents)}<span style="font-size:11px;font-weight:700">/day</span></div><div class="nm">{it.name}</div></div></a>
         )) : <div class="hint" style="grid-column:1/-1;padding:24px">Nothing saved yet. Tap ♡ on an item.</div>}
       </div>
     </Layout>
@@ -310,7 +310,7 @@ export const personPage = async (c: Ctx, uid: string) => {
             return <div class="pf-orbit">
               <Avatar name={who.name} photo={who.photo_key} size={96} />
               <div class="pf-ring">{orb.map((it, i) => { const a = (-90 + i * (360 / Math.max(orb.length, 6))) * Math.PI / 180; const src = it.avatar_key || ph[it.id];
-                return <a class={'pf-sat' + (it.avatar_key ? '' : ' ph')} href={'/i/' + it.id} style={`left:${(75 + Math.cos(a) * R - 22).toFixed(1)}px;top:${(75 + Math.sin(a) * R - 22).toFixed(1)}px`} title={it.name}>{src ? <img src={'/p/' + src} alt="" data-trim={it.avatar_key ? '1' : undefined} /> : <span>{it.emoji || '📦'}</span>}</a>; })}</div>
+                return <a class={'pf-sat' + (it.avatar_key ? '' : ' ph')} href={'/i/' + it.id} style={`left:${(75 + Math.cos(a) * R - 22).toFixed(1)}px;top:${(75 + Math.sin(a) * R - 22).toFixed(1)}px`} title={it.name}>{src ? <img src={it.avatar_key ? '/p/' + src : '/c/' + src + '?s=200'} alt="" data-trim="1" /> : <span>{it.emoji || '📦'}</span>}</a>; })}</div>
             </div>;
           })()}
           <div style="flex:1;min-width:0">
@@ -337,7 +337,7 @@ export const personPage = async (c: Ctx, uid: string) => {
             {items.results.map(it => (
               <a class={'pitem' + (it.id === just ? ' just' : '') + (me && it.status !== 'live' ? ' off' : '')} href={'/i/' + it.id}>
                 <div class="pic">
-                  {it.avatar_key ? <img src={'/p/' + it.avatar_key} alt="" data-trim="1" /> : ph[it.id] ? <img class="ph" src={'/p/' + ph[it.id]} alt="" loading="lazy" /> : <span style="font-size:44px">{it.emoji || '📦'}</span>}
+                  {it.avatar_key ? <img src={'/p/' + it.avatar_key} alt="" data-trim="1" /> : ph[it.id] ? <img src={'/c/' + ph[it.id] + '?s=300'} alt="" data-trim="1" loading="lazy" /> : <span style="font-size:44px">{it.emoji || '📦'}</span>}
                 </div>
                 <span class="ptag">{money(it.price_cents)}<small>/day</small></span>
                 <div class="pnm">{it.name}</div>
@@ -508,6 +508,12 @@ browse.get('/how-it-works', (c) => {
 });
 
 // ---------- Photos (R2) ----------
+// /c/<key>: the item photo as a cut-out (background removed). Every item picture on the site uses this, never /p/
+browse.get('/c/:key{.+}', (c) => {
+  const key = c.req.param('key'), sz = Math.min(800, Math.max(64, Number(c.req.query('s')) || 400));
+  if (key.startsWith('rentals/')) return c.notFound();
+  return new Response(null, { status: 302, headers: { location: cutoutUrl(c.env, key, sz, sz), 'cache-control': 'public, max-age=86400' } });
+});
 browse.get('/p/:key{.+}', async (c) => {
   const key = c.req.param('key');
   // rental files (pickup/return photos, signed promise) only for the two people in that rental

@@ -56,7 +56,7 @@
   }
   function aisleOf(it) { var n = (it.name + ' ' + (it.description || '')).toLowerCase(); for (var k = 0; k < AISLES.length; k++) if (AISLES[k][1].test(n)) return AISLES[k][0]; return 'Everything else'; }
   function tile(it) {
-    var img = it.avatar_key ? '/p/' + it.avatar_key : it.photo ? '/p/' + it.photo : '';
+    var img = it.avatar_key ? '/p/' + it.avatar_key : it.photo ? '/c/' + it.photo + '?s=300' : '';
     return '<div class="ai-t"><a href="/i/' + it.id + '"><div class="ai-im">' + '<span class="ai-sh"></span>' +
       (img ? '<img loading="lazy" decoding="async" src="' + img + '" alt="' + esc(it.name) + '"' + (it.avatar_key ? '' : ' class="ph"') + '>' : '<span class="ai-em">' + (it.emoji || '📦') + '</span>') +
       (isJust(it) ? '<span class="ai-age">' + ageLabel(it.created_at) + '</span>' : '') + '<span class="ai-pr">' + fmt(it.price_cents) + '<small>/day</small></span></div><div class="ai-nm">' + esc(it.name) + '</div></a>' +
@@ -206,7 +206,7 @@
     /* cut-outs: crop the transparent margin so the item fills the space */
     if (it.avatar_key) { var raw = new Image(), want = '/p/' + it.avatar_key; im.dataset.want = want; im.src = want;
       raw.onload = function () { if (im.dataset.want !== want) return; var t = trimAlpha(raw); if (t !== raw && t.toDataURL) try { im.src = t.toDataURL('image/png'); } catch (e) {} }; raw.src = want; }
-    else { im.dataset.want = ''; im.src = it.photo ? '/p/' + it.photo : ''; }
+    else { im.dataset.want = ''; im.src = it.photo ? '/c/' + it.photo + '?s=300' : ''; }
     $('shPr').innerHTML = fmt(it.price_cents) + '<small>/day</small>';
     var own = (it.owner_name || 'Neighbor').split(' ')[0];
     $('shNm').innerHTML = ''; var o1 = document.createElement('span'); o1.style.fontWeight = '500'; o1.style.display = 'block'; o1.style.fontSize = '.72em'; o1.textContent = own + (/s$/i.test(own) ? '’' : '’s'); $('shNm').appendChild(o1); $('shNm').appendChild(document.createTextNode(it.name.charAt(0).toUpperCase() + it.name.slice(1))); // "Scott’s Projector": item names keep their capital
@@ -297,7 +297,7 @@
   }
   function ensureMini(it) {
     if (miniCache[it.id] || miniLoading[it.id]) return;
-    var src = it.avatar_key ? '/p/' + it.avatar_key : it.photo ? '/p/' + it.photo : null; if (!src) return;
+    var src = it.avatar_key ? '/p/' + it.avatar_key : it.photo ? '/c/' + it.photo + '?s=300' : null; if (!src) return;
     miniLoading[it.id] = true;
     var img = new Image(); img.onload = function () { try { var d = drawMini(img, !!it.avatar_key); if (d) { addIcon('m_' + it.id, d); miniCache[it.id] = true; } } catch (e) {} miniLoading[it.id] = false;
       clearTimeout(miniT); miniT = setTimeout(function () { var m = map.getSource('more'); if (m) m.setData(moreGeo()); }, 80); };
@@ -306,7 +306,7 @@
   function ensureIcon(it) {
     if (iconCache[it.id] || loading[it.id]) return;
     loading[it.id] = true;
-    var src = it.avatar_key ? '/p/' + it.avatar_key : it.photo ? '/p/' + it.photo : null;
+    var src = it.avatar_key ? '/p/' + it.avatar_key : it.photo ? '/c/' + it.photo + '?s=300' : null;
     var done = function (img) { try { addIcon('l_' + it.id, drawSticker(it, img, !!it.avatar_key)); iconCache[it.id] = true; } catch (e) { console.warn('icon', e); } loading[it.id] = false; clearTimeout(iconT); iconT = setTimeout(drawPins, 80); };
     if (!src) return done(null);
     var img = new Image(); img.onload = function () { done(img); }; img.onerror = function () { done(null); }; img.src = src;
