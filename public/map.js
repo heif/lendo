@@ -633,8 +633,8 @@
           var k = zb + ':' + x + ',' + y; keep[k] = 1; n++;
           if (marks[k]) { chosen[x + ',' + y] = marks[k]._wkey; continue; }
           // pick a kind no neighbor (within 2 cells) already shows, so the same item doesn't repeat in one area
-          /* about half the ghosts come from what's in season (winter: boots, sleds, heaters…) */
-          var SEA = want.filter(function (x) { return x.season; }), pool = SEA.length >= 4 && (h >>> 24) % 2 === 0 ? SEA : want;
+          /* 1 in 4 ghosts is in season (winter: boots, sleds, heaters…), the rest year-round */
+          var SEA = want.filter(function (x) { return x.season; }), ALL = want.filter(function (x) { return !x.season; }), pool = SEA.length >= 4 && (h >>> 24) % 4 === 0 ? SEA : (ALL.length ? ALL : want);
           var wi = h % pool.length, w = null;
           for (var tries = 0; tries < pool.length; tries++) { var cand = pool[(wi + tries) % pool.length], clash = false;
             for (var dx = -2; dx <= 2 && !clash; dx++) for (var dy = -2; dy <= 2; dy++) { if (chosen[(x + dx) + ',' + (y + dy)] === cand.key) { clash = true; break; } }

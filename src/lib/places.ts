@@ -74,7 +74,7 @@ export const WANTED_ALL: { key: string; label: string; emoji: string }[] = [
   ['snowshoes', 'snowshoes', '❄️'], ['foldtable', 'folding table', '🪑'],
 ].map(w => ({ key: w[0], label: w[1], emoji: w[2] }));
 
-// Seasonal: these show up more often on the map and lead the "What have you got?" list in their months (northern hemisphere)
+// Seasonal: 1 in 4 map wanted posters and "What have you got?" ideas in their months (northern hemisphere)
 export const SEASONAL: Record<string, string[]> = {
   winter: ['snowboots', 'sled', 'skis', 'snowboard', 'skates', 'snowblower', 'shovel', 'heater', 'humidifier', 'parka', 'lights', 'treestand', 'roaster', 'fryer', 'snowshoes', 'foldtable', 'dinnerware', 'luggage'],
   spring: ['bike', 'mower', 'trimmer', 'pwasher', 'blower', 'wheelbarrow', 'paddle', 'tent', 'pickle', 'racket', 'carpet', 'sprayer'],
