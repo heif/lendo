@@ -390,7 +390,7 @@ body:has(.promo.pu:not([hidden])) .locbtn{bottom:96px}
 .alertchip button{border:0;background:none;padding:0;font:inherit;font-weight:900;color:#D94300;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 /* iOS zooms into any field under 16px on focus — keep every field at 16px+ */
 input,textarea,select{font-size:max(16px,1em)}
-html,body{overflow-x:hidden}
+html,body{overflow-x:hidden;overflow-x:clip}
 /* iOS Safari zooms into any field under 16px — keep every text field at 16px+ on touch screens */
 @media (pointer:coarse){input:not([type=checkbox]):not([type=radio]):not([type=range]),textarea,select{font-size:max(16px,1em)!important}}
 
@@ -718,3 +718,19 @@ a.ac-pill{text-decoration:none;color:inherit}
 .pcard-img{width:124px}.pcard-img img{width:124px;height:124px}.pcard-img img.cut{background:none;padding:0;border-radius:0}.pcard-img img.photo{background:#fff}
 .iflag{flex-shrink:0}.iflag .flagbtn{padding:6px}
 .askf button,.compose button{display:inline-flex;align-items:center;justify-content:center}.askf button svg,.compose button svg{display:block}
+/* chats: one picker in the header (All · person · rental); rental = status card (max half the screen) + chat */
+.chatbar{position:sticky;top:var(--hh,52px);z-index:16;background:var(--cream);padding:8px 12px 6px}
+.chatpick{display:flex;align-items:center;gap:8px;height:42px;padding:0 12px;border:2.5px solid var(--ink);border-radius:21px;background:#fff;box-shadow:0 3px 0 var(--ink)}
+.chatpick span{display:flex;flex:none}.chatpick select{flex:1;min-width:0;border:0;background:none;font:inherit;font-size:14.5px;font-weight:900;color:var(--ink);text-overflow:ellipsis;outline:0}
+.rpage{padding:4px 12px 150px;display:flex;flex-direction:column;gap:10px}
+.rcard{position:sticky;top:calc(var(--hh,52px) + 58px);z-index:15;max-height:calc(50dvh - var(--hh,52px) - 58px);overflow-y:auto;background:#fff;border:2.5px solid var(--ink);border-radius:18px;box-shadow:0 4px 0 var(--ink);padding:12px;display:flex;flex-direction:column;gap:8px}
+.rcard>*{flex:none}.rcard .card{box-shadow:none;margin:0}
+.rcard .rstrip>summary{display:none}.rcard .rstrip:not([open]){display:none}.rcard .rstrip-in{padding-top:12px}
+.rsteps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.rsteps li{display:flex;align-items:center;gap:8px;font-size:14px;color:#9A958A;min-width:0}
+.rsteps i{flex:none;width:20px;height:20px;border-radius:50%;border:2.5px solid #D9D4C8;background:#fff;display:grid;place-items:center;font-style:normal;font-size:11px;font-weight:900;color:#fff}
+.rsteps b{font-weight:800;white-space:nowrap}.rsteps span{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.rsteps span u,.rsteps span button{font:inherit;color:var(--ink);background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}
+.rsteps li.done{color:var(--ink)}.rsteps li.done i{background:var(--ink);border-color:var(--ink)}
+.rsteps li.now{color:var(--ink)}.rsteps li.now b{font-weight:900;font-size:16px}.rsteps li.now i{background:var(--orange);border-color:var(--ink)}
+.rcard .card{border:0!important;padding:0;background:none}

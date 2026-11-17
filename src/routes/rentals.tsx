@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { logEvent } from '../lib/log';
-import { SEND_SVG } from '../lib/icons';
+import { CHAT_SVG, SEND_SVG } from '../lib/icons';
 import { localToday, tzFor } from '../lib/util';
 import { shortName } from '../lib/util';
 import { handleText } from './webhooks';
@@ -80,6 +80,20 @@ function meetDue(day: string, time: string | null | undefined, lng?: number | nu
   const [h, m] = time.split(':').map(Number); return nowMin(lng) >= h * 60 + m - 60;
 }
 
+/* one chat picker everywhere: All · a person · a rental */
+type ChatRow = { id: string; owner_id: string; renter_id: string; item: string; owner_name: string | null; renter_name: string | null };
+const chatList = async (db: D1Database, uid: string) => (await db.prepare(`SELECT r.id, r.owner_id, r.renter_id, l.name item, o.name owner_name, n.name renter_name FROM rentals r JOIN listings l ON l.id = r.listing_id JOIN users o ON o.id = r.owner_id JOIN users n ON n.id = r.renter_id WHERE r.owner_id = ?1 OR r.renter_id = ?1 ORDER BY r.created_at DESC LIMIT 40`).bind(uid).all<ChatRow>().catch(() => ({ results: [] as ChatRow[] }))).results;
+function ChatPick(p: { rows: ChatRow[]; me: string; cur: string }) {
+  const who = (r: ChatRow) => r.owner_id === p.me ? { id: r.renter_id, name: firstName(r.renter_name) } : { id: r.owner_id, name: firstName(r.owner_name) };
+  const people = p.rows.map(who).filter((x, i, a) => a.findIndex(y => y.id === x.id) === i);
+  const O = (v: string, t: string) => <option value={v} selected={v === p.cur}>{t}</option>;
+  return <div class="chatbar"><label class="chatpick"><span dangerouslySetInnerHTML={{ __html: CHAT_SVG }} /><select aria-label="Which chat" onchange="location.href=this.value">
+    {O('/inbox', 'All chats')}
+    {people.length ? <optgroup label="People">{people.map(x => O('/inbox?with=' + x.id, x.name))}</optgroup> : null}
+    {p.rows.length ? <optgroup label="Rentals">{p.rows.map(r => O('/r/' + r.id, who(r).name + ' · ' + r.item))}</optgroup> : null}
+  </select></label>{raw(`<script>document.documentElement.style.setProperty('--hh',document.querySelector('.hdr').offsetHeight+'px')</script>`)}</div>;
+}
+
 rentals.get('/r/:id', requireUser, async (c) => {
   const u = c.get('user')!;
   const r = await rentalById(c.env.DB, c.req.param('id'));
@@ -108,16 +122,29 @@ rentals.get('/r/:id', requireUser, async (c) => {
   const ox = live ? await openExt(c.env, r.id) : null;
   const extOk = live && !isOwner && !ox ? await extendableDays(c.env, r) : [];
   const paused = (await textStreak(c.env, u.id)) >= STREAK_MAX;
+  const chats = await chatList(c.env.DB, u.id);
   const extCells = live && !isOwner && !ox ? Array.from({ length: Math.min(EXT_MAX_DAYS, Math.max(7, extOk.length + 1)) }, (_, i) => addDays(r.end_day, i + 1)) : [];
   return c.html(
-    <Layout title={isOwner ? 'Rental of your ' + it.name : 'Your rental'} user={u} back="/rentals" flash={c.req.query('paid') ? (r.status === 'held' ? `Card held. Waiting for ${firstName(owner.name)}.` : null) : null}>
-      <div style="padding:12px 12px 140px;display:flex;flex-direction:column;gap:10px">
+    <Layout title={isOwner ? 'Rental of your ' + it.name : 'Your rental'} user={u} back="/inbox" headerCenter={<span class="sp"></span>} flash={c.req.query('paid') ? (r.status === 'held' ? `Card held. Waiting for ${firstName(owner.name)}.` : null) : null}>
+      <ChatPick rows={chats} me={u.id} cur={'/r/' + r.id} />
+      <div class="rpage">
+      <div class="rcard">
         {/* 3A: compact header (who · item · dates · $) + pinned where/when strip */}
         <a class="rhd" href={'/i/' + it.id}>
           {photos[0] ? <img src={'/p/' + photos[0].r2_key} alt="" /> : <span class="rhd-ph"></span>}
           <div><b>{firstName(other.name)} · {it.name}</b>
-            <div>{r.status === 'inquiry' ? (isOwner ? 'Question about your item' : 'Questions before renting') : <>{fmtRange(r.start_day, r.end_day)} · {isOwner ? `you earn ${money(payoutOf(r) + xRent)}` : `${money(r.total_cents + xTotal)}${r.status === 'held' ? ' held' : ' paid'}`}</>}</div></div>
+            <div>{r.status === 'inquiry' ? (isOwner ? 'Question about your item' : 'Questions before renting') : <>{fmtRange(r.start_day, r.end_day)} · {isOwner ? `you earn ${money(payoutOf(r) + xRent)}${r.status === 'held' ? ` after ${c.env.FEE_PCT}% fee` : ''}` : `${money(r.total_cents + xTotal)}${r.status === 'held' ? ' held' : ' paid'}`}</>}</div></div>
         </a>
+        {r.status !== 'inquiry' && !dead ? (() => { const nm = firstName(other.name), spot = r.meet_spot || (spots.length === 1 ? spots[0] : '');
+          const chg = <u onclick="var d=document.querySelector('.rstrip');d.open=!d.open">Change</u>;
+          const S: [string, any][] = [
+            [isOwner ? `${nm} asked` : 'You asked', stage === 0 && !isOwner ? 'card held' : null],
+            [stage === 0 ? (isOwner ? 'Say YES or NO' : `Waiting for ${nm}’s YES`) : (isOwner ? 'You said YES' : `${nm} said YES`), stage === 0 && !isOwner ? <button type="submit" form="cancelForm">Cancel</button> : stage === 1 && !isOwner ? <button type="submit" form="cancelForm">Cancel</button> : null],
+            [stage > 2 || r.status === 'picked_up' ? 'Picked up' : 'Pickup ' + dayWord(r.start_day, it.lng) + timeWord(r.pickup_time), stage === 1 ? <>{spot ? spot + ' · ' : ''}{chg}</> : null],
+            [stage === 3 ? 'Returned' : 'Return ' + dayWord(r.end_day, it.lng) + timeWord(r.return_time), stage === 2 ? <>{spot ? spot + ' · ' : ''}{chg}</> : null],
+          ];
+          const now = stage === 0 ? 1 : stage === 1 ? 2 : stage === 2 ? 3 : 4;
+          return <ol class="rsteps">{S.map(([t, x], i) => <li class={i < now ? 'done' : i === now ? 'now' : ''}><i>{i < now ? '✓' : ''}</i><b>{t}</b>{x ? <span>{x}</span> : null}</li>)}</ol>; })() : null}
         {paused ? <a class="hint" href={smsHref(c.env, 'OK')} style="text-align:center;color:#b3261e;font-weight:700;display:block">📵 Lendo texts paused · <u>tap to text OK</u> and turn them back on</a> : null}
         {r.status === 'inquiry' ? (!isOwner ? <a class="btn pri full" href={'/i/' + it.id}>Rent it · {money(it.price_cents)}/day</a> : null) : dead ? <div class="flash err" style="margin:0">{r.status === 'declined' ? `${firstName(owner.name)} couldn't do those days.` : r.status === 'expired' ? 'No answer in time.' : 'Canceled.'} Nothing was charged.</div> : null}
         {!dead && (stage === 1 || stage === 2) ? (
@@ -137,8 +164,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
         {/* owner decision */}
         {isOwner && r.status === 'held' ? (
           <div class="card" style="border:2px solid var(--ink)">
-            <b>{firstName(other.name)} wants it {fmtRange(r.start_day, r.end_day)}. You'd earn {money(payoutOf(r))} (after the {c.env.FEE_PCT}% fee)</b>
-            <div class="row" style="margin-top:10px;gap:8px">
+            <div class="row" style="gap:8px">
               {/* phones: YES/NO open Messages with the reply typed (a real text keeps Lendo texts flowing); computers: plain buttons */}
               <a class="btn pri sms-only" style="flex:1;display:grid;place-items:center;text-decoration:none" href={smsHref(c.env, 'YES ' + r.id.slice(-4))}>💬 YES — accept</a>
               <a class="btn sms-only" style="display:grid;place-items:center;text-decoration:none" href={smsHref(c.env, 'NO ' + r.id.slice(-4))}>No</a>
@@ -180,12 +206,6 @@ rentals.get('/r/:id', requireUser, async (c) => {
         ) : null}
 
 
-        <div class="msgs">
-          {msgs.results.map(m => {
-            const me = m.sender_id === u.id, sys = !m.sender_id;
-            return <div class={'msg' + (me ? ' me' : sys ? ' sys' : '')}><div class="bub"><Linked t={m.body} />{!me && !sys && FLAGGABLE.test(m.body) ? <Flag kind="message" target={String(m.id)} rental={r.id} back={'/r/' + r.id} user={u} cls="msgflag" /> : null /* flag only shows on flaggable text */}</div><div class="meta">{sys ? '' : (me ? 'You' : firstName(m.sender_name)) + (m.via === 'text' ? ' · by text' : '') + ' · '}{fmtT(m.created_at)}</div></div>;
-          })}
-        </div>
 
         {/* community agreement: customer signs once confirmed; owner sees status + a copy */}
         {!dead && stage >= 1 ? (() => {
@@ -230,7 +250,7 @@ f.addEventListener('change',ok);f.addEventListener('submit',function(){document.
         {/* quick actions */}
         {/* customer cancel: free before YES, 50% back after YES */}
         {!isOwner && (r.status === 'held' || r.status === 'confirmed') ? (
-          <form method="post" action={'/r/' + r.id + '/cancel'} onsubmit={r.status === 'confirmed' ? `return confirm('Cancel? You get ${money(Math.round(r.total_cents / 2))} back — ${firstName(other.name)} already said yes')` : ''} style="margin:4px 0 10px">
+          <form method="post" action={'/r/' + r.id + '/cancel'} onsubmit={r.status === 'confirmed' ? `return confirm('Cancel? You get ${money(Math.round(r.total_cents / 2))} back — ${firstName(other.name)} already said yes')` : "return confirm('Cancel request? Nothing is charged')"} id="cancelForm" hidden>
             <button type="submit" style="width:100%;background:none;border:0;color:var(--mute);text-decoration:underline;font:inherit;font-size:13px">{r.status === 'held' ? 'Cancel request · nothing charged' : `Cancel · ${money(Math.round(r.total_cents / 2))} back (half)`}</button>
           </form>
         ) : null}
@@ -248,6 +268,13 @@ f.addEventListener('change',ok);f.addEventListener('submit',function(){document.
         ) : myRating ? <div class="hint">You gave {myRating >= 3 ? '👍' : '👎'}</div> : null}
         {isOwner && (r.status === 'returned' || r.status === 'closed') ? <div class="flagrow" style="justify-content:flex-start"><Flag kind="rental" target={r.id} rental={r.id} back={'/r/' + r.id} user={u} label="Problem with the return?" /></div> : null}
 
+      </div>
+        <div class="msgs">
+          {msgs.results.map(m => {
+            const me = m.sender_id === u.id, sys = !m.sender_id;
+            return <div class={'msg' + (me ? ' me' : sys ? ' sys' : '')}><div class="bub"><Linked t={m.body} />{!me && !sys && FLAGGABLE.test(m.body) ? <Flag kind="message" target={String(m.id)} rental={r.id} back={'/r/' + r.id} user={u} cls="msgflag" /> : null /* flag only shows on flaggable text */}</div><div class="meta">{sys ? '' : (me ? 'You' : firstName(m.sender_name)) + (m.via === 'text' ? ' · by text' : '') + ' · '}{fmtT(m.created_at)}</div></div>;
+          })}
+        </div>
       </div>
       {!dead ? (
         <div class="rdock">
@@ -315,8 +342,10 @@ async function sendMsg(c: Ctx, u: User, r: Rental, body: string) {
 rentals.post('/r/:id/msg', requireUser, async (c) => {
   const u = c.get('user')!; const r = await rentalById(c.env.DB, c.req.param('id'));
   if (!r || (r.owner_id !== u.id && r.renter_id !== u.id)) return c.notFound();
-  await sendMsg(c, u, r, String((await c.req.parseBody()).body || '').trim().slice(0, 500));
-  return c.redirect('/r/' + r.id);
+  const b = await c.req.parseBody();
+  await sendMsg(c, u, r, String(b.body || '').trim().slice(0, 500));
+  const bk = String(b.back || '');
+  return c.redirect(/^\/inbox\?with=[\w-]+$/.test(bk) ? bk + '#end' : '/r/' + r.id + '#end');
 });
 rentals.post('/r/:id/extend', requireUser, async (c) => {
   const u = c.get('user')!; const r = await rentalById(c.env.DB, c.req.param('id'));
@@ -506,13 +535,26 @@ rentals.get('/inbox', requireUser, async (c) => {
   const inn = (await c.env.DB.prepare(`SELECT body, via, created_at FROM inbound_texts WHERE user_id = ? ORDER BY created_at DESC LIMIT 100`).bind(u.id).all<{ body: string; via: string; created_at: number }>().catch(() => ({ results: [] as { body: string; via: string; created_at: number }[] }))).results;
   const all = [...out.map(t => ({ me: false, body: t.body, rid: t.rental_id, at: t.created_at, via: '' })), ...inn.map(t => ({ me: true, body: t.body, rid: null as string | null, at: t.created_at, via: t.via }))]
     .sort((a, b) => a.at - b.at).slice(-150);
+  const chats = await chatList(c.env.DB, u.id);
+  /* ?with=<user>: every message between the two of them, across rentals; sending goes to the latest rental */
+  const wid = c.req.query('with') || '';
+  const wrows = wid ? chats.filter(r => r.owner_id === wid || r.renter_id === wid) : [];
+  if (wid && !wrows.length) return c.redirect('/inbox');
+  const wname = wrows.length ? firstName(wrows[0].owner_id === wid ? wrows[0].owner_name : wrows[0].renter_name) : '';
+  const wmsgs = wrows.length ? (await c.env.DB.prepare(`SELECT sender_id, body, rental_id, created_at FROM messages WHERE rental_id IN (${wrows.map(() => '?').join(',')}) ORDER BY created_at`).bind(...wrows.map(r => r.id)).all<{ sender_id: string | null; body: string; rental_id: string; created_at: number }>()).results : [];
+  const itemOf = (rid: string) => wrows.find(r => r.id === rid)?.item || '';
   const paused = (await textStreak(c.env, u.id)) >= STREAK_MAX;
   const fmtT = (t: number) => new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
   return c.html(
-    <Layout title="Inbox" user={u} headerCenter={<span class="sp"></span>}>
+    <Layout title="Chats" user={u} headerCenter={<span class="sp"></span>}>
+      <ChatPick rows={chats} me={u.id} cur={wid ? '/inbox?with=' + wid : '/inbox'} />
       {paused ? <a class="hint" href={smsHref(c.env, 'OK')} style="text-align:center;color:#b3261e;font-weight:700;margin:10px 12px 0;display:block">📵 Texts to your phone are paused after {STREAK_MAX} with no reply · <u>tap to text OK</u> (typing here doesn’t count)</a> : null}
       <div class="msgs" id="inbox" style="padding:12px 12px 8px">
-        {all.length ? all.map(m => (
+        {wid ? wmsgs.map(m => { const me = m.sender_id === u.id, sys = !m.sender_id; return (
+          <div class={'msg' + (me ? ' me' : sys ? ' sys' : '')}>
+            <div class="bub"><Linked t={m.body} /></div>
+            <div class="meta">{sys ? '' : (me ? 'You' : wname) + ' · '}{fmtT(m.created_at)} · <a href={'/r/' + m.rental_id}>{itemOf(m.rental_id)}</a></div>
+          </div>); }) : all.length ? all.map(m => (
           <div class={'msg' + (m.me ? ' me' : '')}>
             <div class="bub"><Linked t={m.me ? m.body : m.body.replace(/\s*\(Reply OK to get links \+ updates here\.?\)\s*$/, '')} /></div>
             <div class="meta">{m.me ? 'You' + (m.via === 'text' ? ' · by text' : '') : 'Lendo'} · {fmtT(m.at)}{m.rid ? <> · <a href={'/r/' + m.rid}>open</a></> : null}</div>
@@ -520,8 +562,9 @@ rentals.get('/inbox', requireUser, async (c) => {
         )) : <div class="hint" style="padding:16px 4px">Nothing here yet</div>}
         <div id="end" />
       </div>
-      <form method="post" action="/inbox" class="compose">
-        <input name="body" placeholder="Message Lendo (same as texting us)" required maxlength={500} autocomplete="off" />
+      <form method="post" action={wid ? '/r/' + wrows[0].id + '/msg' : '/inbox'} class="compose">
+        {wid ? <input type="hidden" name="back" value={'/inbox?with=' + wid} /> : null}
+        <input name="body" placeholder={wid ? `Message ${wname}` : 'Message Lendo (same as texting us)'} required maxlength={500} autocomplete="off" />
         <button type="submit" aria-label="Send" dangerouslySetInnerHTML={{ __html: SEND_SVG }} />
       </form>
       <script dangerouslySetInnerHTML={{ __html: `window.scrollTo(0, document.body.scrollHeight)` }} />
