@@ -189,7 +189,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
           <OwnerOrbit name={owner.name} photo={owner.photo_key} items={others.map(o => ({ src: '/p/' + (o.avatar_key || oph[o.id]), cut: !!o.avatar_key })).filter(x => !x.src.endsWith('undefined'))} />
           <span class="owner-txt"><b>{shortName(owner.name)}</b><small>{rep.as_owner_avg ? `${starStr(rep.as_owner_avg)} · ${rep.rentals} rentals` : 'new'} · {rep.listed} listed{owner.hood ? ' · ' + owner.hood : ''}</small></span>
           <svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2L8 8L2 14" fill="none" stroke="#1E3A2B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
-        </a></div>
+        </a>{!isOwner && !it.demo ? <Flag kind="item" target={it.id} back={'/i/' + it.id} user={u} cls="iflag" /> : null}</div>
         {!isOwner && it.status === 'live' ? (
           <form method="post" action={'/i/' + it.id + '/rent'} id="rentForm">
             <div class="quick" id="quick" style="display:flex;gap:8px;margin-top:14px">
@@ -222,7 +222,6 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
           </div>); })()}
       </section>
       {!isOwner && it.status === 'live' && !it.demo ? <section class="sec charges" id="charges" hidden /> : null}
-      {!isOwner && !it.demo ? <div class="flagrow"><Flag kind="item" target={it.id} back={'/i/' + it.id} user={u} label="Flag" /></div> : null /* quiet, at the bottom */}
       {!u ? <div style="height:84px"></div> : null /* room for the floating phone/$5 OFF bar; logged in there is no bar, so no gap */}
       {it.demo ? <div class="flash" id="demoNote" hidden style="margin:0 16px 90px">This one’s a demo — Iowa City is a preview of what a Lendo neighborhood looks like full. Nothing gets charged. <a href="/list">List your real stuff →</a></div> : null}
       {!isOwner && it.status === 'live' ? (
