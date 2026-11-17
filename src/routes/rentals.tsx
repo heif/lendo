@@ -224,7 +224,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
           if (r.status !== 'confirmed') return null; // only matters before pickup
           if (isOwner) return <div class="hint" style="text-align:center">{cu} hasn’t signed the promise yet · reminder texted</div>;
           return (<>
-            <div class="hint" style="text-align:center">Sign your promise to {ow} before pickup · 3 quick checks</div>
+            <button type="button" class="btn pri full promgo" onclick="document.getElementById('promSign').showModal()">✍️ Sign your promise to {ow}<small>3 quick checks · before pickup</small></button>
             <dialog id="promSign" class="psheet"><form method="post" action={'/r/' + r.id + '/promise'} class="psheet-in" id="promForm">
               <div class="psheet-h"><b>Your promise to {ow}</b><button type="button" class="psheet-x" aria-label="Close" onclick="this.closest('dialog').close()" dangerouslySetInnerHTML={{ __html: X_SVG }} /></div>
               <div class="hint">Neighbor to neighbor. Tap each one</div>
@@ -243,7 +243,7 @@ cv.addEventListener('pointerdown',function(e){down=true;cv.setPointerCapture(e.p
 cv.addEventListener('pointermove',function(e){if(!down)return;var p=pt(e);g.lineTo(p[0],p[1]);g.stroke();ink++;});
 cv.addEventListener('pointerup',function(){down=false;ok();});
 document.getElementById('sigClear').onclick=function(){g.clearRect(0,0,cv.width,cv.height);ink=0;ok();};
-f.addEventListener('change',ok);f.addEventListener('submit',function(){document.getElementById('sigData').value=cv.toDataURL('image/png');});ok();})();</script>`)}
+f.addEventListener('change',ok);f.addEventListener('submit',function(){document.getElementById('sigData').value=cv.toDataURL('image/png');});ok();if(location.hash==='#promise'){history.replaceState(null,'',location.pathname+location.search);var d=document.getElementById('promSign');if(d&&!d.open)d.showModal();}})();</script>`)}
           </>);
         })() : null}
 
@@ -290,7 +290,7 @@ f.addEventListener('change',ok);f.addEventListener('submit',function(){document.
             {isOwner ? <>
               <form method="post" action={'/r/' + r.id + (stage === 1 ? '/pickup' : '/return')} enctype="multipart/form-data"><label class="rchip hot">📷 {stage === 1 ? 'Handed over' : 'Got it back'}<input type="file" name="photo" accept="image/*" capture="environment" hidden onchange="this.form.submit()" /></label></form>
               <form method="post" action={'/r/' + r.id + (stage === 1 ? '/pickup' : '/return')} enctype="multipart/form-data" onsubmit={`return confirm('${stage === 1 ? 'Mark picked up' : 'Mark returned'} without a photo?')`}><button class="rchip" type="submit">✓ No photo</button></form>
-            </> : stage === 1 && !r.promise_at ? <button type="button" class="rchip hot" onclick="document.getElementById('promSign').showModal()">✍️ Sign promise</button> : null}
+            </> : null}
             {meetDue(stage === 1 ? r.start_day : r.end_day, stage === 1 ? r.pickup_time : r.return_time, it.lng) ? <><a class="rchip sms-only" href={smsHref(c.env, "I'm here")} style="text-decoration:none">👋 I’m here</a><form method="post" action={'/r/' + r.id + '/msg'} class="web-only"><input type="hidden" name="body" value="I'm here" /><button class="rchip" type="submit">👋 I’m here</button></form></> : null}
             <button type="button" class="rchip" onclick="var d=document.querySelector('.rstrip');d.open=true;d.scrollIntoView({block:'start',behavior:'smooth'})">⏱ {(stage === 1 ? r.pickup_time : r.return_time) ? fmtHM((stage === 1 ? r.pickup_time : r.return_time)!) : 'Time'}</button>
           </div> : null}

@@ -56,7 +56,7 @@ export async function accept(env: Env, r0: Rental, rentCents?: number): Promise<
   const spot = owner.pickup_spots ? ` Meet: ${(JSON.parse(owner.pickup_spots) as string[]).join(' or ')}` : '';
   const gift = r.rent_cents === 0 ? ` ${firstName(owner.name)} is lending it to you free!` : r0.rent_cents > r.rent_cents ? ` ${firstName(owner.name)} gave you a discount` : '';
   // owner is asked for a pickup time right after YES (no pickup hours); their reply relays to the customer, SKIP leaves it to the customer
-  await textUser(env, renter, `${firstName(owner.name)} said yes!${gift} ${paidLine[0].toUpperCase() + paidLine.slice(1)}.${spot} ${firstName(owner.name)} will text a pickup time ${url}`, 'money', r.id);
+  await textUser(env, renter, `${firstName(owner.name)} said yes!${gift} ${paidLine[0].toUpperCase() + paidLine.slice(1)}.${spot} Next: sign your promise to ${firstName(owner.name)} (3 quick checks) ${url}#promise`, 'money', r.id);
   await textUser(env, owner, `${r.rent_cents === 0 ? 'Done — lending it free' : `Done. ${firstName(renter.name)} paid`}. When can ${firstName(renter.name)} pick it up? Reply a time (like "after 6"), or SKIP`, 'rental', r.id);
   if ((r.deposit_cents || 0) > 0) await textUser(env, renter, `Heads up: at pickup there's a ${money(r.deposit_cents!)} hold on your card — not a charge, released when you return the ${listing.name}. Questions? Just reply`, 'rental', r.id);
   if (!owner.stripe_account_id && r.rent_cents > 0) {
@@ -213,7 +213,7 @@ export async function nudgePromises(env: Env) {
     WHERE r.status = 'confirmed' AND r.promise_at IS NULL AND r.promise_nudged < 1 AND r.updated_at < ? LIMIT 20`).bind(Date.now() - 3600e3).all<{ id: string; renter_id: string; owner_id: string; promise_nudged: number; updated_at: number }>().catch(() => ({ results: [] as any[] }))).results;
   for (const r of rows) {
     const cu = await userById(env.DB, r.renter_id), ow = await userById(env.DB, r.owner_id); if (!cu || !ow) continue;
-    await textUser(env, cu, `Before pickup: sign your promise to ${firstName(ow.name) || 'the owner'} (3 quick checks) ${env.APP_URL}/r/${r.id}`, 'rental');
+    await textUser(env, cu, `Before pickup: sign your promise to ${firstName(ow.name) || 'the owner'} (3 quick checks) ${env.APP_URL}/r/${r.id}#promise`, 'rental');
     await env.DB.prepare('UPDATE rentals SET promise_nudged = promise_nudged + 1 WHERE id = ?').bind(r.id).run();
   }
 }
