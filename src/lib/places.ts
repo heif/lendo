@@ -107,3 +107,16 @@ export function hoodDisplay(nta: string): string {
   const base = nta.replace(/\s*\([^)]*\)/g, '').trim();
   return NTA_NAME[nta] || NTA_NAME[base] || base.split('-')[0].trim();
 }
+
+/* NYC metro (city bbox padded ~50 km: carriers often geolocate Manhattan to Long Island / NJ) */
+export function inNycMetro(lat?: number | null, lng?: number | null): boolean {
+  if (lat == null || lng == null || isNaN(lat) || isNaN(lng)) return false;
+  const ct = CITIES.find(x => x.id === 'nyc')!;
+  return lng >= ct.bbox[0] - 0.6 && lng <= ct.bbox[2] + 0.6 && lat >= ct.bbox[1] - 0.45 && lat <= ct.bbox[3] + 0.45;
+}
+/* where this person is: their saved spot, else the request's IP location */
+export function hereOf(c: { req: { raw: Request } }, u?: { lat?: number | null; lng?: number | null } | null): [number, number] | null {
+  if (u?.lat != null && u?.lng != null) return [u.lat, u.lng];
+  const cf: any = (c.req.raw as any).cf || {}; const la = parseFloat(cf.latitude), ln = parseFloat(cf.longitude);
+  return isNaN(la) || isNaN(ln) ? null : [la, ln];
+}

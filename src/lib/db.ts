@@ -1,3 +1,4 @@
+import { inNycMetro } from './places';
 import type { Env, Listing, Rental, User } from './env';
 import { logEvent } from './log';
 import { id, now } from './util';
@@ -97,7 +98,8 @@ export async function setRentalStatus(db: D1Database, rid: string, status: Renta
 }
 
 /* List-10 bonus ($10 today + $10 rental gift card) still open for this person? Guests: yes. Paid or 10+ already listed: no */
-export async function bonusOpen(db: D1Database, u: { id: string } | null | undefined): Promise<boolean> {
+export async function bonusOpen(db: D1Database, u: { id: string } | null | undefined, here?: [number, number] | null): Promise<boolean> {
+  if (!here || !inNycMetro(here[0], here[1])) return false; /* the $10 List-10 promo runs in NYC only */
   if (!u) return true;
   const done = await db.prepare(`SELECT 1 FROM settings WHERE key = ?`).bind('promo10_' + u.id).first();
   if (done) return false;

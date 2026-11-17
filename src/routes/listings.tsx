@@ -1,5 +1,6 @@
 import { getCookie } from 'hono/cookie';
 import { bonusOpen } from '../lib/db';
+import { hereOf } from '../lib/places';
 import { DEPOSIT_CENTS } from '../lib/stripe';
 import { Hono } from 'hono';
 import { cutoutUrl } from '../lib/cutout';
@@ -32,7 +33,7 @@ listings.get('/list', async (c) => {
   const cfg = JSON.stringify({ minPrice: parseInt(c.env.MIN_PRICE_CENTS, 10) / 100, hood: u?.hood || '', user: u ? { name: u.name || '', hood: u.hood || '', replied: !!u.replied } : null, sms: smsHref(c.env, 'OK'), shareUrl: u ? c.env.APP_URL + ((u as any).handle ? '/' + (u as any).handle : '/u/' + u.id) : c.env.APP_URL });
   return c.html(
     <Layout title="Rent out your stuff" user={u} promo={false} htmlClass="mappage" head={<link rel="stylesheet" href="/list.css" />}>
-      {await bonusOpen(c.env.DB, u) ? <details class="lbonus"><summary><span class="lb-t">$10 BONUS TODAY · list 10 things</span><i aria-label="How it works">i</i></summary>
+      {await bonusOpen(c.env.DB, u, hereOf(c, u)) ? <details class="lbonus"><summary><span class="lb-t">$10 BONUS TODAY · list 10 things</span><i aria-label="How it works">i</i></summary>
         <ol><li>List 10 things you own</li><li>Quick 2-min video check</li><li>$10 to you — plus a $10 rental gift card</li></ol></details> : null}
       {/* ideas */}
       <section id="st-ideas" class="lf">

@@ -13,6 +13,7 @@ import type { Env, Listing, Vars } from '../lib/env';
 import { Layout } from '../pages/layout';
 import { cutoutUrl } from '../lib/cutout';
 import { CITIES } from '../lib/places';
+import { hereOf, inNycMetro } from '../lib/places';
 import { bonusOpen, counts, firstPhotos, listingById, photosFor, reputation, userById, busyDays } from '../lib/db';
 import { money, fmtDay, dayStr, addDays, firstName, fuzz , starStr } from '../lib/util';
 import { taxRateFor } from '../lib/money';
@@ -41,7 +42,7 @@ export function staticMapUrl(env: Env, lat: number, lng: number, w = 600, h = 22
 // ---------- Map (home) ----------
 export const homePage = async (c: Ctx, opt: { center?: number[]; zoom?: number; q?: string; title?: string } = {}) => {
   const u = c.get('user');
-  const bonus = await bonusOpen(c.env.DB, u);
+  const bonus = await bonusOpen(c.env.DB, u, hereOf(c, u));
   const k = await counts(c.env.DB, u?.hood ?? null);
   let center = u?.lat && u?.lng ? [u.lng, u.lat] : [-73.997, 40.7465]; // [lng, lat]; Chelsea default
   const cq = (c.req.query('c') || '').split(',').map(parseFloat); // ?c=lng,lat deep link (shares, debugging)
@@ -323,7 +324,7 @@ export const personPage = async (c: Ctx, uid: string) => {
         </div>
         {me ? <div class="pf-earn"><span><b>{money(earned?.s || 0)}</b> earned · {earned?.n || 0} rental{earned?.n === 1 ? '' : 's'}</span><a href="/payout">Get paid</a></div> : null}
         {me ? <a class="btn pri full" style="margin-top:12px" href="/list">LIST MORE STUFF</a> : null}
-        {me && promoN !== null ? (
+        {me && promoN !== null && (() => { const h = hereOf(c, who); return !!h && inNycMetro(h[0], h[1]); })() ? (
           <div class="card" style="padding:14px;margin-top:14px">
             <b style="font-size:17px">List 10 things, get $10 cash AND a $10 free rental</b>
             <div style="height:10px;border-radius:5px;background:#ECE8E0;margin:10px 0 8px;overflow:hidden"><i style={`display:block;height:100%;width:${Math.min(100, promoN * 10)}%;background:var(--orange)`} /></div>
