@@ -228,3 +228,14 @@ a.dn2-tray{text-decoration:none;color:var(--ink)}
 
 
 .q-have{display:block;margin:12px auto 0;border:0;background:none;font:inherit;font-size:13.5px;font-weight:700;color:var(--mute,#7b8a80);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+
+/* ask your AI */
+.aiask{width:100%;display:flex;gap:12px;align-items:center;text-align:left;background:var(--ink);color:#fff;border:0;border-radius:16px;padding:13px 14px;margin:0 0 12px;box-shadow:0 4px 0 #0e1f16}
+.aiask i{font-style:normal;font-size:26px}.aiask b{display:block;font-size:16px;font-weight:900}.aiask small{display:block;font-size:12.5px;font-weight:600;opacity:.85;margin-top:2px}
+.aistep{display:flex;align-items:center;gap:10px;margin:14px 0 8px;flex-wrap:wrap}.aistep i{width:28px;height:28px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-style:normal;font-weight:900;font-size:14px}.aistep b{font-size:16px;font-weight:900}.aistep small{flex-basis:100%;padding-left:38px;margin-top:-6px;font-size:12.5px;font-weight:600;color:var(--ink2)}
+.aiprompt{background:#fff;border:2px dashed #b8b2a5;border-radius:12px;padding:10px 12px;font-size:13px;font-weight:600;line-height:1.4;color:#4a4a44;margin-bottom:10px;user-select:all}
+.aiapps{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}.aiapp{height:42px;border:2.5px solid var(--ink);border-radius:12px;background:#fff;color:var(--ink);font-size:14px;font-weight:900}
+.aipaste{width:100%;border:2.5px solid var(--ink);border-radius:14px;padding:10px 12px;font:inherit;font-size:14px;font-weight:600;background:#fff;color:var(--ink);resize:vertical}
+.ailist{display:flex;flex-direction:column;gap:8px}.airow{display:flex;align-items:center;gap:10px;text-align:left;background:#fff;border:2.5px solid var(--ink);border-radius:14px;padding:10px 12px;color:var(--ink);opacity:.5}.airow.on{opacity:1}
+.airow .mk{width:24px;height:24px;border-radius:7px;border:3px solid var(--ink);flex:none;display:grid;place-items:center;font-weight:900;font-size:14px}.airow.on .mk{background:var(--ink);color:#fff}
+.airow .nm{flex:1;font-size:15px;font-weight:900;min-width:0}.airow .nm small{display:block;font-size:12px;font-weight:700;color:var(--ink2)}.airow .pr{font-weight:900;font-size:14px;white-space:nowrap}

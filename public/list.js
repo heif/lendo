@@ -17,7 +17,7 @@
   var picked = [], shots = [], step = 'ideas', t0 = null, clockT, stream = null, retakeIdx = null, more = false;
   var fmt = function (n) { return '$' + n; };
   function esc(s) { return String(s).replace(/[<>&"]/g, function (c) { return ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]; }); }
-  function show(name) { step = name; ['ideas', 'cam', 'review', 'q', 'done'].forEach(function (s) { $('st-' + s).hidden = s !== name; }); document.documentElement.classList.toggle('camdark', name === 'cam'); if (name === 'cam') startCam(); else stopCam(); if (name === 'review') renderReview(); if (name === 'q') renderQ(); }
+  function show(name) { step = name; ['ideas', 'ai', 'cam', 'review', 'q', 'done'].forEach(function (s) { $('st-' + s).hidden = s !== name; }); document.documentElement.classList.toggle('camdark', name === 'cam'); if (name === 'cam') startCam(); else stopCam(); if (name === 'review') renderReview(); if (name === 'q') renderQ(); }
   function clock() { if (!t0) return '0:00'; var s = Math.round((Date.now() - t0) / 1000); return Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2); }
 
   // ---- ideas
@@ -33,6 +33,36 @@
   $('ideas').addEventListener('click', function (e) { var b = e.target.closest('.idea'); if (!b) return; var n = b.dataset.n, i = picked.indexOf(n); if (i > -1) picked.splice(i, 1); else picked.push(n); renderIdeas(); });
   $('moreIdeas').addEventListener('click', function () { more = true; renderIdeas(); });
   $('toCam').addEventListener('click', function () { if (!t0) t0 = Date.now(); show('cam'); });
+  // ---- ask your AI (their AI reads their email receipts; Lendo only gets the pasted list)
+  var aiFound = null;
+  function aiCopy() { var t = $('aiPrompt').textContent; try { navigator.clipboard.writeText(t); } catch (e) {} return t; }
+  $('aiOpen').addEventListener('click', function () { aiFound = null; $('aiA').hidden = false; $('aiB').hidden = true; $('aiGo').textContent = 'FIND MY STUFF'; show('ai'); });
+  $('aiCopy').addEventListener('click', function () { aiCopy(); this.textContent = 'COPIED ✓'; var b = this; setTimeout(function () { b.textContent = 'COPY'; }, 2000); });
+  document.querySelectorAll('.aiapp').forEach(function (b) { b.addEventListener('click', function () {
+    var t = aiCopy(), u = b.dataset.u; b.textContent = 'Copied ✓';
+    if (u) window.open(/q=$/.test(u) ? u + encodeURIComponent(t) : u, '_blank');
+  }); });
+  function aiRender() {
+    var on = aiFound.filter(function (x) { return x.on; }).length;
+    $('aiN').textContent = aiFound.length + (aiFound.length === 1 ? ' thing found' : ' things found');
+    $('aiList').innerHTML = aiFound.map(function (x, i) { return '<button type="button" class="airow' + (x.on ? ' on' : '') + '" data-i="' + i + '"><span class="mk">' + (x.on ? '✓' : '') + '</span><span class="nm">' + esc(x.name) + (x.detail ? '<small>' + esc(x.detail) + '</small>' : '') + '</span><span class="pr">$' + x.price + '/day</span></button>'; }).join('') || '<p class="hint">Nothing rentable in there. Try the ideas instead</p>';
+    $('aiGo').textContent = on ? 'SNAP ' + on + (on === 1 ? ' THING' : ' THINGS') : 'BACK';
+  }
+  $('aiList').addEventListener('click', function (e) { var b = e.target.closest('.airow'); if (!b) return; var x = aiFound[+b.dataset.i]; x.on = !x.on; aiRender(); });
+  $('aiGo').addEventListener('click', function () {
+    var go = this;
+    if (aiFound) { /* picked → become ideas + picked, then the camera */
+      var on = aiFound.filter(function (x) { return x.on; });
+      on.slice().reverse().forEach(function (x) { if (!IDEAS.some(function (i) { return i[1] === x.name; })) IDEAS.unshift(['📦', x.name, x.price]); if (picked.indexOf(x.name) < 0) picked.push(x.name); });
+      renderIdeas(); if (!on.length) { show('ideas'); return; } if (!t0) t0 = Date.now(); show('cam'); return;
+    }
+    var txt = $('aiPaste').value.trim(); if (txt.length < 4) { $('aiPaste').focus(); return; }
+    go.disabled = true; go.textContent = 'READING…';
+    fetch('/api/ai-ideas', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: txt.slice(0, 12000) }) }).then(function (r) { return r.json(); }).then(function (j) {
+      aiFound = (j.items || []).map(function (x) { return { name: x.name, detail: [x.model, x.year].filter(Boolean).join(' · '), price: x.price || 10, on: true }; });
+      $('aiA').hidden = true; $('aiB').hidden = false; aiRender();
+    }).catch(function () { go.textContent = 'TRY AGAIN'; }).then(function () { go.disabled = false; });
+  });
 
   // ---- camera
   var video = $('cam'), canvas = document.createElement('canvas');
