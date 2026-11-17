@@ -749,3 +749,5 @@ a.ac-pill{text-decoration:none;color:inherit}
 .promgo{display:flex;flex-direction:column;align-items:center;gap:1px;height:auto;padding:12px;font-size:17px;font-weight:900}.promgo small{font-size:12.5px;font-weight:700;opacity:.9}
 .rcard .promgo{margin-bottom:4px}
 .ihold{margin-top:10px;font-size:13px;font-weight:700;color:var(--ink2);background:#fff;border:2px solid var(--line);border-radius:12px;padding:8px 12px}
+.rsteps li{flex-wrap:wrap}.rsteps em{flex-basis:100%;padding-left:28px;margin-top:-3px;font-style:normal;font-size:12.5px;font-weight:700;color:var(--mute)}
+.rsteps li.done em,.rsteps li.now em{color:var(--ink2)}

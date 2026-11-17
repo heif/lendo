@@ -133,18 +133,22 @@ rentals.get('/r/:id', requireUser, async (c) => {
         <a class="rhd" href={'/i/' + it.id}>
           {it.avatar_key ? <img class="cut" data-trim="1" src={'/p/' + it.avatar_key} alt="" /> : photos[0] ? <img class="cut" data-trim="1" src={'/c/' + photos[0].r2_key + '?s=200'} alt="" /> : <span class="rhd-ph"></span>}
           <div><b>{firstName(other.name)} · {it.name}</b>
-            <div>{r.status === 'inquiry' ? (isOwner ? 'Question about your item' : 'Questions before renting') : <>{fmtRange(r.start_day, r.end_day)} · {isOwner ? `you earn ${money(payoutOf(r) + xRent)}${r.status === 'held' ? ` after ${c.env.FEE_PCT}% fee` : ''}` : `${money(r.total_cents + xTotal)}${r.status === 'held' ? ' held' : ' paid'}`}</>}</div></div>
+            <div>{r.status === 'inquiry' ? (isOwner ? 'Question about your item' : 'Questions before renting') : !dead ? null : <>{fmtRange(r.start_day, r.end_day)} · {isOwner ? `you earn ${money(payoutOf(r) + xRent)}${r.status === 'held' ? ` after ${c.env.FEE_PCT}% fee` : ''}` : `${money(r.total_cents + xTotal)}${r.status === 'held' ? ' held' : ' paid'}`}</>}</div></div>
         </a>
         {r.status !== 'inquiry' && !dead ? (() => { const nm = firstName(other.name), spot = r.meet_spot || (spots.length === 1 ? spots[0] : '');
           const chg = spots.length > 1 ? <u onclick="var d=document.querySelector('.rstrip');d.open=!d.open">Change</u> : null;
-          const S: [string, any][] = [
-            [isOwner ? `${nm} asked` : 'You asked', stage === 0 && !isOwner ? 'card held' : null],
-            [stage === 0 ? (isOwner ? 'Say YES or NO' : `Waiting for ${nm}’s YES`) : (isOwner ? 'You said YES' : `${nm} said YES`), stage === 0 && !isOwner ? <button type="submit" form="cancelForm">Cancel</button> : stage === 1 && !isOwner ? <button type="submit" form="cancelForm">Cancel</button> : null],
-            [stage > 2 || r.status === 'picked_up' ? 'Picked up' : 'Pickup ' + dayWord(r.start_day, it.lng) + timeWord(r.pickup_time), stage === 1 ? <>{spot ? spot + ' · ' : ''}{chg}</> : null],
-            [stage === 3 ? 'Returned' : 'Return ' + dayWord(r.end_day, it.lng) + timeWord(r.return_time), stage === 2 ? <>{spot ? spot + ' · ' : ''}{chg}</> : null],
+          const tot = money(r.total_cents + xTotal), earn = money(payoutOf(r) + xRent);
+          const dep = (r.deposit_cents || 0) > 0 ? money(r.deposit_cents!) : '', dst = r.deposit_status;
+          const pickNote = !dep ? null : dst === 'held' || stage >= 2 ? (isOwner ? `✓ ${dep} hold on ${nm}'s card${stage === 1 ? ' · OK to hand over' : ''}` : `✓ ${dep} hold (not a charge) on your card`) : dst === 'failed' ? null : (isOwner ? `${dep} hold goes on ${nm}'s card` : `${dep} hold (not a charge) on your card`);
+          const retNote = !dep ? null : stage === 3 || dst === 'released' ? `✓ ${dep} hold returned` : `${dep} hold returned when it’s back`;
+          const S: [string, any, string | null][] = [
+            [isOwner ? `${nm} asked` : 'You asked', null, stage === 0 ? (isOwner ? `you’d earn ${earn} after ${c.env.FEE_PCT}% fee` : `${tot} held (not a charge)`) : null],
+            [stage === 0 ? (isOwner ? 'Say YES or NO' : `Waiting for ${nm}’s YES`) : (isOwner ? 'You said YES' : `${nm} said YES`), !isOwner && stage <= 1 ? <button type="submit" form="cancelForm">Cancel</button> : null, stage >= 1 ? (isOwner ? `you earn ${earn}` : `${tot} paid`) : null],
+            [stage > 2 || r.status === 'picked_up' ? 'Picked up' : 'Pickup ' + dayWord(r.start_day, it.lng) + timeWord(r.pickup_time), stage === 1 ? <>{spot ? spot + ' · ' : ''}{chg}</> : null, pickNote],
+            [stage === 3 ? 'Returned' : 'Return ' + dayWord(r.end_day, it.lng) + timeWord(r.return_time), stage === 2 ? <>{spot ? spot + ' · ' : ''}{chg}</> : null, retNote],
           ];
           const now = stage === 0 ? 1 : stage === 1 ? 2 : stage === 2 ? 3 : 4;
-          return <ol class="rsteps">{S.map(([t, x], i) => <li class={i < now ? 'done' : i === now ? 'now' : ''}><i>{i < now ? '✓' : ''}</i><b>{t}</b>{x ? <span>{x}</span> : null}</li>)}</ol>; })() : null}
+          return <ol class="rsteps">{S.map(([t, x, n], i) => <li class={i < now ? 'done' : i === now ? 'now' : ''}><i>{i < now ? '✓' : ''}</i><b>{t}</b>{x ? <span>{x}</span> : null}{n ? <em>{n}</em> : null}</li>)}</ol>; })() : null}
         {paused ? <a class="hint" href={smsHref(c.env, 'OK')} style="text-align:center;color:#b3261e;font-weight:700;display:block">📵 Lendo texts paused · <u>tap to text OK</u> and turn them back on</a> : null}
         {r.status === 'inquiry' ? (!isOwner ? <a class="btn pri full" href={'/i/' + it.id}>Rent it · {money(it.price_cents)}/day</a> : null) : dead ? <div class="flash err" style="margin:0">{r.status === 'declined' ? `${firstName(owner.name)} couldn't do those days.` : r.status === 'expired' ? 'No answer in time.' : 'Canceled.'} Nothing was charged.</div> : null}
         {!dead && (stage === 1 || stage === 2) ? (
@@ -276,11 +280,11 @@ f.addEventListener('change',ok);f.addEventListener('submit',function(){document.
         <div class="rdock">
           {(r.deposit_cents || 0) > 0 && (stage === 1 || stage === 2) && r.deposit_status !== 'released' ? (() => {
             const amt = money(r.deposit_cents!), nm = firstName(other.name), st = r.deposit_status;
-            if (st === 'held') return <div class="rhold ok">✓ {amt} hold (not a charge) on {isOwner ? nm + "'s" : 'your'} card{isOwner && stage === 1 ? ' · OK to hand over' : ' · released at return'}</div>;
+            if (st === 'held') return null;
             if (st === 'failed') return isOwner
               ? <form class="rhold bad" method="post" action={'/r/' + r.id + '/hold'}>✕ {nm}'s card didn't take the {amt} hold — hold off on handing it over <button type="submit">Try again</button></form>
               : <div class="rhold bad">Your card didn't take the {amt} hold · <a href={'/r/' + r.id + '/card'}>Add a card</a></div>;
-            return stage === 1 ? <div class="rhold">{isOwner ? `${amt} hold (not a charge) goes on ${nm}'s card on pickup day` : `Heads up: ${amt} hold (not a charge) on your card at pickup · released at return`}</div> : null;
+            return null;
           })() : null}
           {stage === 1 || stage === 2 ? <div class="rchips">
             {isOwner ? <>
