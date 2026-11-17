@@ -1,5 +1,5 @@
 import { Hono, type Context } from 'hono';
-import { smsHref } from '../lib/blooio';
+import { GIFT_TEXT, smsHref } from '../lib/blooio';
 import { Flag } from '../lib/flags';
 import { logEvent } from '../lib/log';
 import { localToday } from '../lib/util';
@@ -101,12 +101,12 @@ export const homePage = async (c: Ctx, opt: { center?: number[]; zoom?: number; 
             </span>
           </a>
           {/* owner in the middle, their other things circling (like the profile page) */}
-          <span class="oorb pcard-orb" id="shOrb" aria-hidden="true"><span class="oorb-av" id="shOwnAv"></span><span class="oorb-ring" id="shRing"></span></span>
           <a class="pcard-rent" id="shRent" href="#" aria-label="Rent it"><img src="/rent-it.webp" alt="Rent it" width="150" height="70" /></a>
           {!u ? <form class="promo incard" data-promo autocomplete="on" aria-label="Get $5 off this rental" hidden>
             <label class="sr">Phone number</label>
             <input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Phone #" maxlength={14} />
             <button type="submit" disabled>$5 OFF</button>
+            {c.env.LENDO_NUMBER ? <a class="giftbtn" href={smsHref(c.env, GIFT_TEXT)}><span class="gb-ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="12" rx="2" fill="none" stroke="#fff" stroke-width="2.2" /><path d="M2 9h20M12 9v12M12 9c-2-4-6-5-6-2s4 2 6 2c2 0 6 1 6-2s-4-2-6 2" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round" /></svg></span><span class="gb-tx">Free $5<br />gift card</span></a> : null}
           </form> : null}
         </div>
         <div id="grid" class="aisles" style="display:none"></div>

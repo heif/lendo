@@ -616,10 +616,10 @@ img.uav{background:#ddd}
 
 /* item card: no header strips; owner orbit on the right; RENT IT sign CTA (prototype) */
 .pcard-orb{position:absolute!important;right:10px;top:8px}
-.pcard-rent{position:absolute;right:6px;top:104px;display:block;line-height:0;transition:transform .12s}
+.pcard-rent{position:absolute;right:6px;top:40px;display:block;line-height:0;transition:transform .12s}
 .pcard-rent img{width:96px;height:auto;filter:drop-shadow(0 3px 4px rgba(0,0,0,.25))}
 .pcard-rent:active{transform:scale(.94) rotate(-2deg)}
-.pcard-body{min-height:146px;margin-right:96px}
+.pcard-body{min-height:112px;margin-right:96px}
 
 
 /* owner orbit (card + item page): photo 50px, things 26px hugging its edge */
@@ -688,3 +688,11 @@ a.ac-pill{text-decoration:none;color:inherit}
 .msgflag{display:block;margin-top:2px}.msgflag .flagbtn{padding:2px 0;font-size:11px}.msg .flagf{left:0;right:auto}
 .flagthx{position:fixed;left:50%;top:70px;transform:translateX(-50%);z-index:2000;background:var(--ink);color:#fff;font-weight:800;font-size:14px;padding:10px 16px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
 @media (prefers-reduced-motion:reduce){.promo.pu .giftbtn{animation:none}}
+@media (pointer:coarse){
+  .promo.incard:has(.giftbtn){background:none!important;border:0!important;box-shadow:none!important;padding:0 6px 6px 0!important;overflow:visible!important;height:auto!important}
+  .promo.incard:has(.giftbtn)>:not(.giftbtn){display:none!important}
+  .promo.incard .giftbtn{display:flex;align-items:stretch;border-radius:12px;border:2px solid var(--ink);overflow:hidden;box-shadow:4px 4px 0 var(--ink);text-decoration:none;width:max-content}
+  .promo.incard .gb-ic{display:grid;place-items:center;background:var(--ink);padding:0 11px}
+  .promo.incard .gb-tx{background:#fff;color:var(--ink);font-size:13px;font-weight:900;line-height:1.15;text-transform:uppercase;padding:8px 12px}
+  .promo.incard .giftbtn:active{transform:translate(4px,4px);box-shadow:0 0 0 var(--ink)}
+}

@@ -208,11 +208,6 @@
     $('shNm').innerHTML = ''; var o1 = document.createElement('span'); o1.style.fontWeight = '500'; o1.style.display = 'block'; o1.style.fontSize = '.72em'; o1.textContent = own + (/s$/i.test(own) ? '’' : '’s'); $('shNm').appendChild(o1); $('shNm').appendChild(document.createTextNode(it.name.charAt(0).toUpperCase() + it.name.slice(1))); // "Scott’s Projector": item names keep their capital
     $('shOwner').innerHTML = '<span class="av">' + esc(own.charAt(0)) + '</span>' + esc(own) + (it.owner_rating ? ' <span class="pill stars">' + '★★★★★'.slice(0, wholeStars(it.owner_rating)) + '</span>' : ' <span class="pill new">new</span>') + (it.rentals ? ' <span class="n">' + it.rentals + ' rental' + (it.rentals === 1 ? '' : 's') + '</span>' : '');
     $('shRent').href = '/i/' + it.id;
-    $('shOwnAv').innerHTML = it.owner_photo ? '<img src="/p/' + it.owner_photo + '" alt="">' : '<b>' + esc(own.charAt(0)) + '</b>';
-    /* their other things hug the owner photo, slowly circling (display only: the whole card opens the item) */
-    var more = Object.keys(known).map(function (k) { return known[k]; }).filter(function (x) { return x.owner_id === it.owner_id && x.id !== it.id && (x.avatar_key || x.photo); }).slice(0, 6), ring = $('shRing');
-    ring.innerHTML = more.map(function (x, n) { var a = (-90 + n * (360 / Math.max(more.length, 5))) * Math.PI / 180, R = 27;
-      return '<span class="oorb-sat" style="left:' + (42 + Math.cos(a) * R - 13).toFixed(1) + 'px;top:' + (42 + Math.sin(a) * R - 13).toFixed(1) + 'px"><span><img src="/p/' + (x.avatar_key || x.photo) + '" alt=""' + (x.avatar_key ? '' : ' class="ph"') + '></span></span>'; }).join('');
     $('shWhere').textContent = (it.hood || 'near you') + (it.owner_xs ? ' · ' + it.owner_xs : '');
   }
   $('shClose').addEventListener('click', function () { sel = null; refresh(); sheet.classList.remove('on'); });
