@@ -32,7 +32,7 @@ const NAV_CSS = `.adn{position:sticky;top:0;z-index:20;background:var(--cream,#F
 .adn a{padding:5px 9px;border-radius:8px;font-size:12.5px;font-weight:700;text-decoration:none;color:var(--ink);opacity:.7}.adn a:hover{opacity:1;background:rgba(30,58,43,.06)}
 .adn a.on{opacity:1;background:var(--ink);color:#fff}.adn i{width:1px;align-self:stretch;margin:4px 5px;background:rgba(30,58,43,.18)}
 .adn sup{font-size:10px;font-weight:800;color:#fff;background:#FF4F00;border-radius:999px;padding:0 5px;margin-left:3px;vertical-align:2px}`;
-const NAV: ([string, string, ('review' | 'error' | 'flag')?] | null)[] = [['/admin', 'Home'], ['/admin/flags', 'Flags', 'flag'], ['/admin/log', 'Log'], ['/admin/rentals', 'Rentals'], ['/admin/users', 'Users'], ['/admin/texts', 'Texts'], ['/admin/texting', 'Texting check'], ['/admin/searches', 'Searches'], ['/admin/log?kind=error', 'Errors', 'error'], null, ['/admin/review', 'Photos', 'review'], ['/admin/promo', 'Promo'], ['/admin/ab', 'A/B'], ['/admin/paytest', 'Pay test'], ['/admin/pricing', 'Pricing'], ['/admin/wanted', 'Wanted'], ['/admin/debug', 'System'], ['/admin/access', 'Access']];
+const NAV: ([string, string, ('review' | 'error' | 'flag')?] | null)[] = [['/admin', 'Home'], ['/admin/flags', 'Flags', 'flag'], ['/admin/log', 'Log'], ['/admin/rentals', 'Rentals'], ['/admin/users', 'Users'], ['/admin/texts', 'Texts'], ['/admin/texting', 'Texting check'], ['/admin/searches', 'Searches'], ['/admin/log?kind=error', 'Errors', 'error'], null, ['/admin/review', 'Photos', 'review'], ['/admin/promo', 'Promo'], ['/admin/ab', 'A/B'], ['/admin/paytest', 'Pay test'], ['/admin/pricing', 'Pricing'], ['/admin/wanted', 'Wanted'], ['/admin/demo', 'Demo'], ['/admin/debug', 'System'], ['/admin/access', 'Access']];
 export async function AdminNav({ c, path }: { c: any; path: string }) {
   const [rv, er, fl] = await Promise.all([
     c.env.DB.prepare(`SELECT COUNT(*) n FROM listings WHERE status = 'review'`).first().catch(() => null),
@@ -334,6 +334,18 @@ export function registerDash(admin: A) {
   });
 
   // ---------- Activity log: filter by kind (prefix ok: "money."), user, rental, listing, text; CSV ----------
+  /* fake showcase data (users.demo / listings.demo) lives only under the Demo tab */
+  const DEMO_EV = `(e.user_id IN (SELECT id FROM users WHERE demo = 1) OR e.listing_id IN (SELECT id FROM listings WHERE demo = 1) OR e.rental_id IN (SELECT r.id FROM rentals r JOIN listings l ON l.id = r.listing_id WHERE l.demo = 1))`;
+  const demoNav = (on: string) => <nav class="ad-sub"><b style="margin-right:6px">Fake showcase data:</b>{[['/admin/demo', 'Summary'], ['/admin/users?demo=1', 'Users'], ['/admin/rentals?demo=1', 'Rentals'], ['/admin/log?demo=1', 'Log'], ['/admin/texts?demo=1', 'Texts']].map(([h, t]) => <a href={h} class={on === h ? 'on' : ''}>{t}</a>)}</nav>;
+  admin.get('/admin/demo', async (c) => {
+    const n = await one<{ u: number; l: number; r: number; e: number }>(c, `SELECT (SELECT COUNT(*) FROM users WHERE demo = 1) u, (SELECT COUNT(*) FROM listings WHERE demo = 1) l, (SELECT COUNT(*) FROM rentals WHERE listing_id IN (SELECT id FROM listings WHERE demo = 1)) r, (SELECT COUNT(*) FROM events e WHERE ${DEMO_EV}) e`);
+    return c.html(<Shell c={c} title="Demo" path="/admin/demo">
+      {demoNav('/admin/demo')}
+      <p class="hint">Fake users, items and rentals (the showcase city). Kept out of every other admin tab and the dashboard numbers</p>
+      <div class="ad-wrap"><table class="ad-t"><tr><th>Fake users</th><th>Fake items</th><th>Fake rentals</th><th>Log rows</th></tr><tr><td class="n">{n?.u}</td><td class="n">{n?.l}</td><td class="n">{n?.r}</td><td class="n">{n?.e}</td></tr></table></div>
+      <form method="post" action="/admin/demo/fixland" style="margin-top:12px"><button class="btn sm" type="submit">Move fake items off water/parks</button></form>
+    </Shell>);
+  });
   const logQuery = (q: Record<string, string>) => {
     const w: string[] = [], b: unknown[] = [];
     if (q.kind) { if (q.kind.endsWith('.')) { w.push('e.kind LIKE ?'); b.push(q.kind + '%'); } else { w.push('e.kind = ?'); b.push(q.kind); } }
@@ -342,6 +354,7 @@ export function registerDash(admin: A) {
     if (q.listing) { w.push('e.listing_id = ?'); b.push(q.listing); }
     if (q.q) { w.push('(e.data LIKE ? OR e.kind LIKE ?)'); b.push('%' + q.q + '%', '%' + q.q + '%'); }
     if (q.days) { w.push('e.at > ?'); b.push(Date.now() - (parseInt(q.days, 10) || 7) * DAY); }
+    w.push((q.demo ? '' : 'NOT ') + DEMO_EV);
     return { where: w.length ? 'WHERE ' + w.join(' AND ') : '', b };
   };
   admin.get('/admin/log', async (c) => {
@@ -349,8 +362,9 @@ export function registerDash(admin: A) {
     const rows = await all<EvRow>(c, `SELECT e.*, u.name uname FROM events e LEFT JOIN users u ON u.id = e.user_id ${where} ORDER BY e.id DESC LIMIT ${lim}`, ...b);
     const kinds = await all<{ kind: string; n: number }>(c, `SELECT kind, COUNT(*) n FROM events GROUP BY kind ORDER BY kind`);
     const qs = new URLSearchParams(Object.entries(q).filter(([k, v]) => v && k !== 'limit') as [string, string][]).toString();
-    return c.html(<Shell c={c} title="Activity log" path={c.req.path + (q.kind === 'error' ? '?kind=error' : '')}>
-      <form class="ad-f" method="get">
+    return c.html(<Shell c={c} title="Activity log" path={q.demo ? '/admin/demo' : c.req.path + (q.kind === 'error' ? '?kind=error' : '')}>
+      {q.demo ? demoNav('/admin/log?demo=1') : null}
+      <form class="ad-f" method="get">{q.demo ? <input type="hidden" name="demo" value="1" /> : null}
         <select name="kind"><option value="">all kinds</option>{['rental.', 'money.', 'stripe.', 'text.', 'listing.', 'profile.', 'item.', 'alert.', 'view', 'login', 'admin.', 'ext.'].map(k => <option value={k} selected={q.kind === k}>{k}*</option>)}{kinds.map(k => <option value={k.kind} selected={q.kind === k.kind}>{k.kind} ({k.n})</option>)}</select>
         <input name="q" placeholder="text in details" value={q.q || ''} />
         <input name="user" placeholder="user id" value={q.user || ''} size={14} />
@@ -373,12 +387,13 @@ export function registerDash(admin: A) {
 
   // ---------- Rentals ----------
   admin.get('/admin/rentals', async (c) => {
-    const q = c.req.query(), w: string[] = ['l.demo = 0'], b: unknown[] = [];
+    const q = c.req.query(), w: string[] = [q.demo ? 'l.demo = 1' : 'l.demo = 0'], b: unknown[] = [];
     if (q.status) { w.push('r.status = ?'); b.push(q.status); }
     if (q.owed) w.push(`r.paid_out = 0 AND r.rent_cents > 0 AND (r.status IN ('picked_up','returned','closed') OR (r.status = 'canceled' AND r.late_cancel = 1))`);
     const rows = await all<any>(c, `SELECT r.*, l.name item, o.name oname, n.name cname FROM rentals r JOIN listings l ON l.id = r.listing_id LEFT JOIN users o ON o.id = r.owner_id LEFT JOIN users n ON n.id = r.renter_id ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY r.updated_at DESC LIMIT 300`, ...b);
     const statuses = ['inquiry', 'requested', 'held', 'confirmed', 'picked_up', 'returned', 'closed', 'declined', 'expired', 'canceled'];
-    return c.html(<Shell c={c} title="Rentals" path="/admin/rentals">
+    return c.html(<Shell c={c} title="Rentals" path={q.demo ? '/admin/demo' : '/admin/rentals'}>
+      {q.demo ? demoNav('/admin/rentals?demo=1') : null}
       <nav class="ad-sub"><a href="/admin/rentals" class={!q.status && !q.owed ? 'on' : ''}>all</a>{statuses.map(s => <a href={'/admin/rentals?status=' + s} class={q.status === s ? 'on' : ''}>{s}</a>)}<a href="/admin/rentals?owed=1" class={q.owed ? 'on' : ''}>owed to owner</a></nav>
       <div class="ad-wrap"><table class="ad-t"><tr><th>Updated</th><th>Status</th><th>Item</th><th>Owner → customer</th><th>Days</th><th class="n">Rent</th><th class="n">Credit</th><th class="n">Tax</th><th class="n">Paid</th><th class="n">Fee</th><th class="n">Owner gets</th><th>Sent</th></tr>
         {rows.map(r => <tr><td style="white-space:nowrap">{ago(r.updated_at)}</td><td class="ad-kind">{r.status}{r.late_cancel ? ' (late)' : ''}</td><td><a href={'/r/' + r.id}>{r.item}</a><br /><a href={'/admin/log?rental=' + r.id} class="hint">log</a></td><td>{r.oname || r.owner_id} → {r.cname || r.renter_id}</td><td style="white-space:nowrap">{r.start_day.slice(5)}→{r.end_day.slice(5)}</td>
@@ -389,14 +404,15 @@ export function registerDash(admin: A) {
 
   // ---------- Users ----------
   admin.get('/admin/users', async (c) => {
-    const sort = c.req.query('sort') === 'items' ? 'items DESC' : 'u.created_at DESC';
+    const sort = c.req.query('sort') === 'items' ? 'items DESC' : 'u.created_at DESC', demo = c.req.query('demo') ? 1 : 0;
     const rows = await all<any>(c, `SELECT u.id, u.name, u.phone, u.hood, u.handle, u.created_at, u.stripe_account_id, u.texts, u.replied, u.promo_cents,
       (SELECT COUNT(*) FROM listings l WHERE l.owner_id = u.id AND l.status = 'live') items,
       (SELECT COUNT(*) FROM rentals r WHERE r.renter_id = u.id AND r.status IN ('confirmed','picked_up','returned','closed')) rented,
       (SELECT COUNT(*) FROM rentals r WHERE r.owner_id = u.id AND r.status IN ('confirmed','picked_up','returned','closed')) lent,
       (SELECT MAX(at) FROM events e WHERE e.user_id = u.id AND e.kind = 'login') last_login
-      FROM users u ORDER BY ${sort} LIMIT 500`);
-    return c.html(<Shell c={c} title="Users" path="/admin/users">
+      FROM users u WHERE u.demo = ? ORDER BY ${sort} LIMIT 500`, demo);
+    return c.html(<Shell c={c} title="Users" path={demo ? '/admin/demo' : '/admin/users'}>
+      {demo ? demoNav('/admin/users?demo=1') : null}
       <nav class="ad-sub"><a href="/admin/users" class={sort.startsWith('u.') ? 'on' : ''}>newest</a><a href="/admin/users?sort=items" class={sort.startsWith('items') ? 'on' : ''}>most items</a></nav>
       <div class="ad-wrap"><table class="ad-t"><tr><th>Joined</th><th>Name</th><th>Phone</th><th>Hood</th><th class="n">Live items</th><th class="n">Rented</th><th class="n">Lent</th><th>Payout acct</th><th>Texts</th><th>Last login</th></tr>
         {rows.map(r => <tr><td style="white-space:nowrap">{ago(r.created_at)}</td><td><a href={r.handle ? '/' + r.handle : '/u/' + r.id}>{r.name || '—'}</a><br /><a class="hint" href={'/admin/log?user=' + r.id}>log</a></td><td style="white-space:nowrap">{r.phone}</td><td>{r.hood || ''}</td><td class="n">{r.items}</td><td class="n">{r.rented}</td><td class="n">{r.lent}</td><td>{r.stripe_account_id ? '✓' : ''}</td><td>{r.texts ? (r.replied ? 'on' : 'on · no reply yet') : 'STOP'}</td><td style="white-space:nowrap">{r.last_login ? ago(r.last_login) : ''}</td></tr>)}
@@ -406,15 +422,16 @@ export function registerDash(admin: A) {
 
   // ---------- Texts: in + out, one timeline ----------
   admin.get('/admin/texts', async (c) => {
-    const uid = c.req.query('user') || null;
+    const uid = c.req.query('user') || null, demo = c.req.query('demo') ? 1 : 0;
     const rows = await all<any>(c, `SELECT * FROM (
         SELECT o.created_at at, 'out' dir, o.category || COALESCE(' · ' || (SELECT json_extract(e.data,'$.status') || COALESCE(' ' || json_extract(e.data,'$.err'), '') FROM events e WHERE e.kind = 'text.status' AND json_extract(e.data,'$.id') = o.provider_id ORDER BY e.id DESC LIMIT 1), CASE WHEN o.provider_id IS NULL THEN ' · not sent' ELSE '' END) cat, o.body, o.user_id, o.rental_id FROM outbound_texts o WHERE ?1 IS NULL OR o.user_id = ?1
         UNION ALL SELECT i.created_at, 'in', i.via, i.body, i.user_id, NULL FROM inbound_texts i WHERE ?1 IS NULL OR i.user_id = ?1
         UNION ALL SELECT e.at, 'in?', 'unknown number', json_extract(e.data,'$.from') || ': ' || json_extract(e.data,'$.body'), NULL, NULL FROM events e WHERE e.kind = 'text.in_unknown' AND ?1 IS NULL
         UNION ALL SELECT e.at, 'fail', json_extract(e.data,'$.category'), json_extract(e.data,'$.err') || ' — ' || json_extract(e.data,'$.body'), e.user_id, e.rental_id FROM events e WHERE e.kind IN ('text.failed','text.suppressed') AND (?1 IS NULL OR e.user_id = ?1)
-      ) t ORDER BY at DESC LIMIT 400`, uid);
+      ) t WHERE (t.user_id IS NULL AND ?2 = 0) OR t.user_id IN (SELECT id FROM users WHERE demo = ?2) ORDER BY at DESC LIMIT 400`, uid, demo);
     const names = Object.fromEntries((await all<{ id: string; name: string | null; phone: string }>(c, `SELECT id, name, phone FROM users`)).map(u => [u.id, u.name || u.phone]));
-    return c.html(<Shell c={c} title="Texts" path="/admin/texts">
+    return c.html(<Shell c={c} title="Texts" path={demo ? '/admin/demo' : '/admin/texts'}>
+      {demo ? demoNav('/admin/texts?demo=1') : null}
       {uid ? <p class="hint">Only {names[uid] || uid} · <a href="/admin/texts">everyone</a></p> : null}
       <div class="ad-wrap"><table class="ad-t"><tr><th>When</th><th></th><th>Who</th><th>Type</th><th>Text</th></tr>
         {rows.map(r => <tr><td style="white-space:nowrap">{when(r.at)}</td><td style={'font-weight:800;' + (r.dir === 'fail' ? 'color:#c22' : r.dir.startsWith('in') ? 'color:#FF4F00' : '')}>{r.dir === 'out' ? '→' : r.dir === 'fail' ? '✕' : '←'}</td><td>{r.user_id ? <a href={'/admin/texts?user=' + r.user_id}>{names[r.user_id] || r.user_id}</a> : '—'}{r.rental_id ? <><br /><a class="hint" href={'/admin/log?rental=' + r.rental_id}>{r.rental_id}</a></> : null}</td><td class="hint">{r.cat}</td><td style="max-width:520px;word-break:break-word">{r.body}</td></tr>)}
