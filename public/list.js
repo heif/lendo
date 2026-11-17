@@ -235,7 +235,9 @@
       '<input class="q-in" id="qv" value="' + esc(s.name) + '" maxlength="80" placeholder="' + (s.pending ? '' : 'Drill, tent, speaker…') + '">' + (s.askLabel && !s.pending ? '<div class="q-chips"><button type="button" id="qLabel">📷 Snap the brand label</button></div>' : ''), 'Next');
     if (q.k === 'grade') h = card(n, 'What shape is it in?', '', '<div class="q-grades">' + 'ABCDE'.split('').map(function (g) { return '<button type="button" data-g="' + g + '" class="' + ((s.grade || '') === g ? 'on' : '') + '">' + g + '<small>' + G[g].toLowerCase() + '</small></button>'; }).join('') + '</div>', null);
     if (q.k === 'price') h = card(n, 'How much a day?', '',
-      '<div class="q-price"><button type="button" class="q-pm" data-d="-1" aria-label="Lower">−</button><label class="q-pbox">$<input class="q-in" id="qv" inputmode="numeric" value="' + s.price + '"><small>/day</small></label><button type="button" class="q-pm" data-d="1" aria-label="Raise">+</button></div>', 'Next');
+      '<div class="q-price"><button type="button" class="q-pm" data-d="-1" aria-label="Lower">−</button><label class="q-pbox">$<input class="q-in" id="qv" inputmode="numeric" value="' + s.price + '"><small>/day</small></label><button type="button" class="q-pm" data-d="1" aria-label="Raise">+</button></div>' +
+      /* worth over $150 now → $150 hold on the customer's card at pickup (owner can change it anytime) */
+      '<label class="q-hold' + (s.hold ? ' on' : '') + '"><span>Worth over $150 now?<small>' + (s.hold ? 'Customers get a $150 hold at pickup · change anytime' : 'Can change anytime') + '</small></span><input type="checkbox" id="qHold"' + (s.hold ? ' checked' : '') + '><i></i></label>', 'Next');
     if (q.k === 'note') h = card(n, 'Anything else?', '', '<textarea class="q-ta" id="qv" maxlength="400" placeholder="Model, what’s included…">' + esc(s.note || '') + '</textarea>' + (window.lendoDetails ? '<div class="dmeter" id="qMeter">' + window.lendoDetails(s.note || '') + '</div>' : '') + '<div class="q-chips"><button type="button" id="qMore">📷 Add more photos' + ((s.extra || []).length ? ' (' + s.extra.length + ')' : '') + '</button></div>', 'Next');
     if (q.k === 'phone') h = card(n, 'Your cell #', '', '<input class="q-in" id="qv" type="tel" autocomplete="tel" inputmode="tel" placeholder="(646) 555-0101" value="' + esc(AUTH.phone) + '">', 'Text me a code');
     if (q.k === 'code') h = card(n, 'Code we texted', AUTH.dev ? 'DEV code ' + AUTH.dev : '', '<input class="q-in" id="qv" inputmode="numeric" autocomplete="one-time-code" maxlength="6" style="letter-spacing:.3em">', 'Confirm');
@@ -274,13 +276,14 @@
     if (t.id === 'qMore') { moreFor = 0; $('moreFile').value = ''; $('moreFile').click(); }
   });
   $('qCard').addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); submitQ(false); } });
+  $('qCard').addEventListener('change', function (e) { if (e.target.id !== 'qHold') return; var s1 = cur(); s1.hold = e.target.checked; var l = e.target.closest('.q-hold'); l.classList.toggle('on', s1.hold); l.querySelector('small').textContent = s1.hold ? 'Customers get a $150 hold at pickup · change anytime' : 'Can change anytime'; });
   $('qCard').addEventListener('input', function (e) { var s0 = cur(), q0 = qs()[QI]; if (e.target.id === 'qv' && s0 && q0) s0.touched[q0.k] = true; if (e.target.id === 'qv' && e.target.tagName === 'TEXTAREA' && $('qMeter') && window.lendoDetails) $('qMeter').innerHTML = window.lendoDetails(e.target.value); });
   $('qDone').addEventListener('click', function (e) { var b = e.target.closest('.q-line'); if (!b) return; var i = +b.dataset.i, q = qs()[i]; if (q && ITEMQ[q.k]) { QI = i; renderQ(); } });
   $('qPh').addEventListener('click', function () { retakeIdx = 0; show('cam'); });
   function listIt() {
     var s = cur(); $('qCard').innerHTML = '<div class="q-h" style="margin:8px 0">Listing<span class="dots"><i>.</i><i>.</i><i>.</i></span></div>';
     var fd = new FormData(); (s.extra || []).forEach(function (x, k) { fd.append('photo_0_' + (k + 1), x.blob, 'p0_' + (k + 1) + '.jpg'); });
-    fd.append('name_0', s.name.trim()); if (s.ai && s.ai.name) fd.append('ai_0', s.ai.name); fd.append('price_0', s.price); fd.append('week_0', 0); fd.append('note_0', s.note || ''); fd.append('grade_0', s.grade || 'A'); fd.append('photo_0', s.blob, 'p0.jpg');
+    fd.append('name_0', s.name.trim()); if (s.ai && s.ai.name) fd.append('ai_0', s.ai.name); fd.append('price_0', s.price); fd.append('week_0', 0); fd.append('note_0', s.note || ''); fd.append('grade_0', s.grade || 'A'); if (s.hold) fd.append('hold_0', '1'); fd.append('photo_0', s.blob, 'p0.jpg');
     if (window._gps) { fd.append('lat', window._gps[0]); fd.append('lng', window._gps[1]); }
     fetch('/api/list', { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (j) { if (!j || j.error) throw 0; renderDone(j); show('done');
       if (ME && !ME.replied && CFG.sms) { var d = document.createElement('a'); d.className = 'dn2-ok-text'; d.href = CFG.sms; d.textContent = '💬 Text OK to Lendo so requests reach you'; var tr = $('tray'); tr.parentNode.insertBefore(d, tr.nextSibling); } })

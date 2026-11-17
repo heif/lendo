@@ -13,10 +13,10 @@ import { Layout } from '../pages/layout';
 import { requireUser } from '../lib/auth';
 import { addMessage, busyDays, firstPhotos, listingById, photosFor, rentalById, userById } from '../lib/db';
 import { id, money, now, daysBetween, dayStr, addDays, fmtRange, rentFor, firstName, fmtDay } from '../lib/util';
-import { createCheckout, connectOnboardingUrl, flushPendingPayouts, stripe } from '../lib/stripe';
+import { cardSetupUrl, createCheckout, connectOnboardingUrl, DEPOSIT_CENTS, flushPendingPayouts, stripe } from '../lib/stripe';
 import { payoutOf, quote, taxRateFor } from '../lib/money';
 import { selfMigrate } from '../lib/migrate';
-import { accept, decline, customerCancel, markHeld, pickedUp, rate, relay, returned } from '../lib/rentals';
+import { accept, decline, customerCancel, holdDeposit, markHeld, pickedUp, rate, relay, returned } from '../lib/rentals';
 import { smsHref, STREAK_MAX, textStreak, textUser } from '../lib/blooio';
 
 export const rentals = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -48,6 +48,8 @@ rentals.post('/i/:id/rent', async (c) => {
     .bind(rid, it.id, it.owner_id, u.id, start, end, days, q.rent, q.fee, q.total, q.credit, q.tax, rate, q.payout, 'requested', t, t).run();
   /* right after a deploy the tax columns may not exist yet (cron migrates every 5 min) → migrate now and retry */
   try { await ins(); } catch { await selfMigrate(c.env); await ins(); }
+  /* worth over $150 now (owner's toggle) → $150 hold at pickup; the card is saved at checkout for it */
+  if ((it.deposit_cents || 0) > 0) await c.env.DB.prepare(`UPDATE rentals SET deposit_cents = ?, deposit_status = 'due' WHERE id = ?`).bind(DEPOSIT_CENTS, rid).run();
   const r = (await rentalById(c.env.DB, rid))!;
   const url = await createCheckout(c.env, r, it, u);
   if (url) return c.redirect(url, 303);
@@ -88,6 +90,8 @@ rentals.get('/r/:id', requireUser, async (c) => {
   const other = (await userById(c.env.DB, isOwner ? r.renter_id : r.owner_id))!;
   const owner = isOwner ? u : other;
   const it = (await listingById(c.env.DB, r.listing_id))!;
+  /* $150 hold: owner opening the pickup on/after pickup day places it, so they see "OK to hand over" before letting go */
+  if (isOwner && r.status === 'confirmed' && r.deposit_status === 'due' && r.start_day <= localToday(it.lng)) { try { await holdDeposit(c.env, r); Object.assign(r, await rentalById(c.env.DB, r.id)); } catch { /* cron retries */ } }
   const photos = await photosFor(c.env.DB, it.id);
   const msgs = await c.env.DB.prepare(`SELECT m.*, u.name sender_name FROM messages m LEFT JOIN users u ON u.id = m.sender_id WHERE m.rental_id = ?1 OR (?2 != 'inquiry' AND m.rental_id IN (SELECT id FROM rentals WHERE listing_id = ?3 AND renter_id = ?4 AND status = 'inquiry')) ORDER BY m.created_at`).bind(r.id, r.status, r.listing_id, r.renter_id).all<{ id: string; sender_id: string | null; body: string; via: string; created_at: number; sender_name: string | null }>();
   const STEPS = ['Requested', 'Confirmed', 'Pickup', 'Returned'];
@@ -244,6 +248,14 @@ f.addEventListener('change',ok);f.addEventListener('submit',function(){document.
       </div>
       {!dead ? (
         <div class="rdock">
+          {(r.deposit_cents || 0) > 0 && (stage === 1 || stage === 2) && r.deposit_status !== 'released' ? (() => {
+            const amt = money(r.deposit_cents!), nm = firstName(other.name), st = r.deposit_status;
+            if (st === 'held') return <div class="rhold ok">✓ {amt} hold on {isOwner ? nm + "'s" : 'your'} card{isOwner && stage === 1 ? ' · OK to hand over' : ' · released at return'}</div>;
+            if (st === 'failed') return isOwner
+              ? <form class="rhold bad" method="post" action={'/r/' + r.id + '/hold'}>✕ {nm}'s card didn't take the {amt} hold — hold off on handing it over <button type="submit">Try again</button></form>
+              : <div class="rhold bad">Your card didn't take the {amt} hold · <a href={'/r/' + r.id + '/card'}>Add a card</a></div>;
+            return stage === 1 ? <div class="rhold">{isOwner ? `${amt} hold goes on ${nm}'s card on pickup day` : `Heads up: ${amt} hold on your card at pickup · released at return`}</div> : null;
+          })() : null}
           {stage === 1 || stage === 2 ? <div class="rchips">
             {isOwner ? <>
               <form method="post" action={'/r/' + r.id + (stage === 1 ? '/pickup' : '/return')} enctype="multipart/form-data"><label class="rchip hot">📷 {stage === 1 ? 'Handed over' : 'Got it back'}<input type="file" name="photo" accept="image/*" capture="environment" hidden onchange="this.form.submit()" /></label></form>
@@ -367,6 +379,20 @@ rentals.post('/r/:id/promise', requireUser, async (c) => {
   return c.redirect('/r/' + r.id);
 });
 
+/* $150 hold: owner retries a hold that didn't take; customer adds a card for it */
+rentals.post('/r/:id/hold', requireUser, async (c) => {
+  const u = c.get('user')!; const r = await rentalById(c.env.DB, c.req.param('id'));
+  if (!r || r.owner_id !== u.id) return c.notFound();
+  if ((r.status === 'confirmed' || r.status === 'picked_up') && r.deposit_status === 'failed') await holdDeposit(c.env, r);
+  return c.redirect('/r/' + r.id);
+});
+rentals.get('/r/:id/card', requireUser, async (c) => {
+  const u = c.get('user')!; const r = await rentalById(c.env.DB, c.req.param('id'));
+  if (!r || r.renter_id !== u.id) return c.notFound();
+  if (r.deposit_status !== 'failed' && r.deposit_status !== 'due') return c.redirect('/r/' + r.id);
+  const url = await cardSetupUrl(c.env, r);
+  return c.redirect(url || '/r/' + r.id);
+});
 rentals.post('/r/:id/pickup', requireUser, async (c) => {
   const u = c.get('user')!; const r = await rentalById(c.env.DB, c.req.param('id'));
   if (!r || r.owner_id !== u.id) return c.notFound();

@@ -25,7 +25,7 @@ import { webhooks } from './routes/webhooks';
 import { api } from './routes/api';
 import { meetup } from './routes/meetup';
 import { admin } from './routes/admin';
-import { expireHolds , chaseHolds } from './lib/rentals';
+import { expireHolds , chaseHolds, depositsDue } from './lib/rentals';
 import { Layout } from './pages/layout';
 
 const app = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -78,6 +78,7 @@ export default {
     const n = await expireHolds(env);
     if (n) console.log(`expired ${n} held requests`);
     try { const c = await chaseHolds(env); if (c) console.log(`chase: ${c} texts`); } catch (e) { console.warn('chase', e); }
+    try { const d = await depositsDue(env); if (d) console.log(`deposits: ${d}`); } catch (e) { console.warn('deposits', e); }
     // backfill custom icons for the wanted catalog, a few per tick (Flux + cutout each)
     try {
       const done = await iconsDone(env);

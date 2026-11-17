@@ -6,10 +6,10 @@ import { turnOff } from '../lib/alerts';
 import { Hono, type Context } from 'hono';
 import type Stripe from 'stripe';
 import type { Env, Rental, User, Vars } from '../lib/env';
-import { stripe } from '../lib/stripe';
+import { cardFromSetup, rememberCard, stripe } from '../lib/stripe';
 import { parseInbound, textUser } from '../lib/blooio';
 import { rentalById, userByPhone } from '../lib/db';
-import { accept, activeRentalFor, decline, markHeld, relay } from '../lib/rentals';
+import { accept, activeRentalFor, decline, holdDeposit, markHeld, relay } from '../lib/rentals';
 import { hmacHex, normPhone, timingSafeEq, firstName } from '../lib/util';
 
 export const webhooks = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -28,9 +28,14 @@ webhooks.post('/webhooks/stripe', async (c) => {
     const xid = extFromSession(cs);
     const rid = xid ? null : cs.metadata?.rental_id || cs.client_reference_id;
     if (xid) await markExtHeld(c.env, xid, typeof cs.payment_intent === 'string' ? cs.payment_intent : cs.payment_intent?.id ?? null, cs.id);
-    if (rid) {
+    if (cs.mode === 'setup') { /* new card for a $150 hold that didn't take → save it, try again */
+      const did = await cardFromSetup(c.env, cs); const r = did ? await rentalById(c.env.DB, did) : null;
+      if (r && (r.status === 'confirmed' || r.status === 'picked_up') && r.deposit_status === 'due') await holdDeposit(c.env, r);
+    } else if (rid) {
       const r = await rentalById(c.env.DB, rid);
-      if (r) await markHeld(c.env, r, typeof cs.payment_intent === 'string' ? cs.payment_intent : cs.payment_intent?.id ?? null, cs.id);
+      const pi = typeof cs.payment_intent === 'string' ? cs.payment_intent : cs.payment_intent?.id ?? null;
+      if (r && (r.deposit_cents || 0) > 0) await rememberCard(c.env, r.id, pi);
+      if (r) await markHeld(c.env, r, pi, cs.id);
     }
   } else if (ev.type === 'checkout.session.expired') {
     const cs = ev.data.object as Stripe.Checkout.Session;

@@ -54,6 +54,7 @@ export type Rental = {
   renter_rating: number | null; renter_review: string | null; owner_rating: number | null; owner_review: string | null;
   created_at: number; updated_at: number; expires_at: number | null;
   held_at: number | null; owner_nudges: number; alts: string | null; credit_cents: number; list_rent_cents: number | null; late_cancel: number; tax_cents: number; payout_cents: number | null; tax_rate: number;
+  deposit_cents?: number; deposit_pi?: string | null; deposit_status?: 'due' | 'held' | 'failed' | 'released' | null; deposit_at?: number | null; stripe_customer?: string | null; stripe_pm?: string | null;
 };
 
 export type Vars = { user: User | null };

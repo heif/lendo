@@ -4,9 +4,9 @@ import { logErr } from './log';
 import { itemLink } from './urls';
 import { addMessage, busyDays, listingById, rentalById, setRentalStatus, userById } from './db';
 import { textUser } from './blooio';
-import { captureRental, payoutRental, refundPart, releaseHold } from './stripe';
+import { captureRental, payoutRental, placeDeposit, refundPart, releaseDeposit, releaseHold } from './stripe';
 import { feePct, payoutOf, quote } from './money';
-import { firstName, fmtRange, money, now } from './util';
+import { firstName, fmtRange, localToday, money, now } from './util';
 
 const HOLD_HOURS = 24;
 
@@ -58,6 +58,7 @@ export async function accept(env: Env, r0: Rental, rentCents?: number): Promise<
   // owner is asked for a pickup time right after YES (no pickup hours); their reply relays to the customer, SKIP leaves it to the customer
   await textUser(env, renter, `${firstName(owner.name)} said yes!${gift} ${paidLine[0].toUpperCase() + paidLine.slice(1)}.${spot} ${firstName(owner.name)} will text a pickup time ${url}`, 'money', r.id);
   await textUser(env, owner, `${r.rent_cents === 0 ? 'Done — lending it free' : `Done. ${firstName(renter.name)} paid`}. When can ${firstName(renter.name)} pick it up? Reply a time (like "after 6"), or SKIP`, 'rental', r.id);
+  if ((r.deposit_cents || 0) > 0) await textUser(env, renter, `Heads up: at pickup there's a ${money(r.deposit_cents!)} hold on your card — not a charge, released when you return the ${listing.name}. Questions? Just reply`, 'rental', r.id);
   if (!owner.stripe_account_id && r.rent_cents > 0) {
     await textUser(env, owner, `Where should your ${money(payoutOf(r))} go? Add a debit card or bank, takes 30 sec: ${env.APP_URL}/payout`, 'money', r.id);
   }
@@ -84,6 +85,7 @@ export async function customerCancel(env: Env, r: Rental): Promise<'released' | 
     return 'released';
   }
   if (r.status !== 'confirmed') return false;
+  await releaseDeposit(env, r);
   const refund = Math.round(r.total_cents * 0.5);
   const paid = r.total_cents >= 50; /* nothing was charged on a free / near-free rental */
   if (paid) { try { await refundPart(env, r, refund); } catch (e) { await logErr(env.DB, 'late cancel refund failed', e, { rental: r.id }); return false; } }
@@ -104,6 +106,7 @@ export async function customerCancel(env: Env, r: Rental): Promise<'released' | 
 
 export async function pickedUp(env: Env, r: Rental, photoKey: string | null) {
   if (r.status !== 'confirmed') return false;
+  if (r.deposit_status === 'due' || r.deposit_status === 'failed') await holdDeposit(env, r); /* owner was shown the hold state before handing over */
   await setRentalStatus(env.DB, r.id, 'picked_up', { pickup_photo_key: photoKey });
   const { owner, renter, listing } = await parties(env, r);
   await addMessage(env, r.id, null, photoKey ? `${firstName(owner.name)} took the pickup photo · time-stamped, you both have it` : `Picked up`, 'system');
@@ -115,6 +118,7 @@ export async function pickedUp(env: Env, r: Rental, photoKey: string | null) {
 export async function returned(env: Env, r: Rental, photoKey: string | null) {
   if (r.status !== 'picked_up' && r.status !== 'confirmed') return false;
   await setRentalStatus(env.DB, r.id, 'returned', { return_photo_key: photoKey });
+  if (r.deposit_status === 'held') { await releaseDeposit(env, r); await addMessage(env, r.id, null, `${money(r.deposit_cents!)} hold released`, 'system'); }
   const { owner, renter, listing } = await parties(env, r);
   const url = `${env.APP_URL}/r/${r.id}`;
   await addMessage(env, r.id, null, `${firstName(owner.name)} confirmed the return · rate each other`, 'system');
@@ -212,4 +216,29 @@ export async function nudgePromises(env: Env) {
     await textUser(env, cu, `Before pickup: sign your promise to ${firstName(ow.name) || 'the owner'} (3 quick checks) ${env.APP_URL}/r/${r.id}`, 'rental');
     await env.DB.prepare('UPDATE rentals SET promise_nudged = promise_nudged + 1 WHERE id = ?').bind(r.id).run();
   }
+}
+
+// $150 hold: place it (pickup day / Handed over / new card) and tell both sides. Returns the hold state.
+export async function holdDeposit(env: Env, r: Rental): Promise<'held' | 'failed' | 'skip'> {
+  const res = await placeDeposit(env, r);
+  if (res === 'skip') return res;
+  const { owner, renter, listing } = await parties(env, r);
+  if (res === 'held') {
+    await addMessage(env, r.id, null, `${money(r.deposit_cents!)} hold on ${firstName(renter.name)}'s card · OK to hand over`, 'system');
+    await textUser(env, renter, `${money(r.deposit_cents!)} hold is on your card until the ${listing.name} is back with ${firstName(owner.name)}. Reply OK to confirm`, 'money', r.id);
+  } else {
+    await addMessage(env, r.id, null, `${firstName(renter.name)}'s card didn't take the ${money(r.deposit_cents!)} hold · hold off on handing it over`, 'system');
+    await textUser(env, renter, `Your card didn't take the ${money(r.deposit_cents!)} hold for the ${listing.name}. Add a card so ${firstName(owner.name)} can hand it over: ${env.APP_URL}/r/${r.id}/card`, 'money', r.id);
+  }
+  return res;
+}
+
+// cron: holds due on pickup day (owner's local date); renew holds older than 6 days while the item is out (card auths lapse ~7 days)
+export async function depositsDue(env: Env): Promise<number> {
+  let n = 0;
+  const due = await env.DB.prepare(`SELECT r.* FROM rentals r WHERE r.status = 'confirmed' AND r.deposit_status = 'due' AND r.start_day <= ? LIMIT 20`).bind(localToday()).all<Rental>();
+  for (const r of due.results) { try { await holdDeposit(env, r); n++; } catch (e) { await logErr(env.DB, 'deposit due', e, { rental: r.id }); } }
+  const old = await env.DB.prepare(`SELECT * FROM rentals WHERE status = 'picked_up' AND deposit_status = 'held' AND deposit_at < ? LIMIT 20`).bind(Date.now() - 6 * 86400000).all<Rental>();
+  for (const r of old.results) { try { await placeDeposit(env, r, true); n++; } catch (e) { await logErr(env.DB, 'deposit renew', e, { rental: r.id }); } }
+  return n;
 }

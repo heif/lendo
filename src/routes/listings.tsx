@@ -1,3 +1,4 @@
+import { DEPOSIT_CENTS } from '../lib/stripe';
 import { Hono } from 'hono';
 import { cutoutUrl } from '../lib/cutout';
 import { smsHref } from '../lib/blooio';
@@ -173,6 +174,7 @@ listings.post('/api/list', async (c) => {
     const photos = await Promise.all(files.slice(0, 6).map(async p => ({ bytes: await p.arrayBuffer(), type: p.type })));
     const wk = Math.round(parseFloat(String(f[`week_${i}`] || '0')) * 100);
     const lid = await createListing(c.env, c.executionCtx, u, { name, priceCents: price, weekCents: wk > 0 ? wk : null, description: String(f[`note_${i}`] || ''), lat: isNaN(lat) ? null : lat, lng: isNaN(lng) ? null : lng, photos, grade: String(f[`grade_${i}`] || 'A') });
+    if (f[`hold_${i}`] === '1') await c.env.DB.prepare('UPDATE listings SET deposit_cents = ? WHERE id = ?').bind(DEPOSIT_CENTS, lid).run(); /* worth over $150 now → $150 hold at pickup */
     await assignHandle(c.env, u.id, u.name).catch(() => null); await assignSlug(c.env, lid, u.id, name).catch(() => null);
     const ph0 = await c.env.DB.prepare('SELECT r2_key FROM photos WHERE listing_id = ? ORDER BY pos LIMIT 1').bind(lid).first<{ r2_key: string }>().catch(() => null);
     out.push({ id: lid, name, url: await itemLink(c.env, lid), cut: ph0 ? cutoutUrl(c.env, ph0.r2_key, 600, 600) : null } as any); /* posted screen shows the cut-out even if the in-flow one didn't land */
@@ -250,6 +252,8 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
           {gr.customers ? <div class="row" style="gap:10px;margin-top:4px"><Grade g={gr.letter} /><span class="hint">{GRADE_WORD[gr.letter]} · set by customers now (average of yours + {gr.customers} customer grade{gr.customers === 1 ? '' : 's'})</span></div>
             : <div class="grdpick" style="margin-top:4px">{GRADES.map(g => <label><input type="radio" name="grade" value={g} checked={g === gr.letter} /><Grade g={g} /></label>)}</div>}
         </div>
+        <input type="hidden" name="hold_set" value="1" />
+        <label class={'q-hold edit-hold' + ((it.deposit_cents || 0) > 0 ? ' on' : '')} style="margin:4px 0 14px"><span>Worth over $150 now?<small>On: customers get a $150 hold at pickup, released at return</small></span><input type="checkbox" name="hold" value="1" checked={(it.deposit_cents || 0) > 0} onchange="this.parentNode.classList.toggle('on',this.checked)" /><i></i></label>
         <label class="field"><span>Description</span><textarea name="description" id="desc" maxlength={600} placeholder="Model · what’s included · condition · good for">{it.description || ''}</textarea></label>
         <div class="dmeter" id="dmeter"></div>
         <script src="/details.js"></script>
@@ -326,6 +330,7 @@ listings.post('/listings/:id/edit', requireUser, async (c) => {
   await c.env.DB.prepare('UPDATE listings SET name = ?, description = ?, price_cents = ?, week_cents = ?, emoji = ? WHERE id = ?')
     .bind(nm, ds, price, week, em, it.id).run();
   await logEvent(c.env.DB, 'listing.edited', { user: u.id, listing: it.id, cents: price, data: { was: { name: it.name, price: it.price_cents, desc: it.description }, now: { name: nm, price, desc: ds } } });
+  if (f.hold_set) { const dep = f.hold === '1' ? DEPOSIT_CENTS : 0; if (dep !== (it.deposit_cents || 0)) { await c.env.DB.prepare('UPDATE listings SET deposit_cents = ? WHERE id = ?').bind(dep, it.id).run(); await logEvent(c.env.DB, 'listing.hold', { user: u.id, listing: it.id, cents: dep }); } }
   if (isGrade(f.grade)) { const gr = await shownGrade(c.env, it.id, (it as any).grade); if (!gr.customers) await c.env.DB.prepare('UPDATE listings SET grade = ? WHERE id = ?').bind(f.grade, it.id).run().catch(() => {}); }
   const today = localToday(it.lng);
   await c.env.DB.prepare('DELETE FROM blocked_days WHERE listing_id = ? AND day >= ?').bind(it.id, today).run();

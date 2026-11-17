@@ -25,7 +25,10 @@ export async function createCheckout(env: Env, rental: Rental, listing: Listing,
       { quantity: 1, price_data: { currency: 'usd', unit_amount: rental.rent_cents, product_data: { name: `${listing.name} · ${rental.days} day${rental.days === 1 ? '' : 's'}` } } },
       ...((rental.tax_cents || 0) > 0 ? [{ quantity: 1, price_data: { currency: 'usd', unit_amount: rental.tax_cents, product_data: { name: `Sales tax (${+(rental.tax_rate * 100).toFixed(3)}%)` } } }] : []),
     ],
+    /* $150 hold at pickup needs the card again later, off-session → save it to a Stripe customer now */
+    ...((rental.deposit_cents || 0) > 0 ? { customer_creation: 'always' as const } : {}),
     payment_intent_data: {
+      ...((rental.deposit_cents || 0) > 0 ? { setup_future_usage: 'off_session' as const } : {}),
       capture_method: 'manual',
       metadata: { rental_id: rental.id, listing_id: listing.id, renter_id: renter.id },
       description: `Lendo rental ${rental.id}`,
@@ -116,4 +119,66 @@ export async function flushPendingPayouts(env: Env, owner: User): Promise<number
     n++;
   }
   return n;
+}
+
+// ---------- $150 hold (deposit): items the owner marked "worth over $150 now" ----------
+// Placed on pickup day (rental page / cron / Handed over), released at return or cancel. Never captured automatically:
+// a damage claim is a separate, reviewed step. Card authorizations last ~7 days → renewed while the item is out.
+export const DEPOSIT_CENTS = 15000;
+
+// the rental's checkout saved the card: remember customer + card on the rental (webhook, after markHeld)
+export async function rememberCard(env: Env, rentalId: string, piId: string | null): Promise<void> {
+  const s = stripe(env); if (!s || !piId) return;
+  try {
+    const pi = await s.paymentIntents.retrieve(piId);
+    const cust = typeof pi.customer === 'string' ? pi.customer : pi.customer?.id ?? null, pm = typeof pi.payment_method === 'string' ? pi.payment_method : pi.payment_method?.id ?? null;
+    if (cust && pm) await env.DB.prepare('UPDATE rentals SET stripe_customer = ?, stripe_pm = ? WHERE id = ?').bind(cust, pm, rentalId).run();
+  } catch (e) { await logErr(env.DB, 'remember card', e, { rental: rentalId }); }
+}
+
+// 'held' | 'failed' | 'skip' (no hold on this rental, or already held/released)
+export async function placeDeposit(env: Env, r: Rental, renew = false): Promise<'held' | 'failed' | 'skip'> {
+  if (!(r.deposit_cents! > 0)) return 'skip';
+  if (!renew && (r.deposit_status === 'held' || r.deposit_status === 'released')) return 'skip';
+  const s = stripe(env);
+  if (!s) { /* dev: pretend */ await env.DB.prepare(`UPDATE rentals SET deposit_status = 'held', deposit_at = ? WHERE id = ?`).bind(Date.now(), r.id).run(); return 'held'; }
+  if (!r.stripe_customer || !r.stripe_pm) { await env.DB.prepare(`UPDATE rentals SET deposit_status = 'failed' WHERE id = ?`).bind(r.id).run(); await logEvent(env.DB, 'money.deposit_failed', { rental: r.id, user: r.renter_id, cents: r.deposit_cents, data: { why: 'no saved card' } }); return 'failed'; }
+  try {
+    const pi = await s.paymentIntents.create({ amount: r.deposit_cents!, currency: 'usd', customer: r.stripe_customer, payment_method: r.stripe_pm, off_session: true, confirm: true, capture_method: 'manual',
+      description: `Lendo $150 hold · rental ${r.id}`, metadata: { rental_id: r.id, kind: 'deposit' } },
+      { idempotencyKey: `dep_${r.id}_${r.stripe_pm}_${renew ? 'r' + Math.floor(Date.now() / 86400000) : Math.floor(Date.now() / 60000)}` }); /* per minute: a retry after a decline isn't replayed; cron + page in the same minute share one hold */
+    if (pi.status !== 'requires_capture') throw new Error(`deposit ${pi.id} is ${pi.status}`);
+    if (renew && r.deposit_pi && r.deposit_pi !== pi.id) { try { await s.paymentIntents.cancel(r.deposit_pi); } catch { /* old one may have lapsed */ } }
+    await env.DB.prepare(`UPDATE rentals SET deposit_pi = ?, deposit_status = 'held', deposit_at = ? WHERE id = ?`).bind(pi.id, Date.now(), r.id).run();
+    await logEvent(env.DB, renew ? 'money.deposit_renewed' : 'money.deposit_held', { rental: r.id, user: r.renter_id, cents: r.deposit_cents, data: { pi: pi.id } });
+    return 'held';
+  } catch (e) {
+    if (renew) { await logErr(env.DB, 'deposit renew failed', e, { rental: r.id }); return 'failed'; } /* keep the old hold while it lasts */
+    await env.DB.prepare(`UPDATE rentals SET deposit_status = 'failed' WHERE id = ?`).bind(r.id).run();
+    await logEvent(env.DB, 'money.deposit_failed', { rental: r.id, user: r.renter_id, cents: r.deposit_cents, data: { err: String((e as Error)?.message || e).slice(0, 300) } });
+    return 'failed';
+  }
+}
+
+export async function releaseDeposit(env: Env, r: Rental): Promise<void> {
+  if (r.deposit_status !== 'held') return;
+  const s = stripe(env);
+  if (s && r.deposit_pi) { try { await s.paymentIntents.cancel(r.deposit_pi); } catch (e) { await logErr(env.DB, 'release deposit', e, { rental: r.id }); } }
+  await env.DB.prepare(`UPDATE rentals SET deposit_status = 'released' WHERE id = ?`).bind(r.id).run();
+  await logEvent(env.DB, 'money.deposit_released', { rental: r.id, user: r.renter_id, cents: r.deposit_cents, data: { pi: r.deposit_pi } });
+}
+
+// card didn't take the hold → customer adds a card (Checkout, setup mode); webhook saves it and retries
+export async function cardSetupUrl(env: Env, r: Rental): Promise<string | null> {
+  const s = stripe(env); if (!s) return null;
+  const session = await s.checkout.sessions.create({ mode: 'setup', currency: 'usd', ...(r.stripe_customer ? { customer: r.stripe_customer } : { customer_creation: 'always' as const }),
+    metadata: { deposit_for: r.id }, success_url: `${env.APP_URL}/r/${r.id}?card=1`, cancel_url: `${env.APP_URL}/r/${r.id}` });
+  return session.url;
+}
+export async function cardFromSetup(env: Env, cs: Stripe.Checkout.Session): Promise<string | null> {
+  const s = stripe(env); const rid = cs.metadata?.deposit_for; if (!s || !rid || !cs.setup_intent) return null;
+  const si = await s.setupIntents.retrieve(typeof cs.setup_intent === 'string' ? cs.setup_intent : cs.setup_intent.id);
+  const pm = typeof si.payment_method === 'string' ? si.payment_method : si.payment_method?.id ?? null, cust = typeof si.customer === 'string' ? si.customer : si.customer?.id ?? (typeof cs.customer === 'string' ? cs.customer : null);
+  if (pm && cust) await env.DB.prepare(`UPDATE rentals SET stripe_customer = ?, stripe_pm = ?, deposit_status = CASE WHEN deposit_status = 'failed' THEN 'due' ELSE deposit_status END WHERE id = ?`).bind(cust, pm, rid).run();
+  return rid;
 }
