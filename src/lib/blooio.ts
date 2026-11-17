@@ -10,6 +10,9 @@ export const CONFIRM_ASK = 'Reply OK to confirm';
 export const KEEP_ASK = 'Reply OK to keep these coming';
 const asksReply = (t: string) => /\breply\b/i.test(t);
 /* Lendo's own number as an sms: link (prefilled body); works on iPhone + Android */
+/* Lendo's number for page markup that has no env (layout); set per request in loadUser */
+export const site = { number: '' };
+export const GIFT_TEXT = 'Free $5 gift card please';
 export const smsHref = (env: Env, body: string) => `sms:+1${(env.LENDO_NUMBER || '').replace(/\D/g, '').slice(-10)}?&body=${encodeURIComponent(body)}`;
 
 export async function sendRaw(env: Env, phone: string, text: string, attachments?: string[]): Promise<{ ok: boolean; message_id?: string; error?: string }> {

@@ -1,6 +1,7 @@
 import type { FC, Child } from 'hono/jsx';
 import { html, raw } from 'hono/html';
 import type { User } from '../lib/env';
+import { GIFT_TEXT, site } from '../lib/blooio';
 
 export type LayoutProps = {
   title: string;              // header title ("Item", "Your listings")
@@ -82,6 +83,8 @@ export const Layout: FC<LayoutProps> = (p) => {
               <label class="sr">Phone number</label>
               <input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Phone #" maxlength={14} />
               <button type="submit" disabled>$5 OFF</button>
+              {/* phones: one tap opens Messages to Lendo; the reply makes the account + texts a login link */}
+              {site.number ? <a class="giftbtn" href={`sms:+1${site.number.replace(/\D/g, '').slice(-10)}?&body=${encodeURIComponent(GIFT_TEXT)}`}>Free $5<br />gift card</a> : null}
             </form>
             <div class="optin" id="optin" hidden role="dialog" aria-label="Text message opt-in">
               <div class="optin-box">

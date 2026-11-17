@@ -4,7 +4,7 @@ import { logEvent } from '../lib/log';
 import { PhotoField, saveUserPhoto } from '../lib/userphoto';
 import type { Env, Vars } from '../lib/env';
 import { Layout } from '../pages/layout';
-import { startLogin, finishLogin, logout, smsFallback } from '../lib/auth';
+import { startLogin, finishLogin, logout, smsFallback, useLoginLink } from '../lib/auth';
 import { normPhone, prettyPhone } from '../lib/util';
 import { ensureUser } from '../lib/db';
 import { sendRaw, smsHref } from '../lib/blooio';
@@ -170,6 +170,12 @@ auth.post('/promo', async (c) => {
     : `$5 off is already saved to this number ${c.env.APP_URL}`).then(() => {}));
   setCookie(c, 'lendo_p', '1', { path: '/', sameSite: 'Lax', secure: c.env.APP_URL.startsWith('https'), maxAge: 365 * 86400 });
   return c.json({ ok: true, fresh });
+});
+
+// texted one-time login link (gift card / Text Lendo replies)
+auth.get('/in/:t', async (c) => {
+  const u = await useLoginLink(c, c.req.param('t'));
+  return c.redirect(u ? '/?hi=1' : '/login');
 });
 
 // tap → iPhone/Android "Create contact" sheet for the Lendo number

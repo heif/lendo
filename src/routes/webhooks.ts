@@ -8,7 +8,8 @@ import type Stripe from 'stripe';
 import type { Env, Rental, User, Vars } from '../lib/env';
 import { cardFromSetup, rememberCard, stripe } from '../lib/stripe';
 import { parseInbound, textUser } from '../lib/blooio';
-import { rentalById, userByPhone } from '../lib/db';
+import { ensureUser, rentalById, userByPhone } from '../lib/db';
+import { loginLink } from '../lib/auth';
 import { accept, activeRentalFor, decline, holdDeposit, markHeld, relay } from '../lib/rentals';
 import { hmacHex, normPhone, timingSafeEq, firstName } from '../lib/util';
 
@@ -91,8 +92,24 @@ async function blooioInbound(c: Context<{ Bindings: Env; Variables: Vars }>) {
   const kw = text.toUpperCase().replace(/[^A-Z ]/g, '').trim();
   if (!user) {
     await logEvent(c.env.DB, 'text.in_unknown', { data: { from: phone, body: text.slice(0, 500) } });
-    // unknown number: invite them in
-    return c.json({ ok: true, unknown: true });
+    if (!/^\+1\d{10}$/.test(phone) || kw === 'STOP' || kw === 'HELP') return c.json({ ok: true, unknown: true });
+    /* a new person texting first (gift card button, Text Lendo bar): they're in — account by phone, texted login link */
+    const nu = await ensureUser(c.env.DB, phone);
+    await c.env.DB.prepare('UPDATE users SET replied = 1 WHERE id = ?').bind(nu.id).run(); nu.replied = 1;
+    await logEvent(c.env.DB, 'user.signup', { user: nu.id, data: { via: 'text' } });
+    const gift = /\$5|gift/i.test(text);
+    if (gift) await c.env.DB.prepare('UPDATE users SET promo_cents = 500, promo_claimed_at = ? WHERE id = ? AND promo_claimed_at IS NULL').bind(Date.now(), nu.id).run();
+    const link = await loginLink(c.env, phone);
+    await textUser(c.env, nu, gift
+      ? `Welcome to Lendo! Your $5 gift card is on your first rental. You're in: ${link} · Reply STOP to opt out`
+      : `Welcome to Lendo! You're in: ${link} · Reply STOP to opt out`, 'login');
+    if (gift) return c.json({ ok: true, welcomed: true });
+    return handleText(c, nu, text, 'text'); /* "Hi! I need a ladder" → matches */
+  }
+  if (/\$5|gift card/i.test(text) && text.length < 40) { /* already a member, tapped the gift button again */
+    if (!user.promo_claimed_at) await c.env.DB.prepare('UPDATE users SET promo_cents = 500, promo_claimed_at = ? WHERE id = ?').bind(Date.now(), user.id).run();
+    await textUser(c.env, user, `${user.promo_claimed_at ? 'Your $5 gift card is already on this number' : 'Your $5 gift card is on your first rental'}: ${await loginLink(c.env, phone)} · Reply OK to confirm`, 'login');
+    return c.json({ ok: true });
   }
   return handleText(c, user, text, 'text');
 }

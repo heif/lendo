@@ -469,7 +469,11 @@
     var chip = $('alertChip');
     if (guest) { /* not logged in: nothing is saved yet, so no OFF switch — an orange Turn on that goes through login and comes back ON */
       chip.innerHTML = (qNote ? '<div class="ac-h">' + qNote + '</div>' : '') + '<button type="button" class="ac-pill"><span>🔔 Text me when ' + alertNoun(q.value, !qNote) + ' is listed</span><i class="ac-go">Turn on</i></button>';
-      chip.hidden = false; chip.querySelector('.ac-pill').onclick = cb; return;
+      chip.hidden = false;
+      /* phones: Turn on = text Lendo ("Need a snowblower…"); the reply makes the account, saves the alert, texts a login link */
+      if (CFG.num && matchMedia('(pointer:coarse)').matches) { var go = chip.querySelector('.ac-pill'), a = document.createElement('a'); a.className = go.className; a.innerHTML = go.innerHTML;
+        a.href = 'sms:+1' + CFG.num + '?&body=' + encodeURIComponent('Need ' + alertNoun(q.value, false) + ' — text me when one is listed'); go.replaceWith(a); return; }
+      chip.querySelector('.ac-pill').onclick = cb; return;
     }
     chip.innerHTML = (qNote ? '<div class="ac-h">' + qNote + '</div>' : '') +
       '<button type="button" class="ac-pill' + (on ? ' on' : '') + '" role="switch" aria-checked="' + on + '"><span>🔔 Text alert when ' + alertNoun(q.value, !qNote) + ' is listed</span><i class="ac-sw"><em>' + (on ? 'ON' : 'OFF') + '</em><b></b></i></button>';

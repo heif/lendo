@@ -3,14 +3,14 @@ import { logEvent } from './log';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import type { Env, User, Vars } from './env';
 import { ensureUser } from './db';
-import { sendRaw } from './blooio';
+import { sendRaw, site } from './blooio';
 import { id, now } from './util';
 
 const SESSION_DAYS = 90;
 const COOKIE = 'lendo_s';
 
 export const loadUser: MiddlewareHandler<{ Bindings: Env; Variables: Vars }> = async (c, next) => {
-  c.set('user', null);
+  c.set('user', null); site.number = c.env.LENDO_NUMBER || '';
   const sid = getCookie(c, COOKIE);
   if (sid) {
     const row = await c.env.DB.prepare('SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ? AND s.expires_at > ?')
@@ -125,4 +125,23 @@ export async function logout(c: Context<{ Bindings: Env; Variables: Vars }>) {
   const sid = getCookie(c, COOKIE);
   if (sid) { await logEvent(c.env.DB, 'logout', { user: c.get('user')?.id ?? null }); await c.env.DB.prepare('DELETE FROM sessions WHERE id = ?').bind(sid).run(); }
   deleteCookie(c, COOKIE, { path: '/' });
+}
+
+// ---------- log in by text: a one-time link texted to the phone (24h). Stored in otp_codes as phone='link:<token>', code=<phone> ----------
+export async function loginLink(env: Env, phone: string): Promise<string> {
+  const t = (crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '')).slice(0, 32);
+  await env.DB.prepare('INSERT OR REPLACE INTO otp_codes (phone, code, expires_at, attempts) VALUES (?,?,?,0)').bind('link:' + t, phone, now() + 24 * 3600000).run();
+  return `${env.APP_URL}/in/${t}`;
+}
+export async function useLoginLink(c: Context<{ Bindings: Env; Variables: Vars }>, t: string): Promise<User | null> {
+  if (!/^[a-f0-9]{32}$/.test(t)) return null;
+  const row = await c.env.DB.prepare('SELECT code, expires_at FROM otp_codes WHERE phone = ?').bind('link:' + t).first<{ code: string; expires_at: number }>();
+  await c.env.DB.prepare('DELETE FROM otp_codes WHERE phone = ?').bind('link:' + t).run(); /* one use */
+  if (!row || row.expires_at < now()) return null;
+  const user = await ensureUser(c.env.DB, row.code);
+  const sid = id('s');
+  await c.env.DB.prepare('INSERT INTO sessions (id, user_id, expires_at) VALUES (?,?,?)').bind(sid, user.id, now() + SESSION_DAYS * 86400000).run();
+  await logEvent(c.env.DB, 'login', { user: user.id, data: { via: 'link', ua: (c.req.header('user-agent') || '').slice(0, 160) } });
+  setCookie(c, COOKIE, sid, { path: '/', httpOnly: true, sameSite: 'Lax', secure: c.env.APP_URL.startsWith('https'), maxAge: SESSION_DAYS * 86400 });
+  return user;
 }
