@@ -715,3 +715,4 @@ a.ac-pill{text-decoration:none;color:inherit}
 @media (pointer:coarse){.gpanel{display:none!important}}
 .lbonus .lb-ring{margin-left:auto;display:inline-flex;align-items:center;gap:4px;font-size:12px}.lbonus .lb-ring b{font-weight:900}.lbonus .lb-ring small{font-weight:700;opacity:.85}.lbonus .lb-ring+i{margin-left:6px}
 .lbonus .lb-t{line-height:1.15}.lbonus .lb-t small{display:block;font-size:11.5px;font-weight:700;opacity:.9}
+.pcard-img{width:124px}.pcard-img img{width:124px;height:124px}.pcard-img img.cut{background:none;padding:0;border-radius:0}.pcard-img img.photo{background:#fff}

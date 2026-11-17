@@ -202,7 +202,11 @@
   function wholeStars(avg) { var up = (avg - 1) / 4; return up >= .9 ? 5 : up >= .75 ? 4 : up >= .55 ? 3 : up >= .35 ? 2 : 1; }
   function fillCard(it) {
     $('shLink').href = '/i/' + it.id;
-    var im = $('shImg'); im.src = it.avatar_key ? '/p/' + it.avatar_key : it.photo ? '/p/' + it.photo : ''; im.className = it.avatar_key ? 'cut' : 'photo';
+    var im = $('shImg'); im.className = it.avatar_key ? 'cut' : 'photo';
+    /* cut-outs: crop the transparent margin so the item fills the space */
+    if (it.avatar_key) { var raw = new Image(), want = '/p/' + it.avatar_key; im.dataset.want = want; im.src = want;
+      raw.onload = function () { if (im.dataset.want !== want) return; var t = trimAlpha(raw); if (t !== raw && t.toDataURL) try { im.src = t.toDataURL('image/png'); } catch (e) {} }; raw.src = want; }
+    else { im.dataset.want = ''; im.src = it.photo ? '/p/' + it.photo : ''; }
     $('shPr').innerHTML = fmt(it.price_cents) + '<small>/day</small>';
     var own = (it.owner_name || 'Neighbor').split(' ')[0];
     $('shNm').innerHTML = ''; var o1 = document.createElement('span'); o1.style.fontWeight = '500'; o1.style.display = 'block'; o1.style.fontSize = '.72em'; o1.textContent = own + (/s$/i.test(own) ? '’' : '’s'); $('shNm').appendChild(o1); $('shNm').appendChild(document.createTextNode(it.name.charAt(0).toUpperCase() + it.name.slice(1))); // "Scott’s Projector": item names keep their capital
