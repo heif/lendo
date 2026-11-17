@@ -696,3 +696,20 @@ a.ac-pill{text-decoration:none;color:inherit}
   .promo.incard .gb-tx{background:#fff;color:var(--ink);font-size:13px;font-weight:900;line-height:1.15;text-transform:uppercase;padding:8px 12px}
   .promo.incard .giftbtn:active{transform:translate(4px,4px);box-shadow:0 0 0 var(--ink)}
 }
+
+/* $5 on computers: same gift button; click opens a small panel above it — QR (scan → Messages) or phone # */
+@media not all and (pointer:coarse){
+  .promo.pu:has(.giftbtn){background:none!important;border:0!important;box-shadow:none!important;padding:0 6px 6px 0!important;overflow:visible!important;height:auto!important;left:12px!important;right:auto!important;flex-direction:column;align-items:flex-start;gap:10px}
+  .promo.pu .giftbtn{display:flex;order:2;align-items:stretch;border-radius:12px;border:2px solid var(--ink);overflow:hidden;box-shadow:4px 4px 0 var(--ink);text-decoration:none;cursor:pointer;animation:lfpress 2.4s ease-out 2s infinite}
+  .promo.pu.open .giftbtn{animation:none}
+  .promo.pu .gb-ic{display:grid;place-items:center;background:var(--ink);padding:0 11px}
+  .promo.pu .gb-tx{background:#fff;color:var(--ink);font-size:13px;font-weight:900;letter-spacing:.2px;line-height:1.15;text-transform:uppercase;padding:8px 12px}
+  .promo.pu:has(.giftbtn) .gpanel{display:none}
+  .promo.pu.open .gpanel{display:flex;order:1;align-items:center;gap:10px;background:#fff;border:2px solid var(--ink);border-radius:14px;box-shadow:4px 4px 0 var(--ink);padding:10px;animation:rise .2s ease-out}
+  .gp-qr{width:88px;height:88px;display:block}.gp-qr canvas{width:88px;height:88px;image-rendering:pixelated;display:block}
+  .gp-or{font-size:11px;font-weight:800;color:var(--mute)}
+  .gp-in{display:flex;height:40px;border:2px solid var(--ink);border-radius:10px;overflow:hidden}
+  .gp-in input{width:132px;border:0;padding:0 10px;font:inherit;font-size:15px;outline:none}
+  .gp-in button{border:0;background:var(--orange);color:#fff;font-weight:900;font-size:18px;width:42px;cursor:pointer}.gp-in button:disabled{opacity:.55;cursor:default}
+}
+@media (pointer:coarse){.gpanel{display:none!important}}
