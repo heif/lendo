@@ -654,10 +654,13 @@ body:has(#sheet.on) .tlbar,body:has(#wsheet:not([hidden])) .tlbar,.mapwrap.listi
 /* aliens on phones: the $5 bar is one fat gift-card button (opens Messages); desktop keeps the phone field */
 .giftbtn{display:none}
 @media (pointer:coarse){
-  .promo.pu:has(.giftbtn){background:none!important;border:0!important;box-shadow:none!important;padding:0!important;width:auto!important;left:auto!important;right:12px!important}
+  .promo.pu:has(.giftbtn){background:none!important;border:0!important;box-shadow:none!important;padding:0 6px 6px 0!important;overflow:visible!important;height:auto!important;width:auto!important;left:12px!important;right:auto!important}
   .promo.pu:has(.giftbtn)>:not(.giftbtn){display:none!important}
-  .promo.pu .giftbtn{display:block;background:var(--orange);color:#fff;border-radius:12px;border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);padding:9px 14px;font-size:13px;font-weight:900;letter-spacing:.2px;line-height:1.2;text-transform:uppercase;text-align:center;text-decoration:none}
-  .promo.pu .giftbtn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+  /* gift card: hunter icon block + white words; presses like Rent yours out (offset so they take turns); lower left balances it */
+  .promo.pu .giftbtn{display:flex;align-items:stretch;border-radius:12px;border:2px solid var(--ink);overflow:hidden;box-shadow:4px 4px 0 var(--ink);text-decoration:none;animation:lfpress 2.4s ease-out 2s infinite}
+  .promo.pu .gb-ic{display:grid;place-items:center;background:var(--ink);padding:0 11px}
+  .promo.pu .gb-tx{background:#fff;color:var(--ink);font-size:13px;font-weight:900;letter-spacing:.2px;line-height:1.15;text-transform:uppercase;padding:8px 12px;text-align:left}
+  .promo.pu .giftbtn:active{animation:none;transform:translate(4px,4px);box-shadow:0 0 0 var(--ink)}
 }
 a.ac-pill{text-decoration:none;color:inherit}
 
@@ -684,3 +687,4 @@ a.ac-pill{text-decoration:none;color:inherit}
 .pf-flag{margin-left:auto;align-self:flex-start}
 .msgflag{display:block;margin-top:2px}.msgflag .flagbtn{padding:2px 0;font-size:11px}.msg .flagf{left:0;right:auto}
 .flagthx{position:fixed;left:50%;top:70px;transform:translateX(-50%);z-index:2000;background:var(--ink);color:#fff;font-weight:800;font-size:14px;padding:10px 16px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+@media (prefers-reduced-motion:reduce){.promo.pu .giftbtn{animation:none}}
