@@ -506,8 +506,8 @@
   // switching city/hood or coming back to the page starts a fresh search
   window.addEventListener('pageshow', function (e) { if (e.persisted && q.value && !new URLSearchParams(location.search).get('q')) clearSearch(); });
   try { var q0 = new URLSearchParams(location.search).get('q') || CFG.q; if (!q0 && q.value) { q.value = ''; syncClr(); } if (q0) { q.value = q0.slice(0, 40); syncClr(); setTimeout(function () { load(); alertChip(); }, 400); } } catch (e) {}
-  var LIST_IC = '<svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 1.5h1M4 1.5h9M1 6h1M4 6h9M1 10.5h1M4 10.5h9" stroke="#1E3A2B" stroke-width="2" stroke-linecap="round"/></svg> List',
-      MAP_IC = '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6L9 4L15 6L21 4V18L15 20L9 18L3 20Z M9 4V18 M15 6V20" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linejoin="round"/></svg> Map';
+  var LIST_IC = '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2" fill="#1E3A2B"/><rect x="13" y="3" width="8" height="8" rx="2" fill="#1E3A2B"/><rect x="3" y="13" width="8" height="8" rx="2" fill="#1E3A2B"/><rect x="13" y="13" width="8" height="8" rx="2" fill="#1E3A2B"/></svg>', /* grid = see all items; icon only (a ☰ read as a menu) */
+      MAP_IC = '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6L9 4L15 6L21 4V18L15 20L9 18L3 20Z M9 4V18 M15 6V20" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linejoin="round"/></svg>';
   // List view covers the whole city you're in (not just the map viewport)
   var cityItems = null;
   function loadCityList() {

@@ -68,7 +68,7 @@ export const homePage = async (c: Ctx, opt: { center?: number[]; zoom?: number; 
       <div class="mapwrap">
         <div id="map" role="application" aria-label="Map of things to rent"></div>
         <div class="mapctl">
-          <button class="btn sm listtoggle" id="toggle" type="button"><svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 1.5h1M4 1.5h9M1 6h1M4 6h9M1 10.5h1M4 10.5h9" stroke="#1E3A2B" stroke-width="2" stroke-linecap="round" /></svg> List</button>
+          <button class="btn sm listtoggle" id="toggle" type="button" aria-label="Map or grid of items"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2" fill="#1E3A2B" /><rect x="13" y="3" width="8" height="8" rx="2" fill="#1E3A2B" /><rect x="3" y="13" width="8" height="8" rx="2" fill="#1E3A2B" /><rect x="13" y="13" width="8" height="8" rx="2" fill="#1E3A2B" /></svg></button>
           <span class="qwrap"><input id="q" type="search" placeholder="Rent a…" aria-label="Search" autocomplete="off" /><button type="button" class="qclr" id="qClr" aria-label="Clear search" hidden>×</button></span>
           <div class="alertchip" id="alertChip" hidden></div>
           <a class="rent-out" href="/list"><span class="ro-l">RENT OUT YOUR STUFF</span><span class="ro-s">RENT YOURS OUT</span><i class="ro-c ro-c1" aria-hidden="true">$</i><i class="ro-c ro-c2" aria-hidden="true">$</i><i class="ro-c ro-c3" aria-hidden="true">$</i><i class="ro-w" aria-hidden="true"><b></b><b></b><b></b></i></a>
