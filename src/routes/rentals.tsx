@@ -300,6 +300,7 @@ f.addEventListener('change',ok);f.addEventListener('submit',function(){document.
           </form>
         </div>
       ) : null}
+      <script src="/live.js" data-ver={'/api/chatver?r=' + r.id} defer></script>
     </Layout>
   );
 });
@@ -529,6 +530,22 @@ rentals.post('/alerts/:id/toggle', requireUser, async (c) => {
 const Linked = ({ t }: { t: string }) => <>{t.split(/(https?:\/\/[^\s)]+)/g).map((part, i) => i % 2 ? <a href={part.replace(/[.,!?]+$/, '')} class="msglink">{part.replace(/^https?:\/\//, '').replace(/[.,!?]+$/, '')}</a> : part)}</>;
 
 // Inbox = the chat with Lendo: what we text you + what you send back, oldest at top, newest at the bottom, box at the bottom.
+/* live chat: pages poll this every 10s (only while visible) and refresh the chat + status card when it changes */
+rentals.get('/api/chatver', requireUser, async (c) => {
+  const u = c.get('user')!, rid = c.req.query('r') || '', wid = c.req.query('with') || '';
+  let v = '';
+  if (rid) {
+    const r = await rentalById(c.env.DB, rid);
+    if (!r || (r.owner_id !== u.id && r.renter_id !== u.id)) return c.json({ v: '' }, 404);
+    const m = await c.env.DB.prepare(`SELECT COUNT(*) n, MAX(created_at) t FROM messages WHERE rental_id IN (SELECT id FROM rentals WHERE id = ?1 OR (listing_id = ?2 AND renter_id = ?3 AND status = 'inquiry'))`).bind(r.id, r.listing_id, r.renter_id).first<{ n: number; t: number }>();
+    const x = await c.env.DB.prepare(`SELECT COUNT(*) || ':' || GROUP_CONCAT(status) s FROM rental_extensions WHERE rental_id = ?`).bind(r.id).first<{ s: string }>().catch(() => null);
+    v = [m?.n, m?.t, r.status, r.updated_at, r.deposit_status, r.promise_at, r.meet_spot, r.pickup_time, r.return_time, r.owner_rating, r.renter_rating, x?.s].join('|');
+  } else {
+    const a = await c.env.DB.prepare(`SELECT (SELECT COUNT(*) || ':' || COALESCE(MAX(created_at),0) FROM outbound_texts WHERE user_id = ?1) o, (SELECT COUNT(*) || ':' || COALESCE(MAX(created_at),0) FROM inbound_texts WHERE user_id = ?1) i, (SELECT COUNT(*) || ':' || COALESCE(MAX(created_at),0) FROM messages WHERE rental_id IN (SELECT id FROM rentals WHERE (owner_id = ?1 AND (?2 = '' OR renter_id = ?2)) OR (renter_id = ?1 AND (?2 = '' OR owner_id = ?2)))) m`).bind(u.id, wid).first<{ o: string; i: string; m: string }>().catch(() => null);
+    v = [a?.o, a?.i, a?.m].join('|');
+  }
+  return c.json({ v }, 200, { 'cache-control': 'no-store' });
+});
 rentals.get('/inbox', requireUser, async (c) => {
   const u = c.get('user')!;
   const out = (await c.env.DB.prepare(`SELECT body, category, rental_id, created_at FROM outbound_texts WHERE user_id = ? AND category != 'login' ORDER BY created_at DESC LIMIT 100`).bind(u.id).all<{ body: string; category: string; rental_id: string | null; created_at: number }>()).results;
@@ -568,6 +585,7 @@ rentals.get('/inbox', requireUser, async (c) => {
         <button type="submit" aria-label="Send" dangerouslySetInnerHTML={{ __html: SEND_SVG }} />
       </form>
       <script dangerouslySetInnerHTML={{ __html: `window.scrollTo(0, document.body.scrollHeight)` }} />
+      <script src="/live.js" data-ver={'/api/chatver' + (wid ? '?with=' + wid : '')} defer></script>
     </Layout>
   );
 });
