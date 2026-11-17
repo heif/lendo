@@ -124,7 +124,7 @@ export function registerDash(admin: A) {
       <div class="hint" style="margin-top:8px">Claimed = a new $5 by text (phones, QR) or phone # (computers). A few hundred visitors per side before reading much into it</div>
       <h3 style="margin-top:28px">List-10 promo copy · 1/3 each, ribbon + list-flow strip</h3>
       <table class="ad-t"><tr><th>Variant</th><th>Visitors saw it</th><th>Clicked Rent yours out</th><th>Click rate</th><th>Listed 1+</th><th>Rate</th><th>Reached 10</th></tr>
-        {[['a', '$10 BONUS TODAY'], ['b', 'GET $10 CASH'], ['c', '$1/ITEM TODAY']].map(([v, l]) => { const q = (ev: string, uniq = false) => { const r = rows2.find(x => x.var === v && x.ev === ev); return r ? (uniq ? r.u : r.n) : 0; }; const seen = q('view', true), cl = q('click'), li = q('listed'); return <tr><td><b>{v.toUpperCase()}</b> · {l}</td><td>{seen}</td><td>{cl}</td><td>{pct(cl, seen)}</td><td>{li}</td><td><b>{pct(li, seen)}</b></td><td>{q('ten')}</td></tr>; })}
+        {[['a', '$10 BONUS TODAY'], ['b', 'GET $10 TODAY'], ['c', '$1/ITEM TODAY']].map(([v, l]) => { const q = (ev: string, uniq = false) => { const r = rows2.find(x => x.var === v && x.ev === ev); return r ? (uniq ? r.u : r.n) : 0; }; const seen = q('view', true), cl = q('click'), li = q('listed'); return <tr><td><b>{v.toUpperCase()}</b> · {l}</td><td>{seen}</td><td>{cl}</td><td>{pct(cl, seen)}</td><td>{li}</td><td><b>{pct(li, seen)}</b></td><td>{q('ten')}</td></tr>; })}
       </table>
     </Shell>);
   });
