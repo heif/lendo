@@ -794,3 +794,6 @@ a.ac-pill{text-decoration:none;color:inherit}
 html.android .sms-only{display:none!important}
 html.android .web-only{display:revert!important}
 html.android .gp-qr,html.android .gp-or{display:none!important}
+/* map hover: only the price tag + name label catch the mouse; the big photo lets the mouse through so the next pin underneath can be hovered */
+.hovpop,.hovpop .mapboxgl-popup-content,.hv,.hv img{pointer-events:none}
+.hv .hvp,.hv b{pointer-events:auto}

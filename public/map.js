@@ -447,7 +447,7 @@
   var hov = new mapboxgl.Popup({ closeButton: false, closeOnClick: false, offset: [0, -56], anchor: 'bottom', className: 'hovpop', maxWidth: '220px' }), hovId = null, hovT = null, overPop = false;
   var dim = document.createElement('div'); dim.className = 'hovdim'; map.getContainer().appendChild(dim);
   hov.on('open', function () { dim.classList.add('on'); }); hov.on('close', function () { dim.classList.remove('on'); });
-  var hideHov = function () { clearTimeout(hovT); hovT = setTimeout(function () { if (!overPop) { hov.remove(); hovId = null; } }, 180); };
+  var hideHov = function () { clearTimeout(hovT); hovT = setTimeout(function () { if (!overPop) { hov.remove(); hovId = null; } }, 260); };
   function showHov(f) {
     var id = f.properties.id; clearTimeout(hovT); if (id === hovId) return;
     var it = items.filter(function (x) { return x.id === id; })[0]; if (!it) return; hovId = id;
