@@ -157,6 +157,7 @@ export const itemPage = async (c: Ctx, lid: string, pretty = false) => {
     <Layout title={it.name} headerCenter={<span />} user={u} flash={c.req.query('canceled') ? 'Checkout canceled — nothing was charged.' : null}>
       <div class={photos.length > 1 ? 'hero gal' : 'hero'}>
         <Grade g={gr.letter} cls="onphoto" />
+        {it.stock_photo ? <span class="stocktag">Standard photo · owner says theirs looks like this</span> : null}
         {photos[0] ? <img id="heroImg" data-trim="1" src={cutoutUrl(c.env, photos[0].r2_key)} alt={it.name}  /> : it.avatar_key ? <img id="heroImg" class="trimme" crossorigin="anonymous" src={'/p/' + it.avatar_key} alt={it.name} /> : <div class="hint">no photo yet</div>}
         
         {photos.length > 1 ? <>

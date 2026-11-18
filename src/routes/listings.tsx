@@ -30,7 +30,7 @@ export const listings = new Hono<{ Bindings: Env; Variables: Vars }>();
 // ---------- List fast ----------
 listings.get('/list', async (c) => {
   const u = c.get('user'); /* guests can snap + answer; phone/code come after the item questions */
-  const cfg = JSON.stringify({ minPrice: parseInt(c.env.MIN_PRICE_CENTS, 10) / 100, hood: u?.hood || '', user: u ? { name: u.name || '', hood: u.hood || '', replied: !!u.replied } : null, sms: smsHref(c.env, 'OK'), shareUrl: u ? c.env.APP_URL + ((u as any).handle ? '/' + (u as any).handle : '/u/' + u.id) : c.env.APP_URL });
+  const cfg = JSON.stringify({ stock: !!c.env.BRAVE_API_KEY, minPrice: parseInt(c.env.MIN_PRICE_CENTS, 10) / 100, hood: u?.hood || '', user: u ? { name: u.name || '', hood: u.hood || '', replied: !!u.replied } : null, sms: smsHref(c.env, 'OK'), shareUrl: u ? c.env.APP_URL + ((u as any).handle ? '/' + (u as any).handle : '/u/' + u.id) : c.env.APP_URL });
   return c.html(
     <Layout title="Rent out your stuff" user={u} promo={false} htmlClass="mappage" head={<link rel="stylesheet" href="/list.css" />}>
       {await bonusOpen(c.env.DB, u, hereOf(c, u)) ? await (async () => { const left = await nycLeft(c.env.DB), f = left / NYC_CAP, C = 2 * Math.PI * 9;
@@ -59,7 +59,9 @@ listings.get('/list', async (c) => {
             <textarea id="aiPaste" class="aipaste" rows={7} placeholder="DeWalt drill · DCD771 · 2022 · $99&#10;REI tent · 2021 · $229&#10;…"></textarea>
             <p class="hint" style="margin-top:6px">Lendo never sees your email · nothing is saved until you pick</p>
           </div>
-          <div id="aiB" hidden><div class="lf-h" id="aiN" style="font-size:19px"></div><div id="aiList" class="ailist"></div></div>
+          <div id="aiB" hidden><div class="lf-h" id="aiN" style="font-size:19px"></div><div id="aiList" class="ailist"></div>
+            <button type="button" class="btn full" id="aiStock" hidden style="margin-top:12px">No photos? Post with standard photos →</button></div>
+          <div id="aiC" hidden><div class="lf-h" style="font-size:19px">Does yours look like this?</div><p class="hint" style="margin:-4px 0 10px">Standard photo from the web · customers see it's a standard photo · take a real one anytime</p><div id="aiStockList" class="ailist"></div></div>
         </div>
         <div class="lf-foot"><button type="button" class="cta" id="aiGo">FIND MY STUFF</button></div>
       </section>
@@ -183,6 +185,40 @@ listings.get('/api/cuttmp/:id{[a-f0-9]{16}}', async (c) => {
   catch { return c.json({ error: 'cut' }, 502); }
 });
 
+/* standard product photo for an item (Brave image search); the owner confirms theirs looks like it */
+listings.get('/api/stock', async (c) => {
+  if (!c.get('user') || !c.env.BRAVE_API_KEY) return c.json({ imgs: [] });
+  const q = String(c.req.query('q') || '').trim().slice(0, 100); if (!q) return c.json({ imgs: [] });
+  try {
+    const r = await fetch('https://api.search.brave.com/res/v1/images/search?safesearch=strict&count=8&q=' + encodeURIComponent(q + ' product photo white background'), { headers: { accept: 'application/json', 'X-Subscription-Token': c.env.BRAVE_API_KEY } });
+    if (!r.ok) { await logErr(c.env.DB, 'stock search', new Error('brave ' + r.status)); return c.json({ imgs: [] }); }
+    const j: any = await r.json();
+    const imgs = (j.results || []).map((x: any) => ({ src: x.properties?.url, thumb: x.thumbnail?.src })).filter((x: any) => /^https:\/\//.test(x.src || '') && x.thumb).slice(0, 4);
+    return c.json({ imgs });
+  } catch (e) { await logErr(c.env.DB, 'stock search', e); return c.json({ imgs: [] }); }
+});
+/* post items with the standard photo the owner confirmed (no camera); the photo is copied into R2 like any other */
+listings.post('/api/list-stock', async (c) => {
+  const u = c.get('user'); if (!u) return c.json({ error: 'login' }, 401);
+  const b = await c.req.json<{ items?: { name?: string; price?: number; img?: string; thumb?: string }[]; lat?: number; lng?: number }>().catch(() => ({} as any));
+  const minP = parseInt(c.env.MIN_PRICE_CENTS, 10), out: any[] = [];
+  for (const it of (b.items || []).slice(0, 30)) {
+    const name = String(it.name || '').trim().slice(0, 80), price = Math.round(Number(it.price || 0) * 100);
+    if (!name || !(price >= minP)) continue;
+    let bytes: ArrayBuffer | null = null, type = 'image/jpeg';
+    for (const u0 of [it.img, it.thumb]) {
+      if (bytes || !/^https:\/\//.test(String(u0 || ''))) continue;
+      try { const r = await fetch(String(u0), { headers: { 'user-agent': 'Lendo/1.0' }, cf: { cacheTtl: 0 } } as any); const ct = r.headers.get('content-type') || ''; if (r.ok && /^image\/(jpeg|png|webp)/.test(ct)) { const a = await r.arrayBuffer(); if (a.byteLength > 2000 && a.byteLength < 8e6) { bytes = a; type = ct.split(';')[0]; } } } catch {}
+    }
+    if (!bytes) continue;
+    const lid = await createListing(c.env, c.executionCtx, u, { name, priceCents: price, lat: typeof b.lat === 'number' ? b.lat : null, lng: typeof b.lng === 'number' ? b.lng : null, photos: [{ bytes, type }] });
+    await c.env.DB.prepare('UPDATE listings SET stock_photo = 1 WHERE id = ?').bind(lid).run();
+    await logEvent(c.env.DB, 'listing.stock_photo', { user: u.id, listing: lid, data: { src: String(it.img || '').slice(0, 300) } });
+    const ph0 = await c.env.DB.prepare('SELECT r2_key FROM photos WHERE listing_id = ? ORDER BY pos LIMIT 1').bind(lid).first<{ r2_key: string }>().catch(() => null);
+    out.push({ id: lid, name, url: await itemLink(c.env, lid), cut: ph0 ? cutoutUrl(c.env, ph0.r2_key, 600, 600) : null });
+  }
+  return c.json({ listed: out, count: out.length });
+});
 listings.post('/api/list', async (c) => {
   const u = c.get('user');
   if (!u) return c.json({ error: 'login' }, 401);
@@ -328,6 +364,15 @@ listings.post('/listings/:id/photos', requireUser, async (c) => {
     await c.env.DB.prepare('INSERT INTO photos (id, listing_id, r2_key, pos) VALUES (?,?,?,?)').bind(id('ph'), it.id, key, pos++).run();
   }
   if (!have) await recoverIcon(c, it.id, null);
+  /* first real photo replaces the standard one: it becomes the cover and the map icon */
+  if (it.stock_photo && pos > have) {
+    const ph = await photosFor(c.env.DB, it.id), real = ph.slice(have);
+    for (const p of ph.slice(0, have)) await c.env.DB.prepare('DELETE FROM photos WHERE id = ?').bind(p.id).run();
+    for (let i = 0; i < real.length; i++) await c.env.DB.prepare('UPDATE photos SET pos = ? WHERE id = ?').bind(i, real[i].id).run();
+    await c.env.DB.prepare('UPDATE listings SET stock_photo = 0, avatar_key = NULL WHERE id = ?').bind(it.id).run();
+    await logEvent(c.env.DB, 'listing.real_photo', { user: it.owner_id, listing: it.id });
+    await recoverIcon(c, it.id, null);
+  }
   // new photos get the same safety check as at listing time
   const added = (await photosFor(c.env.DB, it.id)).slice(have).map(p => p.r2_key);
   if (added.length && it.status === 'live') c.executionCtx.waitUntil((async () => { for (const k of added) if (!(await checkListingPhoto(c.env, it.id, k))) break; })().catch(() => {}));

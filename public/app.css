@@ -751,3 +751,4 @@ a.ac-pill{text-decoration:none;color:inherit}
 .ihold{margin-top:10px;font-size:13px;font-weight:700;color:var(--ink2);background:#fff;border:2px solid var(--line);border-radius:12px;padding:8px 12px}
 .rsteps li{flex-wrap:wrap}.rsteps em{flex-basis:100%;padding-left:28px;margin-top:-3px;font-style:normal;font-size:12.5px;font-weight:700;color:var(--mute)}
 .rsteps li.done em,.rsteps li.now em{color:var(--ink2)}
+.stocktag{position:absolute;left:10px;top:10px;z-index:3;background:rgba(255,255,255,.92);border:2px solid var(--ink);border-radius:10px;padding:4px 8px;font-size:11.5px;font-weight:800;color:var(--ink);max-width:62%}

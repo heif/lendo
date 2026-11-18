@@ -36,7 +36,7 @@
   // ---- ask your AI (their AI reads their email receipts; Lendo only gets the pasted list)
   var aiFound = null;
   function aiCopy() { var t = $('aiPrompt').textContent; try { navigator.clipboard.writeText(t); } catch (e) {} return t; }
-  $('aiOpen').addEventListener('click', function () { aiFound = null; $('aiA').hidden = false; $('aiB').hidden = true; $('aiGo').textContent = 'FIND MY STUFF'; show('ai'); });
+  $('aiOpen').addEventListener('click', function () { aiFound = null; stockMode = false; $('aiC').hidden = true; $('aiGo').disabled = false; $('aiA').hidden = false; $('aiB').hidden = true; $('aiGo').textContent = 'FIND MY STUFF'; show('ai'); });
   document.querySelectorAll('.aiapp').forEach(function (b) { b.addEventListener('click', function () {
     var t = aiCopy(), u = b.dataset.u; b.textContent = 'Copied ✓';
     if (u) window.open(/q=$/.test(u) ? u + encodeURIComponent(t) : u, '_blank');
@@ -46,10 +46,35 @@
     $('aiN').textContent = aiFound.length + (aiFound.length === 1 ? ' thing found' : ' things found');
     $('aiList').innerHTML = aiFound.map(function (x, i) { return '<button type="button" class="airow' + (x.on ? ' on' : '') + '" data-i="' + i + '"><span class="mk">' + (x.on ? '✓' : '') + '</span><span class="nm">' + esc(x.name) + (x.detail ? '<small>' + esc(x.detail) + '</small>' : '') + '</span><span class="pr">$' + x.price + '/day</span></button>'; }).join('') || '<p class="hint">Nothing rentable in there. Try the ideas instead</p>';
     $('aiGo').textContent = on ? 'SNAP ' + on + (on === 1 ? ' THING' : ' THINGS') : 'BACK';
+    $('aiStock').hidden = !(CFG.stock && on);
   }
+  /* no-photo path: a standard product photo per item; the owner confirms theirs looks like it */
+  var stockMode = false;
+  function stockRender() {
+    var ok = aiFound.filter(function (x) { return x.on && x.yes && x.imgs && x.imgs.length; }).length;
+    $('aiStockList').innerHTML = aiFound.map(function (x, i) { if (!x.on) return ''; var im = x.imgs && x.imgs[x.k || 0];
+      return '<div class="stk' + (x.yes ? ' on' : '') + '"><button type="button" class="stk-img" data-i="' + i + '" aria-label="Another photo">' + (x.imgs ? (im ? '<img src="' + esc(im.thumb) + '" alt="">' + (x.imgs.length > 1 ? '<span>↻</span>' : '') : '<small>no photo found</small>') : '<small>…</small>') + '</button><div class="stk-t"><b>' + esc(x.name) + '</b><small>$' + x.price + '/day</small>' + (im ? '<button type="button" class="stk-yes" data-i="' + i + '">' + (x.yes ? '✓ Mine looks like this' : 'Mine looks like this') + '</button>' : '') + '</div></div>'; }).join('');
+    $('aiGo').textContent = ok ? 'POST ' + ok + ' NOW' : 'CONFIRM EACH ONE';
+    $('aiGo').disabled = !ok;
+  }
+  $('aiStock').addEventListener('click', function () {
+    stockMode = true; $('aiB').hidden = true; $('aiC').hidden = false; stockRender();
+    aiFound.forEach(function (x) { if (!x.on || x.imgs) return; fetch('/api/stock?q=' + encodeURIComponent(x.name + (x.detail ? ' ' + x.detail.split(' · ')[0] : ''))).then(function (r) { return r.json(); }).then(function (j) { x.imgs = j.imgs || []; x.k = 0; stockRender(); }).catch(function () { x.imgs = []; stockRender(); }); });
+  });
+  $('aiStockList').addEventListener('click', function (e) {
+    var b = e.target.closest('.stk-yes'), m = e.target.closest('.stk-img');
+    if (b) { var x = aiFound[+b.dataset.i]; x.yes = !x.yes; stockRender(); }
+    else if (m) { var y = aiFound[+m.dataset.i]; if (y.imgs && y.imgs.length > 1) { y.k = ((y.k || 0) + 1) % y.imgs.length; y.yes = false; stockRender(); } }
+  });
   $('aiList').addEventListener('click', function (e) { var b = e.target.closest('.airow'); if (!b) return; var x = aiFound[+b.dataset.i]; x.on = !x.on; aiRender(); });
   $('aiGo').addEventListener('click', function () {
     var go = this;
+    if (stockMode) {
+      var items = aiFound.filter(function (x) { return x.on && x.yes && x.imgs && x.imgs.length; }).map(function (x) { var im = x.imgs[x.k || 0]; return { name: x.name, price: x.price, img: im.src, thumb: im.thumb }; });
+      if (!items.length) return; go.disabled = true; go.textContent = 'POSTING…';
+      fetch('/api/list-stock', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items: items, lat: window._gps ? window._gps[0] : undefined, lng: window._gps ? window._gps[1] : undefined }) }).then(function (r) { if (r.status === 401) { location.href = '/login?next=/list'; return null; } return r.json(); }).then(function (j) { if (!j) return; shots = items.map(function (x) { return { name: x.name, price: x.price }; }); renderDone(j); show('done'); }).catch(function () { go.textContent = 'TRY AGAIN'; go.disabled = false; });
+      return;
+    }
     if (aiFound) { /* picked → become ideas + picked, then the camera */
       var on = aiFound.filter(function (x) { return x.on; });
       on.slice().reverse().forEach(function (x) { if (!IDEAS.some(function (i) { return i[1] === x.name; })) IDEAS.unshift(['📦', x.name, x.price]); if (picked.indexOf(x.name) < 0) picked.push(x.name); });

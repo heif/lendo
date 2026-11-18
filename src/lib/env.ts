@@ -24,6 +24,7 @@ export type Env = {
   TWILIO_API_KEY_SID?: string;    // optional instead of the auth token: an API key (SK…) + its secret
   TWILIO_API_KEY_SECRET?: string;
   TWILIO_VERIFY_SID?: string;     // VA… service id
+  BRAVE_API_KEY?: string;         // standard product photos for no-photo listings (Brave image search)
   ANTHROPIC_API_KEY?: string;     // plain-English texting (intent.ts)  // sk., never sent to the client
 };
 
@@ -40,7 +41,7 @@ export type User = {
 
 export type Listing = {
   id: string; owner_id: string; name: string; description: string | null; price_cents: number; week_cents: number | null;
-  deposit_cents: number; status: 'live' | 'paused' | 'review' | 'removed'; paused_why?: string | null; hood: string | null; hood_id: string | null; lat: number | null; lng: number | null; emoji: string | null; avatar_key: string | null; avatar_style: string | null; demo: number; created_at: number; grade?: string;
+  deposit_cents: number; status: 'live' | 'paused' | 'review' | 'removed'; paused_why?: string | null; stock_photo?: number; hood: string | null; hood_id: string | null; lat: number | null; lng: number | null; emoji: string | null; avatar_key: string | null; avatar_style: string | null; demo: number; created_at: number; grade?: string;
 };
 
 export type Rental = {
