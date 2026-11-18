@@ -51,11 +51,10 @@ listings.get('/list', async (c) => {
         <div class="lf-scroll">
           <div class="lf-h">Ask your AI</div>
           <div id="aiA">
-            <div class="aistep"><i>1</i><b>Tap your AI</b><small>Copies this ask and opens it · use one that can see your email</small></div>
+            <div class="aistep"><i>1</i><b>Ask your AI this</b><small>Tap one · it copies the ask and opens it (paste if it's not filled in) · use one that can see your email</small></div>
             <div class="aiprompt" id="aiPrompt">Search my email for receipts of things I bought in the last 5 years that neighbors might rent — tools, cameras, camping, party/audio, sports, baby gear, kitchen appliances, luggage, outdoor gear. Skip food, clothes, gifts, subscriptions and consumables. One per line: item · brand/model · year · price</div>
             <div class="aiapps">{[['ChatGPT', 'https://chatgpt.com/?q='], ['Claude', 'https://claude.ai/new?q='], ['Gemini', 'https://gemini.google.com/app'], ['Muse', ''], ['Instinct', ''], ['Other', '']].map(([n, u]) => <button type="button" class="aiapp" data-u={u}>{n}</button>)}</div>
-            <div class="aistep"><i>2</i><b>Paste the ask there</b></div>
-            <div class="aistep"><i>3</i><b>Copy its answer, paste it here</b></div>
+            <div class="aistep"><i>2</i><b>Paste its answer here</b></div>
             <textarea id="aiPaste" class="aipaste" rows={7} placeholder="DeWalt drill · DCD771 · 2022 · $99&#10;REI tent · 2021 · $229&#10;…"></textarea>
             <p class="hint" style="margin-top:6px">Lendo never sees your email · nothing is saved until you pick</p>
           </div>
