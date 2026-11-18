@@ -466,8 +466,9 @@
         /* pins near the top open the card below them, clear of the search bar and Rent-out button */
         /* and pins near the left/right edge open the card toward the middle, so it is never cut off */
         var pt = map.project(f.geometry.coordinates), W = map.getContainer().clientWidth, low = pt.y < 290, side = pt.x < 130 ? '-left' : pt.x > W - 130 ? '-right' : '';
-        hov.options.anchor = (low ? 'top' : 'bottom') + side; hov.options.offset = [side === '-left' ? -14 : side === '-right' ? 14 : 0, low ? 12 : -56];
-        hov.setLngLat(f.geometry.coordinates).setHTML('<a class="hv" href="/i/' + it.id + '">' + (src ? '<img src="' + src + '" alt="" data-trim="1">' : '') + '<b><span class="ownlink" data-u="' + esc(profUrl(it)) + '">' + esc(possessive(it.owner_name)) + '</span> ' + esc(nm) + '</b><span class="hvp">' + fmt(it.price_cents) + '<small>/day</small></span></a>').addTo(map);
+        /* option 1: the pin itself grows (bigger photo + tag) and the name appears under it; no box */
+        hov.options.anchor = low ? 'top' + side : 'center' + side; hov.options.offset = [side === '-left' ? -40 : side === '-right' ? 40 : 0, low ? -30 : -6];
+        hov.setLngLat(f.geometry.coordinates).setHTML('<a class="hv" href="/i/' + it.id + '">' + (src ? '<img src="' + src + '" alt="" data-trim="1">' : '') + '<span class="hvp">' + fmt(it.price_cents) + '<small>/day</small></span><b><span class="ownlink" data-u="' + esc(profUrl(it)) + '">' + esc(possessive(it.owner_name)) + '</span> ' + esc(nm) + '</b>' + '</a>').addTo(map);
         var el = hov.getElement(); el.onmouseenter = function () { overPop = true; clearTimeout(hovT); }; el.onmouseleave = function () { overPop = false; hideHov(); };
         el.onclick = function (ev) { var ol = ev.target.closest('.ownlink'); if (ol) { ev.preventDefault(); location.href = ol.dataset.u; } };
         if (window.lendoTrim) window.lendoTrim();
