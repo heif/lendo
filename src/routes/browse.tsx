@@ -175,32 +175,30 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
       </div>
       {mine ? <a class="myrent" href={'/r/' + mine.id}><b>{({ held: 'You asked to rent this', confirmed: 'You’re renting this', picked_up: 'You have this now', returned: 'You rented this' } as Record<string, string>)[mine.status]}</b><span>{fmtRange(mine.start_day, mine.end_day)} · {mine.status === 'held' ? 'waiting for YES' : mine.status === 'returned' ? 'rate it' : 'open rental'}</span><i dangerouslySetInnerHTML={{ __html: '<svg width="12" height="18" viewBox="0 0 12 18"><path d="M3 2l6 7-6 7" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>' }} /></a> : null}
       <section class="sec" style="padding:12px 16px 14px">
-        <div class="ititle"><div style="flex:1;min-width:0">
         <div class="row" style="justify-content:space-between;align-items:flex-start">
           <h2 style="margin:0;font-size:20px;font-weight:800;line-height:1.25">{(() => { const f = (owner.name || 'Neighbor').split(' ')[0]; const nm = it.name.charAt(0).toUpperCase() + it.name.slice(1); return <><a class="ownlink" href={(owner as any).handle ? '/' + (owner as any).handle : '/u/' + owner.id} style="font-weight:500;display:block;font-size:.72em">{f + (/s$/i.test(f) ? '’' : '’s')}</a>{nm}</>; })()}</h2>
           {it.status === 'paused' && it.paused_why === 'notext' && isOwner ? <a class="pill" style="background:var(--orange);color:#fff;text-decoration:none;white-space:nowrap" href={smsHref(c.env, 'OK')}>Paused · text OK to Lendo</a> : it.status === 'paused' ? <span class="pill">paused</span> : it.status === 'review' ? <span class="pill">Posted · checking the photo</span> : null}
           {isOwner ? <a class="btn sm" href={'/listings/' + it.id + '/edit'} style="flex-shrink:0;margin-left:8px">✎ Edit</a> : null}
         </div>
         {ir?.n ? <div class="hint" style="margin-top:2px">👍 {ir.up || 0} of {ir.n}</div> : null}
-        {it.description ? <p style="margin:4px 0 0;font-size:14px;line-height:1.4;color:var(--ink2);white-space:pre-wrap">{it.description}</p> : null}
-        </div><Grade g={gr.letter} cls="inrow" /></div>
-        {!isOwner && it.status === 'live' ? (it.demo || !u
+        <div class="ititle"><p style="flex:1;min-width:0;margin:0;font-size:14px;line-height:1.35;color:var(--ink2);white-space:pre-wrap">{it.description || ''}</p><Grade g={gr.letter} cls="inrow" /></div>
+        <div class="askrow">{!isOwner && it.status === 'live' ? (it.demo || !u
           ? <a class="askbtn" href={it.demo ? '#' : '/i/' + it.id + '/ask'} onclick={it.demo ? "event.preventDefault();toast('Demo item — messaging is off')" : undefined}>Ask a question</a>
           : <details class="askd" ontoggle="if(this.open)this.querySelector('textarea').focus()"><summary class="askbtn">Ask a question</summary>
               <form class="askf" method="post" action={'/i/' + it.id + '/ask'} onsubmit={`event.preventDefault();var f=this,b=f.querySelector('button');if(!f.body.value.trim())return;b.disabled=true;fetch(f.action,{method:'POST',body:new FormData(f),headers:{accept:'application/json'}}).then(function(r){return r.json()}).then(function(j){if(!j.rid)throw 0;var d=document.createElement('div');d.className='askok';d.innerHTML='✓ Sent to ${(owner.name || 'the owner').split(' ')[0].replace(/[^\p{L}\p{N} .-]/gu, '')} · <a href="/r/'+j.rid+'">Open chat</a>';f.parentNode.replaceWith(d)}).catch(function(){b.disabled=false;f.submit()})`}>
                 <textarea name="body" rows={1} maxlength={500} placeholder="Is it free Saturday?" required oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
                 <button type="submit" aria-label="Send" dangerouslySetInnerHTML={{ __html: SEND_SVG }} />
-              </form></details>) : null}
+              </form></details>) : <span />}{!isOwner && !it.demo ? <Flag kind="item" target={it.id} back={'/i/' + it.id} user={u} cls="iflag" /> : null}</div>
         <div class="row" style="gap:8px;align-items:center"><a href={'/u/' + owner.id} class="owner-row owner-tight owner-orb" style="flex:1;min-width:0">
           <OwnerOrbit name={owner.name} photo={owner.photo_key} items={others.map(o => ({ src: o.avatar_key ? '/p/' + o.avatar_key : '/c/' + oph[o.id] + '?s=200', cut: true })).filter(x => !x.src.endsWith('undefined'))} />
-          <span class="owner-txt"><b>{shortName(owner.name)}</b><small>{rep.as_owner_avg ? `${starStr(rep.as_owner_avg)} · ${rep.rentals} rentals` : 'new'} · {rep.listed} listed{owner.hood ? ' · ' + owner.hood : ''}</small></span>
+          <span class="owner-txt"><b>{shortName(owner.name)}</b><small>{rep.as_owner_avg ? `${starStr(rep.as_owner_avg)} · ${rep.rentals} rentals` : 'new to Lendo'} · {rep.listed} listed{owner.hood ? ' · ' + owner.hood : ''}</small></span>
           <svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2L8 8L2 14" fill="none" stroke="#1E3A2B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
-        </a>{!isOwner && !it.demo ? <Flag kind="item" target={it.id} back={'/i/' + it.id} user={u} cls="iflag" /> : null}</div>
+        </a></div>
         {!isOwner && it.status === 'live' ? (
           <form method="post" action={'/i/' + it.id + '/rent'} id="rentForm">
-            <div class="quick" id="quick" style="display:flex;gap:8px;margin-top:14px">
-              <button type="button" class="btn" data-q="1" style="flex:1;height:48px;flex-direction:column;line-height:1.1"><b style="font-size:16px">1 day</b><small style="font-size:12px;font-weight:700">{money(it.price_cents)}</small></button>
-              {it.week_cents && it.week_cents < it.price_cents * 7 ? <button type="button" class="btn" data-q="7" style="flex:1.3;height:48px;flex-direction:column;line-height:1.1;position:relative"><b style="font-size:16px">1 week</b><small style="font-size:12px;font-weight:700">{money(it.week_cents)} <s style="color:var(--mute);font-weight:600">{money(it.price_cents * 7)}</s></small><span style="position:absolute;right:-6px;top:-9px;background:var(--orange);color:#fff;border:1.5px solid var(--ink);border-radius:8px;font-size:10px;font-weight:900;padding:2px 6px">{Math.round(100 - it.week_cents / (it.price_cents * 7) * 100)}% OFF</span></button> : null}
+            <div class="quick" id="quick" style="display:flex;gap:8px">
+              <button type="button" class="btn" data-q="1" style="flex:1;line-height:1.1"><b style="font-size:15px">1 day</b><small style="font-size:13px;font-weight:700">{money(it.price_cents)}</small></button>
+              {it.week_cents && it.week_cents < it.price_cents * 7 ? <button type="button" class="btn" data-q="7" style="flex:1.3;line-height:1.1;position:relative"><b style="font-size:15px">1 week</b><small style="font-size:13px;font-weight:700">{money(it.week_cents)} <s style="color:var(--mute);font-weight:600">{money(it.price_cents * 7)}</s></small><span style="position:absolute;right:-6px;top:-9px;background:var(--orange);color:#fff;border:1.5px solid var(--ink);border-radius:8px;font-size:10px;font-weight:900;padding:2px 6px">{Math.round(100 - it.week_cents / (it.price_cents * 7) * 100)}% OFF</span></button> : null}
             </div>
             {(it.deposit_cents || 0) > 0 ? <div class="ihold">{money(it.deposit_cents!)} hold (not a charge) on your card at pickup · released at return</div> : null}
             <div class="days-hd">{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((w, i) => <span>{w}</span>)}</div>

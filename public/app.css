@@ -807,3 +807,19 @@ html.android .gp-qr,html.android .gp-or{display:none!important}
 .owner-tight .oorb{zoom:.72}
 .owner-tight{padding:6px 10px}
 .iflag{margin-left:14px}.iflag .flagbtn{opacity:.4}.iflag .flagbtn svg{width:14px;height:14px}
+/* item page: vertically tight */
+.ititle{margin-top:4px;align-items:center}
+.ititle .grd.inrow{margin:-6px 0;zoom:.72}
+.askrow{display:flex;align-items:center;justify-content:space-between;gap:10px}.askrow .askd{flex:1;min-width:0}
+.iflag{margin-left:0}
+.hero{padding:0 16px 2px}.hero img#heroImg{max-height:210px}
+section.sec:has(#rentForm){padding:8px 16px 10px!important}
+.owner-tight{margin-top:4px!important;padding:4px 10px!important}
+.quick{margin-top:8px!important}
+#quick .btn{height:38px!important;gap:6px}
+#quick .btn[data-q="7"] small{white-space:nowrap}
+.days-hd{margin-top:6px}
+.days{gap:3px!important}.days button{height:40px!important}
+.meet{margin-top:8px!important}
+.askrow .askbtn{margin-top:2px!important}
+.meet{padding:7px 12px 8px!important}.meet-name{margin-top:0!important;font-size:16px!important}.meet-link{margin-top:4px!important}
