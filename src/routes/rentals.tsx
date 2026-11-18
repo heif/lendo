@@ -132,7 +132,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
         {/* 3A: compact header (who · item · dates · $) + pinned where/when strip */}
         <a class="rhd" href={'/i/' + it.id}>
           {it.avatar_key ? <img class="cut" data-trim="1" src={'/p/' + it.avatar_key} alt="" /> : photos[0] ? <img class="cut" data-trim="1" src={'/c/' + photos[0].r2_key + '?s=200'} alt="" /> : <span class="rhd-ph"></span>}
-          <div><b>{firstName(other.name)} · {it.name}</b>
+          <div><b><span class="ownlink" onclick={`event.preventDefault();location.href='${(other as any).handle ? '/' + (other as any).handle : '/u/' + other.id}'`}>{firstName(other.name)}</span> · {it.name}</b>
             <div>{r.status === 'inquiry' ? (isOwner ? 'Question about your item' : 'Questions before renting') : !dead ? null : <>{fmtRange(r.start_day, r.end_day)} · {isOwner ? `you earn ${money(payoutOf(r) + xRent)}${r.status === 'held' ? ` after ${c.env.FEE_PCT}% fee` : ''}` : `${money(r.total_cents + xTotal)}${r.status === 'held' ? ' held' : ' paid'}`}</>}</div></div>
         </a>
         {r.status !== 'inquiry' && !dead ? (() => { const nm = firstName(other.name), spot = r.meet_spot || (spots.length === 1 ? spots[0] : '');

@@ -752,3 +752,13 @@ a.ac-pill{text-decoration:none;color:inherit}
 .rsteps li{flex-wrap:wrap}.rsteps em{flex-basis:100%;padding-left:28px;margin-top:-3px;font-style:normal;font-size:12.5px;font-weight:700;color:var(--mute)}
 .rsteps li.done em,.rsteps li.now em{color:var(--ink2)}
 .stocktag{position:absolute;left:10px;top:10px;z-index:3;background:rgba(255,255,255,.92);border:2px solid var(--ink);border-radius:10px;padding:4px 8px;font-size:11.5px;font-weight:800;color:var(--ink);max-width:62%}
+
+/* owner name → profile, everywhere */
+.ownlink{cursor:pointer;color:inherit;text-decoration:none}.ownlink:hover{text-decoration:underline}
+/* map rollover mini card (computers) */
+.hovpop .mapboxgl-popup-content{padding:0;border:2.5px solid var(--ink);border-radius:16px;box-shadow:0 4px 0 var(--ink);background:#fff}
+.hovpop .mapboxgl-popup-tip{display:none}
+.hv{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 12px 12px;width:200px;text-decoration:none;color:var(--ink)}
+.hv img{width:150px;height:130px;object-fit:contain}
+.hv b{font-size:15px;font-weight:900;line-height:1.2;text-align:center}.hv b .ownlink{font-weight:600}
+.hvp{background:var(--orange);color:#fff;font-weight:900;font-size:16px;padding:3px 10px;border-radius:9px;border:2px solid var(--ink)}.hvp small{font-size:11px}

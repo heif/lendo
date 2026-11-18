@@ -209,14 +209,16 @@
     else { im.dataset.want = ''; im.src = it.photo ? '/c/' + it.photo + '?s=300' : ''; }
     $('shPr').innerHTML = fmt(it.price_cents) + '<small>/day</small>';
     var own = (it.owner_name || 'Neighbor').split(' ')[0];
-    $('shNm').innerHTML = ''; var o1 = document.createElement('span'); o1.style.fontWeight = '500'; o1.style.display = 'block'; o1.style.fontSize = '.72em'; o1.textContent = own + (/s$/i.test(own) ? '’' : '’s'); $('shNm').appendChild(o1); $('shNm').appendChild(document.createTextNode(it.name.charAt(0).toUpperCase() + it.name.slice(1))); // "Scott’s Projector": item names keep their capital
+    $('shNm').innerHTML = ''; var o1 = document.createElement('span'); o1.className = 'ownlink'; o1.dataset.u = profUrl(it); o1.style.fontWeight = '500'; o1.style.display = 'block'; o1.style.fontSize = '.72em'; o1.textContent = own + (/s$/i.test(own) ? '’' : '’s'); $('shNm').appendChild(o1); $('shNm').appendChild(document.createTextNode(it.name.charAt(0).toUpperCase() + it.name.slice(1))); // "Scott’s Projector": item names keep their capital
     $('shOwner').innerHTML = '<span class="av">' + esc(own.charAt(0)) + '</span>' + esc(own) + (it.owner_rating ? ' <span class="pill stars">' + '★★★★★'.slice(0, wholeStars(it.owner_rating)) + '</span>' : ' <span class="pill new">new</span>') + (it.rentals ? ' <span class="n">' + it.rentals + ' rental' + (it.rentals === 1 ? '' : 's') + '</span>' : '');
     $('shRent').href = '/i/' + it.id;
     $('shWhere').textContent = (it.hood || 'near you') + (it.owner_xs ? ' · ' + it.owner_xs : '');
   }
   $('shClose').addEventListener('click', function () { sel = null; refresh(); sheet.classList.remove('on'); });
   /* anywhere on the card (owner orbit too) opens the item page; close + $5 form keep their own taps */
-  sheet.addEventListener('click', function (e) { if (e.target.closest('#shClose,form,a')) return; location.href = $('shLink').href; });
+  sheet.addEventListener('click', function (e) { var ol = e.target.closest('.ownlink'); if (ol) { e.preventDefault(); location.href = ol.dataset.u; return; } if (e.target.closest('#shClose,form,a')) return; location.href = $('shLink').href; });
+  function profUrl(it) { return it.owner_handle ? '/' + it.owner_handle : '/u/' + it.owner_id; }
+  function possessive(n) { var f = (n || 'Neighbor').split(' ')[0]; return f + (/s$/i.test(f) ? '’' : '’s'); }
 
   // ---- sticker icons: round photo + price tag, drawn on canvas, added on demand per visible listing ----
   var SZ = S.sticker.size, DPR = Math.min(2, window.devicePixelRatio || 1);
@@ -451,6 +453,25 @@
   map.on('click', 'more', function (e) { map.easeTo({ center: e.lngLat, zoom: Math.min(17, map.getZoom() + 1.5), duration: 600 }); });
   map.on('click', function (e) { if (map.queryRenderedFeatures(e.point, { layers: ['pins', 'mini', 'more'] }).length) return; if (sel) { sel = null; refresh(); } sheet.classList.remove('on'); });
   ['pins', 'mini', 'more'].forEach(function (l) { map.on('mouseenter', l, function () { map.getCanvas().style.cursor = 'pointer'; }); map.on('mouseleave', l, function () { map.getCanvas().style.cursor = ''; }); });
+  /* computers: rolling over an item shows a mini card at the pin (owner → profile, rest → item) */
+  if (window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches && window.mapboxgl) {
+    var hov = new mapboxgl.Popup({ closeButton: false, closeOnClick: false, offset: [0, -56], anchor: 'bottom', className: 'hovpop', maxWidth: '220px' }), hovId = null, hovT = null, overPop = false;
+    var hideHov = function () { clearTimeout(hovT); hovT = setTimeout(function () { if (!overPop) { hov.remove(); hovId = null; } }, 180); };
+    ['pins', 'mini'].forEach(function (l) {
+      map.on('mousemove', l, function (e) {
+        var f = e.features[0], id = f.properties.id; clearTimeout(hovT); if (id === hovId) return;
+        var it = items.filter(function (x) { return x.id === id; })[0]; if (!it) return; hovId = id;
+        var src = it.avatar_key ? '/p/' + it.avatar_key : it.photo ? '/c/' + it.photo + '?s=300' : '';
+        var nm = it.name.charAt(0).toUpperCase() + it.name.slice(1);
+        hov.setLngLat(f.geometry.coordinates).setHTML('<a class="hv" href="/i/' + it.id + '">' + (src ? '<img src="' + src + '" alt="" data-trim="1">' : '') + '<b><span class="ownlink" data-u="' + esc(profUrl(it)) + '">' + esc(possessive(it.owner_name)) + '</span> ' + esc(nm) + '</b><span class="hvp">' + fmt(it.price_cents) + '<small>/day</small></span></a>').addTo(map);
+        var el = hov.getElement(); el.onmouseenter = function () { overPop = true; clearTimeout(hovT); }; el.onmouseleave = function () { overPop = false; hideHov(); };
+        el.onclick = function (ev) { var ol = ev.target.closest('.ownlink'); if (ol) { ev.preventDefault(); location.href = ol.dataset.u; } };
+        if (window.lendoTrim) window.lendoTrim();
+      });
+      map.on('mouseleave', l, hideHov);
+    });
+    map.on('movestart', function () { hov.remove(); hovId = null; });
+  }
 
   q.addEventListener('input', function () { clearTimeout(t); t = setTimeout(load, 300); });
   // saved-search alert: on automatically after a search settles; visible Turn off

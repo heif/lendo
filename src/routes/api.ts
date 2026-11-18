@@ -82,7 +82,7 @@ api.get('/api/listings', async (c) => {
   if (q) { where.push('(l.name LIKE ? OR l.description LIKE ?)'); args.push(`%${q}%`, `%${q}%`); }
   if (hood) { where.push('l.hood = ?'); args.push(hood); }
   const rows = await c.env.DB.prepare(`SELECT l.id, l.name, l.price_cents, l.week_cents, l.hood, l.lat, l.lng, l.owner_id, l.emoji, l.avatar_key, l.created_at,
-      u.name owner_name, u.cross_streets owner_xs, u.photo_key owner_photo,
+      u.name owner_name, u.handle owner_handle, u.cross_streets owner_xs, u.photo_key owner_photo,
       (SELECT ROUND(AVG(renter_rating),1) FROM rentals r WHERE r.owner_id = l.owner_id AND renter_rating IS NOT NULL) owner_rating,
       (SELECT COUNT(*) FROM rentals r WHERE r.listing_id = l.id AND r.status IN ('confirmed','picked_up','returned','closed')) rentals
     FROM listings l JOIN users u ON u.id = l.owner_id WHERE ${where.join(' AND ')} ${byDist ? 'AND l.lat IS NOT NULL' : ''} ORDER BY ${byDist ? '((l.lat - ?) * (l.lat - ?) + (l.lng - ?) * (l.lng - ?) * 0.57)' : 'l.created_at DESC'} LIMIT ?`).bind(...args, ...(byDist ? [near[1], near[1], near[0], near[0]] : []), limit).all<Listing & { owner_name: string | null; owner_xs: string | null; owner_rating: number | null; rentals: number }>();
