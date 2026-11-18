@@ -500,6 +500,14 @@
       /* phones: Turn on = text Lendo ("Need a snowblower…"); the reply makes the account, saves the alert, texts a login link */
       if (CFG.num && matchMedia('(pointer:coarse)').matches) { var go = chip.querySelector('.ac-pill'), a = document.createElement('a'); a.className = go.className; a.innerHTML = go.innerHTML;
         a.href = 'sms:+1' + CFG.num + '?&body=' + encodeURIComponent('Need ' + alertNoun(q.value, false) + ' — text me when one is listed'); go.replaceWith(a); return; }
+      /* computers: Turn on = scan to text Lendo from your phone (QR) or text the number; logging in stays as a small link */
+      if (CFG.num) { chip.querySelector('.ac-pill').onclick = function () {
+        if (chip.querySelector('.ac-qr')) return; var body = 'Need ' + alertNoun(q.value, false) + ' — text me when one is listed', n = CFG.num;
+        var box = document.createElement('div'); box.className = 'ac-qr'; box.innerHTML = '<span class="ac-qri"></span><div><b>Scan to text Lendo</b><small>or text “' + esc(body) + '” to (' + n.slice(0, 3) + ') ' + n.slice(3, 6) + '-' + n.slice(6) + '</small><a href="#" class="ac-login">or log in</a></div>';
+        chip.appendChild(box); box.querySelector('.ac-login').onclick = function (e) { e.preventDefault(); cb(); };
+        var draw = function () { try { var qr = qrcode(0, 'M'); qr.addData('SMSTO:+1' + n + ':' + body); qr.make(); var m = qr.getModuleCount(), sz = 3, pad = 2, c = document.createElement('canvas'); c.width = c.height = (m + pad * 2) * sz; var g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.fillStyle = '#1E3A2B'; for (var r = 0; r < m; r++) for (var k = 0; k < m; k++) if (qr.isDark(r, k)) g.fillRect((k + pad) * sz, (r + pad) * sz, sz, sz); box.querySelector('.ac-qri').appendChild(c); } catch (e) {} };
+        if (window.qrcode) draw(); else { var sc = document.createElement('script'); sc.src = '/qrgen.js'; sc.onload = draw; document.head.appendChild(sc); }
+      }; return; }
       chip.querySelector('.ac-pill').onclick = cb; return;
     }
     chip.innerHTML = (qNote ? '<div class="ac-h">' + qNote + '</div>' : '') +
