@@ -28,7 +28,7 @@ import { assignHood } from '../lib/hoods';
 export const listings = new Hono<{ Bindings: Env; Variables: Vars }>();
 
 // ---------- List fast ----------
-listings.get('/list', async (c) => {
+const listPage = async (c: any) => {
   const u = c.get('user'); /* guests can snap + answer; phone/code come after the item questions */
   const cfg = JSON.stringify({ stock: !!c.env.BRAVE_API_KEY, minPrice: parseInt(c.env.MIN_PRICE_CENTS, 10) / 100, hood: u?.hood || '', user: u ? { name: u.name || '', hood: u.hood || '', replied: !!u.replied } : null, sms: smsHref(c.env, 'OK'), shareUrl: u ? c.env.APP_URL + ((u as any).handle ? '/' + (u as any).handle : '/u/' + u.id) : c.env.APP_URL });
   return c.html(
@@ -125,7 +125,9 @@ listings.get('/list', async (c) => {
       <script src="/list.js"></script>
     </Layout>
   );
-});
+};
+listings.get('/list', listPage);
+listings.get('/list/ai', listPage); /* opens straight to "Ask your AI" */
 
 listings.post('/list', async (c) => {
   const u = c.get('user');

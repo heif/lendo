@@ -362,4 +362,5 @@
   if (navigator.geolocation) navigator.geolocation.getCurrentPosition(function (p) { window._gps = [p.coords.latitude, p.coords.longitude]; }, function () {}, { timeout: 6000 });
   clockT = setInterval(function () { if (step === 'review') $('rvCount').textContent = shots.length + ' in ' + clock(); }, 1000);
   renderIdeas(); show('ideas');
+  if (/^\/list\/ai\/?$/.test(location.pathname)) $('aiOpen').click();
 })();
