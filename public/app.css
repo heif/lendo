@@ -786,3 +786,4 @@ a.ac-pill{text-decoration:none;color:inherit}
 /* item calendar: say which day is pickup and which is return */
 #days button{position:relative}
 #days button[data-tag="pickup"]::after,#days button[data-tag="return"]::after{content:attr(data-tag);position:absolute;left:50%;bottom:-9px;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:9.5px;font-weight:900;letter-spacing:.02em;text-transform:uppercase;padding:1px 5px;border-radius:6px;line-height:1.4;white-space:nowrap;z-index:2}
+#days button[data-tag="pickup"]::after,#days button[data-tag="return"]::after{bottom:auto;top:-9px;background:var(--orange)}
