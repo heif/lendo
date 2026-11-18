@@ -34,6 +34,7 @@ export const Layout: FC<LayoutProps> = (p) => {
         {p.head}
       </head>
       <body>
+        {p.user?.as_from ? <form method="post" action="/as/back" class="asbar">Viewing as <b>{(p.user.name || 'this user').split(' ')[0]}</b><button type="submit">Back to {p.user.as_from}</button></form> : null}
         <div class="wrap" style={p.wide ? 'max-width:none' : ''}>
           {p.top}
           <header class="hdr">

@@ -24,11 +24,35 @@ export const loadUser: MiddlewareHandler<{ Bindings: Env; Variables: Vars }> = a
             WHERE (r.owner_id = ?1 OR r.renter_id = ?1) AND m.sender_id IS NOT NULL AND m.sender_id != ?1 AND m.created_at > COALESCE(t.seen_at, 0))
         + (SELECT COUNT(*) FROM rentals WHERE owner_id = ?1 AND status = 'held') n`).bind(row.id).first<{ n: number }>().catch(() => null);
       row.unread = n?.n || 0;
+      const back = getCookie(c, AS_COOKIE);
+      if (back) { const o = await c.env.DB.prepare('SELECT u.name FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ? AND s.expires_at > ?').bind(back, now()).first<{ name: string | null }>().catch(() => null); row.as_from = o ? (o.name || 'admin').split(' ')[0] : null; }
       c.set('user', row);
     }
   }
   await next();
 };
+
+/* Log in as (owner admin only): a short session as that user; the admin's own session waits in lendo_as */
+const AS_COOKIE = 'lendo_as';
+export async function loginAs(c: Context<{ Bindings: Env; Variables: Vars }>, targetId: string): Promise<boolean> {
+  const me = c.get('user'); const mine = getCookie(c, COOKIE);
+  if (!me || me.admin_level !== 'owner' || !mine || getCookie(c, AS_COOKIE)) return false;
+  const t = await c.env.DB.prepare('SELECT id FROM users WHERE id = ?').bind(targetId).first<{ id: string }>(); if (!t || t.id === me.id) return false;
+  const sid = id('s');
+  await c.env.DB.prepare('INSERT INTO sessions (id, user_id, expires_at) VALUES (?,?,?)').bind(sid, t.id, now() + 8 * 3600000).run();
+  const o = { path: '/', httpOnly: true, sameSite: 'Lax' as const, secure: c.env.APP_URL.startsWith('https'), maxAge: 8 * 3600 };
+  setCookie(c, AS_COOKIE, mine, o); setCookie(c, COOKIE, sid, o);
+  await logEvent(c.env.DB, 'admin.login_as', { user: me.id, data: { as: t.id } });
+  return true;
+}
+export async function backFromAs(c: Context<{ Bindings: Env; Variables: Vars }>): Promise<boolean> {
+  const back = getCookie(c, AS_COOKIE), cur = getCookie(c, COOKIE); if (!back) return false;
+  if (cur) await c.env.DB.prepare('DELETE FROM sessions WHERE id = ?').bind(cur).run();
+  setCookie(c, COOKIE, back, { path: '/', httpOnly: true, sameSite: 'Lax', secure: c.env.APP_URL.startsWith('https'), maxAge: SESSION_DAYS * 86400 });
+  deleteCookie(c, AS_COOKIE, { path: '/' });
+  await logEvent(c.env.DB, 'admin.login_as_back', { user: c.get('user')?.id ?? null });
+  return true;
+}
 
 export const requireUser: MiddlewareHandler<{ Bindings: Env; Variables: Vars }> = async (c, next) => {
   if (!c.get('user')) {

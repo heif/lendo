@@ -10,7 +10,7 @@ import { WANTED_ALL } from '../lib/places';
 import { iconsDone, makeWantedIcon } from '../lib/wanted-icons';
 import { fixDemoLand } from '../lib/demo-land';
 import { Layout } from '../pages/layout';
-import { requireUser } from '../lib/auth';
+import { requireUser, loginAs, backFromAs } from '../lib/auth';
 import { identifyItem, loadPricing, suggestPrice, lastRaw, lastClaude } from '../lib/identify';
 import { money } from '../lib/util';
 import { listingById, userById } from '../lib/db';
@@ -29,6 +29,12 @@ const gate: MiddlewareHandler<{ Bindings: Env; Variables: Vars }> = async (c, ne
 };
 admin.use('/admin', requireUser, gate);
 admin.use('/admin/*', requireUser, gate);
+/* Log in as: owner admin opens a session as any user; the orange bar on every page goes back */
+admin.post('/admin/users/:id/as', async (c) => {
+  if (c.get('user')?.admin_level !== 'owner') return c.notFound();
+  return (await loginAs(c, c.req.param('id'))) ? c.redirect('/') : c.redirect('/admin/users');
+});
+admin.post('/as/back', async (c) => { await backFromAs(c); return c.redirect('/admin/users'); });
 admin.use('/api/identify', async (c, next) => {
   /* the snap flow asks for login only after the item questions, so guests can identify too — capped per IP (AI cost) */
   if (c.get('user')) return next();
