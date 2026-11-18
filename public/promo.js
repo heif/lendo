@@ -24,7 +24,8 @@
   });
   // computers: the gift button toggles the QR / phone panel instead of following the sms: link
   var gp = $('promo'), gb = gp && gp.querySelector('.giftbtn');
-  if (gb && !matchMedia('(pointer:coarse)').matches) gb.addEventListener('click', function (e) {
+  var AND = document.documentElement.classList.contains('android');
+  if (gb && (AND || !matchMedia('(pointer:coarse)').matches)) gb.addEventListener('click', function (e) {
     e.preventDefault(); gp.classList.toggle('open'); var q = $('gpQr');
     if (gp.classList.contains('open') && q && !q.firstChild) {
       var draw = function () { try { var qr = qrcode(0, 'M'); qr.addData(q.dataset.sms); qr.make(); var m = qr.getModuleCount(), s = 4, pad = 2, c = document.createElement('canvas'); c.width = c.height = (m + pad * 2) * s; var g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.fillStyle = '#1E3A2B'; for (var r = 0; r < m; r++) for (var k = 0; k < m; k++) if (qr.isDark(r, k)) g.fillRect((k + pad) * s, (r + pad) * s, s, s); q.appendChild(c); } catch (err) {} };

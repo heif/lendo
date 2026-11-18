@@ -498,6 +498,7 @@
       chip.innerHTML = (qNote ? '<div class="ac-h">' + qNote + '</div>' : '') + '<button type="button" class="ac-pill"><span>🔔 Text me when ' + alertNoun(q.value, !qNote) + ' is listed</span><i class="ac-go">Turn on</i></button>';
       chip.hidden = false;
       /* phones: Turn on = text Lendo ("Need a snowblower…"); the reply makes the account, saves the alert, texts a login link */
+      if (document.documentElement.classList.contains('android')) { chip.querySelector('.ac-pill').onclick = cb; return; } /* Android: texts to Lendo don't arrive → log in on the web */
       if (CFG.num && matchMedia('(pointer:coarse)').matches) { var go = chip.querySelector('.ac-pill'), a = document.createElement('a'); a.className = go.className; a.innerHTML = go.innerHTML;
         a.href = 'sms:+1' + CFG.num + '?&body=' + encodeURIComponent('Need ' + alertNoun(q.value, false) + ' — text me when one is listed'); go.replaceWith(a); return; }
       /* computers: Turn on = scan to text Lendo from your phone (QR) or text the number; logging in stays as a small link */

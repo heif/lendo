@@ -142,6 +142,7 @@ export async function finishLogin(c: Context<{ Bindings: Env; Variables: Vars }>
   const exp = now() + SESSION_DAYS * 86400000;
   await c.env.DB.prepare('INSERT INTO sessions (id, user_id, expires_at) VALUES (?,?,?)').bind(sid, user.id, exp).run();
   await logEvent(c.env.DB, 'login', { user: user.id, data: { ua: (c.req.header('user-agent') || '').slice(0, 160), ip_country: (c.req.raw as any).cf?.country ?? null } });
+  if (/Android/i.test(c.req.header('user-agent') || '')) await c.env.DB.prepare('UPDATE users SET android = 1 WHERE id = ?').bind(user.id).run().catch(() => {});
   setCookie(c, COOKIE, sid, { path: '/', httpOnly: true, sameSite: 'Lax', secure: c.env.APP_URL.startsWith('https'), maxAge: SESSION_DAYS * 86400 });
   return user;
 }
@@ -167,6 +168,7 @@ export async function useLoginLink(c: Context<{ Bindings: Env; Variables: Vars }
   const sid = id('s');
   await c.env.DB.prepare('INSERT INTO sessions (id, user_id, expires_at) VALUES (?,?,?)').bind(sid, user.id, now() + SESSION_DAYS * 86400000).run();
   await logEvent(c.env.DB, 'login', { user: user.id, data: { via: 'link', ua: (c.req.header('user-agent') || '').slice(0, 160) } });
+  if (/Android/i.test(c.req.header('user-agent') || '')) await c.env.DB.prepare('UPDATE users SET android = 1 WHERE id = ?').bind(user.id).run().catch(() => {});
   setCookie(c, COOKIE, sid, { path: '/', httpOnly: true, sameSite: 'Lax', secure: c.env.APP_URL.startsWith('https'), maxAge: SESSION_DAYS * 86400 });
   return user;
 }

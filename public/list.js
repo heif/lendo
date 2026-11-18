@@ -368,7 +368,7 @@
     fd.append('name_0', s.name.trim()); if (s.ai && s.ai.name) fd.append('ai_0', s.ai.name); fd.append('price_0', s.price); fd.append('week_0', 0); fd.append('note_0', s.note || ''); fd.append('grade_0', s.grade || 'A'); if (s.hold) fd.append('hold_0', '1'); fd.append('photo_0', s.blob, 'p0.jpg');
     if (window._gps) { fd.append('lat', window._gps[0]); fd.append('lng', window._gps[1]); }
     fetch('/api/list', { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (j) { if (!j || j.error) throw 0; renderDone(j); show('done');
-      if (ME && !ME.replied && CFG.sms) { var d = document.createElement('a'); d.className = 'dn2-ok-text'; d.href = CFG.sms; d.textContent = '💬 Text OK to Lendo so requests reach you'; var tr = $('tray'); tr.parentNode.insertBefore(d, tr.nextSibling); } })
+      if (ME && !ME.replied && CFG.sms && !document.documentElement.classList.contains('android')) { var d = document.createElement('a'); d.className = 'dn2-ok-text'; d.href = CFG.sms; d.textContent = '💬 Text OK to Lendo so requests reach you'; var tr = $('tray'); tr.parentNode.insertBefore(d, tr.nextSibling); } })
       .catch(function () { $('qCard').innerHTML = '<div class="q-h">Didn’t go through</div><button type="button" class="cta q-next" id="qRetry">TRY AGAIN</button>'; $('qRetry').onclick = listIt; });
   }
 

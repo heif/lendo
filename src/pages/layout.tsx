@@ -26,6 +26,7 @@ export const Layout: FC<LayoutProps> = (p) => {
     <html lang="en" class={p.htmlClass || ""}>
       <head>
         <meta charset="utf-8" />
+        {raw(`<script>if(/Android/i.test(navigator.userAgent))document.documentElement.classList.add('android')</script>`)}
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
         <title>Lendo — {p.title}</title>
         <meta name="theme-color" content="#F5F3EE" />

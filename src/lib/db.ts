@@ -118,7 +118,7 @@ export async function nycLeft(db: D1Database): Promise<number> {
 /* owners who never texted Lendo back can't get rental requests (Blooio blocks after 3) → their listings pause after 1h */
 export async function pauseUntexted(env: Env): Promise<number> {
   const cut = Date.now() - 3600_000;
-  const rows = (await env.DB.prepare(`SELECT l.id, l.owner_id FROM listings l JOIN users u ON u.id = l.owner_id WHERE l.status = 'live' AND l.demo = 0 AND l.created_at < ? AND COALESCE(u.replied, 0) = 0 AND COALESCE(l.paused_why, '') != 'keep' LIMIT 200`).bind(cut).all<{ id: string; owner_id: string }>()).results;
+  const rows = (await env.DB.prepare(`SELECT l.id, l.owner_id FROM listings l JOIN users u ON u.id = l.owner_id WHERE l.status = 'live' AND l.demo = 0 AND l.created_at < ? AND COALESCE(u.replied, 0) = 0 AND COALESCE(u.android, 0) = 0 AND COALESCE(l.paused_why, '') != 'keep' LIMIT 200`).bind(cut).all<{ id: string; owner_id: string }>()).results;
   for (const r of rows) {
     await env.DB.prepare(`UPDATE listings SET status = 'paused', paused_why = 'notext' WHERE id = ? AND status = 'live'`).bind(r.id).run();
     await logEvent(env.DB, 'listing.paused_notext', { user: r.owner_id, listing: r.id });
