@@ -30,6 +30,13 @@ const gate: MiddlewareHandler<{ Bindings: Env; Variables: Vars }> = async (c, ne
 admin.use('/admin', requireUser, gate);
 admin.use('/admin/*', requireUser, gate);
 /* Log in as: owner admin opens a session as any user; the orange bar on every page goes back */
+/* keep an owner's listings live even though they never texted Lendo back (skips the 1-hour no-text pause) */
+admin.post('/admin/users/:id/keeplive', async (c) => {
+  const uid = c.req.param('id');
+  const r = await c.env.DB.prepare(`UPDATE listings SET status = 'live', paused_why = 'keep' WHERE owner_id = ? AND (paused_why = 'notext' OR (status = 'live' AND paused_why IS NULL))`).bind(uid).run();
+  await logEvent(c.env.DB, 'admin.keeplive', { user: c.get('user')!.id, data: { owner: uid, n: r.meta.changes } });
+  return c.redirect('/admin/users');
+});
 admin.post('/admin/users/:id/as', async (c) => {
   if (c.get('user')?.admin_level !== 'owner') return c.notFound();
   return (await loginAs(c, c.req.param('id'))) ? c.redirect('/') : c.redirect('/admin/users');
