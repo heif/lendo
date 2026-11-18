@@ -239,3 +239,4 @@ a.dn2-tray{text-decoration:none;color:var(--ink)}
 .ailist{display:flex;flex-direction:column;gap:8px}.airow{display:flex;align-items:center;gap:10px;text-align:left;background:#fff;border:2.5px solid var(--ink);border-radius:14px;padding:10px 12px;color:var(--ink);opacity:.5}.airow.on{opacity:1}
 .airow .mk{width:24px;height:24px;border-radius:7px;border:3px solid var(--ink);flex:none;display:grid;place-items:center;font-weight:900;font-size:14px}.airow.on .mk{background:var(--ink);color:#fff}
 .airow .nm{flex:1;font-size:15px;font-weight:900;min-width:0}.airow .nm small{display:block;font-size:12px;font-weight:700;color:var(--ink2)}.airow .pr{font-weight:900;font-size:14px;white-space:nowrap}
+.aiico{margin-left:auto;width:36px;height:36px;border-radius:18px;border:2.5px solid var(--ink);background:#fff;font-size:17px;line-height:1;display:grid;place-items:center;box-shadow:0 2px 0 var(--ink)}

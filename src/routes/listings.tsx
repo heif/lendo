@@ -40,8 +40,7 @@ listings.get('/list', async (c) => {
       {/* ideas */}
       <section id="st-ideas" class="lf">
         <div class="lf-scroll">
-          <div class="lf-h">What have you got?</div>
-          <button type="button" class="aiask" id="aiOpen"><i>✨</i><span><b>Ask your AI what you could list</b><small>ChatGPT, Claude, Gemini, Muse or Instinct finds it in your email receipts</small></span></button>
+          <div class="lf-h" style="display:flex;align-items:center">What have you got?<button type="button" class="aiico" id="aiOpen" aria-label="Ask your AI what you could list" title="Ask your AI what you could list">✨</button></div>
           <div id="ideas" class="ideas"></div>
           <button type="button" class="btn full" id="moreIdeas" style="margin-top:8px">14 more ideas →</button>
         </div>
@@ -52,13 +51,11 @@ listings.get('/list', async (c) => {
         <div class="lf-scroll">
           <div class="lf-h">Ask your AI</div>
           <div id="aiA">
-            <div class="aistep"><i>1</i><b>Copy this</b></div>
+            <div class="aistep"><i>1</i><b>Tap your AI</b><small>Copies this ask and opens it · use one that can see your email</small></div>
             <div class="aiprompt" id="aiPrompt">Search my email for receipts of things I bought in the last 5 years that neighbors might rent — tools, cameras, camping, party/audio, sports, baby gear, kitchen appliances, luggage, outdoor gear. Skip food, clothes, gifts, subscriptions and consumables. One per line: item · brand/model · year · price</div>
-            <button type="button" class="cta" id="aiCopy" style="height:46px;font-size:17px">COPY</button>
-            <div class="aistep"><i>2</i><b>Paste it into your AI</b><small>One that can see your email</small></div>
             <div class="aiapps">{[['ChatGPT', 'https://chatgpt.com/?q='], ['Claude', 'https://claude.ai/new?q='], ['Gemini', 'https://gemini.google.com/app'], ['Muse', ''], ['Instinct', ''], ['Other', '']].map(([n, u]) => <button type="button" class="aiapp" data-u={u}>{n}</button>)}</div>
-            <div class="aistep"><i>3</i><b>Copy its answer, come back</b></div>
-            <div class="aistep" style="margin-top:4px"><i>4</i><b>Paste it here</b></div>
+            <div class="aistep"><i>2</i><b>Paste the ask there</b></div>
+            <div class="aistep"><i>3</i><b>Copy its answer, paste it here</b></div>
             <textarea id="aiPaste" class="aipaste" rows={7} placeholder="DeWalt drill · DCD771 · 2022 · $99&#10;REI tent · 2021 · $229&#10;…"></textarea>
             <p class="hint" style="margin-top:6px">Lendo never sees your email · nothing is saved until you pick</p>
           </div>

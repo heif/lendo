@@ -37,7 +37,6 @@
   var aiFound = null;
   function aiCopy() { var t = $('aiPrompt').textContent; try { navigator.clipboard.writeText(t); } catch (e) {} return t; }
   $('aiOpen').addEventListener('click', function () { aiFound = null; $('aiA').hidden = false; $('aiB').hidden = true; $('aiGo').textContent = 'FIND MY STUFF'; show('ai'); });
-  $('aiCopy').addEventListener('click', function () { aiCopy(); this.textContent = 'COPIED ✓'; var b = this; setTimeout(function () { b.textContent = 'COPY'; }, 2000); });
   document.querySelectorAll('.aiapp').forEach(function (b) { b.addEventListener('click', function () {
     var t = aiCopy(), u = b.dataset.u; b.textContent = 'Copied ✓';
     if (u) window.open(/q=$/.test(u) ? u + encodeURIComponent(t) : u, '_blank');
