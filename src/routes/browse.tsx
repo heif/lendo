@@ -519,10 +519,12 @@ browse.get('/privacy', (c) => {
   const num = (c.env.LENDO_NUMBER || '').replace(/\D/g, '').slice(-10);
   const nice = num ? `(${num.slice(0, 3)}) ${num.slice(3, 6)}-${num.slice(6)}` : '';
   return c.html(
-    <Layout title="Privacy" user={u}>
+    <Layout title="Privacy Policy" user={u}>
       <section class="sec" style="border-bottom:0;font-size:15px;line-height:1.5">
-        <h2 style="font-size:26px;font-weight:900;letter-spacing:-.02em;margin:0 0 4px">Privacy</h2>
+        <h2 style="font-size:26px;font-weight:900;letter-spacing:-.02em;margin:0 0 4px">Privacy Policy</h2>
         <p class="hint" style="margin:0">Lendo · lendo.co · updated Nov 18, 2026</p>
+        <p style="margin:12px 0 0">This Privacy Policy covers Lendo (lendo.co), the neighbor-to-neighbor rental service: what data Lendo collects and how it is used</p>
+        <p style="margin:12px 0 0;font-weight:800">We do not sell or share your SMS opt-in data or personal information with third parties for marketing purposes.</p>
         <h3 style={H2}>Texts (SMS / iMessage)</h3>
         <ul style="margin:0;padding-left:20px">
           <li>Lendo texts only people who enter their phone number on lendo.co or text Lendo first</li>
@@ -551,6 +553,52 @@ browse.get('/privacy', (c) => {
         <ul style="margin:0;padding-left:20px">
           <li>Reply STOP to stop texts; turn search alerts off at <a href="/alerts">lendo.co/alerts</a></li>
           <li>To delete your account or get a copy of your data, text Lendo{nice ? <> at <a href={'sms:+1' + num}>{nice}</a></> : null}</li>
+        </ul>
+        <h3 style={H2}>Contact</h3>
+        <p style="margin:0">Text Lendo{nice ? <> at <a href={'sms:+1' + num}>{nice}</a></> : null} or reply HELP to any Lendo text</p>
+      </section>
+    </Layout>
+  );
+});
+
+// ---------- Terms of Service (basic; full version later) ----------
+browse.get('/terms', (c) => {
+  const u = c.get('user');
+  const H2 = 'font-size:20px;font-weight:900;letter-spacing:-.02em;margin:18px 0 6px';
+  const num = (c.env.LENDO_NUMBER || '').replace(/\D/g, '').slice(-10);
+  const nice = num ? `(${num.slice(0, 3)}) ${num.slice(3, 6)}-${num.slice(6)}` : '';
+  const UL = 'margin:0;padding-left:20px';
+  return c.html(
+    <Layout title="Terms of Service" user={u}>
+      <section class="sec" style="border-bottom:0;font-size:15px;line-height:1.5">
+        <h2 style="font-size:26px;font-weight:900;letter-spacing:-.02em;margin:0 0 4px">Terms of Service</h2>
+        <p class="hint" style="margin:0">Lendo · lendo.co · updated Nov 18, 2026</p>
+        <p style="margin:12px 0 0">These Terms of Service cover use of Lendo (lendo.co), where neighbors list things (owners) and rent them (customers). Using Lendo means agreeing to these terms and the <a href="/privacy">Privacy Policy</a></p>
+        <h3 style={H2}>SMS Terms</h3>
+        <ul style={UL}>
+          <li>Program: Lendo rental texts</li>
+          <li>Lendo texts people who enter their phone number on lendo.co or text Lendo first</li>
+          <li>Texts cover login codes and links, rental requests (reply YES or NO), pickup and return updates, payment notices, and search alerts you turn on</li>
+          <li>Message frequency varies</li>
+          <li><b>Message and data rates may apply</b></li>
+          <li>Reply <b>STOP</b> to opt out anytime · reply <b>HELP</b> for help</li>
+          <li>Carriers are not liable for delayed or undelivered messages</li>
+          <li>Help: text Lendo{nice ? <> at <a href={'sms:+1' + num}>{nice}</a></> : null}</li>
+        </ul>
+        <h3 style={H2}>Rentals</h3>
+        <ul style={UL}>
+          <li>Owners set prices and dates and must own what they list; customers pay the rent plus sales tax</li>
+          <li>Lendo charges owners a 15% fee out of the rent</li>
+          <li>Cards are held when a rental is requested, charged when the owner says YES, and released on NO or expiry</li>
+          <li>Items marked worth over $150 get a $150 hold (not a charge) while out</li>
+          <li>Return items on time and in the same condition</li>
+        </ul>
+        <h3 style={H2}>Rules</h3>
+        <ul style={UL}>
+          <li>No illegal, unsafe, stolen or recalled items</li>
+          <li>Be honest in listings, messages and ratings</li>
+          <li>Lendo can remove listings or accounts that break these rules</li>
+          <li>Lendo connects neighbors; owners and customers are responsible for the items and their use</li>
         </ul>
         <h3 style={H2}>Contact</h3>
         <p style="margin:0">Text Lendo{nice ? <> at <a href={'sms:+1' + num}>{nice}</a></> : null} or reply HELP to any Lendo text</p>

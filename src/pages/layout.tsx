@@ -64,6 +64,7 @@ export const Layout: FC<LayoutProps> = (p) => {
                     <a href="/alerts">Search alerts</a>
                     <a href="/how-it-works">How it works</a>
                     <a href="/privacy">Privacy</a>
+                    <a href="/terms">Terms</a>
                     {u.admin ? <a href="/admin">Admin</a> : null}
                     <a class="list" href="/list">Rent out your stuff</a>
                     <a href="/logout" style="color:#8A857B;font-weight:600">Log out</a>
@@ -73,6 +74,7 @@ export const Layout: FC<LayoutProps> = (p) => {
                     <a href="/login">Log in</a>
                     <a href="/how-it-works">How it works</a>
                     <a href="/privacy">Privacy</a>
+                    <a href="/terms">Terms</a>
                     <a class="list" href="/list">Rent out your stuff</a>
                   </>
                 )}
@@ -98,7 +100,7 @@ export const Layout: FC<LayoutProps> = (p) => {
               <div class="optin-box">
                 <div style="font-size:17px;font-weight:900">Get texts from Lendo?</div>
                 <div style="font-size:13px;line-height:1.4;margin-top:6px">To <b id="optPhone"></b>: your $5 off, rentals, saved items and nearby alerts.</div>
-                <div style="font-size:11px;line-height:1.4;color:#6F6A60;margin-top:8px">Msg frequency varies · msg &amp; data rates may apply · reply STOP to opt out, HELP for help · numbers never shared or sold · <a href="/privacy" target="_blank">Privacy</a></div>
+                <div style="font-size:11px;line-height:1.4;color:#6F6A60;margin-top:8px">Msg frequency varies · msg &amp; data rates may apply · reply STOP to opt out, HELP for help · numbers never shared or sold · <a href="/privacy" target="_blank">Privacy</a> · <a href="/terms" target="_blank">Terms</a></div>
                 <div style="display:flex;gap:8px;margin-top:14px"><button type="button" class="btn" id="optNo" style="flex:1">Cancel</button><button type="button" class="btn pri" id="optYes" style="flex:1.4">Agree</button></div>
               </div>
             </div>
