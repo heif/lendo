@@ -38,6 +38,13 @@ app.use('*', async (c, next) => {
     return c.redirect(c.env.APP_URL + c.req.path + (c.req.url.includes('?') ? '?' + c.req.url.split('?')[1] : ''), 301);
   }
   await next();
+  /* every deploy gets fresh JS/CSS: /x.js → /x.js?v=<deploy id> in HTML pages */
+  const v = c.env.CF_VERSION_METADATA?.id?.slice(0, 8);
+  if (v && c.res.status === 200 && (c.res.headers.get('content-type') || '').includes('text/html')) {
+    const html = (await c.res.text()).replace(/(src|href)="\/([\w.-]+\.(?:js|css))"/g, `$1="/$2?v=${v}"`);
+    const h = new Headers(c.res.headers); h.delete('content-length');
+    c.res = new Response(html, { status: c.res.status, headers: h });
+  }
   c.header('x-frame-options', 'DENY');
   c.header('referrer-policy', 'strict-origin-when-cross-origin');
 });
