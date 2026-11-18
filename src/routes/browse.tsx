@@ -519,7 +519,7 @@ browse.get('/privacy', (c) => {
   const num = (c.env.LENDO_NUMBER || '').replace(/\D/g, '').slice(-10);
   const nice = num ? `(${num.slice(0, 3)}) ${num.slice(3, 6)}-${num.slice(6)}` : '';
   return c.html(
-    <Layout title="Privacy Policy" user={u}>
+    <Layout title="Privacy Policy" user={u} promo={false}>
       <section class="sec" style="border-bottom:0;font-size:15px;line-height:1.5">
         <h2 style="font-size:26px;font-weight:900;letter-spacing:-.02em;margin:0 0 4px">Privacy Policy</h2>
         <p class="hint" style="margin:0">Lendo · lendo.co · updated Nov 18, 2026</p>
@@ -561,6 +561,43 @@ browse.get('/privacy', (c) => {
   );
 });
 
+// ---------- SMS opt-in (documentation for carriers / Twilio review) ----------
+browse.get('/sms', (c) => {
+  const u = c.get('user');
+  const H2 = 'font-size:20px;font-weight:900;letter-spacing:-.02em;margin:18px 0 6px';
+  const num = (c.env.LENDO_NUMBER || '').replace(/\D/g, '').slice(-10);
+  const nice = num ? `(${num.slice(0, 3)}) ${num.slice(3, 6)}-${num.slice(6)}` : 'Lendo';
+  const UL = 'margin:0;padding-left:20px';
+  return c.html(
+    <Layout title="Lendo texts: how to opt in" user={u} promo={false}>
+      <section class="sec" style="border-bottom:0;font-size:15px;line-height:1.5">
+        <h2 style="font-size:26px;font-weight:900;letter-spacing:-.02em;margin:0 0 4px">Lendo texts: how to opt in</h2>
+        <p class="hint" style="margin:0">Lendo · lendo.co · neighbor-to-neighbor rentals</p>
+        <p style="margin:12px 0 0">Lendo texts login codes, rental requests (reply YES or NO), pickup and return updates, payment notices, and search alerts users turn on. People opt in one of two ways</p>
+        <h3 style={H2}>1. On lendo.co</h3>
+        <ul style={UL}>
+          <li>At <a href="/login">lendo.co/login</a>, a person types their mobile number and taps <b>Text me a code</b></li>
+          <li>Right under the button: “By tapping Text me a code, you agree to get texts from Lendo: login codes, rental updates and alerts you turn on · msg frequency varies · msg &amp; data rates may apply · reply STOP to opt out, HELP for help · numbers never shared or sold · Privacy · Terms”</li>
+          <li>Phone fields elsewhere on lendo.co open a “Get texts from Lendo?” box with the same terms and an <b>Agree</b> button</li>
+        </ul>
+        <img src="/optin-login.png" alt="lendo.co/login: phone number field, Text me a code button, and the texting terms under it" style="display:block;width:100%;max-width:320px;margin:12px 0;border:3px solid #1E3A2B;border-radius:18px" />
+        <h3 style={H2}>2. By texting Lendo first</h3>
+        <ul style={UL}>
+          <li>A person texts Lendo at {nice} (for example from a sign or a friend’s link)</li>
+          <li>Lendo replies with what the texts cover, msg &amp; data rates, and how to opt out</li>
+          <li>Texting START or UNSTOP opts back in. Reply: “Lendo: you're opted in to rental texts (logins, rental updates, alerts you turn on). Msg frequency varies. Msg &amp; data rates may apply. Reply HELP for help, STOP to opt out”</li>
+        </ul>
+        <h3 style={H2}>Opting out</h3>
+        <ul style={UL}>
+          <li>Reply STOP, UNSUBSCRIBE or CANCEL anytime. Reply: “Lendo: you're unsubscribed and won't get more texts. Reply START to resubscribe”</li>
+          <li>Reply HELP for help</li>
+        </ul>
+        <p style="margin:14px 0 0"><b>We do not sell or share your SMS opt-in data or personal information with third parties for marketing purposes.</b> <a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms of Service</a></p>
+      </section>
+    </Layout>
+  );
+});
+
 // ---------- Terms of Service (basic; full version later) ----------
 browse.get('/terms', (c) => {
   const u = c.get('user');
@@ -569,7 +606,7 @@ browse.get('/terms', (c) => {
   const nice = num ? `(${num.slice(0, 3)}) ${num.slice(3, 6)}-${num.slice(6)}` : '';
   const UL = 'margin:0;padding-left:20px';
   return c.html(
-    <Layout title="Terms of Service" user={u}>
+    <Layout title="Terms of Service" user={u} promo={false}>
       <section class="sec" style="border-bottom:0;font-size:15px;line-height:1.5">
         <h2 style="font-size:26px;font-weight:900;letter-spacing:-.02em;margin:0 0 4px">Terms of Service</h2>
         <p class="hint" style="margin:0">Lendo · lendo.co · updated Nov 18, 2026</p>

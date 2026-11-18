@@ -15,7 +15,7 @@ export const citySlug = (c: { id: string; name: string }) => c.id === 'nyc' ? 'n
 export const cityBySlug = (s: string) => CITIES.find(c => citySlug(c) === s || c.id === s) || null;
 export const hoodBySlug = (cityId: string, s: string) => { const c = CITIES.find(x => x.id === cityId); return c ? c.hoods.find(h => slugify(h.name) === s) || null : null; };
 
-const RESERVED = new Set(['i', 'u', 'p', 'r', 'api', 'admin', 'login', 'logout', 'list', 'listings', 'rentals', 'alerts', 'inbox', 'about', 'how-it-works', 'profile', 'webhooks', 'promo', 'help', 'terms', 'privacy', 'dev', 'cdn-cgi', 'static', 'app', 'me', 'settings', 'search', 'map', 'rent', 'lendo', 'support', 'blog', 'jobs', 'www']);
+const RESERVED = new Set(['i', 'u', 'p', 'r', 'api', 'admin', 'login', 'logout', 'list', 'listings', 'rentals', 'alerts', 'inbox', 'about', 'how-it-works', 'profile', 'webhooks', 'promo', 'help', 'terms', 'privacy', 'sms', 'dev', 'cdn-cgi', 'static', 'app', 'me', 'settings', 'search', 'map', 'rent', 'lendo', 'support', 'blog', 'jobs', 'www']);
 export const handleOk = (h: string) => /^[a-z0-9][a-z0-9-]{1,23}$/.test(h) && !RESERVED.has(h) && !cityBySlug(h) && !(h.length === 4 && /[2-9]/.test(h));
 
 // first free handle: maya, maya-k, maya-k2…

@@ -116,8 +116,8 @@ async function inboundText(c: Context<{ Bindings: Env; Variables: Vars }>, phone
     if (gift) await c.env.DB.prepare('UPDATE users SET promo_cents = 500, promo_claimed_at = ? WHERE id = ? AND promo_claimed_at IS NULL').bind(Date.now(), nu.id).run();
     const link = await loginLink(c.env, phone);
     await textUser(c.env, nu, gift
-      ? `Welcome to Lendo! ${giftVar === 'a' ? '$5 off' : 'Your $5 gift card is on'} your first rental${giftVar === 'a' ? ' is on' : ''}. You're in: ${link} · Reply STOP to opt out`
-      : `Welcome to Lendo! You're in: ${link} · Reply STOP to opt out`, 'login');
+      ? `Welcome to Lendo! ${giftVar === 'a' ? '$5 off' : 'Your $5 gift card is on'} your first rental${giftVar === 'a' ? ' is on' : ''}. You're in: ${link} · Lendo texts cover logins, rentals and alerts you turn on · msg frequency varies · msg & data rates may apply · reply HELP for help, STOP to opt out`
+      : `Welcome to Lendo! You're in: ${link} · Lendo texts cover logins, rentals and alerts you turn on · msg frequency varies · msg & data rates may apply · reply HELP for help, STOP to opt out`, 'login');
     if (gift) return c.json({ ok: true, welcomed: true });
     return handleText(c, nu, text, 'text'); /* "Hi! I need a ladder" → matches */
   }
