@@ -773,6 +773,6 @@ a.ac-pill{text-decoration:none;color:inherit}
 /* wanted posters grow on hover like items (computers) */
 @media (hover:hover) and (pointer:fine){
 .mapboxgl-marker.wanted-m:hover{z-index:5!important}
-.ghost.img:hover{filter:none;opacity:1;transform:scale(2.1);transition:transform .14s ease-out}
-.ghost.img:hover::after{content:attr(data-l);position:absolute;left:50%;top:100%;transform:translateX(-50%) scale(.48);transform-origin:50% 0;margin-top:4px;white-space:nowrap;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:29px;font-weight:900;color:var(--ink);background:#fff;border-radius:18px;padding:6px 18px;box-shadow:0 2px 8px rgba(0,0,0,.18)}
-.ghost.img{position:relative}}
+.ghost.img:hover{filter:none;opacity:1}.ghost.img:hover img{transform:scale(calc(var(--gs,1) * 2.1));transition:transform .14s ease-out}
+.ghost.img:hover::after{content:attr(data-l);position:absolute;left:50%;top:100%;transform:translateX(-50%) scale(.48);transform-origin:50% 0;margin-top:22px;white-space:nowrap;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:29px;font-weight:900;color:var(--ink);background:#fff;border-radius:18px;padding:6px 18px;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+}
