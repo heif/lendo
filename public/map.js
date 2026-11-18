@@ -469,11 +469,12 @@
         /* and pins near the left/right edge open the card toward the middle, so it is never cut off */
         /* always grows up from the pin; nudged sideways/down only as much as needed to stay on screen */
         var pt = map.project(f.geometry.coordinates), W = map.getContainer().clientWidth, dx = 0, dy = 0;
-        if (pt.x < 112) dx = 112 - pt.x; else if (pt.x > W - 112) dx = W - 112 - pt.x;
+        if (pt.x < 116) dx = 116 - pt.x; else if (pt.x > W - 116) dx = W - 116 - pt.x;
         if (pt.y < 236) dy = 236 - pt.y;
         /* option 1: the pin itself grows (bigger photo + tag) and the name appears under it; no box */
-        hov.options.anchor = 'bottom'; hov.options.offset = [dx, 36 + dy];
+        hov.options.anchor = 'bottom'; hov.options.offset = [0, 36 + dy]; /* the photo stays on the pin; only the name label slides in from the edge */
         hov.setLngLat(f.geometry.coordinates).setHTML('<a class="hv" href="/i/' + it.id + '">' + (src ? '<img src="' + src + '" alt="" data-trim="1">' : '') + '<span class="hvp">' + fmt(it.price_cents) + '<small>/day</small></span><b><span class="ownlink" data-u="' + esc(profUrl(it)) + '">' + esc(possessive(it.owner_name)) + '</span> ' + esc(nm) + '</b>' + '</a>').addTo(map);
+        var nb = hov.getElement().querySelector('.hv b'); if (nb && dx) nb.style.transform = 'translateX(' + dx + 'px)';
         var el = hov.getElement(); el.onmouseenter = function () { overPop = true; clearTimeout(hovT); }; el.onmouseleave = function () { overPop = false; hideHov(); };
         el.onclick = function (ev) { var ol = ev.target.closest('.ownlink'); if (ol) { ev.preventDefault(); location.href = ol.dataset.u; } };
         if (window.lendoTrim) window.lendoTrim();
