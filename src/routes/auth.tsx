@@ -1,3 +1,4 @@
+import { twilioSmsOn } from '../lib/twiliosms';
 import { raw } from 'hono/html';
 import { Hono } from 'hono';
 import { logEvent } from '../lib/log';
@@ -135,7 +136,7 @@ auth.get('/texts-on', async (c) => {
   const u = c.get('user');
   if (!u) return c.redirect('/login');
   const next = safeNext(c.req.query('next'));
-  if (/Android/i.test(c.req.header('user-agent') || '')) return c.redirect(next); /* Android texts don't reach Lendo's number: skip the Text-OK step */
+  if (/Android/i.test(c.req.header('user-agent') || '') && !twilioSmsOn(c.env)) return c.redirect(next); /* Android texts don't reach Lendo's number: skip the Text-OK step */
   return c.html(
     <Layout title="Turn on texts" user={u} back={null}>
       <div style="padding:36px 18px 30px;text-align:center">

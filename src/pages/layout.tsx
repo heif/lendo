@@ -26,7 +26,7 @@ export const Layout: FC<LayoutProps> = (p) => {
     <html lang="en" class={p.htmlClass || ""}>
       <head>
         <meta charset="utf-8" />
-        {raw(`<script>if(/Android/i.test(navigator.userAgent))document.documentElement.classList.add('android')</script>`)}
+        {raw(`<script>(function(){if(!/Android/i.test(navigator.userAgent))return;var S='${site.sms}';if(!S){document.documentElement.classList.add('android');return}window.LENDO_SMS=S;document.addEventListener('DOMContentLoaded',function(){[].forEach.call(document.querySelectorAll('a[href^="sms:"]'),function(a){a.href=a.getAttribute('href').replace(/^sms:\+?1?\d{10}/,'sms:+1'+S)})})})()</script>`)}
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
         <title>Lendo — {p.title}</title>
         <meta name="theme-color" content="#F5F3EE" />

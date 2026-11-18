@@ -1,3 +1,4 @@
+import { sendTwilioSms, twilioSmsOn } from './twiliosms';
 // Blooio — iMessage (falls back to SMS on Blooio's side) for login codes and rental texts.
 // Docs: https://docs.blooio.com  (POST {BASE}/chats/{phone}/messages  { text, attachments? })
 import type { Env, User } from './env';
@@ -11,7 +12,7 @@ export const KEEP_ASK = 'Reply OK to keep these coming';
 const asksReply = (t: string) => /\breply\b/i.test(t);
 /* Lendo's own number as an sms: link (prefilled body); works on iPhone + Android */
 /* Lendo's number for page markup that has no env (layout); set per request in loadUser */
-export const site = { number: '' };
+export const site = { number: '', sms: '' }; /* sms = Android SMS number (10 digits) when Twilio SMS is on */
 export const GIFT_TEXT = 'Free $5 gift card please';
 export const smsHref = (env: Env, body: string) => `sms:+1${(env.LENDO_NUMBER || '').replace(/\D/g, '').slice(-10)}?&body=${encodeURIComponent(body)}`;
 
@@ -51,6 +52,12 @@ export async function textUser(env: Env, user: User, text: string, category: Tex
   // Until they've texted us once, iOS tends to spam-filter messages with links from an unknown number,
   // and Blooio allows only 3 outbound on a new conversation. So: no links, and ask for a reply.
   /* Blooio stops a conversation after 6 texts in a row with no reply (429 streak_limit). The 5th asks for a reply; past 6 we hold instead of failing */
+  if ((user as any).android && twilioSmsOn(env)) {
+    const r2 = await sendTwilioSms(env, user.phone, text.replace(/ ?\(Reply OK to get links \+ updates here\.\)/, ''));
+    if (!r2.ok) await logEvent(env.DB, 'text.failed', { user: user.id, rental: rentalId, data: { category, via: 'twilio', err: String(r2.error).slice(0, 300), body: text.slice(0, 300) } });
+    await env.DB.prepare('INSERT INTO outbound_texts (id, user_id, body, category, rental_id, provider_id, created_at) VALUES (?,?,?,?,?,?,?)').bind(id('t'), user.id, text, category, rentalId ?? null, r2.message_id ?? null, now()).run();
+    return r2;
+  }
   const streak = await textStreak(env, user.id);
   /* a conversation they've never replied to: Blooio allows only 3 */
   if (streak >= (user.replied ? STREAK_MAX : 3) && category !== 'login') { await logEvent(env.DB, 'text.suppressed', { user: user.id, rental: rentalId, data: { category, why: `waiting for a reply (${streak} unanswered)`, body: text.slice(0, 300) } });

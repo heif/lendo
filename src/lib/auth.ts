@@ -1,3 +1,4 @@
+import { smsDigits } from './twiliosms';
 import type { Context, MiddlewareHandler } from 'hono';
 import { logEvent } from './log';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
@@ -10,7 +11,7 @@ const SESSION_DAYS = 90;
 const COOKIE = 'lendo_s';
 
 export const loadUser: MiddlewareHandler<{ Bindings: Env; Variables: Vars }> = async (c, next) => {
-  c.set('user', null); site.number = c.env.LENDO_NUMBER || '';
+  c.set('user', null); site.number = c.env.LENDO_NUMBER || ''; site.sms = smsDigits(c.env);
   const sid = getCookie(c, COOKIE);
   if (sid) {
     const row = await c.env.DB.prepare('SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ? AND s.expires_at > ?')

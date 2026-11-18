@@ -1,3 +1,4 @@
+import { twilioSigOk } from '../lib/twiliosms';
 import { answerPending, actOn, intentContext, parseIntent } from '../lib/intent';
 import { logErr, logEvent } from '../lib/log';
 import { CONFIRM_ASK, KEEP_ASK } from '../lib/blooio';
@@ -86,7 +87,20 @@ async function blooioInbound(c: Context<{ Bindings: Env; Variables: Vars }>) {
   // debug breadcrumb: last inbound seen (event + sender suffix + time); no message text stored
   c.executionCtx.waitUntil(c.env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('last_inbound', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(JSON.stringify({ t: Date.now(), ev, from: m ? String(m.from).slice(-4) : null })).run().then(() => {}));
   if (!m) return c.json({ ok: true, ignored: 'no sender' });
-  const phone = normPhone(m.from) || m.from;
+  return inboundText(c, normPhone(m.from) || m.from, m.text, false);
+}
+/* Android: texts to the Twilio SMS number (form-encoded), same handling as Blooio; replies go back by Twilio */
+webhooks.post('/webhooks/twilio', async (c) => {
+  const f = Object.fromEntries(Object.entries(await c.req.parseBody()).map(([k, v]) => [k, String(v)]));
+  const url = c.env.APP_URL.replace(/\/$/, '') + '/webhooks/twilio';
+  if (!(await twilioSigOk(c.env, url, f, c.req.header('x-twilio-signature') || ''))) return c.text('bad signature', 401);
+  try { await inboundText(c, normPhone(f.From || '') || f.From || '', String(f.Body || ''), true); }
+  catch (e: any) { await logErr(c.env.DB, 'twilio inbound', e); }
+  return c.body('<Response></Response>', 200, { 'content-type': 'text/xml' });
+});
+async function inboundText(c: Context<{ Bindings: Env; Variables: Vars }>, phone: string, body: string, sms: boolean) {
+  if (sms) { const u0 = await userByPhone(c.env.DB, phone); if (u0) await c.env.DB.prepare('UPDATE users SET android = 1 WHERE id = ?').bind(u0.id).run(); }
+  const m = { text: body };
   const user = await userByPhone(c.env.DB, phone);
   const text = m.text.trim();
   const kw = text.toUpperCase().replace(/[^A-Z ]/g, '').trim();
@@ -95,7 +109,7 @@ async function blooioInbound(c: Context<{ Bindings: Env; Variables: Vars }>) {
     if (!/^\+1\d{10}$/.test(phone) || kw === 'STOP' || kw === 'HELP') return c.json({ ok: true, unknown: true });
     /* a new person texting first (gift card button, Text Lendo bar): they're in — account by phone, texted login link */
     const nu = await ensureUser(c.env.DB, phone);
-    await c.env.DB.prepare('UPDATE users SET replied = 1 WHERE id = ?').bind(nu.id).run(); nu.replied = 1;
+    await c.env.DB.prepare('UPDATE users SET replied = 1, android = ? WHERE id = ?').bind(sms ? 1 : 0, nu.id).run(); nu.replied = 1; if (sms) (nu as any).android = 1;
     await logEvent(c.env.DB, 'user.signup', { user: nu.id, data: { via: 'text' } });
     const gift = /\$5|gift/i.test(text), giftVar = /off rental/i.test(text) ? 'a' : 'b'; /* A/B: "$5 off rental" vs "$5 gift card" */
     if (gift) await logEvent(c.env.DB, 'ab.gift5', { user: nu.id, data: { ev: 'claim', var: giftVar, via: 'text' } });

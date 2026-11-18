@@ -2,6 +2,7 @@
 // Config comes from window.LENDO_MAP = { token, style, center:[lng,lat], zoom, hasHome }.
 (function () {
   var CFG = window.LENDO_MAP || {};
+  if (window.LENDO_SMS) CFG.num = window.LENDO_SMS; /* Android + Twilio SMS number on */
   var S = window.LENDO_MAP_STYLE;
   var WALKERS = true;          // §2 animated walkers (toggle)
   var MAX_WALKERS = 20;

@@ -23,7 +23,8 @@ export type Env = {
   TWILIO_AUTH_TOKEN?: string;
   TWILIO_API_KEY_SID?: string;    // optional instead of the auth token: an API key (SK…) + its secret
   TWILIO_API_KEY_SECRET?: string;
-  TWILIO_VERIFY_SID?: string;     // VA… service id
+  TWILIO_VERIFY_SID?: string;
+  TWILIO_SMS_FROM?: string;       // registered 10DLC number (+1…) for Android users; unset = off     // VA… service id
   CF_VERSION_METADATA?: { id: string; tag?: string };  // this deploy's id: cache-busts /app.css, /map.js…
   BRAVE_API_KEY?: string;         // standard product photos for no-photo listings (Brave image search)
   ANTHROPIC_API_KEY?: string;     // plain-English texting (intent.ts)  // sk., never sent to the client
