@@ -503,7 +503,7 @@
       chip.querySelector('.ac-pill').onclick = cb; return;
     }
     chip.innerHTML = (qNote ? '<div class="ac-h">' + qNote + '</div>' : '') +
-      '<button type="button" class="ac-pill' + (on ? ' on' : '') + '" role="switch" aria-checked="' + on + '"><span>🔔 Text alert when ' + alertNoun(q.value, !qNote) + ' is listed</span><i class="ac-sw"><em>' + (on ? 'ON' : 'OFF') + '</em><b></b></i></button>';
+      '<button type="button" class="ac-pill' + (on ? ' on' : '') + '" role="switch" aria-checked="' + on + '"><span>' + (on ? '🔔 <b class="ac-on">Text alert ON</b> · you’ll get a text when ' + alertNoun(q.value, !qNote) + ' is listed' : '🔕 Text alert off · tap to get a text when ' + alertNoun(q.value, !qNote) + ' is listed') + '</span><i class="ac-sw"><em>' + (on ? 'ON' : 'OFF') + '</em><b></b></i></button>';
     chip.hidden = false; chip.querySelector('.ac-pill').onclick = cb;
   }
   function alertChip(now) {
