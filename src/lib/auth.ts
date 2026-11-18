@@ -103,6 +103,7 @@ export const smsFallback = twilioOn;
 export async function startLogin(env: Env, phone: string, via: 'auto' | 'sms' = 'auto'): Promise<{ ok: boolean; devCode?: string; error?: string; note?: string }> {
   // SMS asked for: if Twilio can't send, keep them on the code screen (the iMessage code still works)
   if (via === 'sms' && twilioOn(env)) { const t = await viaTwilio(env, phone); return t.ok ? t : { ok: true, note: 'SMS isn’t available right now — use the code from your iMessage text' }; }
+  await logEvent(env.DB, 'login.start', { data: { phone: '…' + phone.slice(-4), via } }).catch(() => {}); /* see sign-up attempts in the admin log */
   const code = String(Math.floor(100000 + Math.random() * 900000));
   // the previous unexpired code stays valid (resend + autofill of the first text): kept as a 'prev:' row
   const old = await env.DB.prepare('SELECT code, expires_at FROM otp_codes WHERE phone = ?').bind(phone).first<{ code: string; expires_at: number }>();
