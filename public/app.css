@@ -769,3 +769,4 @@ a.ac-pill{text-decoration:none;color:inherit}
 .linkbtn{border:0;background:none;padding:0;text-decoration:underline;cursor:pointer;font:inherit}
 .hovdim{position:absolute;inset:0;z-index:2;background:rgba(245,243,238,.62);opacity:0;pointer-events:none;transition:opacity .15s}.hovdim.on{opacity:1}
 .hv b{max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hv img{width:auto;height:auto;max-width:160px;max-height:130px;min-width:70px}.hv .hvp{margin-top:-16px;position:relative;z-index:1}
