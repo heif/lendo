@@ -22,7 +22,7 @@ import { geocodePlace } from '../lib/geo';
 import { assignHood, loadHoods } from '../lib/hoods';
 import { handleOk } from '../lib/urls';
 
-const TICKER = ['MAKE MONEY', 'SAVE MONEY', 'SAVE SPACE', 'MEET NEIGHBORS', 'BUY LESS', 'WASTE LESS'];
+const TICKER = ['MAKE MONEY', 'SAVE MONEY', 'BETTER NEIGHBORHOODS', 'SAVE SPACE', 'MEET NEIGHBORS', 'BUY LESS', 'BETTER CITIES', 'WASTE LESS'];
 
 export const browse = new Hono<{ Bindings: Env; Variables: Vars }>();
 
