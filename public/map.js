@@ -470,6 +470,13 @@
   map.on('click', 'more', function (e) { map.easeTo({ center: e.lngLat, zoom: Math.min(17, map.getZoom() + 1.5), duration: 600 }); });
   map.on('click', function (e) { if (map.queryRenderedFeatures(e.point, { layers: ['pins', 'mini', 'more'] }).length) return; hov.remove(); hovId = null; if (sel) { sel = null; refresh(); } sheet.classList.remove('on'); });
   map.on('movestart', function () { hov.remove(); hovId = null; });
+  /* wheel/trackpad zoom keeps working over pins' grown cards and wanted posters (DOM on top of the canvas) */
+  map.getContainer().addEventListener('wheel', function (e) {
+    if (!e.target.closest || !e.target.closest('.mapboxgl-marker,.mapboxgl-popup')) return;
+    e.preventDefault(); hov.remove(); hovId = null;
+    map.getCanvas().dispatchEvent(new WheelEvent('wheel', { deltaX: e.deltaX, deltaY: e.deltaY, deltaMode: e.deltaMode, clientX: e.clientX, clientY: e.clientY, ctrlKey: e.ctrlKey, bubbles: true, cancelable: true }));
+  }, { passive: false, capture: true });
+  map.on('zoomstart', function () { hov.remove(); hovId = null; });
   ['pins', 'mini', 'more'].forEach(function (l) { map.on('mouseenter', l, function () { map.getCanvas().style.cursor = 'pointer'; }); map.on('mouseleave', l, function () { map.getCanvas().style.cursor = ''; }); });
 
   q.addEventListener('input', function () { clearTimeout(t); t = setTimeout(load, 300); });
