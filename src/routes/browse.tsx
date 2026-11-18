@@ -156,7 +156,6 @@ export const itemPage = async (c: Ctx, lid: string, pretty = false) => {
   return c.html(
     <Layout title={it.name} headerCenter={<span />} user={u} flash={c.req.query('canceled') ? 'Checkout canceled — nothing was charged.' : null}>
       <div class={photos.length > 1 ? 'hero gal' : 'hero'}>
-        <Grade g={gr.letter} cls="onphoto" />
         {it.stock_photo ? <span class="stocktag">Standard photo · owner says theirs looks like this</span> : null}
         {photos[0] ? <img id="heroImg" data-trim="1" src={cutoutUrl(c.env, photos[0].r2_key)} alt={it.name}  /> : it.avatar_key ? <img id="heroImg" class="trimme" crossorigin="anonymous" src={'/p/' + it.avatar_key} alt={it.name} /> : <div class="hint">no photo yet</div>}
         
@@ -176,6 +175,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
       </div>
       {mine ? <a class="myrent" href={'/r/' + mine.id}><b>{({ held: 'You asked to rent this', confirmed: 'You’re renting this', picked_up: 'You have this now', returned: 'You rented this' } as Record<string, string>)[mine.status]}</b><span>{fmtRange(mine.start_day, mine.end_day)} · {mine.status === 'held' ? 'waiting for YES' : mine.status === 'returned' ? 'rate it' : 'open rental'}</span><i dangerouslySetInnerHTML={{ __html: '<svg width="12" height="18" viewBox="0 0 12 18"><path d="M3 2l6 7-6 7" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>' }} /></a> : null}
       <section class="sec" style="padding:12px 16px 14px">
+        <div class="ititle"><div style="flex:1;min-width:0">
         <div class="row" style="justify-content:space-between;align-items:flex-start">
           <h2 style="margin:0;font-size:20px;font-weight:800;line-height:1.25">{(() => { const f = (owner.name || 'Neighbor').split(' ')[0]; const nm = it.name.charAt(0).toUpperCase() + it.name.slice(1); return <><a class="ownlink" href={(owner as any).handle ? '/' + (owner as any).handle : '/u/' + owner.id} style="font-weight:500;display:block;font-size:.72em">{f + (/s$/i.test(f) ? '’' : '’s')}</a>{nm}</>; })()}</h2>
           {it.status === 'paused' && it.paused_why === 'notext' && isOwner ? <a class="pill" style="background:var(--orange);color:#fff;text-decoration:none;white-space:nowrap" href={smsHref(c.env, 'OK')}>Paused · text OK to Lendo</a> : it.status === 'paused' ? <span class="pill">paused</span> : it.status === 'review' ? <span class="pill">Posted · checking the photo</span> : null}
@@ -183,6 +183,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
         </div>
         {ir?.n ? <div class="hint" style="margin-top:2px">👍 {ir.up || 0} of {ir.n}</div> : null}
         {it.description ? <p style="margin:4px 0 0;font-size:14px;line-height:1.4;color:var(--ink2);white-space:pre-wrap">{it.description}</p> : null}
+        </div><Grade g={gr.letter} cls="inrow" /></div>
         {!isOwner && it.status === 'live' ? (it.demo || !u
           ? <a class="askbtn" href={it.demo ? '#' : '/i/' + it.id + '/ask'} onclick={it.demo ? "event.preventDefault();toast('Demo item — messaging is off')" : undefined}>Ask a question</a>
           : <details class="askd" ontoggle="if(this.open)this.querySelector('textarea').focus()"><summary class="askbtn">Ask a question</summary>

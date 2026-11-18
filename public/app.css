@@ -801,3 +801,4 @@ html.android .gp-qr,html.android .gp-or{display:none!important}
 .hero{background:none;border-bottom:0}
 .hero img#heroImg{filter:drop-shadow(0 6px 10px rgba(30,58,43,.16))}
 #days button[data-tag="pickup"] small,#days button[data-tag="return"] small{visibility:hidden}/* PICKUP/RETURN tag replaces the TODAY/month label */
+.ititle{display:flex;gap:12px;align-items:flex-start}.grd.inrow{flex-shrink:0;margin-top:2px}
