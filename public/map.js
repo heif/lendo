@@ -464,12 +464,20 @@
     el.onclick = function (ev) { var ol = ev.target.closest('.ownlink'); if (ol) { ev.preventDefault(); location.href = ol.dataset.u; } };
     if (window.lendoTrim) window.lendoTrim();
   }
+  /* the grown photo lets the mouse through (to reach nearby pins), so clicks on it are caught here → that item's page */
+  function photoHit(e) {
+    if (!hovId) return false; var im = hov.getElement() && hov.getElement().querySelector('.hv img'); if (!im) return false;
+    var r = im.getBoundingClientRect(), x = e.originalEvent.clientX, y = e.originalEvent.clientY;
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) { location.href = '/i/' + hovId; return true; }
+    return false;
+  }
+  if (HOVER) map.on('mousemove', function (e) { if (!hovId) return; var im = hov.getElement() && hov.getElement().querySelector('.hv img'); if (!im) return; var r = im.getBoundingClientRect(), x = e.originalEvent.clientX, y = e.originalEvent.clientY; if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) { map.getCanvas().style.cursor = 'pointer'; clearTimeout(hovT); } });
   ['pins', 'mini'].forEach(function (l) {
-    map.on('click', l, function (e) { var f = e.features[0]; if (HOVER) { location.href = '/i/' + f.properties.id; return; } showHov(f); });
+    map.on('click', l, function (e) { if (photoHit(e)) return; var f = e.features[0]; if (HOVER) { location.href = '/i/' + f.properties.id; return; } showHov(f); });
     if (HOVER) { map.on('mousemove', l, function (e) { showHov(e.features[0]); }); map.on('mouseleave', l, hideHov); }
   });
   map.on('click', 'more', function (e) { map.easeTo({ center: e.lngLat, zoom: Math.min(17, map.getZoom() + 1.5), duration: 600 }); });
-  map.on('click', function (e) { if (map.queryRenderedFeatures(e.point, { layers: ['pins', 'mini', 'more'] }).length) return; hov.remove(); hovId = null; if (sel) { sel = null; refresh(); } sheet.classList.remove('on'); });
+  map.on('click', function (e) { if (map.queryRenderedFeatures(e.point, { layers: ['pins', 'mini', 'more'] }).length) return; if (photoHit(e)) return; hov.remove(); hovId = null; if (sel) { sel = null; refresh(); } sheet.classList.remove('on'); });
   map.on('movestart', function () { hov.remove(); hovId = null; });
   /* wheel/trackpad zoom keeps working over pins' grown cards and wanted posters (DOM on top of the canvas) */
   map.getContainer().addEventListener('wheel', function (e) {
