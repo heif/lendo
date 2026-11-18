@@ -22,17 +22,35 @@ api.use('/api/*', async (c, next) => { await next(); c.header('access-control-al
 
 // settled search queries (map.js beacon) → events 'search'
 /* A/B beacons: { exp: 'gift5', var: 'a'|'b', ev: 'view'|'click' } — visitor from the lendo_v cookie */
+/* fallback when the model gives nothing: one item per line, "name … 2024 … $79" */
+function roughList(text: string) {
+  const out: { name: string; model: string; year: string; price: number }[] = [];
+  for (const ln of text.split(/\n+/)) {
+    const l = ln.replace(/^[\s*•\-–\d.)]+/, '').trim(); if (l.length < 4 || l.length > 160 || /:$/.test(l)) continue;
+    const yr = l.match(/\b(20[0-3]\d|19\d\d)\b/), pr = l.match(/\$\s?([\d,]+(?:\.\d+)?)/);
+    if (!yr && !pr) continue;
+    let name = l.split(/\s(?:20[0-3]\d|19\d\d)\b|\s\$|\s·\s/)[0].replace(/\(.*?\)/g, '').replace(/[·,;:\-–\s]+$/, '').trim();
+    if (!name || name.length < 3 || /^(no|left out|older|gaps|the )/i.test(name)) continue;
+    const paid = pr ? parseFloat(pr[1].replace(/,/g, '')) : 0;
+    if (paid && paid < 20) continue;
+    out.push({ name: name.slice(0, 60), model: '', year: yr ? yr[1] : '', price: Math.max(6, Math.min(200, Math.round((paid || 150) * 0.05))) });
+  }
+  return out.slice(0, 40);
+}
 /* "Ask your AI": a list the user's own AI pulled from their email receipts → rentable things with a day price. Never stored */
 api.post('/api/ai-ideas', async (c) => {
   const b = await c.req.json<{ text?: string }>().catch(() => ({} as { text?: string }));
   const text = String(b.text || '').slice(0, 12000).trim();
-  if (!text || !c.env.ANTHROPIC_API_KEY) return c.json({ items: [] });
+  if (!text) return c.json({ items: [] });
+  if (!c.env.ANTHROPIC_API_KEY) return c.json({ items: roughList(text) });
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': c.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-haiku-5-5', max_tokens: 2000, system: 'From a list of purchases, keep only physical things a neighbor might rent for a day or a weekend (tools, cameras, camping/outdoor, party/audio, sports, baby gear, kitchen appliances, luggage, electronics, instruments, bikes, furniture for events). Drop food, clothes, consumables, gift cards, subscriptions, books, cheap small items under ~$25, and duplicates. Name = short item name with the brand (+ model) when it matters to a renter, never guessed. Price = a fair daily rental price in whole dollars, about 3-6% of what was paid, min 6. Reply with JSON only: {"items":[{"name":"","model":"","year":"","price":10}]} ordered most rentable first, at most 40.', messages: [{ role: 'user', content: text }] }) });
-    if (!r.ok) return c.json({ items: [] });
-    const j: any = await r.json(); const t = String(j.content?.[0]?.text || ''); const m = t.match(/\{[\s\S]*\}/);
-    const items = (m ? JSON.parse(m[0]).items : []).filter((x: any) => x && x.name).slice(0, 40).map((x: any) => ({ name: String(x.name).slice(0, 60), model: String(x.model || '').slice(0, 40), year: String(x.year || '').slice(0, 4), price: Math.max(6, Math.min(200, Math.round(Number(x.price) || 10))) }));
+      body: JSON.stringify({ model: 'claude-haiku-5-5', max_tokens: 4000, system: 'From a list of purchases, keep only physical things a neighbor might rent for a day or a weekend (tools, cameras, camping/outdoor, party/audio, sports, baby gear, kitchen appliances, luggage, electronics, instruments, bikes, furniture for events). Drop food, clothes, consumables, gift cards, subscriptions, books, cheap small items under ~$25, and duplicates. Name = short item name with the brand (+ model) when it matters to a renter, never guessed. Price = a fair daily rental price in whole dollars, about 3-6% of what was paid, min 6. Reply with JSON only: {"items":[{"name":"","model":"","year":"","price":10}]} ordered most rentable first, at most 40.', messages: [{ role: 'user', content: text }, { role: 'assistant', content: '{' }] }) });
+    if (!r.ok) { await logErr(c.env.DB, 'ai-ideas', new Error('anthropic ' + r.status + ' ' + (await r.text()).slice(0, 300))); return c.json({ items: roughList(text) }); }
+    const j: any = await r.json(); const t = '{' + ((j.content || []).find((x: any) => x.type === 'text')?.text || ''); const m = t.match(/\{[\s\S]*\}/);
+    let parsed: any[] = []; try { parsed = m ? JSON.parse(m[0]).items || [] : []; } catch { parsed = []; }
+    if (!parsed.length) { parsed = roughList(text); await logEvent(c.env.DB, 'list.ai_ideas_fallback', { data: { stop: j.stop_reason, raw: t.slice(0, 400), n: parsed.length } }); }
+    const items = parsed.filter((x: any) => x && x.name).slice(0, 40).map((x: any) => ({ name: String(x.name).slice(0, 60), model: String(x.model || '').slice(0, 40), year: String(x.year || '').slice(0, 4), price: Math.max(6, Math.min(200, Math.round(Number(x.price) || 10))) }));
     await logEvent(c.env.DB, 'list.ai_ideas', { user: c.get('user')?.id ?? null, data: { n: items.length, chars: text.length } });
     return c.json({ items });
   } catch (e) { await logErr(c.env.DB, 'ai-ideas', e); return c.json({ items: [] }); }
