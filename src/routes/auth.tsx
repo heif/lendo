@@ -26,7 +26,7 @@ auth.get('/login', (c) => {
         <input type="hidden" name="next" value={next} />
         <label class="field"><span>Phone</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(646) 555-0199" required autofocus /></label>
         <button class="btn pri full" type="submit">Text me a code</button>
-        <p class="hint" style="margin-top:14px">We'll text you. Reply STOP anytime.</p>
+        <p class="hint" style="margin-top:14px;line-height:1.45">Lendo texts login codes, rental updates and alerts you turn on · msg frequency varies · msg &amp; data rates may apply · reply STOP to opt out, HELP for help · numbers never shared or sold · <a href="/privacy">Privacy</a></p>
       </form>
     </Layout>
   );

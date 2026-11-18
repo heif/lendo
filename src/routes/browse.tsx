@@ -512,6 +512,53 @@ browse.get('/how-it-works', (c) => {
   );
 });
 
+// ---------- Privacy (basic; full TOS/PP later) ----------
+browse.get('/privacy', (c) => {
+  const u = c.get('user');
+  const H2 = 'font-size:20px;font-weight:900;letter-spacing:-.02em;margin:18px 0 6px';
+  const num = (c.env.LENDO_NUMBER || '').replace(/\D/g, '').slice(-10);
+  const nice = num ? `(${num.slice(0, 3)}) ${num.slice(3, 6)}-${num.slice(6)}` : '';
+  return c.html(
+    <Layout title="Privacy" user={u}>
+      <section class="sec" style="border-bottom:0;font-size:15px;line-height:1.5">
+        <h2 style="font-size:26px;font-weight:900;letter-spacing:-.02em;margin:0 0 4px">Privacy</h2>
+        <p class="hint" style="margin:0">Lendo · lendo.co · updated Nov 18, 2026</p>
+        <h3 style={H2}>Texts (SMS / iMessage)</h3>
+        <ul style="margin:0;padding-left:20px">
+          <li>Lendo texts only people who enter their phone number on lendo.co or text Lendo first</li>
+          <li>Texts are for: login codes and links, rental requests (reply YES or NO), pickup and return updates, payment notices, and search alerts you turn on</li>
+          <li>Message frequency varies with your rentals and alerts</li>
+          <li>Msg &amp; data rates may apply</li>
+          <li>Reply <b>STOP</b> to opt out anytime · reply <b>HELP</b> for help</li>
+          <li><b>Mobile numbers and texting consent are never shared or sold to third parties or affiliates for marketing</b></li>
+        </ul>
+        <h3 style={H2}>What Lendo keeps</h3>
+        <ul style="margin:0;padding-left:20px">
+          <li>Phone number and the name you give</li>
+          <li>Your listings, photos, rentals, ratings and messages</li>
+          <li>Rough location (neighborhood) to show nearby items; item pins on the map are shifted, never your exact address</li>
+          <li>A log of account and rental activity, for safety, support and fixing problems</li>
+        </ul>
+        <h3 style={H2}>Who else sees it</h3>
+        <ul style="margin:0;padding-left:20px">
+          <li>The other person in a rental sees your first name, rating and pickup details for that rental</li>
+          <li>Cards and payouts are handled by Stripe; Lendo never stores card numbers</li>
+          <li>Service providers that run Lendo (hosting, text delivery, payments, maps) get only what they need to do that job</li>
+          <li>Lendo does not sell personal information</li>
+          <li>Information may be shared if required by law or to stop fraud or harm</li>
+        </ul>
+        <h3 style={H2}>Your choices</h3>
+        <ul style="margin:0;padding-left:20px">
+          <li>Reply STOP to stop texts; turn search alerts off at <a href="/alerts">lendo.co/alerts</a></li>
+          <li>To delete your account or get a copy of your data, text Lendo{nice ? <> at <a href={'sms:+1' + num}>{nice}</a></> : null}</li>
+        </ul>
+        <h3 style={H2}>Contact</h3>
+        <p style="margin:0">Text Lendo{nice ? <> at <a href={'sms:+1' + num}>{nice}</a></> : null} or reply HELP to any Lendo text</p>
+      </section>
+    </Layout>
+  );
+});
+
 // ---------- Photos (R2) ----------
 // /c/<key>: the item photo as a cut-out (background removed). Every item picture on the site uses this, never /p/
 browse.get('/c/:key{.+}', (c) => {
