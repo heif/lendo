@@ -55,11 +55,12 @@
     map.addImage(id, g.getImageData(0, 0, w * DPR, h * DPR), { pixelRatio: DPR }); return id;
   }
   function aisleOf(it) { var n = (it.name + ' ' + (it.description || '')).toLowerCase(); for (var k = 0; k < AISLES.length; k++) if (AISLES[k][1].test(n)) return AISLES[k][0]; return 'Everything else'; }
+  document.addEventListener('click', function (e) { var ol = e.target.closest && e.target.closest('.ai-t .ownlink'); if (ol) { e.preventDefault(); location.href = ol.dataset.u; } });
   function tile(it) {
     var img = it.avatar_key ? '/p/' + it.avatar_key : it.photo ? '/c/' + it.photo + '?s=300' : '';
     return '<div class="ai-t"><a href="/i/' + it.id + '"><div class="ai-im">' + '<span class="ai-sh"></span>' +
       (img ? '<img loading="lazy" decoding="async" src="' + img + '" alt="' + esc(it.name) + '"' + (it.avatar_key ? '' : ' class="ph"') + '>' : '<span class="ai-em">' + (it.emoji || '📦') + '</span>') +
-      (isJust(it) ? '<span class="ai-age">' + ageLabel(it.created_at) + '</span>' : '') + '<span class="ai-pr">' + fmt(it.price_cents) + '<small>/day</small></span></div><div class="ai-nm">' + esc(it.name) + '</div></a>' +
+      (isJust(it) ? '<span class="ai-age">' + ageLabel(it.created_at) + '</span>' : '') + '<span class="ai-pr">' + fmt(it.price_cents) + '<small>/day</small></span></div><div class="ai-nm"><span class="ownlink" data-u="' + esc(profUrl(it)) + '">' + esc(possessive(it.owner_name)) + '</span> ' + esc(it.name) + '</div></a>' +
       '<button type="button" class="ai-wh" data-go="' + it.id + '"><svg width="9" height="11" viewBox="0 0 24 28" aria-hidden="true"><path d="M12 27C12 27 3 17 3 10.5A9 9 0 0 1 21 10.5C21 17 12 27 12 27Z" fill="#1E3A2B"/><circle cx="12" cy="10.5" r="3.2" fill="#fff"/></svg>' + esc(it.hood || 'nearby') + '</button></div>';
   }
   function renderGrid(items) {
@@ -440,49 +441,36 @@
 
   $('scGlobe').addEventListener('click', function () { openPlaces(); });
 
-  // selection + sheet
-  map.on('click', 'pins', function (e) {
-    var p = e.features[0].properties; var it = items.filter(function (x) { return x.id === p.id; })[0] || p;
-    sel = p.id; refresh();
-    fillCard(it); sheet.classList.add('on');
-  });
-  map.on('click', 'mini', function (e) {
-    var id = e.features[0].properties.id, it = items.filter(function (x) { return x.id === id; })[0]; if (!it) return;
-    sel = id; refresh(); fillCard(it); sheet.classList.add('on');
+  // no item card: computers hover (pin grows) and click → item; phones tap → pin grows, tap again → item
+  var HOVER = !!(window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches);
+  var hov = new mapboxgl.Popup({ closeButton: false, closeOnClick: false, offset: [0, -56], anchor: 'bottom', className: 'hovpop', maxWidth: '220px' }), hovId = null, hovT = null, overPop = false;
+  var dim = document.createElement('div'); dim.className = 'hovdim'; map.getContainer().appendChild(dim);
+  hov.on('open', function () { dim.classList.add('on'); }); hov.on('close', function () { dim.classList.remove('on'); });
+  var hideHov = function () { clearTimeout(hovT); hovT = setTimeout(function () { if (!overPop) { hov.remove(); hovId = null; } }, 180); };
+  function showHov(f) {
+    var id = f.properties.id; clearTimeout(hovT); if (id === hovId) return;
+    var it = items.filter(function (x) { return x.id === id; })[0]; if (!it) return; hovId = id;
+    var src = it.avatar_key ? '/p/' + it.avatar_key : it.photo ? '/c/' + it.photo + '?s=300' : '';
+    var nm = it.name.charAt(0).toUpperCase() + it.name.slice(1);
+    /* the pin grows (bigger photo + tag), the name appears under it; the photo stays on the pin, only the label slides in from an edge */
+    var pt = map.project(f.geometry.coordinates), W = map.getContainer().clientWidth, dx = 0, dy = 0;
+    if (pt.x < 116) dx = 116 - pt.x; else if (pt.x > W - 116) dx = W - 116 - pt.x;
+    if (pt.y < 236) dy = 236 - pt.y;
+    hov.options.anchor = 'bottom'; hov.options.offset = [0, 36 + dy];
+    hov.setLngLat(f.geometry.coordinates).setHTML('<a class="hv" href="/i/' + it.id + '">' + (src ? '<img src="' + src + '" alt="" data-trim="1">' : '') + '<span class="hvp">' + fmt(it.price_cents) + '<small>/day</small></span><b><span class="ownlink" data-u="' + esc(profUrl(it)) + '">' + esc(possessive(it.owner_name)) + '</span> ' + esc(nm) + '</b>' + '</a>').addTo(map);
+    var nb = hov.getElement().querySelector('.hv b'); if (nb && dx) nb.style.transform = 'translateX(' + dx + 'px)';
+    var el = hov.getElement(); el.onmouseenter = function () { overPop = true; clearTimeout(hovT); }; el.onmouseleave = function () { overPop = false; if (HOVER) hideHov(); };
+    el.onclick = function (ev) { var ol = ev.target.closest('.ownlink'); if (ol) { ev.preventDefault(); location.href = ol.dataset.u; } };
+    if (window.lendoTrim) window.lendoTrim();
+  }
+  ['pins', 'mini'].forEach(function (l) {
+    map.on('click', l, function (e) { var f = e.features[0]; if (HOVER) { location.href = '/i/' + f.properties.id; return; } showHov(f); });
+    if (HOVER) { map.on('mousemove', l, function (e) { showHov(e.features[0]); }); map.on('mouseleave', l, hideHov); }
   });
   map.on('click', 'more', function (e) { map.easeTo({ center: e.lngLat, zoom: Math.min(17, map.getZoom() + 1.5), duration: 600 }); });
-  map.on('click', function (e) { if (map.queryRenderedFeatures(e.point, { layers: ['pins', 'mini', 'more'] }).length) return; if (sel) { sel = null; refresh(); } sheet.classList.remove('on'); });
+  map.on('click', function (e) { if (map.queryRenderedFeatures(e.point, { layers: ['pins', 'mini', 'more'] }).length) return; hov.remove(); hovId = null; if (sel) { sel = null; refresh(); } sheet.classList.remove('on'); });
+  map.on('movestart', function () { hov.remove(); hovId = null; });
   ['pins', 'mini', 'more'].forEach(function (l) { map.on('mouseenter', l, function () { map.getCanvas().style.cursor = 'pointer'; }); map.on('mouseleave', l, function () { map.getCanvas().style.cursor = ''; }); });
-  /* computers: rolling over an item shows a mini card at the pin (owner → profile, rest → item) */
-  if (window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches && window.mapboxgl) {
-    var hov = new mapboxgl.Popup({ closeButton: false, closeOnClick: false, offset: [0, -56], anchor: 'bottom', className: 'hovpop', maxWidth: '220px' }), hovId = null, hovT = null, overPop = false;
-    var dim = document.createElement('div'); dim.className = 'hovdim'; map.getContainer().appendChild(dim);
-    hov.on('open', function () { dim.classList.add('on'); }); hov.on('close', function () { dim.classList.remove('on'); });
-    var hideHov = function () { clearTimeout(hovT); hovT = setTimeout(function () { if (!overPop) { hov.remove(); hovId = null; } }, 180); };
-    ['pins', 'mini'].forEach(function (l) {
-      map.on('mousemove', l, function (e) {
-        var f = e.features[0], id = f.properties.id; clearTimeout(hovT); if (id === hovId) return;
-        var it = items.filter(function (x) { return x.id === id; })[0]; if (!it) return; hovId = id;
-        var src = it.avatar_key ? '/p/' + it.avatar_key : it.photo ? '/c/' + it.photo + '?s=300' : '';
-        var nm = it.name.charAt(0).toUpperCase() + it.name.slice(1);
-        /* pins near the top open the card below them, clear of the search bar and Rent-out button */
-        /* and pins near the left/right edge open the card toward the middle, so it is never cut off */
-        /* always grows up from the pin; nudged sideways/down only as much as needed to stay on screen */
-        var pt = map.project(f.geometry.coordinates), W = map.getContainer().clientWidth, dx = 0, dy = 0;
-        if (pt.x < 116) dx = 116 - pt.x; else if (pt.x > W - 116) dx = W - 116 - pt.x;
-        if (pt.y < 236) dy = 236 - pt.y;
-        /* option 1: the pin itself grows (bigger photo + tag) and the name appears under it; no box */
-        hov.options.anchor = 'bottom'; hov.options.offset = [0, 36 + dy]; /* the photo stays on the pin; only the name label slides in from the edge */
-        hov.setLngLat(f.geometry.coordinates).setHTML('<a class="hv" href="/i/' + it.id + '">' + (src ? '<img src="' + src + '" alt="" data-trim="1">' : '') + '<span class="hvp">' + fmt(it.price_cents) + '<small>/day</small></span><b><span class="ownlink" data-u="' + esc(profUrl(it)) + '">' + esc(possessive(it.owner_name)) + '</span> ' + esc(nm) + '</b>' + '</a>').addTo(map);
-        var nb = hov.getElement().querySelector('.hv b'); if (nb && dx) nb.style.transform = 'translateX(' + dx + 'px)';
-        var el = hov.getElement(); el.onmouseenter = function () { overPop = true; clearTimeout(hovT); }; el.onmouseleave = function () { overPop = false; hideHov(); };
-        el.onclick = function (ev) { var ol = ev.target.closest('.ownlink'); if (ol) { ev.preventDefault(); location.href = ol.dataset.u; } };
-        if (window.lendoTrim) window.lendoTrim();
-      });
-      map.on('mouseleave', l, hideHov);
-    });
-    map.on('movestart', function () { hov.remove(); hovId = null; });
-  }
 
   q.addEventListener('input', function () { clearTimeout(t); t = setTimeout(load, 300); });
   // saved-search alert: on automatically after a search settles; visible Turn off
