@@ -145,12 +145,14 @@ export async function handleText(c: Context<{ Bindings: Env; Variables: Vars }>,
     if (!r0) { await textUser(c.env, user, `You're set. Rentals: ${c.env.APP_URL}/rentals · Map: ${c.env.APP_URL}/`, 'rental'); return c.json({ ok: true }); }
   }
   if (kw === 'STOP' || kw === 'UNSUBSCRIBE' || kw === 'CANCEL') {
+    /* Twilio (SMS) sends its own STOP confirmation; the iMessage line needs one from Lendo */
+    if (via === 'text' && !(user as any).android) await textUser(c.env, user, `Lendo: you're unsubscribed and won't get more texts. Reply START to resubscribe`, 'rental').catch(() => null);
     await c.env.DB.prepare('UPDATE users SET texts = 0, nudges = 0 WHERE id = ?').bind(user.id).run();
     return c.json({ ok: true });
   }
   if (kw === 'START' || kw === 'UNSTOP') {
     await c.env.DB.prepare('UPDATE users SET texts = 1 WHERE id = ?').bind(user.id).run();
-    await textUser(c.env, { ...user, texts: 1 }, `You're back on. We'll text you about your rentals.`, 'rental');
+    await textUser(c.env, { ...user, texts: 1 }, `Lendo: you're opted in to rental texts (logins, rental updates, alerts you turn on). Msg frequency varies. Msg & data rates may apply. Reply HELP for help, STOP to opt out`, 'rental');
     return c.json({ ok: true });
   }
   if (kw === 'STOP NUDGES' || kw === 'NO NUDGES') {
@@ -165,7 +167,7 @@ export async function handleText(c: Context<{ Bindings: Env; Variables: Vars }>,
   }
   if (kw === 'SKIP') { await textUser(c.env, user, `Ok — the customer can text you to set a time`, 'rental'); return c.json({ ok: true }); }
   if (kw === 'LIST') { await textUser(c.env, user, `Point, tap, done: ${c.env.APP_URL}/list`, 'nudge'); return c.json({ ok: true }); }
-  if (kw === 'HELP') { await textUser(c.env, user, `Lendo: reply YES/NO to a request, STOP to stop texts. Your rentals: ${c.env.APP_URL}/rentals`, 'rental'); return c.json({ ok: true }); }
+  if (kw === 'HELP') { await textUser(c.env, user, `Lendo: neighbor-to-neighbor rentals. Reply YES/NO to a request. Help: ${c.env.APP_URL}/terms · Your rentals: ${c.env.APP_URL}/rentals · Msg & data rates may apply · Reply STOP to opt out`, 'rental'); return c.json({ ok: true }); }
 
   // a parked plain-English action (price change, cancel) waiting for YES wins over an owner's pending request
   if ((kw === 'YES' || kw === 'Y' || kw === 'NO' || kw === 'N') && await answerPending(c.env, user, kw.startsWith('Y'))) return c.json({ ok: true });
