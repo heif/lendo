@@ -123,7 +123,7 @@ browse.get('/', (c) => homePage(c));
 /* owner photo with their things hugging it, slowly circling (item card, item page) */
 const OwnerOrbit = (p: { name: string | null; photo?: string | null; items: { src: string; cut: boolean }[] }) => {
   const orb = p.items.slice(0, 6), R = 27;
-  return <span class="oorb">
+  return <span class={orb.length ? 'oorb' : 'oorb solo'}>
     <span class="oorb-av"><Avatar name={p.name} photo={p.photo} size={50} /></span>
     <span class="oorb-ring">{orb.map((x, i) => { const a = (-90 + i * (360 / Math.max(orb.length, 5))) * Math.PI / 180;
       return <span class="oorb-sat" style={`left:${(42 + Math.cos(a) * R - 13).toFixed(1)}px;top:${(42 + Math.sin(a) * R - 13).toFixed(1)}px`}><span><img src={x.src} alt="" class={x.cut ? '' : 'ph'} /></span></span>; })}</span>
