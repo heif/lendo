@@ -464,7 +464,9 @@
         var src = it.avatar_key ? '/p/' + it.avatar_key : it.photo ? '/c/' + it.photo + '?s=300' : '';
         var nm = it.name.charAt(0).toUpperCase() + it.name.slice(1);
         /* pins near the top open the card below them, clear of the search bar and Rent-out button */
-        var low = map.project(f.geometry.coordinates).y < 290; hov.options.anchor = low ? 'top' : 'bottom'; hov.options.offset = low ? [0, 12] : [0, -56];
+        /* and pins near the left/right edge open the card toward the middle, so it is never cut off */
+        var pt = map.project(f.geometry.coordinates), W = map.getContainer().clientWidth, low = pt.y < 290, side = pt.x < 130 ? '-left' : pt.x > W - 130 ? '-right' : '';
+        hov.options.anchor = (low ? 'top' : 'bottom') + side; hov.options.offset = [side === '-left' ? -14 : side === '-right' ? 14 : 0, low ? 12 : -56];
         hov.setLngLat(f.geometry.coordinates).setHTML('<a class="hv" href="/i/' + it.id + '">' + (src ? '<img src="' + src + '" alt="" data-trim="1">' : '') + '<b><span class="ownlink" data-u="' + esc(profUrl(it)) + '">' + esc(possessive(it.owner_name)) + '</span> ' + esc(nm) + '</b><span class="hvp">' + fmt(it.price_cents) + '<small>/day</small></span></a>').addTo(map);
         var el = hov.getElement(); el.onmouseenter = function () { overPop = true; clearTimeout(hovT); }; el.onmouseleave = function () { overPop = false; hideHov(); };
         el.onclick = function (ev) { var ol = ev.target.closest('.ownlink'); if (ol) { ev.preventDefault(); location.href = ol.dataset.u; } };
