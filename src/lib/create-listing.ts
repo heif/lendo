@@ -1,3 +1,4 @@
+import { minPriceCents } from './identify';
 // One place that turns (name, price, photos, maybe GPS) into a live listing: location fallback chain, hood, emoji, icon job.
 import type { Env, User } from './env';
 import { logEvent } from './log';
@@ -15,7 +16,7 @@ import { matchListing } from './alerts';
 export type NewListing = { name: string; priceCents: number; weekCents?: number | null; description?: string | null; lat?: number | null; lng?: number | null; photos: { bytes: ArrayBuffer; type: string }[]; grade?: string | null };
 
 export async function createListing(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }, u: User, n: NewListing): Promise<string> {
-  const minP = parseInt(env.MIN_PRICE_CENTS, 10);
+  const minP = await minPriceCents(env);
   const price = Math.max(minP, Math.round(n.priceCents));
   const week = weekDefault(price); // weekly is always automatic: 30% off 7 days, never set by the owner
   let lat = n.lat ?? NaN, lng = n.lng ?? NaN, hood = u.hood;

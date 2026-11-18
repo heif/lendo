@@ -44,46 +44,59 @@
   function aiRender() {
     var on = aiFound.filter(function (x) { return x.on; }).length;
     $('aiN').textContent = aiFound.length + (aiFound.length === 1 ? ' thing found' : ' things found');
-    $('aiList').innerHTML = aiFound.map(function (x, i) { return '<button type="button" class="airow' + (x.on ? ' on' : '') + '" data-i="' + i + '"><span class="mk">' + (x.on ? '✓' : '') + '</span><span class="nm">' + esc(x.name) + (x.detail ? '<small>' + esc(x.detail) + '</small>' : '') + '</span><span class="pr">$' + x.price + '/day</span></button>'; }).join('') || '<p class="hint">Nothing rentable in there. Try the ideas instead</p>';
-    $('aiGo').textContent = on ? 'SNAP ' + on + (on === 1 ? ' THING' : ' THINGS') : 'BACK';
-    $('aiStock').hidden = !(CFG.stock && on);
+    /* price is a starting suggestion: − / + right on the row, never below the minimum */
+    $('aiList').innerHTML = aiFound.map(function (x, i) { return '<div class="airow' + (x.on ? ' on' : '') + '" data-i="' + i + '"><button type="button" class="airt" data-i="' + i + '"><span class="mk">' + (x.on ? '✓' : '') + '</span><span class="nm">' + esc(x.name) + (x.detail ? '<small>' + esc(x.detail) + '</small>' : '') + '</span></button>' + (x.on ? '<span class="aipr"><button type="button" class="aipm" data-i="' + i + '" data-d="-1" aria-label="Lower">−</button><b>$' + x.price + '<small>/day</small></b><button type="button" class="aipm" data-i="' + i + '" data-d="1" aria-label="Raise">+</button></span>' : '') + '</div>'; }).join('') || '<p class="hint">Nothing rentable in there. Try the ideas instead</p>';
+    /* standard photos are the main path; the camera is the fallback */
+    $('aiGo').textContent = !on ? 'BACK' : CFG.stock ? 'NEXT: ' + on + (on === 1 ? ' THING' : ' THINGS') : 'SNAP ' + on + (on === 1 ? ' THING' : ' THINGS');
+    $('aiStock').hidden = !(CFG.stock && on); $('aiStock').textContent = 'Take my own photos instead →';
   }
   /* no-photo path: a standard product photo per item; the owner confirms theirs looks like it */
   var stockMode = false;
   function stockRender() {
     var ok = aiFound.filter(function (x) { return x.on && x.yes && x.imgs && x.imgs.length; }).length;
     $('aiStockList').innerHTML = aiFound.map(function (x, i) { if (!x.on) return ''; var im = x.imgs && x.imgs[x.k || 0];
-      return '<div class="stk' + (x.yes ? ' on' : '') + '"><button type="button" class="stk-img" data-i="' + i + '" aria-label="Another photo">' + (x.imgs ? (im ? '<img src="' + esc(im.thumb) + '" alt="">' + (x.imgs.length > 1 ? '<span>↻</span>' : '') : '<small>no photo found</small>') : '<small>…</small>') + '</button><div class="stk-t"><b>' + esc(x.name) + '</b><small>$' + x.price + '/day</small>' + (im ? '<button type="button" class="stk-yes" data-i="' + i + '">' + (x.yes ? '✓ Mine looks like this' : 'Mine looks like this') + '</button>' : '') + '</div></div>'; }).join('');
-    $('aiGo').textContent = ok ? 'POST ' + ok + ' NOW' : 'CONFIRM EACH ONE';
+      return '<div class="stk' + (x.yes ? ' on' : '') + '"><button type="button" class="stk-img" data-i="' + i + '" aria-label="Another photo">' + (x.imgs ? (im ? '<img src="' + esc(im.thumb) + '" alt="">' + (x.imgs.length > 1 ? '<span>↻</span>' : '') : '<small>no photo found</small>') : '<small>…</small>') + '</button><div class="stk-t"><b>' + esc(x.name) + '</b>' + (im ? '<button type="button" class="stk-yes" data-i="' + i + '">' + (x.yes ? '✓ Mine looks like this' : 'Mine looks like this') + '</button>' : '') + '</div></div>'; }).join('');
+    $('aiGo').textContent = ok ? 'POST ' + ok + (ok === 1 ? ' THING' : ' THINGS') : 'CONFIRM EACH ONE';
     $('aiGo').disabled = !ok;
   }
-  $('aiStock').addEventListener('click', function () {
-    stockMode = true; $('aiB').hidden = true; $('aiC').hidden = false; stockRender();
-    aiFound.forEach(function (x) { if (!x.on || x.imgs) return; fetch('/api/stock?q=' + encodeURIComponent(x.name + (x.detail ? ' ' + x.detail.split(' · ')[0] : ''))).then(function (r) { return r.json(); }).then(function (j) { x.imgs = j.imgs || []; x.k = 0; stockRender(); }).catch(function () { x.imgs = []; stockRender(); }); });
-  });
+  /* photo searches one at a time (~1/sec, the search API's limit), retrying a rate-limited one twice */
+  function stockFetch(list, tries) {
+    var x = list.shift(); if (!x) return;
+    fetch('/api/stock?q=' + encodeURIComponent(x.name + (x.detail ? ' ' + x.detail.split(' · ')[0] : ''))).then(function (r) { return r.json(); }).then(function (j) {
+      if (j.retry && (tries || 0) < 2) { list.unshift(x); return setTimeout(function () { stockFetch(list, (tries || 0) + 1); }, 1500); }
+      x.imgs = j.imgs || []; x.k = 0; stockRender(); setTimeout(function () { stockFetch(list, 0); }, 1100);
+    }).catch(function () { x.imgs = []; stockRender(); setTimeout(function () { stockFetch(list, 0); }, 1100); });
+  }
+  /* picked → become ideas + picked, then the camera */
+  function toCamera() {
+    var on = aiFound.filter(function (x) { return x.on; });
+    on.slice().reverse().forEach(function (x) { if (!IDEAS.some(function (i) { return i[1] === x.name; })) IDEAS.unshift(['📦', x.name, x.price]); if (picked.indexOf(x.name) < 0) picked.push(x.name); });
+    renderIdeas(); if (!on.length) { show('ideas'); return; } if (!t0) t0 = Date.now(); show('cam');
+  }
+  function toStock() { stockMode = true; $('aiB').hidden = true; $('aiC').hidden = false; stockRender(); stockFetch(aiFound.filter(function (x) { return x.on && !x.imgs; }), 0); }
+  $('aiStock').addEventListener('click', function () { stockMode = false; toCamera(); });
   $('aiStockList').addEventListener('click', function (e) {
     var b = e.target.closest('.stk-yes'), m = e.target.closest('.stk-img');
     if (b) { var x = aiFound[+b.dataset.i]; x.yes = !x.yes; stockRender(); }
     else if (m) { var y = aiFound[+m.dataset.i]; if (y.imgs && y.imgs.length > 1) { y.k = ((y.k || 0) + 1) % y.imgs.length; y.yes = false; stockRender(); } }
   });
-  $('aiList').addEventListener('click', function (e) { var b = e.target.closest('.airow'); if (!b) return; var x = aiFound[+b.dataset.i]; x.on = !x.on; aiRender(); });
+  $('aiList').addEventListener('click', function (e) {
+    var pm = e.target.closest('.aipm'); if (pm) { var y = aiFound[+pm.dataset.i]; y.price = Math.max(MIN, y.price + (+pm.dataset.d)); aiRender(); return; }
+    var b = e.target.closest('.airt'); if (!b) return; var x = aiFound[+b.dataset.i]; x.on = !x.on; aiRender(); });
   $('aiGo').addEventListener('click', function () {
     var go = this;
     if (stockMode) {
       var items = aiFound.filter(function (x) { return x.on && x.yes && x.imgs && x.imgs.length; }).map(function (x) { var im = x.imgs[x.k || 0]; return { name: x.name, price: x.price, img: im.src, thumb: im.thumb }; });
       if (!items.length) return; go.disabled = true; go.textContent = 'POSTING…';
-      fetch('/api/list-stock', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items: items, lat: window._gps ? window._gps[0] : undefined, lng: window._gps ? window._gps[1] : undefined }) }).then(function (r) { if (r.status === 401) { location.href = '/login?next=/list'; return null; } return r.json(); }).then(function (j) { if (!j) return; shots = items.map(function (x) { return { name: x.name, price: x.price }; }); renderDone(j); show('done'); }).catch(function () { go.textContent = 'TRY AGAIN'; go.disabled = false; });
+      fetch('/api/list-stock', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items: items, lat: window._gps ? window._gps[0] : undefined, lng: window._gps ? window._gps[1] : undefined }) }).then(function (r) { if (r.status === 401) { location.href = '/login?next=/list'; return null; } return r.json(); }).then(function (j) { if (!j) return; var L = (j.listed || []).slice().sort(function (a, b) { return a.i - b.i; }); shots = L.map(function (r) { return { name: r.name, price: r.price, url: r.photo || items[r.i].thumb, cutUrl: r.cut }; }); j.listed = L;
+        if (!L.length) { go.textContent = 'TRY AGAIN'; go.disabled = false; return; } renderDone(j); show('done'); }).catch(function () { go.textContent = 'TRY AGAIN'; go.disabled = false; });
       return;
     }
-    if (aiFound) { /* picked → become ideas + picked, then the camera */
-      var on = aiFound.filter(function (x) { return x.on; });
-      on.slice().reverse().forEach(function (x) { if (!IDEAS.some(function (i) { return i[1] === x.name; })) IDEAS.unshift(['📦', x.name, x.price]); if (picked.indexOf(x.name) < 0) picked.push(x.name); });
-      renderIdeas(); if (!on.length) { show('ideas'); return; } if (!t0) t0 = Date.now(); show('cam'); return;
-    }
+    if (aiFound) { if (CFG.stock && aiFound.some(function (x) { return x.on; })) toStock(); else toCamera(); return; }
     var txt = $('aiPaste').value.trim(); if (txt.length < 4) { $('aiPaste').focus(); return; }
     go.disabled = true; go.textContent = 'READING…';
     fetch('/api/ai-ideas', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: txt.slice(0, 12000) }) }).then(function (r) { return r.json(); }).then(function (j) {
-      aiFound = (j.items || []).map(function (x) { return { name: x.name, detail: [x.model, x.year].filter(Boolean).join(' · '), price: x.price || 10, on: true }; });
+      aiFound = (j.items || []).map(function (x) { return { name: x.name, detail: [x.model, x.year].filter(Boolean).join(' · '), price: Math.max(MIN, x.price || 10), on: true }; });
       $('aiA').hidden = true; $('aiB').hidden = false; aiRender();
     }).catch(function () { go.textContent = 'TRY AGAIN'; }).then(function () { go.disabled = false; });
   });
@@ -104,7 +117,7 @@
   function addShot(blob) {
     var url = URL.createObjectURL(blob), name = nextName(), idea = IDEAS.filter(function (i) { return i[1] === name; })[0];
     if (retakeIdx != null) { var rs = shots[retakeIdx]; rs.blob = blob; rs.url = url; rs.cutUrl = null; rs.touched = {}; retakeIdx = null; cutFast(rs); identify(rs); show('q'); return; }
-    var shot = { blob: blob, url: url, name: name, price: idea ? idea[2] : MIN, week: 0, note: '', hint: name, ai: null, touched: {} };
+    var shot = { blob: blob, url: url, name: name, price: idea ? Math.max(MIN, idea[2]) : MIN, week: 0, note: '', hint: name, ai: null, touched: {} };
     shots = [shot]; cutFast(shot); identify(shot); QI = 0; setTimeout(function () { show('q'); }, 250); /* one thing at a time: no Done, straight to the questions */
     $('flash').classList.add('on'); setTimeout(function () { $('flash').classList.remove('on'); }, 220);
     $('toast').classList.add('on'); clearTimeout($('toast')._t); $('toast')._t = setTimeout(function () { $('toast').classList.remove('on'); }, 1100);
@@ -206,6 +219,7 @@
     /* tap the picture or name → the item page */
     var L0 = Lc[0]; if (L0) { var tr = $('tray'), a = document.createElement('a'); a.href = L0.url || '/i/' + L0.id; a.className = 'dn2-tray'; a.id = 'tray'; a.innerHTML = tr.innerHTML; tr.parentNode.replaceChild(a, tr); }
     $('dnHead').textContent = shots.length === 1 ? 'Posted' : shots.length + ' posted';
+    $('again').lastChild.textContent = shots.length === 1 ? 'List another' : 'List more';
     $('dnSub').textContent = shots.length === 1 ? 'Live on the map — neighbors can rent it now' : 'Live on the map — neighbors can rent them now';
 
     var L = (j && j.listed) || [], one = shots.length === 1 && L[0], minP = Math.min.apply(null, shots.map(function (s) { return s.price; }));

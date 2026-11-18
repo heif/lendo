@@ -1,3 +1,4 @@
+import { minPriceCents } from '../lib/identify';
 import { getCookie } from 'hono/cookie';
 import { bonusOpen, nycLeft, NYC_CAP } from '../lib/db';
 import { hereOf } from '../lib/places';
@@ -30,7 +31,7 @@ export const listings = new Hono<{ Bindings: Env; Variables: Vars }>();
 // ---------- List fast ----------
 const listPage = async (c: any) => {
   const u = c.get('user'); /* guests can snap + answer; phone/code come after the item questions */
-  const cfg = JSON.stringify({ stock: !!c.env.BRAVE_API_KEY, minPrice: parseInt(c.env.MIN_PRICE_CENTS, 10) / 100, hood: u?.hood || '', user: u ? { name: u.name || '', hood: u.hood || '', replied: !!u.replied } : null, sms: smsHref(c.env, 'OK'), shareUrl: u ? c.env.APP_URL + ((u as any).handle ? '/' + (u as any).handle : '/u/' + u.id) : c.env.APP_URL });
+  const cfg = JSON.stringify({ stock: !!c.env.BRAVE_API_KEY, minPrice: (await minPriceCents(c.env)) / 100, hood: u?.hood || '', user: u ? { name: u.name || '', hood: u.hood || '', replied: !!u.replied } : null, sms: smsHref(c.env, 'OK'), shareUrl: u ? c.env.APP_URL + ((u as any).handle ? '/' + (u as any).handle : '/u/' + u.id) : c.env.APP_URL });
   return c.html(
     <Layout title="Rent out your stuff" user={u} promo={false} htmlClass="mappage" head={<link rel="stylesheet" href="/list.css" />}>
       {await bonusOpen(c.env.DB, u, hereOf(c, u)) ? await (async () => { const left = await nycLeft(c.env.DB), f = left / NYC_CAP, C = 2 * Math.PI * 9;
@@ -134,7 +135,7 @@ listings.post('/list', async (c) => {
   if (!u) return c.redirect('/login?next=/list');
   const f = await c.req.parseBody({ all: true });
   const name = String(f.name || '').trim().slice(0, 80);
-  const minP = parseInt(c.env.MIN_PRICE_CENTS, 10);
+  const minP = (await minPriceCents(c.env));
   const price = Math.round(parseFloat(String(f.price || '0')) * 100);
   if (!name || isNaN(price) || price < minP) return c.text(`Price must be at least ${money(minP)}/day and the item needs a name.`, 400);
   const weekIn = parseFloat(String(f.week || ''));
@@ -189,9 +190,11 @@ listings.get('/api/cuttmp/:id{[a-f0-9]{16}}', async (c) => {
 /* standard product photo for an item (Brave image search); the owner confirms theirs looks like it */
 listings.get('/api/stock', async (c) => {
   if (!c.get('user') || !c.env.BRAVE_API_KEY) return c.json({ imgs: [] });
-  const q = String(c.req.query('q') || '').trim().slice(0, 100); if (!q) return c.json({ imgs: [] });
+  /* the device itself, not the bundle: drop kit/set/combo words and piece counts so "Dremel 4000 rotary tool kit" finds the tool */
+  const q = String(c.req.query('q') || '').replace(/\b\d+\s*-?\s*(pc|pcs|piece|pieces|pack)\b/gi, ' ').replace(/\b(kit|combo|bundle|with accessories|accessories|fly more)\b/gi, ' ').replace(/\s+/g, ' ').trim().slice(0, 100); if (!q) return c.json({ imgs: [] });
   try {
     const r = await fetch('https://api.search.brave.com/res/v1/images/search?safesearch=strict&count=8&q=' + encodeURIComponent(q + ' product photo white background'), { headers: { accept: 'application/json', 'X-Subscription-Token': c.env.BRAVE_API_KEY } });
+    if (r.status === 429) return c.json({ imgs: [], retry: true }); /* Brave allows ~1 search/sec: the page queues and retries */
     if (!r.ok) { await logErr(c.env.DB, 'stock search', new Error('brave ' + r.status)); return c.json({ imgs: [] }); }
     const j: any = await r.json();
     const imgs = (j.results || []).map((x: any) => ({ src: x.properties?.url, thumb: x.thumbnail?.src })).filter((x: any) => /^https:\/\//.test(x.src || '') && x.thumb).slice(0, 4);
@@ -202,30 +205,31 @@ listings.get('/api/stock', async (c) => {
 listings.post('/api/list-stock', async (c) => {
   const u = c.get('user'); if (!u) return c.json({ error: 'login' }, 401);
   const b = await c.req.json<{ items?: { name?: string; price?: number; img?: string; thumb?: string }[]; lat?: number; lng?: number }>().catch(() => ({} as any));
-  const minP = parseInt(c.env.MIN_PRICE_CENTS, 10), out: any[] = [];
-  for (const it of (b.items || []).slice(0, 30)) {
-    const name = String(it.name || '').trim().slice(0, 80), price = Math.round(Number(it.price || 0) * 100);
-    if (!name || !(price >= minP)) continue;
+  /* every reply row carries its input index `i` so the posted screen matches photos by item, never by position; skipped items come back in `failed` */
+  const minP = (await minPriceCents(c.env)), out: any[] = [], failed: { i: number; name: string; why: string }[] = [];
+  for (const [i, it] of (b.items || []).slice(0, 30).entries()) {
+    const name = String(it.name || '').trim().slice(0, 80), price = Math.max(minP, Math.round(Number(it.price || 0) * 100));
+    if (!name) { failed.push({ i, name, why: 'name' }); continue; }
     let bytes: ArrayBuffer | null = null, type = 'image/jpeg';
     for (const u0 of [it.img, it.thumb]) {
       if (bytes || !/^https:\/\//.test(String(u0 || ''))) continue;
       try { const r = await fetch(String(u0), { headers: { 'user-agent': 'Lendo/1.0' }, cf: { cacheTtl: 0 } } as any); const ct = r.headers.get('content-type') || ''; if (r.ok && /^image\/(jpeg|png|webp)/.test(ct)) { const a = await r.arrayBuffer(); if (a.byteLength > 2000 && a.byteLength < 8e6) { bytes = a; type = ct.split(';')[0]; } } } catch {}
     }
-    if (!bytes) continue;
+    if (!bytes) { failed.push({ i, name, why: 'photo' }); await logErr(c.env.DB, 'list-stock photo', new Error(String(it.img || '').slice(0, 200))); continue; }
     const lid = await createListing(c.env, c.executionCtx, u, { name, priceCents: price, lat: typeof b.lat === 'number' ? b.lat : null, lng: typeof b.lng === 'number' ? b.lng : null, photos: [{ bytes, type }] });
     await c.env.DB.prepare('UPDATE listings SET stock_photo = 1 WHERE id = ?').bind(lid).run();
     await logEvent(c.env.DB, 'listing.stock_photo', { user: u.id, listing: lid, data: { src: String(it.img || '').slice(0, 300) } });
     const ph0 = await c.env.DB.prepare('SELECT r2_key FROM photos WHERE listing_id = ? ORDER BY pos LIMIT 1').bind(lid).first<{ r2_key: string }>().catch(() => null);
-    out.push({ id: lid, name, url: await itemLink(c.env, lid), cut: ph0 ? cutoutUrl(c.env, ph0.r2_key, 600, 600) : null });
+    out.push({ i, id: lid, name, price: price / 100, url: await itemLink(c.env, lid), cut: ph0 ? cutoutUrl(c.env, ph0.r2_key, 600, 600) : null, photo: ph0 ? '/p/' + ph0.r2_key : null });
   }
-  return c.json({ listed: out, count: out.length });
+  return c.json({ listed: out, count: out.length, failed });
 });
 listings.post('/api/list', async (c) => {
   const u = c.get('user');
   if (!u) return c.json({ error: 'login' }, 401);
   const f = await c.req.parseBody({ all: true });
   const lat = parseFloat(String(f.lat || '')), lng = parseFloat(String(f.lng || ''));
-  const minP = parseInt(c.env.MIN_PRICE_CENTS, 10);
+  const minP = (await minPriceCents(c.env));
   const out: { id: string; name: string; url?: string; cut?: string | null }[] = [];
   for (let i = 0; i < 30; i++) {
     const name = String(f[`name_${i}`] || '').trim(); if (!name) continue;
@@ -259,7 +263,7 @@ listings.get('/listings', requireUser, async (c) => {
 listings.post('/listings/:id/price', requireUser, async (c) => {
   const u = c.get('user')!;
   const d = parseInt(String((await c.req.parseBody()).delta || '0'), 10) || 0;
-  const minP = parseInt(c.env.MIN_PRICE_CENTS, 10);
+  const minP = (await minPriceCents(c.env));
   const it = await listingById(c.env.DB, c.req.param('id'));
   if (!it || it.owner_id !== u.id) return c.notFound();
   const np = Math.max(minP, it.price_cents + d);
@@ -314,7 +318,7 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
           <label class="field" style="flex:1"><span>Name</span><input name="name" value={it.name} required maxlength={80} /></label>
         </div>
         <div style="display:flex;gap:10px">
-          <label class="field" style="flex:1"><span>$ per day</span><input name="price" type="number" step="1" min={parseInt(c.env.MIN_PRICE_CENTS, 10) / 100} value={it.price_cents / 100} required /></label>
+          <label class="field" style="flex:1"><span>$ per day</span><input name="price" type="number" step="1" min={(await minPriceCents(c.env)) / 100} value={it.price_cents / 100} required /></label>
         </div>
         <div class="field"><span>Condition</span>
           {gr.customers ? <div class="row" style="gap:10px;margin-top:4px"><Grade g={gr.letter} /><span class="hint">{GRADE_WORD[gr.letter]} · set by customers now (average of yours + {gr.customers} customer grade{gr.customers === 1 ? '' : 's'})</span></div>
@@ -399,7 +403,7 @@ listings.post('/listings/:id/edit', requireUser, async (c) => {
   const it = await listingById(c.env.DB, c.req.param('id'));
   if (!it || it.owner_id !== u.id) return c.notFound();
   const f = await c.req.parseBody({ all: true });
-  const minP = parseInt(c.env.MIN_PRICE_CENTS, 10);
+  const minP = (await minPriceCents(c.env));
   const price = Math.max(minP, Math.round(parseFloat(String(f.price || '0')) * 100) || minP);
   const week = weekDefault(price); /* weekly is always automatic */
   const nm = String(f.name || it.name).trim().slice(0, 80), ds = String(f.description || '').trim().slice(0, 600) || null;

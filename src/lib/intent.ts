@@ -1,3 +1,4 @@
+import { minPriceCents } from './identify';
 import { logEvent } from './log';
 // Plain-English texting: Claude turns a text into one of a few actions. Anything touching money or bookings
 // is parked in pending_actions and only runs after the sender replies YES.
@@ -122,7 +123,7 @@ export async function actOn(env: Env, user: User, it: Intent, ctx: { rental: Ren
       return true;
     }
     case 'change_price': {
-      const cents = Math.round((it.price_usd || 0) * 100), min = parseInt(env.MIN_PRICE_CENTS || '800', 10);
+      const cents = Math.round((it.price_usd || 0) * 100), min = await minPriceCents(env);
       if (!ctx.listings.length) { await textUser(env, user, `No listings on this number yet. List something ${url}/list`, 'rental'); return true; }
       const name = (it.item || '').toLowerCase();
       const match = ctx.listings.length === 1 ? ctx.listings[0] : ctx.listings.find(l => name && (l.name.toLowerCase().includes(name) || name.includes(l.name.toLowerCase())));

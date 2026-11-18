@@ -758,6 +758,7 @@ a.ac-pill{text-decoration:none;color:inherit}
 /* map rollover mini card (computers) */
 .hovpop .mapboxgl-popup-content{padding:0;border:2.5px solid var(--ink);border-radius:16px;box-shadow:0 4px 0 var(--ink);background:#fff}
 .hovpop .mapboxgl-popup-tip{display:none}
+.hovpop{z-index:620}/* above the search bar and Rent-out button (500) */
 .hv{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 12px 12px;width:200px;text-decoration:none;color:var(--ink)}
 .hv img{width:150px;height:130px;object-fit:contain}
 .hv b{font-size:15px;font-weight:900;line-height:1.2;text-align:center}.hv b .ownlink{font-weight:600}

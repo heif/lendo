@@ -238,6 +238,11 @@ a.dn2-tray{text-decoration:none;color:var(--ink)}
 .aipaste{width:100%;border:2.5px solid var(--ink);border-radius:14px;padding:10px 12px;font:inherit;font-size:14px;font-weight:600;background:#fff;color:var(--ink);resize:vertical}
 .ailist{display:flex;flex-direction:column;gap:8px}.airow{display:flex;align-items:center;gap:10px;text-align:left;background:#fff;border:2.5px solid var(--ink);border-radius:14px;padding:10px 12px;color:var(--ink);opacity:.5}.airow.on{opacity:1}
 .airow .mk{width:24px;height:24px;border-radius:7px;border:3px solid var(--ink);flex:none;display:grid;place-items:center;font-weight:900;font-size:14px}.airow.on .mk{background:var(--ink);color:#fff}
+.airow{padding:0;overflow:hidden}.airt{flex:1;min-width:0;display:flex;align-items:center;gap:10px;text-align:left;background:none;border:0;padding:10px 0 10px 12px;color:var(--ink);font:inherit}
+.aipr{display:flex;align-items:center;gap:2px;flex:none;padding-right:8px}.aipr b{font-weight:900;font-size:14px;white-space:nowrap;min-width:46px;text-align:center}.aipr b small{font-size:11px}
+.aipm{width:30px;height:30px;border-radius:9px;border:2.5px solid var(--ink);background:#fff;color:var(--ink);font-size:17px;font-weight:900;line-height:1;padding:0}
+/* the AI flow never scrolls sideways on a phone */
+#st-ai,#st-ai .lf-scroll{max-width:100vw;overflow-x:hidden}.stk-t b{overflow-wrap:anywhere}.stk-yes{width:100%;white-space:normal}
 .airow .nm{flex:1;font-size:15px;font-weight:900;min-width:0}.airow .nm small{display:block;font-size:12px;font-weight:700;color:var(--ink2)}.airow .pr{font-weight:900;font-size:14px;white-space:nowrap}
 .aiico{margin-left:auto;width:36px;height:36px;border-radius:18px;border:2.5px solid var(--ink);background:#fff;font-size:17px;line-height:1;display:grid;place-items:center;box-shadow:0 2px 0 var(--ink)}
 .stk{display:flex;gap:12px;align-items:center;background:#fff;border:2.5px solid var(--ink);border-radius:14px;padding:8px}.stk.on{box-shadow:0 3px 0 var(--ink)}

@@ -190,6 +190,8 @@ admin.post('/admin/pricing/settings', async (c) => {
   const dollars = (k: string) => String(Math.round(parseFloat(String(f[k] || '0')) * 100));
   const vals: Record<string, string> = { price_min_cents: dollars('price_min_cents'), price_max_cents: dollars('price_max_cents'), price_round_to: dollars('price_round_to'), vision_model: String(f.vision_model || '').trim() };
   for (const k of Object.keys(vals)) if (vals[k] && vals[k] !== 'NaN') await c.env.DB.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').bind(k, vals[k]).run();
+  await loadPricing(c.env, true); /* new minimum takes right away on this worker; others pick it up within 60s */
+  await logEvent(c.env.DB, 'admin.pricing', { user: c.get('user')?.id, data: vals });
   return c.redirect('/admin/pricing');
 });
 

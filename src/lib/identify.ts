@@ -14,9 +14,15 @@ export async function loadPricing(env: Env, force = false) {
   return rulesCache;
 }
 
+/* the one minimum $/day: the admin setting (/admin/pricing → settings.price_min_cents), falling back to the MIN_PRICE_CENTS env var.
+   Every listing, price change, text command and page config reads it here so an admin change takes everywhere (≤60s per worker cache) */
+export async function minPriceCents(env: Env): Promise<number> {
+  const v = parseInt((await loadPricing(env).catch(() => null))?.settings.price_min_cents || '', 10);
+  return v > 0 ? v : parseInt(env.MIN_PRICE_CENTS || '800', 10);
+}
 export function suggestPrice(rules: PriceRule[], settings: Record<string, string>, category: string, retailUsd: number | null): { day_cents: number; week_cents: number; rule: PriceRule; basis: string } {
   const rule = rules.find(r => r.category === category) || rules.find(r => r.category === 'other') || { category: 'other', label: 'Other', day_cents: 1000, rate_pct: 3, week_pct: 70 };
-  const min = parseInt(settings.price_min_cents || '800', 10), max = parseInt(settings.price_max_cents || '15000', 10), round = parseInt(settings.price_round_to || '100', 10);
+  const min = parseInt(settings.price_min_cents || '', 10) || 800, max = parseInt(settings.price_max_cents || '15000', 10), round = parseInt(settings.price_round_to || '100', 10);
   let day: number, basis: string;
   if (retailUsd && retailUsd > 20) { day = Math.round(retailUsd * 100 * rule.rate_pct / 100); basis = `${rule.rate_pct}% of ~$${Math.round(retailUsd)} retail`; }
   else { day = rule.day_cents; basis = `typical for ${rule.label.toLowerCase()}`; }
