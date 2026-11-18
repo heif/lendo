@@ -797,3 +797,12 @@ html.android .gp-qr,html.android .gp-or{display:none!important}
 /* map hover: only the price tag + name label catch the mouse; the big photo lets the mouse through so the next pin underneath can be hovered */
 .hovpop,.hovpop .mapboxgl-popup-content,.hv,.hv img{pointer-events:none}
 .hv .hvp,.hv b{pointer-events:auto}
+/* item page: items float on cream — no white photo panel, no boxed owner card */
+.hero{background:none;border-bottom:0}
+.hero img#heroImg{filter:drop-shadow(0 6px 10px rgba(30,58,43,.16))}
+.owner-tight{background:none;border:0;padding:6px 0}
+.days button{background:none;border-color:rgba(30,58,43,.16)}
+#quick .btn:not(.pri){background:none}
+.meet{background:none;border:0;padding:6px 0 0}
+.grd{background:none}
+#days button[data-tag="pickup"] small,#days button[data-tag="return"] small{visibility:hidden}/* PICKUP/RETURN tag replaces the TODAY/month label */
