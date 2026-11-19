@@ -7,7 +7,7 @@ import { localToday } from '../lib/util';
 import { SOCIALS, SocialIcons, socialHandle } from '../lib/socials';
 import { Avatar, PhotoField, saveUserPhoto } from '../lib/userphoto';
 import { shortName } from '../lib/util';
-import { Grade, GRADE_WORD, shownGrade } from '../lib/grade';
+import { Grade, GRADE_WORD, shownGrade, GradeInfo } from '../lib/grade';
 type Ctx = Context<{ Bindings: Env; Variables: Vars }>;
 import { raw } from 'hono/html';
 import type { Env, Listing, Vars } from '../lib/env';
@@ -181,7 +181,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
           {isOwner ? <a class="btn sm" href={'/listings/' + it.id + '/edit'} style="flex-shrink:0;margin-left:8px">✎ Edit</a> : null}
         </div>
         {ir?.n ? <div class="hint" style="margin-top:2px">👍 {ir.up || 0} of {ir.n}</div> : null}
-        <div class="ititle"><p style="flex:1;min-width:0;margin:0;font-size:14px;line-height:1.35;color:var(--ink2);white-space:pre-wrap">{it.description || ''}</p><Grade g={gr.letter} cls="inrow" /></div>
+        <div class="ititle"><p style="flex:1;min-width:0;margin:0;font-size:14px;line-height:1.35;color:var(--ink2);white-space:pre-wrap">{it.description || ''}</p><GradeInfo g={gr.letter} customers={gr.customers} owner={(owner.name || 'Owner').split(' ')[0]} cls="inrow" /></div>
         <div class="askrow">{!isOwner && it.status === 'live' ? (it.demo || !u
           ? <a class="askbtn" href={it.demo ? '#' : '/i/' + it.id + '/ask'} onclick={it.demo ? "event.preventDefault();toast('Demo item — messaging is off')" : undefined}>Ask a question</a>
           : <details class="askd" ontoggle="if(this.open)this.querySelector('textarea').focus()"><summary class="askbtn">Ask a question</summary>

@@ -33,3 +33,15 @@ export async function shownGrades(env: Env, ls: { id: string; grade?: string | n
   }
   return out;
 }
+
+// Tappable grade: opens the A–E scale + who set it. Use wherever a grade is shown (not in pickers).
+export const GradeInfo = (p: { g: string; customers: number; owner: string; cls?: string }) =>
+  <details class={'grdd' + (p.cls ? ' ' + p.cls : '')} onclick="event.stopPropagation()">
+    <summary aria-label={`Condition ${p.g}, ${GRADE_WORD[p.g] || ''}: what it means`}><Grade g={p.g} /></summary>
+    <div class="grdpop">
+      <b class="grdpop-h">Condition {p.g} · {GRADE_WORD[p.g]}</b>
+      <ul>{GRADES.map(g => <li class={g === p.g ? 'on' : ''}><span class={'grdmini g' + g}>{g}</span>{GRADE_WORD[g]}</li>)}</ul>
+      <small>{p.customers ? `${p.owner}'s grade averaged with ${p.customers} customer${p.customers === 1 ? '' : 's'} who rented it` : `Set by ${p.owner} · customers grade it after each rental`}</small>
+    </div>
+    <script dangerouslySetInnerHTML={{ __html: "if(!window.__grdd){window.__grdd=1;document.addEventListener('click',function(){document.querySelectorAll('details.grdd[open]').forEach(function(d){d.open=false})})}" }} />
+  </details>;
