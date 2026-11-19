@@ -833,3 +833,7 @@ section.sec:has(#rentForm){padding:8px 16px 10px!important}
 .grdmini{width:22px;height:22px;border-radius:6px;border:2.5px solid currentColor;display:grid;place-items:center;font-size:12px;font-weight:900}
 .grdmini.gA,.grdmini.gB{color:#1F8A4C}.grdmini.gC{color:#C27C00}.grdmini.gD,.grdmini.gE{color:#C0392B}
 .grdpop small{display:block;font-size:12px;line-height:1.35;color:var(--mute)}
+/* PICKUP/RETURN: small label inside the day (like TODAY), not a sticker on top */
+#days button[data-tag="pickup"]::after,#days button[data-tag="return"]::after{top:5px;bottom:auto;background:none;border:0;box-shadow:none;padding:0;border-radius:0;color:#fff;font-size:8px;letter-spacing:.04em;line-height:1}
+#days button[data-tag="pickup"] b,#days button[data-tag="return"] b{margin-top:10px}
+#days button[data-tag="pickup"]::after,#days button[data-tag="return"]::after{top:6px;font-size:7.5px;letter-spacing:.03em}
