@@ -45,19 +45,21 @@ const listPage = async (c: any) => {
           <div id="ideas" class="ideas"></div>
           <button type="button" class="btn full" id="moreIdeas" style="margin-top:8px">14 more ideas →</button>
         </div>
-        <div class="lf-foot"><button type="button" class="cta" id="toCam">OPEN CAMERA</button><button type="button" class="lnk snaplnk" id="toSnap" hidden>📷 Or snap photos</button></div>
+        <div class="lf-foot"><div class="pick2" id="pick2" hidden><button type="button" class="cta pk-cam" id="toSnap"><b>📷 SNAP</b><small>take photos</small></button><button type="button" class="cta pk-type" id="toType"><b>⌨️ TYPE</b><small>no photos needed</small></button></div><button type="button" class="cta" id="toCam">OPEN CAMERA</button></div>
       </section>
       {/* no-photo path (default when stock photos are on): one item at a time → brand (optional) → stock photo → ✓ mine; then prices → post */}
       <section id="st-stk" class="lf" hidden>
         <div class="lf-scroll">
-          <div class="rv-top"><button type="button" class="lnk" id="stkBack">← back</button><span class="m rv-count" id="stkN"></span></div>
+          <div class="rv-top"><button type="button" class="lnk" id="stkBack">← back</button><span class="m rv-count" id="stkN"></span><button type="button" class="lnk stk1-skip" id="stkSkip">Skip</button></div>
           <div id="stkOne">
             <div class="stk1-dots" id="stkDots"></div>
             <div class="lf-h stk1-h" id="stkH"></div>
-            <div class="stk1-acw"><input id="stkBrand" class="stk1-in" placeholder="Brand / model (optional)" autocomplete="off" autocapitalize="words" enterkeyhint="search" /><div class="stk1-ac" id="stkAc" hidden></div></div>
-            <div class="stk1-pic" id="stkPic"></div>
-            <div class="stk1-tbs" id="stkTbs"></div>
+            <div class="stk1-acw"><input id="stkBrand" class="stk1-in" placeholder="Brand / model · e.g. DeWalt 20V" autocomplete="off" autocapitalize="words" enterkeyhint="done" /><div class="stk1-ac" id="stkAc" hidden></div></div>
+            <div class="stk1-row"><div class="stk1-pic" id="stkPic"></div><div class="stk1-tbs" id="stkTbs"></div></div>
             <div class="stk1-note" id="stkNote">Stock photo · tap another if closer</div>
+            <input id="stkDet" class="stk1-in stk1-det" placeholder="Details (optional) · e.g. 2 batteries + charger" autocomplete="off" enterkeyhint="done" maxlength={300} />
+            <div class="stk1-lbl">Condition</div>
+            <div class="stk1-gr" id="stkGr">{['A', 'B', 'C', 'D', 'E'].map(g => <button type="button" data-g={g} class={'g' + g}><b>{g}</b><small>{({ A: 'Great', B: 'Good', C: 'OK', D: 'Poor', E: 'Junk' } as any)[g]}</small></button>)}</div>
           </div>
           <div id="stkAll" hidden>
             <div class="lf-h" style="margin-bottom:2px">Ready to post</div>
@@ -65,8 +67,7 @@ const listPage = async (c: any) => {
             <div id="stkRows"></div>
           </div>
         </div>
-        <div class="lf-foot"><button type="button" class="cta" id="stkGo">✓ MINE LOOKS LIKE THIS</button>
-          <div class="stk1-alt" id="stkAlt"><button type="button" class="lnk" id="stkSnap">📷 Snap mine instead</button><button type="button" class="lnk" id="stkSkip">Skip</button></div></div>
+        <div class="lf-foot"><div class="stk1-btns"><button type="button" class="cta stk1-cam" id="stkSnap">📷 SNAP</button><button type="button" class="cta" id="stkGo">✓ LOOKS LIKE MINE</button></div></div>
       </section>
       {/* ask your AI: copy a prompt → their own AI searches their email → paste the answer back */}
       <section id="st-ai" class="lf" hidden>
@@ -214,12 +215,16 @@ listings.get('/api/stock', async (c) => {
   if (!c.get('user') || !c.env.BRAVE_API_KEY) return c.json({ imgs: [] });
   /* the device itself, not the bundle: drop kit/set/combo words and piece counts so "Dremel 4000 rotary tool kit" finds the tool */
   const q = String(c.req.query('q') || '').replace(/\b\d+\s*-?\s*(pc|pcs|piece|pieces|pack)\b/gi, ' ').replace(/\b(kit|combo|bundle|with accessories|accessories|fly more)\b/gi, ' ').replace(/\s+/g, ' ').trim().slice(0, 100); if (!q) return c.json({ imgs: [] });
+  /* same model, same photos: cache a week so repeat searches ("Milwaukee M18 drill") come back instantly */
+  const ck = new Request('https://lendo.co/__stock?q=' + encodeURIComponent(q.toLowerCase()));
+  try { const hit = await caches.default.match(ck); if (hit) return c.json(await hit.json()); } catch (e) {}
   try {
     const r = await fetch('https://api.search.brave.com/res/v1/images/search?safesearch=strict&count=8&q=' + encodeURIComponent(q + ' product photo white background'), { headers: { accept: 'application/json', 'X-Subscription-Token': c.env.BRAVE_API_KEY } });
     if (r.status === 429) return c.json({ imgs: [], retry: true }); /* Brave allows ~1 search/sec: the page queues and retries */
     if (!r.ok) { await logErr(c.env.DB, 'stock search', new Error('brave ' + r.status)); return c.json({ imgs: [] }); }
     const j: any = await r.json();
     const imgs = (j.results || []).map((x: any) => ({ src: x.properties?.url, thumb: x.thumbnail?.src })).filter((x: any) => /^https:\/\//.test(x.src || '') && x.thumb).slice(0, 4);
+    if (imgs.length) c.executionCtx.waitUntil(caches.default.put(ck, new Response(JSON.stringify({ imgs }), { headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=604800' } })).catch(() => {}));
     return c.json({ imgs });
   } catch (e) { await logErr(c.env.DB, 'stock search', e); return c.json({ imgs: [] }); }
 });
@@ -233,7 +238,7 @@ listings.get('/api/ac', async (c) => {
 /* post items with the standard photo the owner confirmed (no camera); the photo is copied into R2 like any other */
 listings.post('/api/list-stock', async (c) => {
   const u = c.get('user'); if (!u) return c.json({ error: 'login' }, 401);
-  const b = await c.req.json<{ items?: { name?: string; price?: number; img?: string; thumb?: string; idea?: string; brand?: string }[]; lat?: number; lng?: number }>().catch(() => ({} as any));
+  const b = await c.req.json<{ items?: { name?: string; price?: number; img?: string; thumb?: string; idea?: string; brand?: string; details?: string; grade?: string }[]; lat?: number; lng?: number }>().catch(() => ({} as any));
   /* every reply row carries its input index `i` so the posted screen matches photos by item, never by position; skipped items come back in `failed` */
   const minP = (await minPriceCents(c.env)), out: any[] = [], failed: { i: number; name: string; why: string }[] = [];
   for (const [i, it] of (b.items || []).slice(0, 30).entries()) {
@@ -245,7 +250,7 @@ listings.post('/api/list-stock', async (c) => {
       try { const r = await fetch(String(u0), { headers: { 'user-agent': 'Lendo/1.0' }, cf: { cacheTtl: 0 } } as any); const ct = r.headers.get('content-type') || ''; if (r.ok && /^image\/(jpeg|png|webp)/.test(ct)) { const a = await r.arrayBuffer(); if (a.byteLength > 2000 && a.byteLength < 8e6) { bytes = a; type = ct.split(';')[0]; } } } catch {}
     }
     if (!bytes) { failed.push({ i, name, why: 'photo' }); await logErr(c.env.DB, 'list-stock photo', new Error(String(it.img || '').slice(0, 200))); continue; }
-    const lid = await createListing(c.env, c.executionCtx, u, { name, priceCents: price, lat: typeof b.lat === 'number' ? b.lat : null, lng: typeof b.lng === 'number' ? b.lng : null, photos: [{ bytes, type }] });
+    const lid = await createListing(c.env, c.executionCtx, u, { name, priceCents: price, description: String(it.details || '').trim().slice(0, 300) || null, grade: it.grade || null, lat: typeof b.lat === 'number' ? b.lat : null, lng: typeof b.lng === 'number' ? b.lng : null, photos: [{ bytes, type }] });
     await c.env.DB.prepare('UPDATE listings SET stock_photo = 1 WHERE id = ?').bind(lid).run();
     await logEvent(c.env.DB, 'listing.stock_photo', { user: u.id, listing: lid, data: { src: String(it.img || '').slice(0, 300) } });
     /* autocomplete learns: the brand/model this owner typed for this idea (plain text only; shown once 2+ owners used it) */

@@ -30,20 +30,22 @@
     $('moreIdeas').hidden = more;
     /* stock photos on: picking → NEXT (no camera), camera is the link under it */
     var stk0 = CFG.stock && picked.length;
-    $('toCam').textContent = !picked.length ? 'OPEN CAMERA' : stk0 ? 'NEXT: ' + picked.length + (picked.length === 1 ? ' THING' : ' THINGS') : 'SNAP ' + picked.length + (picked.length === 1 ? ' THING' : ' THINGS');
-    $('toSnap').hidden = !stk0;
+    $('toCam').textContent = !picked.length ? 'OPEN CAMERA' : 'SNAP ' + picked.length + (picked.length === 1 ? ' THING' : ' THINGS');
+    /* stock photos on + something picked: a clear choice, SNAP or TYPE */
+    $('pick2').hidden = !stk0; $('toCam').hidden = !!stk0;
   }
   $('ideas').addEventListener('click', function (e) { var b = e.target.closest('.idea'); if (!b) return; var n = b.dataset.n, i = picked.indexOf(n); if (i > -1) picked.splice(i, 1); else picked.push(n); renderIdeas(); });
   $('moreIdeas').addEventListener('click', function () { more = true; renderIdeas(); });
-  $('toCam').addEventListener('click', function () { if (!t0) t0 = Date.now(); if (CFG.stock && picked.length) return stkStart(); show('cam'); });
+  $('toCam').addEventListener('click', function () { if (!t0) t0 = Date.now(); show('cam'); });
   $('toSnap').addEventListener('click', function () { if (!t0) t0 = Date.now(); show('cam'); });
+  $('toType').addEventListener('click', function () { if (!t0) t0 = Date.now(); stkStart(); });
 
   // ---- no-photo path: one item at a time (brand → stock photo → ✓), then prices → post. Snapped ones go to the camera after posting.
   var stk = [], si = 0, stkQ = [], stkBusy = false;
   function stkLabel(x) { var b = (x.brand || '').trim(); if (!b) return x.name; return b.toLowerCase().indexOf(x.name.toLowerCase()) > -1 ? b : b + ' ' + x.name.toLowerCase(); }
   function stkStart() {
     if (!CFG.user) { location.href = '/login?next=' + encodeURIComponent('/list?stk=' + picked.join('|')); return; }
-    stk = picked.map(function (n) { var idea = IDEAS.filter(function (i) { return i[1] === n; })[0]; return { name: n, price: idea ? Math.max(MIN, idea[2]) : MIN, brand: '', imgs: null, k: 0 }; });
+    stk = picked.map(function (n) { var idea = IDEAS.filter(function (i) { return i[1] === n; })[0]; return { name: n, price: idea ? Math.max(MIN, idea[2]) : MIN, brand: '', det: '', grade: 'A', imgs: null, k: 0 }; });
     si = 0; stkQ = stk.slice(); show('stk'); stkOne(); stkPump();
   }
   /* Brave allows ~1 search/sec: one at a time, the current item first */
@@ -60,24 +62,26 @@
     function done() { stkBusy = false; if (step === 'stk') { $('stkAll').hidden ? stkOne() : stkAll(); } setTimeout(stkPump, 1100); }
   }
   function stkOne() {
-    var x = stk[si]; $('stkOne').hidden = false; $('stkAll').hidden = true; $('stkAlt').hidden = false;
+    var x = stk[si]; $('stkOne').hidden = false; $('stkAll').hidden = true;
     $('stkN').textContent = (si + 1) + ' of ' + stk.length;
     $('stkDots').innerHTML = stk.map(function (y, k) { return '<i class="' + (k === si ? 'on' : y.yes ? 'ok' : '') + '"></i>'; }).join('');
     $('stkH').textContent = 'Your ' + x.name.toLowerCase();
     if (document.activeElement !== $('stkBrand')) $('stkBrand').value = x.brand;
+    if (document.activeElement !== $('stkDet')) $('stkDet').value = x.det || '';
+    [].forEach.call($('stkGr').children, function (b) { b.classList.toggle('on', b.dataset.g === x.grade); });
     var im = x.imgs && x.imgs[x.k];
     $('stkPic').innerHTML = !x.imgs ? '<span class="stk1-wait">Finding a photo…</span>' : im ? '<img src="' + esc(im.thumb) + '" alt="">' : '<span class="stk1-wait">No photo found · add the brand or snap yours</span>';
     $('stkTbs').innerHTML = x.imgs && x.imgs.length > 1 ? x.imgs.slice(0, 4).map(function (y, k) { return '<button type="button" data-k="' + k + '" class="' + (k === x.k ? 'on' : '') + '"><img src="' + esc(y.thumb) + '" alt=""></button>'; }).join('') : '';
     $('stkNote').hidden = !(x.imgs && x.imgs.length);
-    $('stkGo').textContent = '✓ MINE LOOKS LIKE THIS'; $('stkGo').disabled = !im;
+    $('stkGo').textContent = '✓ LOOKS LIKE MINE'; $('stkGo').disabled = !im; $('stkSnap').hidden = false; $('stkSkip').hidden = false;
   }
   function stkNext() { si++; while (si < stk.length && (stk[si].yes || stk[si].snap || stk[si].skip)) si++; if (si < stk.length) { stkOne(); stkPump(); } else stkAll(); }
   function stkOk() { return stk.filter(function (x) { return x.yes && x.imgs && x.imgs[x.k]; }); }
   function stkAll() {
     var ok = stkOk(), sn = stk.filter(function (x) { return x.snap; });
-    $('stkOne').hidden = true; $('stkAll').hidden = false; $('stkAlt').hidden = true; $('stkN').textContent = '';
+    $('stkOne').hidden = true; $('stkAll').hidden = false; $('stkSnap').hidden = true; $('stkSkip').hidden = true; $('stkN').textContent = '';
     $('stkRows').innerHTML = stk.map(function (x, i) { if (!x.yes) return ''; var im = x.imgs[x.k];
-      return '<div class="stkr"><img src="' + esc(im.thumb) + '" alt=""><div class="stkr-t"><b>' + esc(stkLabel(x)) + '</b><div class="stkr-p"><button type="button" class="aipm" data-i="' + i + '" data-d="-1" aria-label="Lower">−</button><span>$' + x.price + '/day</span><button type="button" class="aipm" data-i="' + i + '" data-d="1" aria-label="Raise">+</button></div></div></div>'; }).join('') +
+      return '<div class="stkr"><img src="' + esc(im.thumb) + '" alt=""><div class="stkr-t"><b>' + esc(stkLabel(x)) + ' <span class="stkr-g g' + x.grade + '">' + x.grade + '</span></b>' + (x.det ? '<small>' + esc(x.det) + '</small>' : '') + '<div class="stkr-p"><button type="button" class="aipm" data-i="' + i + '" data-d="-1" aria-label="Lower">−</button><span>$' + x.price + '/day</span><button type="button" class="aipm" data-i="' + i + '" data-d="1" aria-label="Raise">+</button></div></div></div>'; }).join('') +
       (sn.length ? '<p class="hint" style="margin-top:10px">📷 Next: snap ' + esc(sn.map(function (x) { return x.name.toLowerCase(); }).join(', ')) + '</p>' : '');
     $('stkGo').disabled = !ok.length && !sn.length;
     $('stkGo').textContent = ok.length ? 'POST ' + ok.length + (ok.length === 1 ? ' THING' : ' THINGS') : sn.length ? 'SNAP ' + sn.length + (sn.length === 1 ? ' THING' : ' THINGS') : 'NOTHING TO POST';
@@ -86,7 +90,7 @@
   var stkT;
   function stkSet(x, v) { clearTimeout(stkT); if (x.brand === v) return; x.brand = v; x.imgs = null; x.yes = false; if (stkQ.indexOf(x) < 0) stkQ.unshift(x); stkOne(); stkPump(); }
   /* instant autocomplete: built-in list (public/ac.js) + what other owners posted (/api/ac); matches word starts anywhere ("m18" → Milwaukee M18 drill) */
-  var acLearned = {};
+  var acLearned = {}, acAll = null;
   function acList(name) {
     var base = (window.LENDO_AC && window.LENDO_AC[name]) || [];
     if (!acLearned[name]) { acLearned[name] = []; fetch('/api/ac?idea=' + encodeURIComponent(name)).then(function (r) { return r.json(); }).then(function (j) { acLearned[name] = j.terms || []; }).catch(function () {}); }
@@ -94,17 +98,27 @@
   }
   function acShow() {
     var x = stk[si]; if (!x) return; var v = $('stkBrand').value.trim().toLowerCase(), all = acList(x.name), hits;
-    if (!v) hits = all.slice(0, 6);
-    else { var ws = v.split(/\s+/); hits = all.filter(function (t) { var tw = t.toLowerCase().split(/[\s\-+\/]+/); return ws.every(function (w) { return tw.some(function (z) { return z.indexOf(w) === 0; }); }); }).slice(0, 6); }
+    if (!v) hits = all.slice(0, 8);
+    else {
+      var ws = v.split(/\s+/), m = function (t) { var tw = t.toLowerCase().split(/[\s\-+\/()]+/); return ws.every(function (w) { return tw.some(function (z) { return z.indexOf(w) === 0; }); }); };
+      hits = all.filter(m);
+      /* fewer than 8 for this item → look across every item's list too (a brand typed under the "wrong" idea still completes) */
+      if (hits.length < 8 && window.LENDO_AC) { if (!acAll) { acAll = []; for (var k in window.LENDO_AC) acAll = acAll.concat(window.LENDO_AC[k]); } acAll.forEach(function (t) { if (hits.length < 8 && hits.indexOf(t) < 0 && m(t)) hits.push(t); }); }
+      hits = hits.slice(0, 8);
+    }
     if (hits.length === 1 && hits[0].toLowerCase() === v) hits = [];
     $('stkAc').innerHTML = hits.map(function (t) { return '<button type="button" data-t="' + esc(t) + '">' + esc(t) + '</button>'; }).join('');
     $('stkAc').hidden = !hits.length;
   }
-  $('stkBrand').addEventListener('input', function () { var x = stk[si], v = this.value; acShow(); clearTimeout(stkT); stkT = setTimeout(function () { stkSet(x, v); }, 900); });
+  /* the photo search runs only for exactly what's in the box: on a picked suggestion, Enter, or leaving the box — never on half-typed text */
+  $('stkBrand').addEventListener('input', acShow);
   $('stkBrand').addEventListener('focus', acShow);
-  $('stkBrand').addEventListener('blur', function () { setTimeout(function () { $('stkAc').hidden = true; }, 150); });
+  $('stkBrand').addEventListener('blur', function () { var el = this; setTimeout(function () { $('stkAc').hidden = true; var x = stk[si]; if (x && step === 'stk' && $('stkAll').hidden) stkSet(x, el.value.trim()); }, 150); });
+  $('stkDet').addEventListener('input', function () { if (stk[si]) stk[si].det = this.value; });
+  $('stkDet').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); this.blur(); } });
+  $('stkGr').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b || !stk[si]) return; stk[si].grade = b.dataset.g; stkOne(); });
   $('stkAc').addEventListener('mousedown', function (e) { e.preventDefault(); }); /* keep focus so the tap lands */
-  $('stkAc').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; var t = b.dataset.t; $('stkBrand').value = t; $('stkAc').hidden = true; $('stkBrand').blur(); stkSet(stk[si], t); });
+  $('stkAc').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; var t = b.dataset.t; $('stkBrand').value = t; $('stkAc').hidden = true; stkSet(stk[si], t); $('stkBrand').blur(); });
   $('stkBrand').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); var f = $('stkAc').querySelector('button'); if (f && !$('stkAc').hidden && this.value.trim().length >= 2) { this.value = f.dataset.t; } $('stkAc').hidden = true; this.blur(); stkSet(stk[si], this.value); } });
   $('stkTbs').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; stk[si].k = +b.dataset.k; stkOne(); });
   $('stkPic').addEventListener('click', function () { var x = stk[si]; if (x.imgs && x.imgs.length > 1) { x.k = (x.k + 1) % Math.min(4, x.imgs.length); stkOne(); } });
@@ -120,7 +134,7 @@
     if ($('stkAll').hidden) { var x = stk[si]; if (!(x.imgs && x.imgs[x.k])) return; x.yes = true; stkNext(); return; }
     var ok = stkOk(), sn = stk.filter(function (x) { return x.snap; }).map(function (x) { return x.name; });
     if (!ok.length) { if (sn.length) stkToCam(sn); return; }
-    var items = ok.map(function (x) { var im = x.imgs[x.k]; return { name: stkLabel(x), price: x.price, img: im.src, thumb: im.thumb, idea: x.name, brand: (x.brand || '').trim() }; });
+    var items = ok.map(function (x) { var im = x.imgs[x.k]; return { name: stkLabel(x), price: x.price, img: im.src, thumb: im.thumb, idea: x.name, brand: (x.brand || '').trim(), details: (x.det || '').trim(), grade: x.grade }; });
     go.disabled = true; go.textContent = 'POSTING…';
     fetch('/api/list-stock', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items: items, lat: window._gps ? window._gps[0] : undefined, lng: window._gps ? window._gps[1] : undefined }) })
       .then(function (r) { if (r.status === 401) { location.href = '/login?next=' + encodeURIComponent('/list?stk=' + stk.map(function (x) { return x.name; }).join('|')); return null; } return r.json(); })
