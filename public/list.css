@@ -306,3 +306,19 @@ a.dn2-tray{text-decoration:none;color:var(--ink)}
 .stk-more{display:flex;flex-direction:column;gap:8px;margin-top:14px}
 .stk-mb{height:50px;border:3px solid var(--ink);border-radius:14px;background:var(--cream);color:var(--ink);font-size:16px;font-weight:900;box-shadow:0 3px 0 var(--ink);font-family:inherit}
 .dn2-img.cut{object-position:center bottom}
+/* computers: no phone-shaped screen — content flows, buttons sit right after the options */
+@media (min-width:760px){
+  html.mappage:has(.lf),html.mappage:has(.lf) body{height:auto;overflow:visible}
+  html.mappage:has(.lf) .wrap{height:auto;min-height:100vh}
+  .lf{flex:none;max-width:560px;width:100%;margin:0 auto}
+  .lf-scroll{overflow:visible;flex:none;padding-bottom:4px}
+  .lf-foot{border-top:0;padding:4px 12px 40px;background:none}
+}
+/* blank "type anything" row in the ideas list */
+.iblank{position:relative;display:flex;align-items:center;gap:10px;height:50px;margin:2px 0 4px;padding:0 10px;border:2.5px dashed var(--ink);border-radius:14px;background:#fff}
+.iblank .mk{width:20px;height:20px;border-radius:10px;border:1.5px solid var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;flex-shrink:0}
+.iblank input{flex:1;min-width:0;height:100%;border:0;background:none;font-size:16px;font-weight:800;color:var(--ink);font-family:inherit;outline:none}
+.iblank input::placeholder{color:var(--mute);font-weight:700}
+.iblank:focus-within{border-style:solid;border-color:var(--orange)}
+.iblank .stk1-ac{top:calc(100% + 4px)}
+.stk1-ac .ac-own{color:var(--orange)}

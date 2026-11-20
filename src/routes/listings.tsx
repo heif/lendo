@@ -42,6 +42,7 @@ const listPage = async (c: any) => {
       <section id="st-ideas" class="lf">
         <div class="lf-scroll">
           <div class="lf-h" style="display:flex;align-items:center">What have you got?<button type="button" class="aiico" id="aiOpen" aria-label="Ask your AI what you could list" title="Ask your AI what you could list">✨</button></div>
+          <div class="iblank"><span class="mk">+</span><input id="ideaType" placeholder="Type anything else you own…" autocomplete="off" autocapitalize="words" enterkeyhint="done" /><div class="stk1-ac" id="ideaAc" hidden></div></div>
           <div id="ideas" class="ideas"></div>
           <button type="button" class="btn full" id="moreIdeas" style="margin-top:8px">14 more ideas →</button>
         </div>

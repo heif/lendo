@@ -36,6 +36,33 @@
   }
   $('ideas').addEventListener('click', function (e) { var b = e.target.closest('.idea'); if (!b) return; var n = b.dataset.n, i = picked.indexOf(n); if (i > -1) picked.splice(i, 1); else picked.push(n); renderIdeas(); });
   $('moreIdeas').addEventListener('click', function () { more = true; renderIdeas(); });
+  /* the always-there blank row: type anything → autocomplete → it joins the list, checked */
+  function acPool() { var out = []; if (window.LENDO_AC) for (var k in window.LENDO_AC) out = out.concat(window.LENDO_AC[k]); return out; }
+  function ideaOf(t) { if (window.LENDO_AC) for (var k in window.LENDO_AC) if (window.LENDO_AC[k].indexOf(t) > -1) return k; return ''; }
+  function ideaAcShow() {
+    var v = $('ideaType').value.trim().toLowerCase(); if (v.length < 2) { $('ideaAc').hidden = true; return; }
+    var ws = v.split(/\s+/), hits = acPool().filter(function (t) { var tw = t.toLowerCase().split(/[\s\-+\/()]+/); return ws.every(function (w) { return tw.some(function (z) { return z.indexOf(w) === 0; }); }); });
+    /* idea names first ("tent" → Tent), then models */
+    IDEAS.forEach(function (i) { if (i[1].toLowerCase().indexOf(v) === 0 && hits.indexOf(i[1]) < 0) hits.unshift(i[1]); });
+    hits = hits.slice(0, 7);
+    $('ideaAc').innerHTML = hits.map(function (t) { return '<button type="button" data-t="' + esc(t) + '">' + esc(t) + '</button>'; }).join('') + '<button type="button" class="ac-own" data-t="' + esc($('ideaType').value.trim()) + '">+ Add “' + esc($('ideaType').value.trim()) + '”</button>';
+    $('ideaAc').hidden = false;
+  }
+  function ideaAdd(t) {
+    t = (t || '').trim(); if (t.length < 2) return;
+    var ex = IDEAS.filter(function (i) { return i[1].toLowerCase() === t.toLowerCase(); })[0];
+    if (ex) { if (picked.indexOf(ex[1]) < 0) picked.push(ex[1]); }
+    else { var k = ideaOf(t), base = k ? IDEAS.filter(function (i) { return i[1] === k; })[0] : null;
+      var name = k && t.toLowerCase().indexOf(k.toLowerCase()) < 0 ? t + ' ' + k.toLowerCase() : t;
+      if (!IDEAS.some(function (i) { return i[1] === name; })) IDEAS.unshift([base ? base[0] : '📦', name, base ? base[2] : 12]);
+      if (picked.indexOf(name) < 0) picked.push(name); }
+    $('ideaType').value = ''; $('ideaAc').hidden = true; renderIdeas();
+  }
+  $('ideaType').addEventListener('input', ideaAcShow);
+  $('ideaType').addEventListener('blur', function () { setTimeout(function () { $('ideaAc').hidden = true; }, 150); });
+  $('ideaType').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); ideaAdd(this.value); } });
+  $('ideaAc').addEventListener('mousedown', function (e) { e.preventDefault(); });
+  $('ideaAc').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) ideaAdd(b.dataset.t); });
   $('toCam').addEventListener('click', function () { if (!t0) t0 = Date.now(); show('cam'); });
   $('toSnap').addEventListener('click', function () { if (!t0) t0 = Date.now(); show('cam'); });
   $('toType').addEventListener('click', function () { if (!t0) t0 = Date.now(); stkStart(); });
