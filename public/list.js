@@ -31,7 +31,7 @@
     /* stock photos on: picking → NEXT (no camera), camera is the link under it */
     var stk0 = CFG.stock; /* Snap | Find it always, even before picking (Find it with nothing picked = type what it is) */
     /* stock photos on: one button → the item screens (camera lives there as "Snap yours"); off: the camera as before */
-    $('toCam').textContent = stk0 ? (picked.length ? 'NEXT · ' + picked.length + (picked.length === 1 ? ' THING' : ' THINGS') : 'NEXT') : !picked.length ? 'OPEN CAMERA' : 'SNAP ' + picked.length + (picked.length === 1 ? ' THING' : ' THINGS');
+    $('toCam').textContent = stk0 ? 'NEXT' : !picked.length ? 'OPEN CAMERA' : 'SNAP ' + picked.length + (picked.length === 1 ? ' THING' : ' THINGS');
     $('pick2').hidden = true; $('toCam').hidden = false;
   }
   $('ideas').addEventListener('click', function (e) { var b = e.target.closest('.idea'); if (!b) return; var n = b.dataset.n, i = picked.indexOf(n); if (i > -1) picked.splice(i, 1); else picked.push(n); renderIdeas(); });
