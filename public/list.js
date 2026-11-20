@@ -94,7 +94,7 @@
   function stkOne() {
     var x = stk[si]; $('stkOne').hidden = false; $('stkAll').hidden = true;
     $('stkN').textContent = '';
-    $('stkDots').innerHTML = stk.map(function (y, k) { return '<i class="' + (k === si ? 'on' : y.yes ? 'ok' : '') + '"></i>'; }).join('');
+    $('stkDots').innerHTML = stk.map(function (y, k) { return '<i class="' + (k === si ? 'on' : y.yes ? 'ok' : y.snap ? 'sn' : '') + '"></i>'; }).join('');
     /* no headline: a big, clear "1 of 3 · Drill" (nothing for a single typed-in thing) */
     var one = stk.length === 1 && x.custom; $('stkH').hidden = one; $('stkDots').hidden = one || stk.length === 1;
     $('stkH').innerHTML = '<b>' + (si + 1) + ' of ' + stk.length + '</b>' + (x.custom ? '' : '<span>' + esc(x.name) + '</span>');
@@ -109,7 +109,10 @@
     $('stkNote').hidden = false;
     $('stkGo').hidden = false; $('stkGo').textContent = '✓ LOOKS LIKE MINE'; $('stkGo').disabled = !im; $('stkSnap').hidden = false; $('stkSkip').hidden = false;
   }
-  function stkNext() { si++; while (si < stk.length && (stk[si].yes || stk[si].snap || stk[si].skip)) si++; if (si < stk.length) { stkOne(); stkPump(); } else stkAll(); }
+  function stkNext() { si++; while (si < stk.length && (stk[si].yes || stk[si].snap || stk[si].skip)) si++; if (si < stk.length) { stkOne(); stkPump(); return; }
+    /* only snaps left, nothing to post → straight to the camera (no in-between screen) */
+    var sn = stk.filter(function (y) { return y.snap; }); if (!stkOk().length && sn.length) { stkToCam(sn.map(function (y) { return y.custom ? stkLabel(y) || 'Thing' : y.name; })); return; }
+    stkAll(); }
   function stkOk() { return stk.filter(function (x) { return x.yes && x.imgs && x.imgs[x.k]; }); }
   function stkAll() {
     var ok = stkOk(), sn = stk.filter(function (x) { return x.snap; });
@@ -160,7 +163,9 @@
   $('stkBrand').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); var f = $('stkAc').querySelector('button'); if (f && !$('stkAc').hidden && this.value.trim().length >= 2) { this.value = f.dataset.t; } $('stkAc').hidden = true; this.blur(); stkSet(stk[si], this.value); } });
   $('stkTbs').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; stk[si].k = +b.dataset.k; stkOne(); });
   $('stkPic').addEventListener('click', function () { var x = stk[si]; if (x.imgs && x.imgs.length > 1) { x.k = (x.k + 1) % Math.min(4, x.imgs.length); stkOne(); } });
-  $('stkSnap').addEventListener('click', function () { stk[si].snap = true; stk[si].yes = false; stkNext(); });
+  $('stkSnap').addEventListener('click', function () { var x = stk[si]; x.snap = true; x.yes = false;
+    /* confirm it's saved for the camera, then move on */
+    if (window.toast) window.toast('📷 ' + (x.custom ? stkLabel(x) || 'This one' : x.name) + ' · you’ll snap it next'); stkNext(); });
   $('stkSkip').addEventListener('click', function () { stk[si].skip = true; stk[si].yes = false; stkNext(); });
   $('stkRows').addEventListener('click', function (e) {
     var mb = e.target.closest('.stk-mb');

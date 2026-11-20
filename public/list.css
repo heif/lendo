@@ -329,3 +329,4 @@ a.dn2-tray{text-decoration:none;color:var(--ink)}
 .stk1-snap:active{transform:translateY(2px);box-shadow:0 1px 0 var(--orange)}
 .stk1-note{margin:6px 0 0}
 .stk1-snap{margin-bottom:14px}
+.stk1-dots i.sn{background:none;border:2.5px solid var(--orange);box-sizing:border-box}/* saved for the camera */
