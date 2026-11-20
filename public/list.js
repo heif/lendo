@@ -29,7 +29,7 @@
     $('ideas').innerHTML = list.map(function (i, k) { var on = picked.indexOf(i[1]) > -1; return '<button type="button" class="idea' + (on ? ' on' : '') + '" data-n="' + esc(i[1]) + '" data-p="' + i[2] + '"><span class="mk">' + (on ? '✓' : '') + '</span><span class="em"><img src="/p/wanted/' + i[0] + '.png" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'"></span><span class="nm">' + esc(i[1]) + '</span><span class="pr">~$' + i[2] + '/day</span></button>'; }).join('');
     $('moreIdeas').hidden = more;
     /* stock photos on: picking → NEXT (no camera), camera is the link under it */
-    var stk0 = CFG.stock && picked.length;
+    var stk0 = CFG.stock; /* Snap | Find it always, even before picking (Find it with nothing picked = type what it is) */
     $('toCam').textContent = !picked.length ? 'OPEN CAMERA' : 'SNAP ' + picked.length + (picked.length === 1 ? ' THING' : ' THINGS');
     /* stock photos on + something picked: a clear choice, SNAP or TYPE */
     $('pick2').hidden = !stk0; $('toCam').hidden = !!stk0;
@@ -42,9 +42,10 @@
 
   // ---- no-photo path: one item at a time (brand → stock photo → ✓), then prices → post. Snapped ones go to the camera after posting.
   var stk = [], si = 0, stkQ = [], stkBusy = false;
-  function stkLabel(x) { var b = (x.brand || '').trim(); if (!b) return x.name; return b.toLowerCase().indexOf(x.name.toLowerCase()) > -1 ? b : b + ' ' + x.name.toLowerCase(); }
+  function stkLabel(x) { var b = (x.brand || '').trim(); if (x.custom) return x.idea && b.toLowerCase().indexOf(x.idea.toLowerCase()) < 0 ? b + ' ' + x.idea.toLowerCase() : b; if (!b) return x.name; return b.toLowerCase().indexOf(x.name.toLowerCase()) > -1 ? b : b + ' ' + x.name.toLowerCase(); }
   function stkStart() {
     if (!CFG.user) { location.href = '/login?next=' + encodeURIComponent('/list?stk=' + picked.join('|')); return; }
+    if (!picked.length) { stk = [{ name: '', custom: true, price: MIN, brand: '', det: '', grade: 'A', imgs: [], k: 0 }]; si = 0; stkQ = []; show('stk'); stkOne(); setTimeout(function () { $('stkBrand').focus(); }, 50); return; }
     stk = picked.map(function (n) { var idea = IDEAS.filter(function (i) { return i[1] === n; })[0]; return { name: n, price: idea ? Math.max(MIN, idea[2]) : MIN, brand: '', det: '', grade: 'A', imgs: null, k: 0 }; });
     si = 0; stkQ = stk.slice(); show('stk'); stkOne(); stkPump();
   }
@@ -65,12 +66,13 @@
     var x = stk[si]; $('stkOne').hidden = false; $('stkAll').hidden = true;
     $('stkN').textContent = (si + 1) + ' of ' + stk.length;
     $('stkDots').innerHTML = stk.map(function (y, k) { return '<i class="' + (k === si ? 'on' : y.yes ? 'ok' : '') + '"></i>'; }).join('');
-    $('stkH').textContent = 'Your ' + x.name.toLowerCase();
+    $('stkH').textContent = x.custom ? 'What is it?' : 'Your ' + x.name.toLowerCase();
+    $('stkBrand').placeholder = x.custom ? 'e.g. DeWalt drill, KitchenAid mixer' : 'Brand / model · e.g. DeWalt 20V';
     if (document.activeElement !== $('stkBrand')) $('stkBrand').value = x.brand;
     if (document.activeElement !== $('stkDet')) $('stkDet').value = x.det || '';
     [].forEach.call($('stkGr').children, function (b) { b.classList.toggle('on', b.dataset.g === x.grade); });
     var im = x.imgs && x.imgs[x.k];
-    $('stkPic').innerHTML = !x.imgs ? '<span class="stk1-wait">Finding a photo…</span>' : im ? '<img src="' + esc(im.thumb) + '" alt="">' : '<span class="stk1-wait">No photo found · add the brand or snap yours</span>';
+    $('stkPic').innerHTML = x.custom && !x.brand ? '<span class="stk1-wait">Type what it is · a photo shows up</span>' : !x.imgs ? '<span class="stk1-wait">Finding a photo…</span>' : im ? '<img src="' + esc(im.thumb) + '" alt="">' : '<span class="stk1-wait">No photo found · add the brand or snap yours</span>';
     $('stkTbs').innerHTML = x.imgs && x.imgs.length > 1 ? x.imgs.slice(0, 4).map(function (y, k) { return '<button type="button" data-k="' + k + '" class="' + (k === x.k ? 'on' : '') + '"><img src="' + esc(y.thumb) + '" alt=""></button>'; }).join('') : '';
     $('stkNote').hidden = false;
     $('stkGo').textContent = '✓ LOOKS LIKE MINE'; $('stkGo').disabled = !im; $('stkSnap').hidden = false; $('stkSkip').hidden = false;
@@ -118,7 +120,7 @@
   $('stkDet').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); this.blur(); } });
   $('stkGr').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b || !stk[si]) return; stk[si].grade = b.dataset.g; stkOne(); });
   $('stkAc').addEventListener('mousedown', function (e) { e.preventDefault(); }); /* keep focus so the tap lands */
-  $('stkAc').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; var t = b.dataset.t; $('stkBrand').value = t; $('stkAc').hidden = true; stkSet(stk[si], t); $('stkBrand').blur(); });
+  $('stkAc').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; var t = b.dataset.t; $('stkBrand').value = t; $('stkAc').hidden = true; var cx = stk[si]; if (cx && cx.custom && window.LENDO_AC) { cx.idea = ''; for (var kk in window.LENDO_AC) if (window.LENDO_AC[kk].indexOf(t) > -1) { cx.idea = kk; var iw = IDEAS.filter(function (i) { return i[1] === kk; })[0]; if (iw) cx.price = Math.max(MIN, iw[2]); break; } } stkSet(cx, t); $('stkBrand').blur(); });
   $('stkBrand').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); var f = $('stkAc').querySelector('button'); if (f && !$('stkAc').hidden && this.value.trim().length >= 2) { this.value = f.dataset.t; } $('stkAc').hidden = true; this.blur(); stkSet(stk[si], this.value); } });
   $('stkTbs').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; stk[si].k = +b.dataset.k; stkOne(); });
   $('stkPic').addEventListener('click', function () { var x = stk[si]; if (x.imgs && x.imgs.length > 1) { x.k = (x.k + 1) % Math.min(4, x.imgs.length); stkOne(); } });
@@ -134,7 +136,7 @@
     if ($('stkAll').hidden) { var x = stk[si]; if (!(x.imgs && x.imgs[x.k])) return; x.yes = true; stkNext(); return; }
     var ok = stkOk(), sn = stk.filter(function (x) { return x.snap; }).map(function (x) { return x.name; });
     if (!ok.length) { if (sn.length) stkToCam(sn); return; }
-    var items = ok.map(function (x) { var im = x.imgs[x.k]; return { name: stkLabel(x), price: x.price, img: im.src, thumb: im.thumb, idea: x.name, brand: (x.brand || '').trim(), details: (x.det || '').trim(), grade: x.grade }; });
+    var items = ok.map(function (x) { var im = x.imgs[x.k]; return { name: stkLabel(x), price: x.price, img: im.src, thumb: im.thumb, idea: x.custom ? (x.idea || '') : x.name, brand: (x.brand || '').trim(), details: (x.det || '').trim(), grade: x.grade }; });
     go.disabled = true; go.textContent = 'POSTING…';
     fetch('/api/list-stock', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items: items, lat: window._gps ? window._gps[0] : undefined, lng: window._gps ? window._gps[1] : undefined }) })
       .then(function (r) { if (r.status === 401) { location.href = '/login?next=' + encodeURIComponent('/list?stk=' + stk.map(function (x) { return x.name; }).join('|')); return null; } return r.json(); })
