@@ -66,9 +66,11 @@
   }
   function stkOne() {
     var x = stk[si]; $('stkOne').hidden = false; $('stkAll').hidden = true;
-    $('stkN').textContent = (si + 1) + ' of ' + stk.length;
+    $('stkN').textContent = '';
     $('stkDots').innerHTML = stk.map(function (y, k) { return '<i class="' + (k === si ? 'on' : y.yes ? 'ok' : '') + '"></i>'; }).join('');
-    $('stkH').textContent = x.custom ? 'What is it?' : 'Your ' + x.name.toLowerCase();
+    /* no headline: a big, clear "1 of 3 · Drill" (nothing for a single typed-in thing) */
+    var one = stk.length === 1 && x.custom; $('stkH').hidden = one; $('stkDots').hidden = one || stk.length === 1;
+    $('stkH').innerHTML = '<b>' + (si + 1) + ' of ' + stk.length + '</b>' + (x.custom ? '' : '<span>' + esc(x.name) + '</span>');
     $('stkDet').placeholder = 'Details (optional) · e.g. ' + (DET_EG[x.custom ? x.idea || '' : x.name] || 'what\'s included, size, color');
     $('stkBrand').placeholder = x.custom ? 'e.g. DeWalt drill, KitchenAid mixer' : 'Brand / model · e.g. DeWalt 20V';
     if (document.activeElement !== $('stkBrand')) $('stkBrand').value = x.brand;
@@ -78,7 +80,7 @@
     $('stkPic').innerHTML = x.custom && !x.brand ? '<span class="stk1-wait">Type what it is · a photo shows up</span>' : !x.imgs ? '<span class="stk1-wait">Finding a photo…</span>' : im ? '<img src="' + esc(im.thumb) + '" alt="">' : '<span class="stk1-wait">No photo found · add the brand or snap yours</span>';
     $('stkTbs').innerHTML = x.imgs && x.imgs.length > 1 ? x.imgs.slice(0, 4).map(function (y, k) { return '<button type="button" data-k="' + k + '" class="' + (k === x.k ? 'on' : '') + '"><img src="' + esc(y.thumb) + '" alt=""></button>'; }).join('') : '';
     $('stkNote').hidden = false;
-    $('stkGo').textContent = '✓ LOOKS LIKE MINE'; $('stkGo').disabled = !im; $('stkSnap').hidden = false; $('stkSkip').hidden = false;
+    $('stkGo').hidden = false; $('stkGo').textContent = '✓ LOOKS LIKE MINE'; $('stkGo').disabled = !im; $('stkSnap').hidden = false; $('stkSkip').hidden = false;
   }
   function stkNext() { si++; while (si < stk.length && (stk[si].yes || stk[si].snap || stk[si].skip)) si++; if (si < stk.length) { stkOne(); stkPump(); } else stkAll(); }
   function stkOk() { return stk.filter(function (x) { return x.yes && x.imgs && x.imgs[x.k]; }); }
@@ -87,9 +89,13 @@
     $('stkOne').hidden = true; $('stkAll').hidden = false; $('stkSnap').hidden = true; $('stkSkip').hidden = true; $('stkN').textContent = '';
     $('stkRows').innerHTML = stk.map(function (x, i) { if (!x.yes) return ''; var im = x.imgs[x.k];
       return '<div class="stkr"><img src="' + esc(im.thumb) + '" alt=""><div class="stkr-t"><b>' + esc(stkLabel(x)) + ' <span class="stkr-g g' + x.grade + '">' + x.grade + '</span></b>' + (x.det ? '<small>' + esc(x.det) + '</small>' : '') + '<div class="stkr-p"><button type="button" class="aipm" data-i="' + i + '" data-d="-1" aria-label="Lower">−</button><span>$' + x.price + '/day</span><button type="button" class="aipm" data-i="' + i + '" data-d="1" aria-label="Raise">+</button></div></div></div>'; }).join('') +
-      (sn.length ? '<p class="hint" style="margin-top:10px">📷 Next: snap ' + esc(sn.map(function (x) { return x.name.toLowerCase(); }).join(', ')) + '</p>' : '');
-    $('stkGo').disabled = !ok.length && !sn.length;
-    $('stkGo').textContent = ok.length ? 'POST ' + ok.length + (ok.length === 1 ? ' THING' : ' THINGS') : sn.length ? 'SNAP ' + sn.length + (sn.length === 1 ? ' THING' : ' THINGS') : 'NOTHING TO POST';
+      (sn.length ? '<p class="hint" style="margin-top:10px">📷 Next: snap ' + esc(sn.map(function (x) { return x.name.toLowerCase(); }).join(', ')) + '</p>' : '') +
+      /* never a dead end: nothing confirmed → ways forward; otherwise add one more */
+      (!ok.length && !sn.length ? '<p class="stk-empty">Nothing to post yet</p>' : '') +
+      '<div class="stk-more"><button type="button" class="stk-mb" data-m="type">🔎 Find another thing</button><button type="button" class="stk-mb" data-m="snap">📷 Snap something</button>' + (!ok.length && !sn.length ? '<button type="button" class="stk-mb" data-m="ideas">← Back to ideas</button>' : '') + '</div>';
+    $('stkGo').hidden = !ok.length && !sn.length;
+    $('stkGo').disabled = false;
+    $('stkGo').textContent = ok.length ? 'POST ' + ok.length + (ok.length === 1 ? ' THING' : ' THINGS') : 'SNAP ' + sn.length + (sn.length === 1 ? ' THING' : ' THINGS');
   }
   function stkToCam(names) { picked = names; renderIdeas(); show('cam'); }
   var stkT;
@@ -129,7 +135,13 @@
   $('stkPic').addEventListener('click', function () { var x = stk[si]; if (x.imgs && x.imgs.length > 1) { x.k = (x.k + 1) % Math.min(4, x.imgs.length); stkOne(); } });
   $('stkSnap').addEventListener('click', function () { stk[si].snap = true; stk[si].yes = false; stkNext(); });
   $('stkSkip').addEventListener('click', function () { stk[si].skip = true; stk[si].yes = false; stkNext(); });
-  $('stkRows').addEventListener('click', function (e) { var pm = e.target.closest('.aipm'); if (!pm) return; var x = stk[+pm.dataset.i]; x.price = Math.max(MIN, x.price + (+pm.dataset.d)); stkAll(); });
+  $('stkRows').addEventListener('click', function (e) {
+    var mb = e.target.closest('.stk-mb');
+    if (mb) { var m = mb.dataset.m;
+      if (m === 'type') { stk.push({ name: '', custom: true, price: MIN, brand: '', det: '', grade: 'A', imgs: [], k: 0 }); si = stk.length - 1; stkOne(); setTimeout(function () { $('stkBrand').focus(); }, 50); }
+      else if (m === 'snap') { picked = []; renderIdeas(); show('cam'); }
+      else { show('ideas'); }
+      return; } var pm = e.target.closest('.aipm'); if (!pm) return; var x = stk[+pm.dataset.i]; x.price = Math.max(MIN, x.price + (+pm.dataset.d)); stkAll(); });
   $('stkBack').addEventListener('click', function () {
     if (!$('stkAll').hidden) { si = stk.length - 1; stk[si].yes = stk[si].snap = stk[si].skip = false; stkOne(); return; }
     if (si === 0) { show('ideas'); return; } si--; stk[si].yes = stk[si].snap = stk[si].skip = false; stkOne();

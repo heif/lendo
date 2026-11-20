@@ -298,3 +298,10 @@ a.dn2-tray{text-decoration:none;color:var(--ink)}
 .stk1-snap small{font-size:10.5px;font-weight:900;line-height:1}
 .stk1-note{margin:6px 0 10px}
 .stk1-btns .stk1-skipb{flex:0 0 96px;background:var(--cream);color:var(--ink)}
+/* progress instead of a headline */
+.stk1-h{display:flex;align-items:baseline;justify-content:center;gap:10px;font-size:24px;letter-spacing:-.4px;margin:0 0 8px}.stk1-h b{font-weight:900}.stk1-h span{font-weight:800;color:var(--orange)}
+.stk1-h span:before{content:'·';color:var(--mute);margin-right:10px}
+.stk1-dots i{width:11px;height:11px}
+.stk-empty{font-size:17px;font-weight:900;margin:18px 0 4px}
+.stk-more{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.stk-mb{height:50px;border:3px solid var(--ink);border-radius:14px;background:var(--cream);color:var(--ink);font-size:16px;font-weight:900;box-shadow:0 3px 0 var(--ink);font-family:inherit}
