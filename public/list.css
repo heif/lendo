@@ -330,3 +330,4 @@ a.dn2-tray{text-decoration:none;color:var(--ink)}
 .stk1-note{margin:6px 0 0}
 .stk1-snap{margin-bottom:14px}
 .stk1-dots i.sn{background:none;border:2.5px solid var(--orange);box-sizing:border-box}/* saved for the camera */
+.stk1-snap{height:42px;border:2.5px solid var(--ink);background:var(--cream);color:var(--ink);box-shadow:0 3px 0 var(--ink);font-size:15px}.stk1-snap:active{box-shadow:0 1px 0 var(--ink)}/* neutral: orange = selected */
