@@ -218,15 +218,23 @@ listings.get('/api/stock', async (c) => {
   if (!c.get('user') || !c.env.BRAVE_API_KEY) return c.json({ imgs: [] });
   /* the device itself, not the bundle: drop kit/set/combo words and piece counts so "Dremel 4000 rotary tool kit" finds the tool */
   const q = String(c.req.query('q') || '').replace(/\b\d+\s*-?\s*(pc|pcs|piece|pieces|pack)\b/gi, ' ').replace(/\b(kit|combo|bundle|with accessories|accessories|fly more)\b/gi, ' ').replace(/\s+/g, ' ').trim().slice(0, 100); if (!q) return c.json({ imgs: [] });
+  /* name the maker when people leave it off ("AirPods max" → Apple AirPods max): the search finds the real product */
+  const MAKER: [RegExp, string][] = [[/\b(airpods|macbook|imac|ipad|iphone|apple watch|homepod|magic keyboard)\b/i, 'Apple'], [/\b(kindle|echo dot|fire tv)\b/i, 'Amazon'], [/\b(switch oled|joy-?con)\b/i, 'Nintendo'], [/\b(ps5|playstation)\b/i, 'Sony'], [/\bgalaxy\b/i, 'Samsung'], [/\b(quest 3|quest 2)\b/i, 'Meta'], [/\b(pixel \d)\b/i, 'Google'], [/\bthinkpad\b/i, 'Lenovo'], [/\bvitamix\b/i, '']];
+  let q2 = q; for (const [re, mk] of MAKER) if (mk && re.test(q2) && !new RegExp('\\b' + mk + '\\b', 'i').test(q2)) { q2 = mk + ' ' + q2; break; }
   /* same model, same photos: cache a week so repeat searches ("Milwaukee M18 drill") come back instantly */
-  const ck = new Request('https://lendo.co/__stock?q=' + encodeURIComponent(q.toLowerCase()));
+  const ck = new Request('https://lendo.co/__stock?v=2&q=' + encodeURIComponent(q2.toLowerCase()));
   try { const hit = await caches.default.match(ck); if (hit) return c.json(await hit.json()); } catch (e) {}
   try {
-    const r = await fetch('https://api.search.brave.com/res/v1/images/search?safesearch=strict&count=8&q=' + encodeURIComponent(q + ' product photo white background'), { headers: { accept: 'application/json', 'X-Subscription-Token': c.env.BRAVE_API_KEY } });
+    const r = await fetch('https://api.search.brave.com/res/v1/images/search?safesearch=strict&count=8&q=' + encodeURIComponent(q2 + ' product photo white background'), { headers: { accept: 'application/json', 'X-Subscription-Token': c.env.BRAVE_API_KEY } });
     if (r.status === 429) return c.json({ imgs: [], retry: true }); /* Brave allows ~1 search/sec: the page queues and retries */
     if (!r.ok) { await logErr(c.env.DB, 'stock search', new Error('brave ' + r.status)); return c.json({ imgs: [] }); }
     const j: any = await r.json();
-    const imgs = (j.results || []).map((x: any) => ({ src: x.properties?.url, thumb: x.thumbnail?.src })).filter((x: any) => /^https:\/\//.test(x.src || '') && x.thumb).slice(0, 4);
+    /* best first: store / maker product shots (clean, square-ish), never social or stock-art sites */
+    const GOOD = /(apple|amazon|bestbuy|target|walmart|bhphotovideo|adorama|homedepot|lowes|rei|dickssportinggoods|costco|crutchfield|sony|bose|samsung|dewalt|milwaukeetool|makitatools|ryobitools|kitchenaid|breville|delonghi|ninjakitchen|uppababy|bugaboo|nintendo|playstation|xbox|canon|nikon|fujifilm|jbl|logitech|dell|lenovo|hp|microsoft|garmin|dyson|sharkclean|wayfair|ikea|patagonia|thenorthface|backcountry|evo|zappos|staples|officedepot|newegg|ebayimg|shopify|cdn\.shopify)\./i;
+    const BAD = /(pinterest|pinimg|reddit|redd\.it|etsy|facebook|instagram|tiktok|shutterstock|istockphoto|gettyimages|alamy|dreamstime|depositphotos|freepik|vecteezy|youtube|ytimg|wikipedia)/i;
+    const score = (x: any) => { const host = String(x.url || x.properties?.url || ''); const w = Number(x.properties?.width || x.thumbnail?.width || 0), h = Number(x.properties?.height || x.thumbnail?.height || 0);
+      let sc = 0; if (GOOD.test(host)) sc += 3; if (BAD.test(host)) sc -= 5; if (w && h) { const r = w / h; if (r > 0.7 && r < 1.45) sc += 1.5; else if (r > 2 || r < 0.5) sc -= 1; if (Math.min(w, h) >= 500) sc += 0.5; } return sc; };
+    const imgs = (j.results || []).map((x: any, i: number) => ({ src: x.properties?.url, thumb: x.thumbnail?.src, s: score(x) - i * 0.15 })).filter((x: any) => /^https:\/\//.test(x.src || '') && x.thumb && x.s > -3).sort((a: any, b: any) => b.s - a.s).slice(0, 4).map((x: any) => ({ src: x.src, thumb: x.thumb }));
     if (imgs.length) c.executionCtx.waitUntil(caches.default.put(ck, new Response(JSON.stringify({ imgs }), { headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=604800' } })).catch(() => {}));
     return c.json({ imgs });
   } catch (e) { await logErr(c.env.DB, 'stock search', e); return c.json({ imgs: [] }); }

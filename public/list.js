@@ -12,7 +12,7 @@
     var base = IDEAS.filter(function (i) { return !W.some(function (w) { return w[1] === i[1]; }); }), out = [], wi = 0;
     base.forEach(function (b) { if (out.length % 4 === 3 && wi < W.length) out.push(W[wi++]); out.push(b); });
     IDEAS = out.concat(W.slice(wi)); })();
-  var moreFor = null;
+  var moreFor = null, BASE = IDEAS.map(function (i) { return i[1]; });
   function shrink(f, cb) { var img = new Image(); img.onload = function () { var s = Math.min(1, 1400 / Math.max(img.width, img.height)), c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); c.toBlob(function (b) { if (b) cb(b); }, 'image/jpeg', 0.86); URL.revokeObjectURL(img.src); }; img.src = URL.createObjectURL(f); }
   var picked = [], shots = [], step = 'ideas', t0 = null, clockT, stream = null, retakeIdx = null, more = false;
   var fmt = function (n) { return '$' + n; };
@@ -75,7 +75,9 @@
   function stkStart() {
     if (!CFG.user) { location.href = '/login?next=' + encodeURIComponent('/list?stk=' + picked.join('|')); return; }
     if (!picked.length) { stk = [{ name: '', custom: true, price: MIN, brand: '', det: '', grade: 'A', imgs: [], k: 0 }]; si = 0; stkQ = []; show('stk'); stkOne(); setTimeout(function () { $('stkBrand').focus(); }, 50); return; }
-    stk = picked.map(function (n) { var idea = IDEAS.filter(function (i) { return i[1] === n; })[0]; return { name: n, price: idea ? Math.max(MIN, idea[2]) : MIN, brand: '', det: '', grade: 'A', imgs: null, k: 0 }; });
+    stk = picked.map(function (n) { var idea = IDEAS.filter(function (i) { return i[1] === n; })[0];
+      if (BASE.indexOf(n) < 0) return { name: n, custom: true, idea: ideaOf(n.replace(/\s+\S+$/, '')) || '', price: idea ? Math.max(MIN, idea[2]) : MIN, brand: n, det: '', grade: 'A', imgs: null, k: 0 };
+      return { name: n, price: idea ? Math.max(MIN, idea[2]) : MIN, brand: '', det: '', grade: 'A', imgs: null, k: 0 }; });
     si = 0; stkQ = stk.slice(); show('stk'); stkOne(); stkPump();
   }
   /* Brave allows ~1 search/sec: one at a time, the current item first */
@@ -99,7 +101,8 @@
     var one = stk.length === 1 && x.custom; $('stkH').hidden = one; $('stkDots').hidden = one || stk.length === 1;
     $('stkH').innerHTML = '<b>' + (si + 1) + ' of ' + stk.length + '</b>' + (x.custom ? '' : '<span>' + esc(x.name) + '</span>');
     $('stkDet').placeholder = 'Details (optional) · e.g. ' + (DET_EG[x.custom ? x.idea || '' : x.name] || 'what\'s included, size, color');
-    $('stkBrand').placeholder = x.custom ? 'e.g. DeWalt drill, KitchenAid mixer' : 'Brand / model · e.g. DeWalt 20V';
+    var eg = (window.LENDO_AC && window.LENDO_AC[x.name] || []).filter(function (t) { return /[A-Z]/.test(t.charAt(0)) && /\s/.test(t); })[0];
+    $('stkBrand').placeholder = x.custom ? 'Brand / model' : 'Brand / model' + (eg ? ' · e.g. ' + eg : '');
     if (document.activeElement !== $('stkBrand')) $('stkBrand').value = x.brand;
     if (document.activeElement !== $('stkDet')) $('stkDet').value = x.det || '';
     [].forEach.call($('stkGr').children, function (b) { b.classList.toggle('on', b.dataset.g === x.grade); });
