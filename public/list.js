@@ -41,6 +41,8 @@
   $('toType').addEventListener('click', function () { if (!t0) t0 = Date.now(); stkStart(); });
 
   // ---- no-photo path: one item at a time (brand → stock photo → ✓), then prices → post. Snapped ones go to the camera after posting.
+  /* what "Details" should prompt for, per item */
+  var DET_EG = { 'Drill': '2 batteries + charger, bit set', 'Tent': 'sleeps 4, rainfly + stakes', 'Projector': '1080p, HDMI cable, screen', 'Stand mixer': 'dough hook + whisk + paddle', 'Party speaker': 'mic included, 12 hr battery', 'Ladder': '6 ft, fiberglass', 'Bike': 'medium frame, lock + helmet', 'Camera': '24-70mm lens, 2 batteries, 64GB card', 'Guitar': 'case + strap, amp not included', 'Stroller': 'rain cover, cup holder', 'Pressure washer': '2000 PSI, 3 nozzles', 'Scooter': '20 mi range, charger', 'Skis': '170 cm, bindings set for size 10 boot', 'Suitcase': '22 in carry-on, spinner wheels', 'Kayak': 'paddle + life jacket', 'Air fryer': '6 qt, 2 baskets', 'Espresso machine': 'built-in grinder, milk pitcher', 'Tool kit': '120 pieces, hard case', 'Saw': '7 1/4 in blade, battery + charger', 'Karaoke mic': '2 mics, Bluetooth', 'Pickleball set': '4 paddles + 6 balls', 'Sewing machine': 'foot pedal, extra bobbins', 'Telescope': '130mm, tripod + 2 eyepieces', 'Snow boots': "women's 8, waterproof", 'Sled': 'fits 2 kids', 'Space heater': '1500W, tip-over shutoff', 'Snow blower': '24 in, electric start', 'Winter parka': "men's M, rated to -20°F", 'Holiday lights': '300 ft, warm white, timer', 'Roasting pan': 'fits a 20 lb turkey, rack', 'Ice skates': "size 9, guards included", 'Folding table': '6 ft, seats 6', 'Humidifier': '1 gal tank, quiet', 'Snowboard': '156 cm, bindings, boots size 10' };
   var stk = [], si = 0, stkQ = [], stkBusy = false;
   function stkLabel(x) { var b = (x.brand || '').trim(); if (x.custom) return x.idea && b.toLowerCase().indexOf(x.idea.toLowerCase()) < 0 ? b + ' ' + x.idea.toLowerCase() : b; if (!b) return x.name; return b.toLowerCase().indexOf(x.name.toLowerCase()) > -1 ? b : b + ' ' + x.name.toLowerCase(); }
   function stkStart() {
@@ -67,6 +69,7 @@
     $('stkN').textContent = (si + 1) + ' of ' + stk.length;
     $('stkDots').innerHTML = stk.map(function (y, k) { return '<i class="' + (k === si ? 'on' : y.yes ? 'ok' : '') + '"></i>'; }).join('');
     $('stkH').textContent = x.custom ? 'What is it?' : 'Your ' + x.name.toLowerCase();
+    $('stkDet').placeholder = 'Details (optional) · e.g. ' + (DET_EG[x.custom ? x.idea || '' : x.name] || 'what\'s included, size, color');
     $('stkBrand').placeholder = x.custom ? 'e.g. DeWalt drill, KitchenAid mixer' : 'Brand / model · e.g. DeWalt 20V';
     if (document.activeElement !== $('stkBrand')) $('stkBrand').value = x.brand;
     if (document.activeElement !== $('stkDet')) $('stkDet').value = x.det || '';
