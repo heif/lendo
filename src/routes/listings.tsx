@@ -54,7 +54,7 @@ const listPage = async (c: any) => {
           <div id="stkOne">
             <div class="stk1-dots" id="stkDots"></div>
             <div class="lf-h stk1-h" id="stkH"></div>
-            <input id="stkBrand" class="stk1-in" placeholder="Brand / model (optional)" autocomplete="off" enterkeyhint="search" />
+            <div class="stk1-acw"><input id="stkBrand" class="stk1-in" placeholder="Brand / model (optional)" autocomplete="off" autocapitalize="words" enterkeyhint="search" /><div class="stk1-ac" id="stkAc" hidden></div></div>
             <div class="stk1-pic" id="stkPic"></div>
             <div class="stk1-tbs" id="stkTbs"></div>
             <div class="stk1-note" id="stkNote">Stock photo · tap another if closer</div>
@@ -144,6 +144,7 @@ const listPage = async (c: any) => {
       {raw(`<script>window.LENDO_LIST=${cfg};</script>`)}
       <script src="/qrgen.js"></script>
       <script src="/details.js"></script>
+      <script src="/ac.js" defer></script>
       <script src="/list.js"></script>
     </Layout>
   );
@@ -222,10 +223,17 @@ listings.get('/api/stock', async (c) => {
     return c.json({ imgs });
   } catch (e) { await logErr(c.env.DB, 'stock search', e); return c.json({ imgs: [] }); }
 });
+/* learned brand/model suggestions for one idea (merged client-side with public/ac.js) */
+listings.get('/api/ac', async (c) => {
+  const idea = String(c.req.query('idea') || '').trim().slice(0, 40); if (!idea) return c.json({ terms: [] });
+  const r = await c.env.DB.prepare('SELECT term FROM ac_terms WHERE idea = ? AND n >= 2 ORDER BY n DESC LIMIT 40').bind(idea).all<{ term: string }>().catch(() => ({ results: [] as { term: string }[] }));
+  c.header('cache-control', 'public, max-age=600');
+  return c.json({ terms: r.results.map(x => x.term) });
+});
 /* post items with the standard photo the owner confirmed (no camera); the photo is copied into R2 like any other */
 listings.post('/api/list-stock', async (c) => {
   const u = c.get('user'); if (!u) return c.json({ error: 'login' }, 401);
-  const b = await c.req.json<{ items?: { name?: string; price?: number; img?: string; thumb?: string }[]; lat?: number; lng?: number }>().catch(() => ({} as any));
+  const b = await c.req.json<{ items?: { name?: string; price?: number; img?: string; thumb?: string; idea?: string; brand?: string }[]; lat?: number; lng?: number }>().catch(() => ({} as any));
   /* every reply row carries its input index `i` so the posted screen matches photos by item, never by position; skipped items come back in `failed` */
   const minP = (await minPriceCents(c.env)), out: any[] = [], failed: { i: number; name: string; why: string }[] = [];
   for (const [i, it] of (b.items || []).slice(0, 30).entries()) {
@@ -240,6 +248,10 @@ listings.post('/api/list-stock', async (c) => {
     const lid = await createListing(c.env, c.executionCtx, u, { name, priceCents: price, lat: typeof b.lat === 'number' ? b.lat : null, lng: typeof b.lng === 'number' ? b.lng : null, photos: [{ bytes, type }] });
     await c.env.DB.prepare('UPDATE listings SET stock_photo = 1 WHERE id = ?').bind(lid).run();
     await logEvent(c.env.DB, 'listing.stock_photo', { user: u.id, listing: lid, data: { src: String(it.img || '').slice(0, 300) } });
+    /* autocomplete learns: the brand/model this owner typed for this idea (plain text only; shown once 2+ owners used it) */
+    const idea = String(it.idea || '').trim().slice(0, 40), term = String(it.brand || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+    if (idea && term.length >= 2 && /^[\p{L}\p{N} .,'’+&()\/-]+$/u.test(term) && !/https?:|www\.|\d{7,}/i.test(term))
+      await c.env.DB.prepare('INSERT INTO ac_terms (idea, term, n, last_at) VALUES (?, ?, 1, ?) ON CONFLICT(idea, term) DO UPDATE SET n = n + 1, last_at = excluded.last_at').bind(idea, term, Date.now()).run().catch(() => null);
     const ph0 = await c.env.DB.prepare('SELECT r2_key FROM photos WHERE listing_id = ? ORDER BY pos LIMIT 1').bind(lid).first<{ r2_key: string }>().catch(() => null);
     out.push({ i, id: lid, name, price: price / 100, url: await itemLink(c.env, lid), cut: ph0 ? cutoutUrl(c.env, ph0.r2_key, 600, 600) : null, photo: ph0 ? '/p/' + ph0.r2_key : null });
   }

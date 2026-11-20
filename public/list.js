@@ -84,8 +84,28 @@
   }
   function stkToCam(names) { picked = names; renderIdeas(); show('cam'); }
   var stkT;
-  $('stkBrand').addEventListener('input', function () { var x = stk[si], v = this.value; clearTimeout(stkT); stkT = setTimeout(function () { if (x.brand === v) return; x.brand = v; x.imgs = null; x.yes = false; if (stkQ.indexOf(x) < 0) stkQ.unshift(x); stkOne(); stkPump(); }, 700); });
-  $('stkBrand').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); this.blur(); } });
+  function stkSet(x, v) { clearTimeout(stkT); if (x.brand === v) return; x.brand = v; x.imgs = null; x.yes = false; if (stkQ.indexOf(x) < 0) stkQ.unshift(x); stkOne(); stkPump(); }
+  /* instant autocomplete: built-in list (public/ac.js) + what other owners posted (/api/ac); matches word starts anywhere ("m18" → Milwaukee M18 drill) */
+  var acLearned = {};
+  function acList(name) {
+    var base = (window.LENDO_AC && window.LENDO_AC[name]) || [];
+    if (!acLearned[name]) { acLearned[name] = []; fetch('/api/ac?idea=' + encodeURIComponent(name)).then(function (r) { return r.json(); }).then(function (j) { acLearned[name] = j.terms || []; }).catch(function () {}); }
+    var seen = {}, out = []; base.concat(acLearned[name]).forEach(function (t) { var k = t.toLowerCase(); if (!seen[k]) { seen[k] = 1; out.push(t); } }); return out;
+  }
+  function acShow() {
+    var x = stk[si]; if (!x) return; var v = $('stkBrand').value.trim().toLowerCase(), all = acList(x.name), hits;
+    if (!v) hits = all.slice(0, 6);
+    else { var ws = v.split(/\s+/); hits = all.filter(function (t) { var tw = t.toLowerCase().split(/[\s\-+\/]+/); return ws.every(function (w) { return tw.some(function (z) { return z.indexOf(w) === 0; }); }); }).slice(0, 6); }
+    if (hits.length === 1 && hits[0].toLowerCase() === v) hits = [];
+    $('stkAc').innerHTML = hits.map(function (t) { return '<button type="button" data-t="' + esc(t) + '">' + esc(t) + '</button>'; }).join('');
+    $('stkAc').hidden = !hits.length;
+  }
+  $('stkBrand').addEventListener('input', function () { var x = stk[si], v = this.value; acShow(); clearTimeout(stkT); stkT = setTimeout(function () { stkSet(x, v); }, 900); });
+  $('stkBrand').addEventListener('focus', acShow);
+  $('stkBrand').addEventListener('blur', function () { setTimeout(function () { $('stkAc').hidden = true; }, 150); });
+  $('stkAc').addEventListener('mousedown', function (e) { e.preventDefault(); }); /* keep focus so the tap lands */
+  $('stkAc').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; var t = b.dataset.t; $('stkBrand').value = t; $('stkAc').hidden = true; $('stkBrand').blur(); stkSet(stk[si], t); });
+  $('stkBrand').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); var f = $('stkAc').querySelector('button'); if (f && !$('stkAc').hidden && this.value.trim().length >= 2) { this.value = f.dataset.t; } $('stkAc').hidden = true; this.blur(); stkSet(stk[si], this.value); } });
   $('stkTbs').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; stk[si].k = +b.dataset.k; stkOne(); });
   $('stkPic').addEventListener('click', function () { var x = stk[si]; if (x.imgs && x.imgs.length > 1) { x.k = (x.k + 1) % Math.min(4, x.imgs.length); stkOne(); } });
   $('stkSnap').addEventListener('click', function () { stk[si].snap = true; stk[si].yes = false; stkNext(); });
@@ -100,7 +120,7 @@
     if ($('stkAll').hidden) { var x = stk[si]; if (!(x.imgs && x.imgs[x.k])) return; x.yes = true; stkNext(); return; }
     var ok = stkOk(), sn = stk.filter(function (x) { return x.snap; }).map(function (x) { return x.name; });
     if (!ok.length) { if (sn.length) stkToCam(sn); return; }
-    var items = ok.map(function (x) { var im = x.imgs[x.k]; return { name: stkLabel(x), price: x.price, img: im.src, thumb: im.thumb }; });
+    var items = ok.map(function (x) { var im = x.imgs[x.k]; return { name: stkLabel(x), price: x.price, img: im.src, thumb: im.thumb, idea: x.name, brand: (x.brand || '').trim() }; });
     go.disabled = true; go.textContent = 'POSTING…';
     fetch('/api/list-stock', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items: items, lat: window._gps ? window._gps[0] : undefined, lng: window._gps ? window._gps[1] : undefined }) })
       .then(function (r) { if (r.status === 401) { location.href = '/login?next=' + encodeURIComponent('/list?stk=' + stk.map(function (x) { return x.name; }).join('|')); return null; } return r.json(); })

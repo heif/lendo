@@ -262,3 +262,6 @@ a.dn2-tray{text-decoration:none;color:var(--ink)}
 .stk1-alt{display:flex;justify-content:center;gap:22px;margin-top:4px}.stk1-alt .lnk{text-decoration:underline;text-underline-offset:3px;font-weight:800}.stk1-alt .lnk#stkSkip{color:var(--mute)}
 .stkr{display:flex;gap:12px;align-items:center;padding:8px 0;border-bottom:1.5px solid rgba(30,58,43,.1)}.stkr img{width:64px;height:64px;object-fit:contain;mix-blend-mode:multiply;flex:none}
 .stkr-t{flex:1;min-width:0}.stkr-t b{display:block;font-size:15px;font-weight:900;overflow-wrap:anywhere}.stkr-p{display:flex;align-items:center;gap:8px;margin-top:4px;font-weight:900;font-size:14px}
+.stk1-acw{position:relative}
+.stk1-ac{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;background:var(--cream);border:3px solid var(--ink);border-radius:14px;box-shadow:0 4px 0 var(--ink);overflow:hidden}
+.stk1-ac button{display:block;width:100%;text-align:left;border:0;border-bottom:1.5px solid rgba(30,58,43,.1);background:none;padding:0 14px;height:44px;font-size:16px;font-weight:800;color:var(--ink);font-family:inherit}.stk1-ac button:last-child{border-bottom:0}.stk1-ac button:active{background:rgba(255,79,0,.12)}
