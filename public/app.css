@@ -838,3 +838,4 @@ section.sec:has(#rentForm){padding:8px 16px 10px!important}
 #days button[data-tag="pickup"] b,#days button[data-tag="return"] b{margin-top:10px}
 #days button[data-tag="pickup"]::after,#days button[data-tag="return"]::after{top:6px;font-size:7.5px;letter-spacing:.03em}
 .days button.on,.days button.today.on{background:var(--orange);border-color:var(--orange);color:#fff}/* whole rental period orange */
+.stocktag{background:none;border:0;padding:0;font-size:10.5px;font-weight:700;color:var(--mute);max-width:none}/* quiet */
