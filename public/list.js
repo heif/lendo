@@ -17,7 +17,7 @@
   var picked = [], shots = [], step = 'ideas', t0 = null, clockT, stream = null, retakeIdx = null, more = false;
   var fmt = function (n) { return '$' + n; };
   function esc(s) { return String(s).replace(/[<>&"]/g, function (c) { return ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]; }); }
-  function show(name) { step = name; ['ideas', 'ai', 'cam', 'review', 'q', 'done'].forEach(function (s) { $('st-' + s).hidden = s !== name; }); document.documentElement.classList.toggle('camdark', name === 'cam'); if (name === 'cam') startCam(); else stopCam(); if (name === 'review') renderReview(); if (name === 'q') renderQ(); }
+  function show(name) { step = name; ['ideas', 'ai', 'stk', 'cam', 'review', 'q', 'done'].forEach(function (s) { $('st-' + s).hidden = s !== name; }); document.documentElement.classList.toggle('camdark', name === 'cam'); if (name === 'cam') startCam(); else stopCam(); if (name === 'review') renderReview(); if (name === 'q') renderQ(); }
   function clock() { if (!t0) return '0:00'; var s = Math.round((Date.now() - t0) / 1000); return Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2); }
 
   // ---- ideas
@@ -28,11 +28,90 @@
     var list = more ? IDEAS : IDEAS.slice(0, 10);
     $('ideas').innerHTML = list.map(function (i, k) { var on = picked.indexOf(i[1]) > -1; return '<button type="button" class="idea' + (on ? ' on' : '') + '" data-n="' + esc(i[1]) + '" data-p="' + i[2] + '"><span class="mk">' + (on ? '✓' : '') + '</span><span class="em"><img src="/p/wanted/' + i[0] + '.png" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'"></span><span class="nm">' + esc(i[1]) + '</span><span class="pr">~$' + i[2] + '/day</span></button>'; }).join('');
     $('moreIdeas').hidden = more;
-    $('toCam').textContent = picked.length ? 'SNAP ' + picked.length + (picked.length === 1 ? ' THING' : ' THINGS') : 'OPEN CAMERA';
+    /* stock photos on: picking → NEXT (no camera), camera is the link under it */
+    var stk0 = CFG.stock && picked.length;
+    $('toCam').textContent = !picked.length ? 'OPEN CAMERA' : stk0 ? 'NEXT: ' + picked.length + (picked.length === 1 ? ' THING' : ' THINGS') : 'SNAP ' + picked.length + (picked.length === 1 ? ' THING' : ' THINGS');
+    $('toSnap').hidden = !stk0;
   }
   $('ideas').addEventListener('click', function (e) { var b = e.target.closest('.idea'); if (!b) return; var n = b.dataset.n, i = picked.indexOf(n); if (i > -1) picked.splice(i, 1); else picked.push(n); renderIdeas(); });
   $('moreIdeas').addEventListener('click', function () { more = true; renderIdeas(); });
-  $('toCam').addEventListener('click', function () { if (!t0) t0 = Date.now(); show('cam'); });
+  $('toCam').addEventListener('click', function () { if (!t0) t0 = Date.now(); if (CFG.stock && picked.length) return stkStart(); show('cam'); });
+  $('toSnap').addEventListener('click', function () { if (!t0) t0 = Date.now(); show('cam'); });
+
+  // ---- no-photo path: one item at a time (brand → stock photo → ✓), then prices → post. Snapped ones go to the camera after posting.
+  var stk = [], si = 0, stkQ = [], stkBusy = false;
+  function stkLabel(x) { var b = (x.brand || '').trim(); if (!b) return x.name; return b.toLowerCase().indexOf(x.name.toLowerCase()) > -1 ? b : b + ' ' + x.name.toLowerCase(); }
+  function stkStart() {
+    if (!CFG.user) { location.href = '/login?next=' + encodeURIComponent('/list?stk=' + picked.join('|')); return; }
+    stk = picked.map(function (n) { var idea = IDEAS.filter(function (i) { return i[1] === n; })[0]; return { name: n, price: idea ? Math.max(MIN, idea[2]) : MIN, brand: '', imgs: null, k: 0 }; });
+    si = 0; stkQ = stk.slice(); show('stk'); stkOne(); stkPump();
+  }
+  /* Brave allows ~1 search/sec: one at a time, the current item first */
+  function stkPump() {
+    if (stkBusy) return; var x = stk[si] && !stk[si].imgs && stkQ.indexOf(stk[si]) > -1 ? stk[si] : stkQ.filter(function (y) { return !y.imgs; })[0];
+    if (!x) return; stkQ.splice(stkQ.indexOf(x), 1); stkBusy = true; var q = stkLabel(x), tries = 0;
+    (function go() {
+      fetch('/api/stock?q=' + encodeURIComponent(q)).then(function (r) { return r.json(); }).then(function (j) {
+        if (j.retry && tries++ < 2) return setTimeout(go, 1500);
+        if (stkLabel(x) === q) { x.imgs = j.imgs || []; x.k = 0; } else stkQ.unshift(x); /* brand changed meanwhile → search again */
+        done();
+      }).catch(function () { x.imgs = []; done(); });
+    })();
+    function done() { stkBusy = false; if (step === 'stk') { $('stkAll').hidden ? stkOne() : stkAll(); } setTimeout(stkPump, 1100); }
+  }
+  function stkOne() {
+    var x = stk[si]; $('stkOne').hidden = false; $('stkAll').hidden = true; $('stkAlt').hidden = false;
+    $('stkN').textContent = (si + 1) + ' of ' + stk.length;
+    $('stkDots').innerHTML = stk.map(function (y, k) { return '<i class="' + (k === si ? 'on' : y.yes ? 'ok' : '') + '"></i>'; }).join('');
+    $('stkH').textContent = 'Your ' + x.name.toLowerCase();
+    if (document.activeElement !== $('stkBrand')) $('stkBrand').value = x.brand;
+    var im = x.imgs && x.imgs[x.k];
+    $('stkPic').innerHTML = !x.imgs ? '<span class="stk1-wait">Finding a photo…</span>' : im ? '<img src="' + esc(im.thumb) + '" alt="">' : '<span class="stk1-wait">No photo found · add the brand or snap yours</span>';
+    $('stkTbs').innerHTML = x.imgs && x.imgs.length > 1 ? x.imgs.slice(0, 4).map(function (y, k) { return '<button type="button" data-k="' + k + '" class="' + (k === x.k ? 'on' : '') + '"><img src="' + esc(y.thumb) + '" alt=""></button>'; }).join('') : '';
+    $('stkNote').hidden = !(x.imgs && x.imgs.length);
+    $('stkGo').textContent = '✓ MINE LOOKS LIKE THIS'; $('stkGo').disabled = !im;
+  }
+  function stkNext() { si++; while (si < stk.length && (stk[si].yes || stk[si].snap || stk[si].skip)) si++; if (si < stk.length) { stkOne(); stkPump(); } else stkAll(); }
+  function stkOk() { return stk.filter(function (x) { return x.yes && x.imgs && x.imgs[x.k]; }); }
+  function stkAll() {
+    var ok = stkOk(), sn = stk.filter(function (x) { return x.snap; });
+    $('stkOne').hidden = true; $('stkAll').hidden = false; $('stkAlt').hidden = true; $('stkN').textContent = '';
+    $('stkRows').innerHTML = stk.map(function (x, i) { if (!x.yes) return ''; var im = x.imgs[x.k];
+      return '<div class="stkr"><img src="' + esc(im.thumb) + '" alt=""><div class="stkr-t"><b>' + esc(stkLabel(x)) + '</b><div class="stkr-p"><button type="button" class="aipm" data-i="' + i + '" data-d="-1" aria-label="Lower">−</button><span>$' + x.price + '/day</span><button type="button" class="aipm" data-i="' + i + '" data-d="1" aria-label="Raise">+</button></div></div></div>'; }).join('') +
+      (sn.length ? '<p class="hint" style="margin-top:10px">📷 Next: snap ' + esc(sn.map(function (x) { return x.name.toLowerCase(); }).join(', ')) + '</p>' : '');
+    $('stkGo').disabled = !ok.length && !sn.length;
+    $('stkGo').textContent = ok.length ? 'POST ' + ok.length + (ok.length === 1 ? ' THING' : ' THINGS') : sn.length ? 'SNAP ' + sn.length + (sn.length === 1 ? ' THING' : ' THINGS') : 'NOTHING TO POST';
+  }
+  function stkToCam(names) { picked = names; renderIdeas(); show('cam'); }
+  var stkT;
+  $('stkBrand').addEventListener('input', function () { var x = stk[si], v = this.value; clearTimeout(stkT); stkT = setTimeout(function () { if (x.brand === v) return; x.brand = v; x.imgs = null; x.yes = false; if (stkQ.indexOf(x) < 0) stkQ.unshift(x); stkOne(); stkPump(); }, 700); });
+  $('stkBrand').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); this.blur(); } });
+  $('stkTbs').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; stk[si].k = +b.dataset.k; stkOne(); });
+  $('stkPic').addEventListener('click', function () { var x = stk[si]; if (x.imgs && x.imgs.length > 1) { x.k = (x.k + 1) % Math.min(4, x.imgs.length); stkOne(); } });
+  $('stkSnap').addEventListener('click', function () { stk[si].snap = true; stk[si].yes = false; stkNext(); });
+  $('stkSkip').addEventListener('click', function () { stk[si].skip = true; stk[si].yes = false; stkNext(); });
+  $('stkRows').addEventListener('click', function (e) { var pm = e.target.closest('.aipm'); if (!pm) return; var x = stk[+pm.dataset.i]; x.price = Math.max(MIN, x.price + (+pm.dataset.d)); stkAll(); });
+  $('stkBack').addEventListener('click', function () {
+    if (!$('stkAll').hidden) { si = stk.length - 1; stk[si].yes = stk[si].snap = stk[si].skip = false; stkOne(); return; }
+    if (si === 0) { show('ideas'); return; } si--; stk[si].yes = stk[si].snap = stk[si].skip = false; stkOne();
+  });
+  $('stkGo').addEventListener('click', function () {
+    var go = this;
+    if ($('stkAll').hidden) { var x = stk[si]; if (!(x.imgs && x.imgs[x.k])) return; x.yes = true; stkNext(); return; }
+    var ok = stkOk(), sn = stk.filter(function (x) { return x.snap; }).map(function (x) { return x.name; });
+    if (!ok.length) { if (sn.length) stkToCam(sn); return; }
+    var items = ok.map(function (x) { var im = x.imgs[x.k]; return { name: stkLabel(x), price: x.price, img: im.src, thumb: im.thumb }; });
+    go.disabled = true; go.textContent = 'POSTING…';
+    fetch('/api/list-stock', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items: items, lat: window._gps ? window._gps[0] : undefined, lng: window._gps ? window._gps[1] : undefined }) })
+      .then(function (r) { if (r.status === 401) { location.href = '/login?next=' + encodeURIComponent('/list?stk=' + stk.map(function (x) { return x.name; }).join('|')); return null; } return r.json(); })
+      .then(function (j) { if (!j) return; var L = (j.listed || []).slice().sort(function (a, b) { return a.i - b.i; });
+        if (!L.length) { go.textContent = 'TRY AGAIN'; go.disabled = false; return; }
+        if (sn.length) { if (window.toast) window.toast(L.length + ' posted · now snap the rest'); stkToCam(sn); return; }
+        shots = L.map(function (r) { return { name: r.name, price: r.price, url: r.photo || items[r.i].thumb, cutUrl: r.cut }; }); j.listed = L; renderDone(j); show('done'); })
+      .catch(function () { go.textContent = 'TRY AGAIN'; go.disabled = false; });
+  });
+  /* back from login with picks → straight into the no-photo path */
+  (function () { try { var q = new URLSearchParams(location.search).get('stk'); if (!q || !CFG.stock || !CFG.user) return; q.split('|').forEach(function (n) { n = n.trim(); if (!n) return; if (!IDEAS.some(function (i) { return i[1] === n; })) IDEAS.unshift(['📦', n, 12]); if (picked.indexOf(n) < 0) picked.push(n); }); renderIdeas(); if (picked.length) setTimeout(stkStart, 0); } catch (e) {} })();
   // ---- ask your AI (their AI reads their email receipts; Lendo only gets the pasted list)
   var aiFound = null;
   function aiCopy() { var t = $('aiPrompt').textContent; try { navigator.clipboard.writeText(t); } catch (e) {} return t; }

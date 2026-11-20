@@ -45,7 +45,28 @@ const listPage = async (c: any) => {
           <div id="ideas" class="ideas"></div>
           <button type="button" class="btn full" id="moreIdeas" style="margin-top:8px">14 more ideas →</button>
         </div>
-        <div class="lf-foot"><button type="button" class="cta" id="toCam">OPEN CAMERA</button></div>
+        <div class="lf-foot"><button type="button" class="cta" id="toCam">OPEN CAMERA</button><button type="button" class="lnk snaplnk" id="toSnap" hidden>📷 Or snap photos</button></div>
+      </section>
+      {/* no-photo path (default when stock photos are on): one item at a time → brand (optional) → stock photo → ✓ mine; then prices → post */}
+      <section id="st-stk" class="lf" hidden>
+        <div class="lf-scroll">
+          <div class="rv-top"><button type="button" class="lnk" id="stkBack">← back</button><span class="m rv-count" id="stkN"></span></div>
+          <div id="stkOne">
+            <div class="stk1-dots" id="stkDots"></div>
+            <div class="lf-h stk1-h" id="stkH"></div>
+            <input id="stkBrand" class="stk1-in" placeholder="Brand / model (optional)" autocomplete="off" enterkeyhint="search" />
+            <div class="stk1-pic" id="stkPic"></div>
+            <div class="stk1-tbs" id="stkTbs"></div>
+            <div class="stk1-note" id="stkNote">Stock photo · tap another if closer</div>
+          </div>
+          <div id="stkAll" hidden>
+            <div class="lf-h" style="margin-bottom:2px">Ready to post</div>
+            <p class="hint" style="margin:0 0 6px">Prices are a start · change anytime</p>
+            <div id="stkRows"></div>
+          </div>
+        </div>
+        <div class="lf-foot"><button type="button" class="cta" id="stkGo">✓ MINE LOOKS LIKE THIS</button>
+          <div class="stk1-alt" id="stkAlt"><button type="button" class="lnk" id="stkSnap">📷 Snap mine instead</button><button type="button" class="lnk" id="stkSkip">Skip</button></div></div>
       </section>
       {/* ask your AI: copy a prompt → their own AI searches their email → paste the answer back */}
       <section id="st-ai" class="lf" hidden>
