@@ -30,9 +30,9 @@
     $('moreIdeas').hidden = more;
     /* stock photos on: picking → NEXT (no camera), camera is the link under it */
     var stk0 = CFG.stock; /* Snap | Find it always, even before picking (Find it with nothing picked = type what it is) */
-    $('toCam').textContent = !picked.length ? 'OPEN CAMERA' : 'SNAP ' + picked.length + (picked.length === 1 ? ' THING' : ' THINGS');
-    /* stock photos on + something picked: a clear choice, SNAP or TYPE */
-    $('pick2').hidden = !stk0; $('toCam').hidden = !!stk0;
+    /* stock photos on: one button → the item screens (camera lives there as "Snap yours"); off: the camera as before */
+    $('toCam').textContent = stk0 ? (picked.length ? 'NEXT · ' + picked.length + (picked.length === 1 ? ' THING' : ' THINGS') : 'NEXT') : !picked.length ? 'OPEN CAMERA' : 'SNAP ' + picked.length + (picked.length === 1 ? ' THING' : ' THINGS');
+    $('pick2').hidden = true; $('toCam').hidden = false;
   }
   $('ideas').addEventListener('click', function (e) { var b = e.target.closest('.idea'); if (!b) return; var n = b.dataset.n, i = picked.indexOf(n); if (i > -1) picked.splice(i, 1); else picked.push(n); renderIdeas(); });
   $('moreIdeas').addEventListener('click', function () { more = true; renderIdeas(); });
@@ -63,7 +63,7 @@
   $('ideaType').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); ideaAdd(this.value); } });
   $('ideaAc').addEventListener('mousedown', function (e) { e.preventDefault(); });
   $('ideaAc').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) ideaAdd(b.dataset.t); });
-  $('toCam').addEventListener('click', function () { if (!t0) t0 = Date.now(); show('cam'); });
+  $('toCam').addEventListener('click', function () { if (!t0) t0 = Date.now(); if (CFG.stock) { if (!picked.length && $('ideaType').value.trim().length > 1) ideaAdd($('ideaType').value); return stkStart(); } show('cam'); });
   $('toSnap').addEventListener('click', function () { if (!t0) t0 = Date.now(); show('cam'); });
   $('toType').addEventListener('click', function () { if (!t0) t0 = Date.now(); stkStart(); });
 
