@@ -286,3 +286,4 @@ a.dn2-tray{text-decoration:none;color:var(--ink)}
 .stkr-g{display:inline-block;font-size:11px;font-weight:900;border:2px solid currentColor;border-radius:6px;padding:0 4px;vertical-align:2px;margin-left:4px}.stkr-g.gA,.stkr-g.gB{color:#1F8A4C}.stkr-g.gC{color:#C27C00}.stkr-g.gD,.stkr-g.gE{color:#C0392B}
 .stk1-ac{max-height:356px;overflow-y:auto}
 .stk1-btns .cta{font-size:16px;white-space:nowrap;padding:0 8px}
+.dn3-soc .soc{display:flex;gap:8px;align-items:center;justify-content:center}
