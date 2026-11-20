@@ -297,3 +297,4 @@ a.dn2-tray{text-decoration:none;color:var(--ink)}
 .stk1-snap{width:64px;min-height:54px;border:3px solid var(--ink);border-radius:12px;background:var(--cream);color:var(--ink);box-shadow:0 3px 0 var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:2px}
 .stk1-snap small{font-size:10.5px;font-weight:900;line-height:1}
 .stk1-note{margin:6px 0 10px}
+.stk1-btns .stk1-skipb{flex:0 0 96px;background:var(--cream);color:var(--ink)}

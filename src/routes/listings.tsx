@@ -50,7 +50,7 @@ const listPage = async (c: any) => {
       {/* no-photo path (default when stock photos are on): one item at a time → brand (optional) → stock photo → ✓ mine; then prices → post */}
       <section id="st-stk" class="lf" hidden>
         <div class="lf-scroll">
-          <div class="rv-top"><button type="button" class="lnk" id="stkBack">← back</button><span class="m rv-count" id="stkN"></span><button type="button" class="lnk stk1-skip" id="stkSkip">Skip</button></div>
+          <div class="rv-top"><button type="button" class="lnk" id="stkBack">← back</button><span class="m rv-count" id="stkN"></span></div>
           <div id="stkOne">
             <div class="stk1-dots" id="stkDots"></div>
             <div class="lf-h stk1-h" id="stkH"></div>
@@ -68,7 +68,7 @@ const listPage = async (c: any) => {
             <div id="stkRows"></div>
           </div>
         </div>
-        <div class="lf-foot"><button type="button" class="cta" id="stkGo">✓ LOOKS LIKE MINE</button></div>
+        <div class="lf-foot"><div class="stk1-btns"><button type="button" class="cta stk1-skipb" id="stkSkip">Skip</button><button type="button" class="cta" id="stkGo">✓ LOOKS LIKE MINE</button></div></div>
       </section>
       {/* ask your AI: copy a prompt → their own AI searches their email → paste the answer back */}
       <section id="st-ai" class="lf" hidden>
