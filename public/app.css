@@ -839,3 +839,7 @@ section.sec:has(#rentForm){padding:8px 16px 10px!important}
 #days button[data-tag="pickup"]::after,#days button[data-tag="return"]::after{top:6px;font-size:7.5px;letter-spacing:.03em}
 .days button.on,.days button.today.on{background:var(--orange);border-color:var(--orange);color:#fff}/* whole rental period orange */
 .stocktag{background:none;border:0;padding:0;font-size:10.5px;font-weight:700;color:var(--mute);max-width:none}/* quiet */
+/* price tag always sits right on the bottom of the item picture: pictures in fixed boxes sit at the bottom of the box */
+.itemcard img,.pitem .pic img,.hero.gal img,.hero img,.pcard-img img.cut{object-position:center bottom}
+.pitem .pic{align-items:flex-end}
+.itemcard .b .pr{margin-top:-14px}

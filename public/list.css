@@ -305,3 +305,4 @@ a.dn2-tray{text-decoration:none;color:var(--ink)}
 .stk-empty{font-size:17px;font-weight:900;margin:18px 0 4px}
 .stk-more{display:flex;flex-direction:column;gap:8px;margin-top:14px}
 .stk-mb{height:50px;border:3px solid var(--ink);border-radius:14px;background:var(--cream);color:var(--ink);font-size:16px;font-weight:900;box-shadow:0 3px 0 var(--ink);font-family:inherit}
+.dn2-img.cut{object-position:center bottom}
