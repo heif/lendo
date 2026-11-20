@@ -45,7 +45,7 @@ const listPage = async (c: any) => {
           <div id="ideas" class="ideas"></div>
           <button type="button" class="btn full" id="moreIdeas" style="margin-top:8px">14 more ideas →</button>
         </div>
-        <div class="lf-foot"><div class="pick2" id="pick2" hidden><button type="button" class="cta pk-cam" id="toSnap"><b>📷 SNAP</b><small>take photos</small></button><button type="button" class="cta pk-type" id="toType"><b>⌨️ TYPE</b><small>no photos needed</small></button></div><button type="button" class="cta" id="toCam">OPEN CAMERA</button></div>
+        <div class="lf-foot"><div class="pick2" id="pick2" hidden><button type="button" class="cta pk-cam" id="toSnap"><i dangerouslySetInnerHTML={{ __html: '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h1.5a2 2 0 0 0 1.8-1.1l.4-.8A2 2 0 0 1 10.5 4h3a2 2 0 0 1 1.8 1.1l.4.8A2 2 0 0 0 17.5 7H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z" /><circle cx="12" cy="13" r="3.4" /></svg>' }} /><span><b>Snap</b><small>real photos</small></span></button><button type="button" class="cta pk-type" id="toType"><i dangerouslySetInnerHTML={{ __html: '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6" /><path d="M15 15l5 5" /></svg>' }} /><span><b>Find it</b><small>stock photo</small></span></button></div><button type="button" class="cta" id="toCam">OPEN CAMERA</button></div>
       </section>
       {/* no-photo path (default when stock photos are on): one item at a time → brand (optional) → stock photo → ✓ mine; then prices → post */}
       <section id="st-stk" class="lf" hidden>
@@ -55,8 +55,9 @@ const listPage = async (c: any) => {
             <div class="stk1-dots" id="stkDots"></div>
             <div class="lf-h stk1-h" id="stkH"></div>
             <div class="stk1-acw"><input id="stkBrand" class="stk1-in" placeholder="Brand / model · e.g. DeWalt 20V" autocomplete="off" autocapitalize="words" enterkeyhint="done" /><div class="stk1-ac" id="stkAc" hidden></div></div>
-            <div class="stk1-row"><div class="stk1-pic" id="stkPic"></div><div class="stk1-tbs" id="stkTbs"></div></div>
-            <div class="stk1-note" id="stkNote">Stock photo · tap another if closer</div>
+            <div class="stk1-pic" id="stkPic"></div>
+            <div class="stk1-pics"><div class="stk1-tbs" id="stkTbs"></div><button type="button" class="stk1-snap" id="stkSnap"><i dangerouslySetInnerHTML={{ __html: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h1.5a2 2 0 0 0 1.8-1.1l.4-.8A2 2 0 0 1 10.5 4h3a2 2 0 0 1 1.8 1.1l.4.8A2 2 0 0 0 17.5 7H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z" /><circle cx="12" cy="13" r="3.4" /></svg>' }} /><small>Snap yours</small></button></div>
+            <div class="stk1-note" id="stkNote">Tap the closest one · can't find yours? Snap a photo</div>
             <input id="stkDet" class="stk1-in stk1-det" placeholder="Details (optional) · e.g. 2 batteries + charger" autocomplete="off" enterkeyhint="done" maxlength={300} />
             <div class="stk1-lbl">Condition</div>
             <div class="stk1-gr" id="stkGr">{['A', 'B', 'C', 'D', 'E'].map(g => <button type="button" data-g={g} class={'g' + g}><b>{g}</b><small>{({ A: 'Great', B: 'Good', C: 'OK', D: 'Poor', E: 'Junk' } as any)[g]}</small></button>)}</div>
@@ -67,7 +68,7 @@ const listPage = async (c: any) => {
             <div id="stkRows"></div>
           </div>
         </div>
-        <div class="lf-foot"><div class="stk1-btns"><button type="button" class="cta stk1-cam" id="stkSnap">📷 SNAP</button><button type="button" class="cta" id="stkGo">✓ LOOKS LIKE MINE</button></div></div>
+        <div class="lf-foot"><button type="button" class="cta" id="stkGo">✓ LOOKS LIKE MINE</button></div>
       </section>
       {/* ask your AI: copy a prompt → their own AI searches their email → paste the answer back */}
       <section id="st-ai" class="lf" hidden>

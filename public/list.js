@@ -72,7 +72,7 @@
     var im = x.imgs && x.imgs[x.k];
     $('stkPic').innerHTML = !x.imgs ? '<span class="stk1-wait">Finding a photo…</span>' : im ? '<img src="' + esc(im.thumb) + '" alt="">' : '<span class="stk1-wait">No photo found · add the brand or snap yours</span>';
     $('stkTbs').innerHTML = x.imgs && x.imgs.length > 1 ? x.imgs.slice(0, 4).map(function (y, k) { return '<button type="button" data-k="' + k + '" class="' + (k === x.k ? 'on' : '') + '"><img src="' + esc(y.thumb) + '" alt=""></button>'; }).join('') : '';
-    $('stkNote').hidden = !(x.imgs && x.imgs.length);
+    $('stkNote').hidden = false;
     $('stkGo').textContent = '✓ LOOKS LIKE MINE'; $('stkGo').disabled = !im; $('stkSnap').hidden = false; $('stkSkip').hidden = false;
   }
   function stkNext() { si++; while (si < stk.length && (stk[si].yes || stk[si].snap || stk[si].skip)) si++; if (si < stk.length) { stkOne(); stkPump(); } else stkAll(); }

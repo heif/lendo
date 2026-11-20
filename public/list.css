@@ -287,3 +287,13 @@ a.dn2-tray{text-decoration:none;color:var(--ink)}
 .stk1-ac{max-height:356px;overflow-y:auto}
 .stk1-btns .cta{font-size:16px;white-space:nowrap;padding:0 8px}
 .dn3-soc .soc{display:flex;gap:8px;align-items:center;justify-content:center}
+.pick2 .cta{flex-direction:row;justify-content:flex-start;gap:10px;padding:0 14px;height:64px;text-align:left;letter-spacing:0}
+.pick2 .cta i{display:grid;place-items:center;flex:none}.pick2 .cta span{display:flex;flex-direction:column;line-height:1.1}
+.pick2 .cta b{font-size:21px}.pick2 .cta small{font-size:13px}
+/* photo options + "Snap yours" tile side by side */
+#stkOne .stk1-pic{height:150px;margin:10px 0 6px}#stkOne .stk1-pic img{max-height:150px}
+.stk1-pics{display:flex;gap:8px;justify-content:center;align-items:stretch}
+.stk1-pics .stk1-tbs{flex-direction:row;gap:8px}.stk1-pics .stk1-tbs button{width:54px;height:54px}
+.stk1-snap{width:64px;min-height:54px;border:3px solid var(--ink);border-radius:12px;background:var(--cream);color:var(--ink);box-shadow:0 3px 0 var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:2px}
+.stk1-snap small{font-size:10.5px;font-weight:900;line-height:1}
+.stk1-note{margin:6px 0 10px}
