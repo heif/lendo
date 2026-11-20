@@ -349,7 +349,7 @@
     /* tap the picture or name → the item page */
     var L0 = Lc[0]; if (L0) { var tr = $('tray'), a = document.createElement('a'); a.href = L0.url || '/i/' + L0.id; a.className = 'dn2-tray'; a.id = 'tray'; a.innerHTML = tr.innerHTML; tr.parentNode.replaceChild(a, tr); }
     $('dnHead').textContent = shots.length === 1 ? 'Posted' : shots.length + ' posted';
-    $('again').lastChild.textContent = shots.length === 1 ? 'List another' : 'List more';
+    $('again').lastChild.textContent = 'List more stuff';
     $('dnSub').textContent = shots.length === 1 ? 'Live on the map — neighbors can rent it now' : 'Live on the map — neighbors can rent them now';
 
     var L = (j && j.listed) || [], one = shots.length === 1 && L[0], minP = Math.min.apply(null, shots.map(function (s) { return s.price; }));
