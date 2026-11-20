@@ -322,3 +322,10 @@ a.dn2-tray{text-decoration:none;color:var(--ink)}
 .iblank:focus-within{border-style:solid;border-color:var(--orange)}
 .iblank .stk1-ac{top:calc(100% + 4px)}
 .stk1-ac .ac-own{color:var(--orange)}
+/* "Not yours? Snap a photo": one clear button under the photo options */
+.stk1-tbs{margin-top:2px}
+.stk1-snap{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;height:50px;min-height:0;margin:8px 0 4px;padding:0 14px;border:3px solid var(--orange);border-radius:14px;background:#fff;color:var(--orange);box-shadow:0 3px 0 var(--orange);font-size:16px;font-weight:900;font-family:inherit;flex-direction:row}
+.stk1-snap i{display:grid;place-items:center}
+.stk1-snap:active{transform:translateY(2px);box-shadow:0 1px 0 var(--orange)}
+.stk1-note{margin:6px 0 0}
+.stk1-snap{margin-bottom:14px}
