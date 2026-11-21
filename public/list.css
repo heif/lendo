@@ -338,3 +338,4 @@ a.dn2-tray{text-decoration:none;color:var(--ink)}
 .iblank-cam small{font-size:11px;font-weight:900;line-height:1}
 .iblank-cam:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
 .iblank-row{width:100%;box-sizing:border-box}.iblank-row .iblank{min-width:0;box-sizing:border-box}
+.iblank-cam{background:var(--ink);color:#fff}#st-ideas .lf-scroll{padding-bottom:28px}

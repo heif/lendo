@@ -7,7 +7,7 @@
     ['escooter', 'Scooter', 15], ['skis', 'Skis', 20], ['luggage', 'Suitcase', 8], ['kayak', 'Kayak', 35], ['airfryer', 'Air fryer', 8], ['espresso2', 'Espresso machine', 15], ['toolbox', 'Tool kit', 10], ['saw', 'Saw', 12], ['mic', 'Karaoke mic', 10], ['pickle', 'Pickleball set', 9], ['sewing2', 'Sewing machine', 12], ['telescope', 'Telescope', 18]];
   /* winter (Nov–Feb): mix in cold-weather + holiday things, 1 in 4 */
   (function () { var m = new Date().getMonth(); if (!(m === 10 || m === 11 || m <= 1)) return;
-    var W = [['snowboots', 'Snow boots', 8], ['sled', 'Sled', 6], ['heater', 'Space heater', 8], ['skis', 'Skis', 20], ['snowblower', 'Snow blower', 30], ['parka', 'Winter parka', 10], ['lights', 'Holiday lights', 6], ['roaster', 'Roasting pan', 6], ['skates', 'Ice skates', 8], ['foldtable', 'Folding table', 8], ['humidifier', 'Humidifier', 6], ['snowboard', 'Snowboard', 20]];
+    var W = [['skis', 'Skis', 20], ['sled', 'Sled', 6], ['heater', 'Space heater', 8], ['snowboots', 'Snow boots', 8], ['snowblower', 'Snow blower', 30], ['parka', 'Winter parka', 10], ['lights', 'Holiday lights', 6], ['roaster', 'Roasting pan', 6], ['skates', 'Ice skates', 8], ['foldtable', 'Folding table', 8], ['humidifier', 'Humidifier', 6], ['snowboard', 'Snowboard', 20]];
     /* 1 in 4 is a winter thing, the rest are year-round favorites */
     var base = IDEAS.filter(function (i) { return !W.some(function (w) { return w[1] === i[1]; }); }), out = [], wi = 0;
     base.forEach(function (b) { if (out.length % 4 === 3 && wi < W.length) out.push(W[wi++]); out.push(b); });
