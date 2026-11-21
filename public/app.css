@@ -843,3 +843,12 @@ section.sec:has(#rentForm){padding:8px 16px 10px!important}
 .itemcard img,.pitem .pic img,.hero.gal img,.hero img,.pcard-img img.cut{object-position:center bottom}
 .pitem .pic{align-items:flex-end}
 .itemcard .b .pr{margin-top:-14px}
+/* item page: name / description / condition block, tight */
+section.sec:has(.ititle):has(#rentForm),section.sec:has(.ititle){padding-top:3px!important}
+section.sec:has(.ititle) h2{line-height:1.12!important}
+section.sec:has(.ititle) h2 .ownlink{margin-bottom:1px}
+.ititle{margin-top:3px!important;gap:10px}
+.ititle p{line-height:1.3!important}
+.ititle .grdd.inrow{zoom:.6!important;margin:-4px 0!important}
+.askrow{margin-top:4px}.askrow .askbtn{margin-top:0!important;padding:2px 0}
+.ititle p{font-size:13.5px!important}
