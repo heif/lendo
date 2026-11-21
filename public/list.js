@@ -57,10 +57,14 @@
       if (!IDEAS.some(function (i) { return i[1] === name; })) IDEAS.unshift([base ? base[0] : '📦', name, base ? base[2] : 12]);
       if (picked.indexOf(name) < 0) picked.push(name); }
     $('ideaType').value = ''; $('ideaAc').hidden = true; renderIdeas();
+    var firstOn = document.querySelector('#ideas .on'); if (firstOn && firstOn.scrollIntoView) firstOn.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
   $('ideaType').addEventListener('input', ideaAcShow);
-  $('ideaType').addEventListener('blur', function () { setTimeout(function () { $('ideaAc').hidden = true; }, 150); });
+  /* phones: the keyboard's Done/Go submits the form, and leaving the box with text in it adds it too (a tapped suggestion clears the box first) */
+  $('ideaType').addEventListener('blur', function () { setTimeout(function () { $('ideaAc').hidden = true; if ($('ideaType').value.trim().length > 1) ideaAdd($('ideaType').value); }, 220); });
   $('ideaType').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); ideaAdd(this.value); } });
+  $('ideaForm').addEventListener('submit', function (e) { e.preventDefault(); ideaAdd($('ideaType').value); $('ideaType').blur(); });
+  $('ideaCam').addEventListener('click', function () { if (!t0) t0 = Date.now(); if ($('ideaType').value.trim().length > 1) ideaAdd($('ideaType').value); show('cam'); });
   $('ideaAc').addEventListener('mousedown', function (e) { e.preventDefault(); });
   $('ideaAc').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) ideaAdd(b.dataset.t); });
   $('toCam').addEventListener('click', function () { if (!t0) t0 = Date.now(); if (CFG.stock) { if (!picked.length && $('ideaType').value.trim().length > 1) ideaAdd($('ideaType').value); return stkStart(); } show('cam'); });
