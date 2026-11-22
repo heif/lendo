@@ -289,11 +289,14 @@
 
   // ---- camera
   var video = $('cam'), canvas = document.createElement('canvas');
+  var wantCam = false;
   function startCam() {
     updateHint();
+    $('st-cam').classList.toggle('upmode', HOVERDEV && !stream && !wantCam);
+    if (HOVERDEV && !wantCam && !stream) { $('camFallback').hidden = true; return; } /* computers: upload panel, no webcam pointed at you */
     if (stream || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { if (!stream) $('camFallback').hidden = false; return; }
     navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1600 } }, audio: false })
-      .then(function (s) { stream = s; video.srcObject = s; video.play(); $('camFallback').hidden = true; })
+      .then(function (s) { stream = s; video.srcObject = s; video.play(); $('camFallback').hidden = true; $('st-cam').classList.remove('upmode'); })
       .catch(function () { $('camFallback').hidden = false; });
   }
   function stopCam() { if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; video.srcObject = null; } }
@@ -342,7 +345,15 @@
   }
   $('shutter').addEventListener('click', snap);
   /* one way in for any picked or dropped picture: shrink → same path as a snapped photo */
-  function useFile(f) { if (!f || !/^image\//.test(f.type || 'image/')) return; var img = new Image(); img.onload = function () { var s = Math.min(1, 1400 / Math.max(img.width, img.height)); canvas.width = Math.round(img.width * s); canvas.height = Math.round(img.height * s); canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height); canvas.toBlob(function (b) { if (b) addShot(b); }, 'image/jpeg', 0.86); }; img.src = URL.createObjectURL(f); }
+  function useFile(f) {
+    if (!f || !(/^image\//.test(f.type || '') || /\.(heic|heif|jpe?g|png|webp|gif|avif)$/i.test(f.name || ''))) return;
+    var busy = $('upBusy'); busy.hidden = false;
+    var draw = function (src, done) { var img = new Image(); img.onload = function () { var s = Math.min(1, 1400 / Math.max(img.width, img.height)); canvas.width = Math.round(img.width * s); canvas.height = Math.round(img.height * s); canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height); canvas.toBlob(function (b) { busy.hidden = true; if (b) addShot(b); }, 'image/jpeg', 0.86); }; img.onerror = done; img.src = src; };
+    /* HEIC (iPhone photos) and other formats this browser can't open: convert on the server first */
+    var convert = function () { var fd = new FormData(); fd.append('photo', f, f.name || 'photo'); fetch('/api/to-jpeg', { method: 'POST', body: fd }).then(function (r) { return r.ok ? r.blob() : null; }).then(function (b) { if (!b) throw 0; draw(URL.createObjectURL(b), function () { busy.hidden = true; }); }).catch(function () { busy.hidden = true; if (window.toast) window.toast('Couldn’t open that photo · try a JPG or PNG'); }); };
+    if (/heic|heif/i.test(f.type || '') || /\.hei[cf]$/i.test(f.name || '')) { var u = URL.createObjectURL(f); draw(u, convert); return; } /* Safari opens HEIC itself; others convert */
+    draw(URL.createObjectURL(f), convert);
+  }
   $('file').addEventListener('change', function () { useFile(this.files[0]); this.value = ''; });
   /* photo library (phones) / choose a file (computers): standard bottom-left spot of a camera screen */
   $('pickFile').addEventListener('change', function () { useFile(this.files[0]); this.value = ''; });
@@ -358,7 +369,8 @@
     window.addEventListener('dragover', function (e) { if (has(e)) e.preventDefault(); }); window.addEventListener('drop', function (e) { if (has(e)) e.preventDefault(); });
   })();
   $('camFallback').addEventListener('click', function () { (HOVERDEV ? $('pickFile') : $('file')).click(); });
-  if (HOVERDEV) { $('camFallback').textContent = 'Choose a photo'; $('tapHint').firstChild.textContent = 'Or drop a photo here '; }
+  $('useCam').addEventListener('click', function () { wantCam = true; startCam(); });
+  $('upPick').addEventListener('click', function () { $('pickFile').click(); });
   $('doneBtn').addEventListener('click', function () { show('review'); });
   $('thumbWrap').addEventListener('click', function () { show('review'); });
   $('camClose').addEventListener('click', function () { if (shots.length) show('review'); else show('ideas'); });

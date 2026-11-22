@@ -369,3 +369,17 @@ a.dn2-tray{text-decoration:none;color:var(--ink)}
 .dropzone span{color:#fff;font-size:24px;font-weight:900}
 .dropping .dropzone{display:grid}
 .dropping .cam-fallback,.dropping .tap{opacity:0}
+/* computers: upload panel instead of a webcam */
+.uppanel{display:none}
+.upmode video,.upmode .cam-br,.upmode .tap,.upmode .shutter,.upmode .libbtn,.upmode .cam-fallback{display:none!important}
+.upmode{background:var(--cream)!important}
+.upmode .uppanel{position:absolute;inset:70px 24px 110px;z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.upbox{width:100%;max-width:460px;flex:1;max-height:340px;border:3px dashed var(--ink);border-radius:22px;background:#fff;color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-family:inherit;cursor:pointer}
+.upbox b{font-size:21px;font-weight:900}.upbox small{font-size:13px;font-weight:700;color:var(--mute)}
+.upbox:hover{border-color:var(--orange)}
+.uselnk{font-size:14px;font-weight:800;color:var(--mute);text-decoration:underline;text-underline-offset:3px;background:none;border:0;font-family:inherit;cursor:pointer}
+.upmode .cam-hints{color:var(--ink)}.upmode .cam-x{background:var(--ink)}
+.upmode .cam-bar{background:transparent}
+.upbusy{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;background:var(--ink);color:#fff;font-weight:900;font-size:16px;padding:12px 18px;border-radius:14px}
+.upmode .dropzone{background:rgba(255,79,0,.12);border-color:var(--orange)}.upmode .dropzone span{color:var(--orange)}
+.upmode .cam-top,.upmode::before,.upmode::after{background:none!important}

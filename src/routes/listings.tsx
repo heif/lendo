@@ -97,7 +97,7 @@ const listPage = async (c: any) => {
       {/* camera */}
       <section id="st-cam" class="cam" hidden>
         <video id="cam" playsinline muted autoplay></video>
-        <input type="file" id="file" accept="image/*" capture="environment" hidden /><input type="file" id="moreFile" accept="image/*" multiple hidden /><input type="file" id="labelFile" accept="image/*" capture="environment" hidden /><input type="file" id="pickFile" accept="image/*" hidden />
+        <input type="file" id="file" accept="image/*" capture="environment" hidden /><input type="file" id="moreFile" accept="image/*" multiple hidden /><input type="file" id="labelFile" accept="image/*" capture="environment" hidden /><input type="file" id="pickFile" accept="image/*,.heic,.heif" hidden />
         <div class="cam-top">
           <button type="button" class="cam-x" id="camClose" aria-label="Close"><svg width="14" height="14" viewBox="0 0 12 12"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg></button>
           <div class="cam-hints"><span class="hint-big" id="hintBig"></span><span class="hint-sm" id="hint"></span></div>
@@ -106,6 +106,9 @@ const listPage = async (c: any) => {
         <div class="tap" id="tapHint">Tap to take a picture <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 4V19M6 13L12 19L18 13" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg></div>
         <button type="button" class="cam-fallback" id="camFallback" hidden>Open camera</button>
         <div class="dropzone" aria-hidden="true"><span>Drop photo</span></div>
+        {/* computers: a plain upload panel instead of a webcam */}
+        <div class="uppanel"><button type="button" class="upbox" id="upPick"><i dangerouslySetInnerHTML={{ __html: '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" /><circle cx="9" cy="9.5" r="1.8" /><path d="M21 16l-5.5-5.5L6 20" /></svg>' }} /><b>Drop a photo here</b><small>or click to choose one · JPG, PNG, HEIC</small></button><button type="button" class="lnk uselnk" id="useCam">Use webcam instead</button></div>
+        <div class="upbusy" id="upBusy" hidden>Opening photo…</div>
         <div class="flash" id="flash"></div>
         <div class="toast-ok" id="toast"><span>✓</span>Got it</div>
         <div class="minilist" id="miniList" hidden></div>
@@ -193,6 +196,26 @@ listings.get('/api/cut/:id', async (c) => {
 });
 
 /* fast cut-out for the snap flow: starts the moment the photo is taken, in parallel with identify (which used to come first) */
+/* photos the browser can't open (HEIC on Chrome/Firefox): store briefly, return a JPEG made by Cloudflare Images */
+listings.post('/api/to-jpeg', async (c) => {
+  if (!c.get('user')) {
+    const ip = c.req.header('cf-connecting-ip') || 'x';
+    const n = await c.env.DB.prepare(`SELECT COUNT(*) n FROM events WHERE kind = 'tojpeg.guest' AND at > ? AND data = ?`).bind(Date.now() - 3600000, ip).first<{ n: number }>().catch(() => null);
+    if ((n?.n || 0) >= 30) return c.json({ error: 'slow down' }, 429);
+    await logEvent(c.env.DB, 'tojpeg.guest', { data: ip });
+  }
+  const f = await c.req.parseBody(); const p = f.photo;
+  if (!(p instanceof File) || p.size > 25e6) return c.json({ error: 'photo required' }, 400);
+  const key = `tmp/${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}.heic`;
+  await c.env.PHOTOS.put(key, await p.arrayBuffer(), { httpMetadata: { contentType: p.type || 'image/heic' } });
+  try {
+    const src = `${c.env.APP_URL}/p/${key}`;
+    let r = await fetch(src, { cf: { image: { fit: 'scale-down', width: 1600, height: 1600, format: 'jpeg', quality: 86 } } } as any).catch(() => null as any);
+    if (!r || !r.ok || !(r.headers.get('content-type') || '').includes('jpeg')) r = await fetch(`${c.env.APP_URL}/cdn-cgi/image/fit=scale-down,width=1600,height=1600,format=jpeg,quality=86/${src}`);
+    if (!r.ok || !(r.headers.get('content-type') || '').includes('jpeg')) throw new Error('to-jpeg ' + r.status);
+    return c.body(await r.arrayBuffer(), 200, { 'content-type': 'image/jpeg', 'cache-control': 'no-store' });
+  } catch (e) { await logErr(c.env.DB, 'api/to-jpeg', e); return c.json({ error: 'convert' }, 502); }
+});
 listings.post('/api/cut', async (c) => {
   if (!c.get('user')) { /* guests: capped per IP, like identify */
     const ip = c.req.header('cf-connecting-ip') || 'x';
