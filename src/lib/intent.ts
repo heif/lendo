@@ -25,17 +25,18 @@ export type Intent =
 
 const MODEL = 'claude-haiku-5-5';
 
-export async function parseIntent(env: Env, user: User, text: string, ctx: { rental: Rental | null; role: 'owner' | 'customer' | null; item: string | null; other: string | null; listings: { name: string; price_cents: number }[] }): Promise<Intent | null> {
+const STATUS_WORDS: Record<string, string> = { inquiry: 'question thread, not requested yet', requested: 'requested, waiting for card', held: 'requested, waiting for the owner to say YES', confirmed: 'owner said YES and it is paid, not picked up yet', picked_up: 'picked up, not returned yet', returned: 'returned' };
+export async function parseIntent(env: Env, user: User, text: string, ctx: { rental: Rental | null; role: 'owner' | 'customer' | null; item: string | null; other: string | null; otherTexts?: string | null; listings: { name: string; price_cents: number }[] }): Promise<Intent | null> {
   if (!env.ANTHROPIC_API_KEY) return null;
   const sys = `You route text messages sent to Lendo, a neighbor-to-neighbor rental service, into ONE action. Reply with JSON only, no prose.
 Actions:
-- {"action":"message","text":"..."}  — words meant for the other person in their active rental (pickup times, questions, "running late", thanks). Keep the text as written.
+- {"action":"message","text":"..."}  — words written TO the other person in their active rental, as if talking to them (pickup times, "what time can I pick it up?", "running late", "thanks!"). Keep the text as written. If it talks ABOUT the other person (he / she / they / their name in the third person) or about the rental itself, it is NOT a message — it's ask_lendo.
 - {"action":"find","query":"..."}  — they want to rent something ("need a ladder saturday", "anyone have a projector", "rent a speaker in nyc"). A text that starts with rent / need / looking for / anyone have is ALWAYS find, even with an active rental. query = the thing, 1-3 words. Add "place":"..." only if they name a city or neighborhood ("in iowa city", "near park slope").
 - {"action":"change_price","item":"<one of their listing names or null>","price_usd":10}  — an owner changing a listing's daily price.
 - {"action":"cancel"}  — the customer wants to cancel their rental or request.
 - {"action":"extend","until":"YYYY-MM-DD or null"}  — the customer wants to keep the item longer.
 - {"action":"list"}  — they want to list / rent out their own stuff.
-- {"action":"ask_lendo","answer":"...","sure":true}  — a question for Lendo itself, not the other person: how holds, charges, refunds, payouts, fees, cancelling, safety, problems or the site work ("how do I know I'll get the money back", "when do I get paid", "what's this $150"). Answer it yourself in 1-2 short lines from LENDO FACTS only, plain words, no trailing period. If the facts don't cover it, "sure":false and answer "A person at Lendo will text you back". Questions about the item, pickup or timing are "message", not this.
+- {"action":"ask_lendo","answer":"...","sure":true}  — a question for Lendo itself, not the other person: how holds, charges, refunds, payouts, fees, cancelling, safety, problems or the site work ("how do I know I'll get the money back", "when do I get paid", "what's this $150"). Answer it yourself in 1-2 short lines from LENDO FACTS only, plain words, no trailing period. If the facts don't cover it, "sure":false and answer "A person at Lendo will text you back". Also ask_lendo: status or "what's going on" questions about their rental or the other person, answered from RENTAL FACTS ("status of ladder", "where's my drill", "did Ken get my message", "why isn't he getting texts", "is she coming", "why no reply"). Questions the other person must answer (what time, where to meet, does it fit) are "message".
 - {"action":"help"}  — anything else, or unclear.
 LENDO FACTS
 - Renting: the customer's card is held when they request; charged only when the owner says YES. NO or no answer in 24h = hold released, nothing charged
@@ -45,9 +46,10 @@ LENDO FACTS
 - Owners get the rent minus Lendo's 15% fee, paid after pickup via Stripe; set up at lendo.co/payout
 - Payments run through Stripe; Lendo never sees full card numbers
 - Customers pay rent + sales tax; owners can give a discount or lend free
+- Messages between owner and customer go by text and also show on the rental page (lendo.co/r/…). If someone hasn't texted Lendo back in a while, Lendo holds further texts to them until they reply (a texting-service limit); they still see everything on the rental page
 Today is ${localToday()}.`;
   const facts = [
-    ctx.rental ? `Active rental: they are the ${ctx.role} of "${ctx.item}" with ${ctx.other}, ${ctx.rental.start_day} to ${ctx.rental.end_day}, status ${ctx.rental.status}.` : 'No active rental.',
+    ctx.rental ? `RENTAL FACTS: they are the ${ctx.role} of "${ctx.item}" with ${ctx.other}, ${ctx.rental.start_day} to ${ctx.rental.end_day}, status ${STATUS_WORDS[ctx.rental.status] || ctx.rental.status}.${ctx.otherTexts ? ' ' + ctx.otherTexts : ''}` : 'No active rental.',
     ctx.listings.length ? `Their listings: ${ctx.listings.map(l => `${l.name} ($${l.price_cents / 100}/day)`).join('; ')}.` : 'They have no listings.',
   ].join('\n');
   try {
@@ -100,11 +102,22 @@ export async function answerPending(env: Env, user: User, yes: boolean): Promise
 }
 
 // Act on an intent. Returns false when the caller should fall back to the old behavior.
-export async function actOn(env: Env, user: User, it: Intent, ctx: { rental: Rental | null; role: 'owner' | 'customer' | null; listings: Listing[] }, raw: string): Promise<boolean> {
+/* backstop: a status question about the rental / the other person never goes to them, even if the AI said "message" or is down */
+export async function statusBackstop(env: Env, user: User, ctx: { rental: Rental | null; item?: string | null; otherTexts?: string | null }, raw: string): Promise<boolean> {
+  const t = raw.replace(/[\u2018\u2019]/g, "'");
+  if (!ctx.rental || !ABOUT_RE.test(t) || /\byou\b/i.test(t)) return false;
+  const st = STATUS_WORDS[ctx.rental.status] || ctx.rental.status;
+  await textUser(env, user, `Lendo: ${ctx.item || 'Your rental'} · ${st}${ctx.otherTexts ? ' · ' + ctx.otherTexts.replace(/\.$/, '') : ''} ${env.APP_URL}/r/${ctx.rental.id}`, 'rental', ctx.rental.id);
+  await logEvent(env.DB, 'text.ask_lendo', { user: user.id, rental: ctx.rental.id, data: { q: raw.slice(0, 300), a: 'status backstop', sure: true } });
+  return true;
+}
+const ABOUT_RE = /^\s*(status\b|update\b|what'?s (going on|happening|the status)|why (isn'?t|hasn'?t|won'?t|doesn'?t|is ?n'?t|no)|did (he|she|they|\w+) (get|see|reply|answer)|is (he|she|they) (coming|getting|there|ok)|where'?s my|has (he|she|they)\b)/i;
+export async function actOn(env: Env, user: User, it: Intent, ctx: { rental: Rental | null; role: 'owner' | 'customer' | null; item?: string | null; otherTexts?: string | null; listings: Listing[] }, raw: string): Promise<boolean> {
   const url = env.APP_URL;
   switch (it.action) {
     case 'message':
       if (!ctx.rental) return false;
+      if (await statusBackstop(env, user, ctx, raw)) return true;
       await relay(env, ctx.rental, user, (it.text || raw).slice(0, 500), 'text');
       return true;
     case 'find': {
@@ -163,13 +176,24 @@ export async function actOn(env: Env, user: User, it: Intent, ctx: { rental: Ren
 
 export async function intentContext(env: Env, user: User, rental: Rental | null) {
   const listings = (await env.DB.prepare(`SELECT * FROM listings WHERE owner_id = ? AND status = 'live' ORDER BY created_at DESC LIMIT 20`).bind(user.id).all<Listing>()).results;
-  let role: 'owner' | 'customer' | null = null, item: string | null = null, other: string | null = null;
+  let role: 'owner' | 'customer' | null = null, item: string | null = null, other: string | null = null, otherTexts: string | null = null;
   if (rental) {
     role = rental.owner_id === user.id ? 'owner' : 'customer';
     item = (await listingById(env.DB, rental.listing_id))?.name || null;
-    other = firstName((await userById(env.DB, role === 'owner' ? rental.renter_id : rental.owner_id))?.name || 'them');
+    const o = await userById(env.DB, role === 'owner' ? rental.renter_id : rental.owner_id);
+    other = firstName(o?.name || 'them');
+    if (o) {
+      /* what Lendo knows about texts reaching the other person: held (texting-service limit), STOP, last time they texted in */
+      const held = (await env.DB.prepare(`SELECT COUNT(*) n FROM outbound_texts WHERE user_id = ? AND provider_id IS NULL AND created_at > ?`).bind(o.id, now() - 3 * 86400e3).first<{ n: number }>())?.n || 0;
+      const lastIn = (await env.DB.prepare(`SELECT MAX(created_at) t FROM inbound_texts WHERE user_id = ? AND via = 'text'`).bind(o.id).first<{ t: number | null }>())?.t || null;
+      const ago = (t: number) => { const h = Math.round((now() - t) / 3600e3); return h < 1 ? 'within the hour' : h < 48 ? `${h}h ago` : `${Math.round(h / 24)} days ago`; };
+      otherTexts = [
+        !o.texts ? `${other} turned texts off (STOP), so they only see messages on the rental page.` : held ? `${held} recent text${held === 1 ? '' : 's'} to ${other} are on hold until ${other} texts Lendo back (texting-service limit); they still show on ${other}'s rental page.` : `Texts to ${other} are going through.`,
+        lastIn ? `${other} last texted Lendo ${ago(lastIn)}.` : `${other} has never texted Lendo.`,
+      ].join(' ');
+    }
   }
-  return { rental, role, item, other, listings };
+  return { rental, role, item, other, otherTexts, listings };
 }
 
 // "in iowa city" / "near park slope" → that city or hood instead of the sender's home

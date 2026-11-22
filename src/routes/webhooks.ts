@@ -1,5 +1,5 @@
 import { twilioSigOk } from '../lib/twiliosms';
-import { answerPending, actOn, intentContext, parseIntent } from '../lib/intent';
+import { answerPending, actOn, intentContext, parseIntent, statusBackstop } from '../lib/intent';
 import { logErr, logEvent } from '../lib/log';
 import { CONFIRM_ASK, KEEP_ASK } from '../lib/blooio';
 import { acceptExt, declineExt, extById, extFromSession, heldExtForOwner, markExtHeld } from '../lib/extend';
@@ -205,6 +205,7 @@ export async function handleText(c: Context<{ Bindings: Env; Variables: Vars }>,
   }
   if (r && (kw === 'HERE' || kw === 'IM HERE')) { await relay(c.env, r, user, "I'm here", 'text'); return c.json({ ok: true }); }
   if (tgt.status === 'inquiry') await c.env.DB.prepare('UPDATE rentals SET updated_at = ? WHERE id = ?').bind(Date.now(), tgt.id).run();
+  if (text && tgt.id === r?.id && await statusBackstop(c.env, user, await intentContext(c.env, user, r), text)) return c.json({ ok: true });
   if (text) await relay(c.env, tgt, user, text.slice(0, 500), 'text');
   return c.json({ ok: true });
 }
