@@ -55,7 +55,8 @@ const listPage = async (c: any) => {
           <div id="stkOne">
             <div class="stk1-dots" id="stkDots"></div>
             <div class="lf-h stk1-h" id="stkH"></div>
-            <div class="stk1-acw"><input id="stkBrand" class="stk1-in" placeholder="Brand / model · e.g. DeWalt 20V" autocomplete="off" autocapitalize="words" enterkeyhint="done" /><div class="stk1-ac" id="stkAc" hidden></div></div>
+            <label class="stk1-lbl" for="stkBrand" style="margin-top:0">Which one exactly? · brand / model</label>
+            <div class="stk1-acw"><i class="stk1-pen" dangerouslySetInnerHTML={{ __html: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z" /><path d="M13.5 6.5l4 4" /></svg>' }} /><input id="stkBrand" class="stk1-in" placeholder="Brand / model · e.g. DeWalt 20V" autocomplete="off" autocapitalize="words" enterkeyhint="done" /><div class="stk1-ac" id="stkAc" hidden></div></div>
             <div class="stk1-pic" id="stkPic"></div>
             <div class="stk1-tbs" id="stkTbs"></div>
             <div class="stk1-note" id="stkNote">Tap the closest one</div>
