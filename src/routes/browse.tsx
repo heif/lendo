@@ -68,7 +68,7 @@ export const homePage = async (c: Ctx, opt: { center?: number[]; zoom?: number; 
           <button class="scope-globe" id="scGlobe" type="button" aria-label="Pick a city" hidden><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6F6A60" stroke-width="2"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18" /></svg></button>
         </div>
       }
-      head={mapbox ? <><link rel="stylesheet" href={MAPBOX_CSS} /><script src={MAPBOX_JS}></script></> : <><link rel="stylesheet" href={LEAFLET_CSS} /><script src={LEAFLET_JS}></script></>}>
+      head={mapbox ? <><link rel="preconnect" href="https://api.mapbox.com" crossorigin="" /><link rel="preconnect" href="https://events.mapbox.com" crossorigin="" /><link rel="stylesheet" href={MAPBOX_CSS} />{/* deferred: the page (header, search, ticker) paints before the big map library downloads; the map scripts below are deferred too so they still run in order after it */}<script src={MAPBOX_JS} defer></script></> : <><link rel="stylesheet" href={LEAFLET_CSS} /><script src={LEAFLET_JS}></script></>}>
       <div class="mapwrap">
         <div id="map" role="application" aria-label="Map of things to rent"></div>
         <div class="mapctl">
@@ -114,7 +114,7 @@ export const homePage = async (c: Ctx, opt: { center?: number[]; zoom?: number; 
         <div id="grid" class="aisles" style="display:none"></div>
       </div>
       {raw(`<script>window.LENDO_MAP=${cfg};</script>`)}
-      {mapbox ? <><script src="/pinball.js"></script><script src="/map-style.js"></script><script src="/map.js"></script></> : <script src="/map-leaflet.js"></script>}
+      {mapbox ? <><script src="/pinball.js" defer></script><script src="/map-style.js" defer></script><script src="/map.js" defer></script></> : <script src="/map-leaflet.js"></script>}
     </Layout>
   );
 };

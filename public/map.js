@@ -183,10 +183,18 @@
   }
   function moreGeo() { return { type: 'FeatureCollection', features: HIDE.map(function (it) { return { type: 'Feature', geometry: { type: 'Point', coordinates: POS[it.id] }, properties: { id: it.id, icon: 'm_' + it.id, has: !!(miniCache[it.id] && MINI[it.id]) } }; }) }; }
   function drawPins() { var src = map.getSource('pins'); if (src) src.setData(pinsGeo()); }
-  // screen points of everything walkers must stay off (pins + ghosts); rebuilt after each layout / map move
+  // ONE list of claimed screen boxes [centerX, centerY, halfW, halfH] for everything on the map, in priority order:
+  //   item pins → small item pictures → CLAIMS (future layers, e.g. owner + customer handoff photos) → wanted posters.
+  // Lower layers ask it before placing (posters, walkers) and walkers re-check while they walk.
+  // Rebuilt after every layout change and every map move, so it is never stale.
+  // A new layer joins by pushing { ll: [lng, lat], hw, hh, dy } into CLAIMS (dy = how far its middle sits above the point).
+  var CLAIMS = [];
   function buildObst() {
     OBST = SHOW.map(function (it) { var q = map.project(POS[it.id]); return [q.x, q.y - 40, 52, 50]; });
+    HIDE.forEach(function (it) { if (MINI[it.id] && POS[it.id]) { var q = map.project(POS[it.id]); OBST.push([q.x, q.y, 18, 18]); } });
+    CLAIMS.forEach(function (c) { var q = map.project(c.ll); OBST.push([q.x, q.y - (c.dy || 0), c.hw, c.hh]); });
     Object.keys(GMARKS).forEach(function (k) { var q = map.project(GMARKS[k].getLngLat()); OBST.push([q.x, q.y, 40, 36]); });
+    if (window.__sweepWalkers) window.__sweepWalkers();
   }
   function refresh(force) {
     if (!map.getSource('pins')) return;
@@ -338,11 +346,13 @@
   });
 
   var known = {}, lastQ = '', loadSeq = 0;
+  function listUrl() { var b = map.getBounds(), cc = map.getCenter(), qq = q.value.trim(); return '/api/listings?limit=300&near=' + cc.lng.toFixed(5) + ',' + cc.lat.toFixed(5) + '&bbox=' + [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(',') + (qq ? '&q=' + encodeURIComponent(qq) : ''); }
+  /* the first items request goes out as soon as the map exists, in parallel with the map style and tiles (not after them) */
+  var early = null; try { early = { u: listUrl(), p: fetch(listUrl()).then(function (r) { return r.json(); }) }; early.p.catch(function () {}); } catch (e) { early = null; }
   function load() {
-    var b = map.getBounds(), qq = q.value.trim();
-    var cc = map.getCenter(), seq = ++loadSeq;
-    fetch('/api/listings?limit=300&near=' + cc.lng.toFixed(5) + ',' + cc.lat.toFixed(5) + '&bbox=' + [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(',') + (qq ? '&q=' + encodeURIComponent(qq) : ''))
-      .then(function (r) { return r.json(); }).then(function (j) { if (seq !== loadSeq) return;
+    var qq = q.value.trim();
+    var cc = map.getCenter(), seq = ++loadSeq, u = listUrl(), req = early && early.u === u ? early.p : fetch(u).then(function (r) { return r.json(); }); early = null;
+    req.then(function (j) { if (seq !== loadSeq) return;
         // keep what's already on screen: merge into a session cache, then show everything cached near the view
         if (qq !== lastQ) { known = {}; lastQ = qq; }
         j.listings.forEach(function (it) { known[it.id] = it; });
@@ -667,6 +677,7 @@
     function place() {
       var z = map.getZoom(), want = ((PL && PL.wanted) || []).filter(function (w) { return w.icon; }); // only drawn, vision-checked icons — no emoji stand-ins
       ipts = items.filter(function (it) { return POS[it.id]; }).map(function (it) { return map.project(POS[it.id]); });
+      CLAIMS.forEach(function (c) { var q = map.project(c.ll); ipts.push({ x: q.x, y: q.y + 30 - (c.dy || 0) }); });
       var keep = {}, chosen = {}, CELL = cellDeg(), zb = Math.round(z);
       Object.keys(marks).forEach(function (k) { if (k.indexOf(zb + ':') === 0) chosen[k.slice(k.indexOf(':') + 1)] = marks[k]._wkey; });
       if (z >= (PROMO ? 13.2 : 11.5) && want.length) {
@@ -699,8 +710,12 @@
     window.__placeWanted = place; map.on('moveend', function () { place(); buildObst(); }); loadPlaces(function () { if (map.getSource('pins')) { place(); buildObst(); } });
   }
 
-  // ---- §2 walkers (prototype details): tiny 12×19 figures, singles/pairs/trios walking out along a short straight
-  // path and back (facing flips at the turn), each with its own bob/leg phase; palette from the prototype.
+  // ---- §2 walkers: a few tiny people on the streets — never on, under or next to anything else on the map ----
+  // Rules: (1) how many follows the free screen space (about one group per 330×330 px, 1–8), not the item count;
+  // (2) a group only starts if its whole walk is clear of pins, pictures, wanted posters, claimed boxes and other groups;
+  // (3) it is checked again while it walks and fades out if something lands on it (new items, zoom, a poster);
+  // (4) groups that leave the screen are dropped; (5) nothing runs while the tab is hidden, the list is open,
+  // the map is moving or zoomed out. Streets on screen are read once per view, not once per walker.
   function startWalkers() {
     var SHIRT = ['#E8745A', '#4F8BDA', '#4FB384', '#EC6FA2', '#F2C14E', '#7A6FD6'], SKIN = ['#F1CBA8', '#D9A77E', '#E8B894', '#B98460', '#8D5524'], HAIR = ['#3A2A1E', '#1E1A17', '#7A4B2A', '#9C9791', '#C8A24A'], LEG = ['#3E4A5C', '#5B4A3E', '#2F3A33'];
     var pick = function (a) { return a[Math.floor(Math.random() * a.length)]; };
@@ -714,39 +729,46 @@
         '<path d="M3.4 3.4Q3.8 0.9 6 1Q8.2 0.9 8.6 3.4Q7.4 2.3 6 2.4Q4.6 2.3 3.4 3.4Z" fill="' + pick(HAIR) + '"/>' +
         '<circle cx="7.3" cy="4" r="0.45" fill="#1E3A2B"/></g></g>';
     }
-    function nearPin(lng, lat, pad) {
-      var p = map.project([lng, lat]);
-      for (var i = 0; i < OBST.length; i++) { var o = OBST[i]; if (Math.abs(o[0] - p.x) < o[2] + pad && Math.abs(o[1] - p.y) < o[3] + pad) return true; }
-      return false;
+    var GAP = 70, MAXW = Math.min(8, MAX_WALKERS);          // px between groups; hard cap
+    var walkers = [], moving = false, streets = null, roadLayers = null, lastSpawn = 0;
+    /* a screen point is free when no claimed box (pins, pictures, posters, photos) is within pad px of it */
+    function free(x, y, pad) {
+      for (var i = 0; i < OBST.length; i++) { var o = OBST[i]; if (Math.abs(o[0] - x) < o[2] + pad && Math.abs(o[1] - y) < o[3] + pad) return false; }
+      return true;
     }
-    // never on water (rivers, harbor, pools): check the rendered map at that spot
-    function onWater(lng, lat) {
-      try { var q = map.project([lng, lat]); return map.queryRenderedFeatures([q.x, q.y]).some(function (f) { var sl = f.sourceLayer || '', id = (f.layer && f.layer.id) || ''; return sl === 'water' || sl === 'waterway' || /water/.test(id); }); } catch (e) { return false; }
+    function crowded(x, y, me) { for (var i = 0; i < walkers.length; i++) { var w = walkers[i]; if (w !== me && !w.fading && Math.hypot(w.x - x, w.y - y) < GAP) return true; } return false; }
+    /* streets on screen (streets, paths, avenues — no highways, rail or ferries), read once per view */
+    function readStreets() {
+      if (roadLayers === null) { try { roadLayers = (map.getStyle().layers || []).filter(function (l) { return l['source-layer'] === 'road' && l.type === 'line'; }).map(function (l) { return l.id; }); } catch (e) { roadLayers = []; } }
+      var fs = []; try { fs = roadLayers.length ? map.queryRenderedFeatures({ layers: roadLayers }) : map.queryRenderedFeatures(); } catch (e) {}
+      streets = [];
+      fs.forEach(function (f) {
+        if (f.sourceLayer !== 'road' || !f.geometry || !/LineString/.test(f.geometry.type)) return;
+        if (/motorway|trunk|rail|ferry|aerialway|link/.test((f.properties && f.properties.class) || '')) return;
+        (f.geometry.type === 'MultiLineString' ? f.geometry.coordinates : [f.geometry.coordinates]).forEach(function (cs) { if (cs && cs.length > 1) streets.push(cs); });
+      });
     }
-    var walkers = [], moving = false, hidden = document.hidden;
-    map.on('movestart', function () { moving = true; }); map.on('moveend', function () { moving = false; });
-    document.addEventListener('visibilitychange', function () { hidden = document.hidden; });
-    /* streets on screen: road lines from the rendered map (streets, paths, avenues — no highways) */
+    /* a 50–120 px run along one street whose every step is on screen, free of boxes and away from other groups */
     function streetPath() {
-      var fs; try { fs = map.queryRenderedFeatures().filter(function (f) { return f.sourceLayer === 'road' && f.geometry && /LineString/.test(f.geometry.type) && !/motorway|trunk|rail|ferry|service_rail|major_rail|minor_rail|aerialway|link/.test((f.properties && f.properties.class) || ''); }); } catch (e) { return null; }
-      if (!fs.length) return null;
-      for (var tries = 0; tries < 8; tries++) {
-        var f = fs[Math.floor(Math.random() * fs.length)], g = f.geometry, lines = g.type === 'MultiLineString' ? g.coordinates : [g.coordinates];
-        var cs = lines[Math.floor(Math.random() * lines.length)]; if (!cs || cs.length < 2) continue;
-        /* a run of 2+ consecutive points, ~60–160 px long on screen */
-        var k = Math.floor(Math.random() * (cs.length - 1)), path = [cs[k]], px = 0, want = 60 + Math.random() * 100;
-        for (var m = k + 1; m < cs.length && px < want; m++) { var p0 = map.project(cs[m - 1]), p1 = map.project(cs[m]); px += Math.hypot(p1.x - p0.x, p1.y - p0.y); path.push(cs[m]); }
-        if (px < 40) continue;
-        var mid = path[Math.floor(path.length / 2)], b = map.getBounds();
-        if (!b.contains(path[0]) || !b.contains(path[path.length - 1])) continue;
-        if (nearPin(mid[0], mid[1], 10) || nearPin(path[0][0], path[0][1], 10)) continue;
-        return path;
+      if (!streets) readStreets(); if (!streets.length) return null;
+      var W = map.getContainer().clientWidth, H = map.getContainer().clientHeight;
+      for (var tries = 0; tries < 6; tries++) {
+        var cs = streets[Math.floor(Math.random() * streets.length)];
+        var k = Math.floor(Math.random() * (cs.length - 1)), path = [cs[k]], px = 0, want = 50 + Math.random() * 70, ok = true, prev = map.project(cs[k]);
+        if (prev.x < 12 || prev.y < 30 || prev.x > W - 12 || prev.y > H - 12 || !free(prev.x, prev.y, 14) || crowded(prev.x, prev.y)) continue;
+        for (var m = k + 1; m < cs.length && px < want && ok; m++) {
+          var p1 = map.project(cs[m]), seg = Math.hypot(p1.x - prev.x, p1.y - prev.y), steps = Math.max(1, Math.ceil(seg / 18));
+          for (var st = 1; st <= steps; st++) { var x = prev.x + (p1.x - prev.x) * st / steps, y = prev.y + (p1.y - prev.y) * st / steps;
+            if (x < 12 || y < 30 || x > W - 12 || y > H - 12 || !free(x, y, 14) || crowded(x, y)) { ok = false; break; } }
+          if (ok) { px += seg; path.push(cs[m]); prev = p1; }
+        }
+        if (path.length > 1 && px >= 36) return path;
       }
       return null;
     }
     function spawn() {
       var path = streetPath(); if (!path) return;
-      var n = Math.random() < 0.55 ? 1 : Math.random() < 0.75 ? 2 : 3, wpx = 12 + (n - 1) * 9;
+      var n = Math.random() < 0.6 ? 1 : Math.random() < 0.75 ? 2 : 3, wpx = 12 + (n - 1) * 9;
       var el = document.createElement('div'); el.className = 'walker'; el.style.width = wpx + 'px'; el.style.opacity = '0';
       var inner = '';
       for (var k = 0; k < n; k++) inner += person(k * 9, 0.7 + Math.random() * 0.2, -Math.random());
@@ -754,31 +776,49 @@
       /* cumulative lengths (degrees, lng scaled by latitude) so speed is even along the street */
       var cl = Math.cos(path[0][1] * Math.PI / 180), acc = [0];
       for (var q = 1; q < path.length; q++) acc.push(acc[q - 1] + Math.hypot((path[q][0] - path[q - 1][0]) * cl, path[q][1] - path[q - 1][1]));
-      var wlk = { el: el, face: el.firstChild, path: path, acc: acc, L: acc[acc.length - 1] || 1e-9, t: Math.random(), dir: Math.random() < 0.5 ? 1 : -1, speed: 0.000035 + Math.random() * 0.000015, m: new mapboxgl.Marker({ element: el, anchor: 'bottom' }).setLngLat(path[0]).addTo(map), born: Date.now(), life: 45000 + Math.random() * 45000 };
-      walkers.push(wlk); requestAnimationFrame(function () { el.style.opacity = ''; });
+      var p0 = map.project(path[0]);
+      var w = { el: el, face: el.firstChild, path: path, acc: acc, L: acc[acc.length - 1] || 1e-9, t: 0, dir: 1, speed: 0.000035 + Math.random() * 0.000015, x: p0.x, y: p0.y,
+        m: new mapboxgl.Marker({ element: el, anchor: 'bottom' }).setLngLat(path[0]).addTo(map), born: Date.now(), life: 40000 + Math.random() * 40000, chk: Math.random() * 400 };
+      walkers.push(w); requestAnimationFrame(function () { el.style.opacity = ''; });
     }
+    function retire(w, fast) { if (w.fading) return; w.fading = true; w.el.style.transition = 'opacity ' + (fast ? '.35s' : '1.2s'); w.el.style.opacity = '0'; setTimeout(function () { w.done = true; }, fast ? 380 : 1250); }
     function along(w) {
       var d = w.t * w.L, a = w.acc, i = 1; while (i < a.length - 1 && a[i] < d) i++;
       var p0 = w.path[i - 1], p1 = w.path[i], f = (d - a[i - 1]) / ((a[i] - a[i - 1]) || 1e-9);
       return { ll: [p0[0] + (p1[0] - p0[0]) * f, p0[1] + (p1[1] - p0[1]) * f], east: (p1[0] - p0[0]) * w.dir >= 0 };
     }
+    /* how many groups fit: free screen space only (pins and posters take theirs first) */
+    function wanted() {
+      var W = map.getContainer().clientWidth, H = map.getContainer().clientHeight, b = map.getBounds(), used = 0;
+      SHOW.forEach(function (it) { if (b.contains(POS[it.id])) used += 110 * 104; });
+      return Math.max(1, Math.min(MAXW, Math.round((W * H - used) / 110000)));
+    }
+    /* the view changed: read streets again next time, drop groups that are now off screen or sitting on something */
+    function sweep() {
+      streets = null;
+      var W = map.getContainer().clientWidth, H = map.getContainer().clientHeight;
+      walkers.forEach(function (w) { var p = map.project(w.m.getLngLat()); w.x = p.x; w.y = p.y; if (p.x < -20 || p.y < -20 || p.x > W + 20 || p.y > H + 20) { w.done = true; } else if (!free(p.x, p.y, 6)) retire(w, true); });
+    }
+    map.on('movestart', function () { moving = true; }); map.on('moveend', function () { moving = false; sweep(); });
+    window.__sweepWalkers = sweep;
     var last = performance.now();
     function tick(now) {
       var dt = Math.min(50, now - last); last = now;
-      if (!hidden && !moving) {
-        var z = map.getZoom(), hide = z < 13.5;
-        map.getContainer().classList.toggle('walkers-hidden', hide);
-        if (!hide) walkers.forEach(function (w) {
+      var off = document.hidden || listMode || map.getZoom() < 13.5;
+      map.getContainer().classList.toggle('walkers-hidden', map.getZoom() < 13.5);
+      if (!off && !moving) {
+        walkers.forEach(function (w) {
           w.t += w.dir * (w.speed * dt / 1000) / w.L;
           if (w.t >= 1) { w.t = 1; w.dir = -1; } if (w.t <= 0) { w.t = 0; w.dir = 1; }
           var at = along(w); w.m.setLngLat(at.ll); w.face.style.transform = 'scaleX(' + (at.east ? 1 : -1) + ')';
-          if (!w.fading && Date.now() - w.born > w.life) { w.fading = true; w.el.style.transition = 'opacity 1.2s'; w.el.style.opacity = '0'; setTimeout(function (x) { x.done = true; }, 1300, w); }
+          w.chk -= dt;
+          if (w.chk <= 0) { w.chk = 400; var p = map.project(at.ll); w.x = p.x; w.y = p.y; if (!free(p.x, p.y, 6)) retire(w, true); }
+          if (Date.now() - w.born > w.life) retire(w);
         });
-        walkers = walkers.filter(function (w) { if (w.done) w.m.remove(); return !w.done; });
-        var want = Math.min(MAX_WALKERS, 6 + Math.round(SHOW.length * 0.5));
-        if (walkers.length < want && Math.random() < 0.1) spawn();
+        if (now - lastSpawn > 700 && walkers.length < wanted()) { lastSpawn = now; spawn(); }
       }
-      requestAnimationFrame(tick);
+      walkers = walkers.filter(function (w) { if (w.done) w.m.remove(); return !w.done; });
+      if (off) setTimeout(function () { requestAnimationFrame(tick); }, 600); else requestAnimationFrame(tick);
     }
     requestAnimationFrame(tick);
   }
