@@ -890,3 +890,18 @@ header h1.sr,.sr{position:absolute!important;width:1px;height:1px;overflow:hidde
 .rfoot u,.rfoot button{font:inherit;color:var(--ink);background:none;border:0;padding:0;text-decoration:underline;cursor:pointer;min-height:32px}
 .rhd>div>div{font-size:13px;font-weight:700;color:var(--mute)}
 .rhd b.rhd-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rhd .ownlink{text-decoration:underline;text-underline-offset:2px}
+
+/* rental status card A · clean list (11/22) */
+.rlist{list-style:none;margin:2px 0 0;padding:0;display:flex;flex-direction:column;gap:7px}
+.rlist li{display:flex;align-items:flex-start;gap:10px;color:#9A958A}
+.rlist i{flex:none;margin-top:1px;width:19px;height:19px;box-sizing:border-box;border-radius:50%;border:2.5px solid #D9D4C8;background:#fff;display:grid;place-items:center;font-style:normal;font-size:10px;font-weight:900;color:#fff}
+.rlist li.done,.rlist li.now{color:var(--ink)}
+.rlist li.done i{background:var(--ink);border-color:var(--ink)}.rlist li.now i{background:var(--orange);border-color:var(--ink)}
+.rlist div{min-width:0;font-size:15px;line-height:1.3}.rlist b{font-weight:800}
+.rlist span{display:block;font-size:13.5px;font-weight:700;color:var(--mute)}
+.rlist li.now span{color:var(--ink2,#3d5446)}
+.rlist span u,.rlist span button{font:inherit;color:var(--ink);background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}
+.rlist .rsign{margin-top:5px;text-decoration:none!important;background:var(--orange)!important;color:#fff!important;font-weight:900!important;border:2.5px solid var(--ink)!important;border-radius:999px!important;padding:6px 14px!important;box-shadow:0 3px 0 var(--ink)}
+.rlist span{display:inline}.rlist span::before{content:' · '}
+.rlist .rsign{margin-left:2px;padding:3px 12px!important;box-shadow:0 2px 0 var(--ink)}
+.rlist .rsign{display:block;margin:6px 0 2px}
