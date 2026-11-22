@@ -64,6 +64,8 @@
       if (!IDEAS.some(function (i) { return i[1] === name; })) IDEAS.unshift([base ? base[0] : '📦', name, base ? base[2] : 12]);
       if (picked.indexOf(name) < 0) picked.push(name); }
     $('ideaType').value = ''; $('ideaAc').hidden = true; renderIdeas();
+    /* phones: drop the keyboard so NEXT is back in view */
+    try { $('ideaType').blur(); } catch (e) {}
     var firstOn = document.querySelector('#ideas .on'); if (firstOn && firstOn.scrollIntoView) firstOn.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
   $('ideaType').addEventListener('input', ideaAcShow);
