@@ -6,7 +6,7 @@ import { citySlug, slugify } from './urls';
 
 export function nearestHood(lat: number, lng: number) {
   let best: { city: (typeof CITIES)[number]; hood: { name: string; lat: number; lng: number } } | null = null, bd = 1e9;
-  for (const c of CITIES) for (const h of c.hoods) { const d = Math.hypot(h.lat - lat, (h.lng - lng) * 0.76); if (d < bd) { bd = d; best = { city: c, hood: h }; } }
+  for (const c of CITIES) for (const h of c.hoods) { if (h.r) continue; const d = Math.hypot(h.lat - lat, (h.lng - lng) * 0.76); if (d < bd) { bd = d; best = { city: c, hood: h }; } }
   return bd < 0.08 ? best : null;
 }
 

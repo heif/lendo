@@ -174,7 +174,7 @@ api.get('/api/hood', async (c) => {
   const km = (aLat: number, aLng: number) => Math.hypot((aLat - lat) * 111, (aLng - lng) * 111 * Math.cos(lat * Math.PI / 180));
   const ct = CITIES.find(x => lng >= x.bbox[0] && lng <= x.bbox[2] && lat >= x.bbox[1] && lat <= x.bbox[3]) || null;
   if (!name && ct) {
-    const best = ct.hoods.filter(h => h.lat !== ct.lat || h.lng !== ct.lng).map(h => ({ h, d: km(h.lat, h.lng) })).sort((x, y) => x.d - y.d)[0];
+    const best = ct.hoods.filter(h => !h.r && (h.lat !== ct.lat || h.lng !== ct.lng)).map(h => ({ h, d: km(h.lat, h.lng) })).sort((x, y) => x.d - y.d)[0];
     if (best && best.d < 2.5) {
       name = best.h.name;
       const dLat = 0.9 / 111, dLng = 0.9 / (111 * Math.cos(best.h.lat * Math.PI / 180));
@@ -198,9 +198,9 @@ api.get('/api/places', async (c) => {
     /* each item counts once, in its nearest hood (within 2 km). The old 0.9 km circles overlapped, so one item could count in 2–3 hoods */
     const km = (p: { lat: number; lng: number }, h: { lat: number; lng: number }) => Math.hypot((p.lat - h.lat) * 111, (p.lng - h.lng) * 111 * Math.cos(h.lat * Math.PI / 180));
     const per = new Array(ct.hoods.length).fill(0);
-    for (const p of inCity) { let bi = -1, bd = 2; ct.hoods.forEach((h, i) => { const d = km(p, h); if (d < bd) { bd = d; bi = i; } }); if (bi >= 0) per[bi]++; }
+    for (const p of inCity) { let bi = -1, bd = 2; ct.hoods.forEach((h, i) => { if (h.r) { if (km(p, h) < h.r) per[i]++; return; } const d = km(p, h); if (d < bd) { bd = d; bi = i; } }); if (bi >= 0) per[bi]++; } /* regions count everything within r */
     const hoods = ct.hoods.map((h, i) => ({ ...h, n: per[i] }));
-    return { id: ct.id, name: ct.name, short: short(ct.name), lat: ct.lat, lng: ct.lng, zoom: ct.zoom, n: inCity.length, live: inCity.length > 0, hoods };
+    return { id: ct.id, name: ct.name, short: short(ct.name), lat: ct.lat, lng: ct.lng, zoom: ct.zoom, bbox: ct.bbox, n: inCity.length, live: inCity.length > 0, hoods };
   });
   const res = new Response(JSON.stringify({ cities, total: pts.length, wanted: WANTED_ALL.filter(w => !off.has(w.key)).map(w => ({ ...w, icon: icons.has(w.key) ? `/p/wanted/${w.key}.png` : null, season: SEASONAL[seasonNow()].includes(w.key) })) }), { headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=120' } });
   c.executionCtx.waitUntil(caches.default.put(cacheKey, res.clone()));

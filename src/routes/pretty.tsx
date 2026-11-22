@@ -32,7 +32,7 @@ pretty.get('/:a{[a-z0-9][a-z0-9-]{0,39}}/:b{[a-z0-9][a-z0-9-]{0,59}}', async (c)
   const city = cityBySlug(a);
   if (city) {
     const h = hoodBySlug(city.id, b);
-    if (h) return homePage(c, { center: [h.lng, h.lat], zoom: 14.5 });
+    if (h) return homePage(c, { center: [h.lng, h.lat], zoom: h.z || 14.5 });
     return homePage(c, { center: [city.lng, city.lat], zoom: city.id === 'nyc' ? 12.5 : 13, q: thing(b) });
   }
   const r = await c.env.DB.prepare(`SELECT l.id FROM listings l JOIN users u ON u.id = l.owner_id WHERE u.handle = ? AND l.slug = ? AND l.status != 'removed'`).bind(a, b).first<{ id: string }>().catch(() => null);
@@ -44,5 +44,5 @@ pretty.get('/:a{[a-z0-9][a-z0-9-]{0,39}}/:b{[a-z0-9][a-z0-9-]{0,59}}', async (c)
 pretty.get('/:a{[a-z0-9][a-z0-9-]{0,39}}/:b{[a-z0-9][a-z0-9-]{0,59}}/:t{[a-z0-9][a-z0-9-]{0,59}}', async (c) => {
   const city = cityBySlug(c.req.param('a')); if (!city) return c.notFound();
   const h = hoodBySlug(city.id, c.req.param('b')); if (!h) return c.notFound();
-  return homePage(c, { center: [h.lng, h.lat], zoom: 14.5, q: thing(c.req.param('t')) });
+  return homePage(c, { center: [h.lng, h.lat], zoom: h.z || 14.5, q: thing(c.req.param('t')) });
 });

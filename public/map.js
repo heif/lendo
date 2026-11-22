@@ -409,7 +409,7 @@
   map.on('load', function () { setTimeout(checkCityBounce, 900); });
   map.on('moveend', function () { var c = map.getCenter(), ct = cityOf(c.lng, c.lat); if (ct && ct.id !== bounceCity) checkCityBounce(); });
   setInterval(function () { if (!document.hidden && bounceCity) checkCityBounce(); }, 30000);
-  function cityOf(lng, lat) { if (!PL) return null; for (var i = 0; i < PL.cities.length; i++) { var ct = PL.cities[i]; if (Math.abs(lng - ct.lng) < 0.45 && Math.abs(lat - ct.lat) < 0.3) return ct; } return null; }
+  function cityOf(lng, lat) { if (!PL) return null; for (var i = 0; i < PL.cities.length; i++) { var ct = PL.cities[i], b = ct.bbox; if (b ? lng >= b[0] - 0.05 && lng <= b[2] + 0.05 && lat >= b[1] - 0.05 && lat <= b[3] + 0.05 : Math.abs(lng - ct.lng) < 0.45 && Math.abs(lat - ct.lat) < 0.3) return ct; } return null; }
   var plSort = 'az', plOwners = {};
   function renderPlaces() {
     var cs = $('plCities'), hs = $('plHoods'); cs.innerHTML = ''; hs.innerHTML = '';
@@ -434,7 +434,7 @@
       if (plSort === 'az') { var L = h.name.charAt(0).toUpperCase(); if (L !== letter) { letter = L; var d = document.createElement('div'); d.className = 'ltr'; d.textContent = L; hs.appendChild(d); } }
       var b = document.createElement('button'); b.type = 'button'; b.className = (h.n ? '' : 'zero') + (h.name === lastHood ? ' on' : '');
       b.innerHTML = '<span class="l">' + (plSort === 'rank' ? '<b class="rk' + (i < 3 ? ' top' : '') + '">' + (i + 1) + '</b>' : '') + '<b class="nm">' + h.name + '</b></span>' + (h.n ? '<small>' + h.n.toLocaleString() + '</small>' : '');
-      b.addEventListener('click', function () { clearSearch(false); closePlaces(); if (ct.live && h.lat !== ct.lat) map.easeTo({ center: [h.lng, h.lat], zoom: 14.5 }); else map.easeTo({ center: [ct.lng, ct.lat], zoom: ct.zoom }); });
+      b.addEventListener('click', function () { clearSearch(false); closePlaces(); if (ct.live && h.lat !== ct.lat) map.easeTo({ center: [h.lng, h.lat], zoom: h.z || 14.5 }); else map.easeTo({ center: [ct.lng, ct.lat], zoom: ct.zoom }); });
       hs.appendChild(b);
     });
   }

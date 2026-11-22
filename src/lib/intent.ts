@@ -175,7 +175,7 @@ export async function intentContext(env: Env, user: User, rental: Rental | null)
 // "in iowa city" / "near park slope" → that city or hood instead of the sender's home
 function placeFor(p0?: string | null): { name: string; lat: number; lng: number; d: number; z: number } | null {
   const p = (p0 || '').toLowerCase().replace(/[^a-z ]/g, '').trim(); if (p.length < 2) return null;
-  for (const c of CITIES) for (const h of c.hoods) if (h.name.toLowerCase() === p) return { name: h.name, lat: h.lat, lng: h.lng, d: 0.03, z: 14 };
+  for (const c of CITIES) for (const h of c.hoods) if (h.name.toLowerCase() === p) return { name: h.name, lat: h.lat, lng: h.lng, d: h.r ? h.r / 111 : 0.03, z: h.z || 14 };
   for (const c of CITIES) { const n = c.name.toLowerCase(); if (n === p || n.includes(p) || p.includes(n) || (c as any).short?.toLowerCase() === p) return { name: c.name, lat: c.lat, lng: c.lng, d: 0.12, z: (c as any).zoom || 11 }; }
   return null;
 }
