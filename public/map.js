@@ -750,21 +750,25 @@
         (f.geometry.type === 'MultiLineString' ? f.geometry.coordinates : [f.geometry.coordinates]).forEach(function (cs) { if (cs && cs.length > 1) streets.push(cs); });
       });
     }
-    /* a 50–120 px run along one street whose every step is on screen, free of boxes and away from other groups */
+    /* a 40–120 px run along one street, starting anywhere on it; every step is on screen, off every claimed box
+       and away from other groups. The run simply ends where the street stops being clear. */
     function streetPath() {
       if (!streets) readStreets(); if (!streets.length) return null;
       var W = map.getContainer().clientWidth, H = map.getContainer().clientHeight;
-      for (var tries = 0; tries < 6; tries++) {
-        var cs = streets[Math.floor(Math.random() * streets.length)];
-        var k = Math.floor(Math.random() * (cs.length - 1)), path = [cs[k]], px = 0, want = 50 + Math.random() * 70, ok = true, prev = map.project(cs[k]);
-        if (prev.x < 12 || prev.y < 30 || prev.x > W - 12 || prev.y > H - 12 || !free(prev.x, prev.y, 14) || crowded(prev.x, prev.y)) continue;
-        for (var m = k + 1; m < cs.length && px < want && ok; m++) {
-          var p1 = map.project(cs[m]), seg = Math.hypot(p1.x - prev.x, p1.y - prev.y), steps = Math.max(1, Math.ceil(seg / 18));
-          for (var st = 1; st <= steps; st++) { var x = prev.x + (p1.x - prev.x) * st / steps, y = prev.y + (p1.y - prev.y) * st / steps;
-            if (x < 12 || y < 30 || x > W - 12 || y > H - 12 || !free(x, y, 14) || crowded(x, y)) { ok = false; break; } }
-          if (ok) { px += seg; path.push(cs[m]); prev = p1; }
+      var ok = function (x, y) { return x > 12 && y > 30 && x < W - 12 && y < H - 12 && free(x, y, 12) && !crowded(x, y); };
+      for (var tries = 0; tries < 10; tries++) {
+        var cs = streets[Math.floor(Math.random() * streets.length)], k = Math.floor(Math.random() * (cs.length - 1)), f0 = Math.random();
+        var a = cs[k], b = cs[k + 1], start = [a[0] + (b[0] - a[0]) * f0, a[1] + (b[1] - a[1]) * f0], sp = map.project(start);
+        if (!ok(sp.x, sp.y)) continue;
+        var path = [start], px = 0, want = 50 + Math.random() * 70, from = start, fp = sp, open = true;
+        for (var m = k + 1; m < cs.length && open && px < want; m++) {
+          var to = cs[m], tp = map.project(to), seg = Math.hypot(tp.x - fp.x, tp.y - fp.y), steps = Math.max(1, Math.ceil(seg / 14)), good = 0;
+          for (var st = 1; st <= steps && px + seg * st / steps <= want + 14; st++) { if (!ok(fp.x + (tp.x - fp.x) * st / steps, fp.y + (tp.y - fp.y) * st / steps)) { open = false; break; } good = st; }
+          if (good) { var g = good / steps; path.push([from[0] + (to[0] - from[0]) * g, from[1] + (to[1] - from[1]) * g]); px += seg * g; }
+          if (good < steps) open = false;
+          from = to; fp = tp;
         }
-        if (path.length > 1 && px >= 36) return path;
+        if (path.length > 1 && px >= 40) return path;
       }
       return null;
     }
