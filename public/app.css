@@ -869,3 +869,7 @@ header h1.sr,.sr{position:absolute!important;width:1px;height:1px;overflow:hidde
   #inbox~.compose{position:static;padding:6px 12px 40px}
   .rdock .compose input{height:48px;font-size:16px}.rdock .compose button{width:48px;height:48px}
 }
+/* quick reply chips: read as a message you can send */
+.qrlbl{align-self:center;font-size:12px;font-weight:900;letter-spacing:.04em;color:var(--mute);text-transform:uppercase;margin-right:2px}
+.rchip.qr{border:2px dashed var(--ink);background:#fff;border-radius:18px 18px 6px 18px}
+.rchip.qr i{font-style:normal;display:inline-grid;place-items:center;width:22px;height:22px;border-radius:11px;background:var(--ink);color:#fff;font-size:13px;margin-left:4px}
