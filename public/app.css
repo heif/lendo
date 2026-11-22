@@ -853,3 +853,19 @@ section.sec:has(.ititle) h2 .ownlink{margin-bottom:1px}
 .askrow{margin-top:4px}.askrow .askbtn{margin-top:0!important;padding:2px 0}
 .ititle p{font-size:13.5px!important}
 header h1.sr,.sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px}
+/* chat: messages stand out — more space above, bigger text, chunkier bubbles with a tail */
+.msgs{gap:10px}
+.rcard+.msgs,.rcard~.msgs{margin-top:22px}
+.msg .bub{font-size:16.5px;line-height:1.38;padding:11px 15px;border-radius:20px;border:2.5px solid var(--ink);box-shadow:2.5px 2.5px 0 var(--ink);max-width:84%}
+.msg:not(.me):not(.sys) .bub{border-bottom-left-radius:6px}
+.msg.me .bub{border-bottom-right-radius:6px;border-bottom-left-radius:20px}
+.msg.sys .bub{border:0;box-shadow:none}
+.msg .meta{font-size:11.5px;margin:5px 8px 0}
+/* computers: the message box sits right under the last message, not pinned to the bottom of the screen */
+@media (hover:hover) and (pointer:fine) and (min-width:760px){
+  .rdock{position:static;max-width:none;margin:14px 0 40px;padding:0;background:none}
+  .compose.dock{position:static;max-width:none;margin:14px 0 40px;padding:0;background:none}
+  .rpage{padding-bottom:0!important}
+  #inbox~.compose{position:static;padding:6px 12px 40px}
+  .rdock .compose input{height:48px;font-size:16px}.rdock .compose button{width:48px;height:48px}
+}
