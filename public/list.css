@@ -346,3 +346,4 @@ a.dn2-tray{text-decoration:none;color:var(--ink)}
 .stk1-acw .stk1-in{padding-right:44px}
 /* thumbnails never spill out of their frame */
 .stk1-tbs button{overflow:hidden;padding:4px}.stk1-tbs img{display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
+.iblank-or{flex:none;align-self:center;font-size:12px;font-weight:900;letter-spacing:.06em;color:var(--mute)}.iblank-cam{width:66px}
