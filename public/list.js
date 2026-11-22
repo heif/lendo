@@ -27,7 +27,7 @@
   function renderIdeas() {
     /* 8 fit on a phone screen with the More link showing; anything picked always shows */
     var list = more ? IDEAS : IDEAS.filter(function (i, k) { return k < 8 || picked.indexOf(i[1]) > -1; });
-    $('ideas').innerHTML = list.map(function (i, k) { var on = picked.indexOf(i[1]) > -1; return '<button type="button" class="idea' + (on ? ' on' : '') + '" data-n="' + esc(i[1]) + '" data-p="' + i[2] + '"><span class="mk">' + (on ? '✓' : '') + '</span><span class="em"><img src="/p/wanted/' + i[0] + '.png" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'"></span><span class="nm">' + esc(i[1]) + '</span><span class="pr">~$' + i[2] + '/day</span></button>'; }).join('');
+    $('ideas').innerHTML = list.map(function (i, k) { var on = picked.indexOf(i[1]) > -1; return '<button type="button" class="idea' + (on ? ' on' : '') + '" data-n="' + esc(i[1]) + '" data-p="' + i[2] + '"><span class="mk">' + (on ? '✓' : '') + '</span><span class="em"><img src="/p/wanted/' + i[0] + '.png" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'"></span><span class="nm">' + esc(i[1]) + '</span></button>'; }).join('');
     $('moreIdeas').hidden = more;
     /* never let "More ideas" sit under the NEXT bar: drop unpicked rows until it shows (phones of any height) */
     if (!more) requestAnimationFrame(function () { try {
@@ -92,8 +92,8 @@
     if (!CFG.user) { location.href = '/login?next=' + encodeURIComponent('/list?stk=' + picked.join('|')); return; }
     if (!picked.length) { stk = [{ name: '', custom: true, price: MIN, brand: '', det: '', grade: 'A', imgs: [], k: 0 }]; si = 0; stkQ = []; show('stk'); stkOne(); setTimeout(function () { $('stkBrand').focus(); }, 50); return; }
     stk = picked.map(function (n) { var idea = IDEAS.filter(function (i) { return i[1] === n; })[0];
-      if (BASE.indexOf(n) < 0) return { name: n, custom: true, idea: ideaOf(n.replace(/\s+\S+$/, '')) || '', price: idea ? Math.max(MIN, idea[2]) : MIN, brand: n, det: '', grade: 'A', imgs: null, k: 0 };
-      return { name: n, price: idea ? Math.max(MIN, idea[2]) : MIN, brand: '', det: '', grade: 'A', imgs: null, k: 0 }; });
+      if (BASE.indexOf(n) < 0) return { name: n, custom: true, idea: ideaOf(n.replace(/\s+\S+$/, '')) || '', price: idea ? Math.max(MIN, idea[2]) : MIN, ideaPrice: idea && idea[0] !== '📦' ? idea[2] : 0, brand: n, det: '', grade: 'A', imgs: null, k: 0 };
+      return { name: n, price: idea ? Math.max(MIN, idea[2]) : MIN, basePrice: idea ? idea[2] : 0, brand: '', det: '', grade: 'A', imgs: null, k: 0 }; });
     si = 0; stkQ = stk.slice(); show('stk'); stkOne(); stkPump();
   }
   /* Brave allows ~1 search/sec: one at a time, the current item first */
@@ -126,6 +126,9 @@
     $('stkPic').innerHTML = x.custom && !x.brand ? '<span class="stk1-wait">Type what it is · a photo shows up</span>' : !x.imgs ? '<span class="stk1-wait">Finding a photo…</span>' : im ? '<img src="' + esc(im.thumb) + '" alt="">' : '<span class="stk1-wait">No photo found · add the brand or snap yours</span>';
     $('stkTbs').innerHTML = x.imgs && x.imgs.length > 1 ? x.imgs.slice(0, 4).map(function (y, k) { return '<button type="button" data-k="' + k + '" class="' + (k === x.k ? 'on' : '') + '"><img src="' + esc(y.thumb) + '" alt=""></button>'; }).join('') : '';
     $('stkNote').hidden = false;
+    /* the owner sets the price right here: big tag with − / +, plus a typical range for this kind of thing */
+    $('stkPv').textContent = '$' + x.price; var base = x.custom ? (x.ideaPrice || 0) : (x.basePrice || x.price);
+    $('stkRange').textContent = base ? 'Typical for ' + (x.custom ? (x.idea ? 'a ' + x.idea.toLowerCase() : 'this') : (/s$/.test(x.name) ? x.name.toLowerCase() : 'a ' + x.name.toLowerCase())) + ': $' + Math.max(MIN, Math.round(base * 0.7)) + '–' + Math.round(base * 1.4) : 'You can change it anytime';
     $('stkGo').hidden = false; $('stkGo').textContent = '✓ LOOKS LIKE MINE'; $('stkGo').disabled = !im; $('stkSnap').hidden = false; $('stkSkip').hidden = false;
   }
   function stkNext() { si++; while (si < stk.length && (stk[si].yes || stk[si].snap || stk[si].skip)) si++; if (si < stk.length) { stkOne(); stkPump(); return; }
@@ -176,9 +179,10 @@
   $('stkBrand').addEventListener('blur', function () { var el = this; setTimeout(function () { $('stkAc').hidden = true; var x = stk[si]; if (x && step === 'stk' && $('stkAll').hidden) stkSet(x, el.value.trim()); }, 150); });
   $('stkDet').addEventListener('input', function () { if (stk[si]) stk[si].det = this.value; });
   $('stkDet').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); this.blur(); } });
+  $('stkPr').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b || !stk[si]) return; var x = stk[si]; x.price = Math.max(MIN, x.price + (+b.dataset.d)); $('stkPv').textContent = '$' + x.price; });
   $('stkGr').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b || !stk[si]) return; stk[si].grade = b.dataset.g; stkOne(); });
   $('stkAc').addEventListener('mousedown', function (e) { e.preventDefault(); }); /* keep focus so the tap lands */
-  $('stkAc').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; var t = b.dataset.t; $('stkBrand').value = t; $('stkAc').hidden = true; var cx = stk[si]; if (cx && cx.custom && window.LENDO_AC) { cx.idea = ''; for (var kk in window.LENDO_AC) if (window.LENDO_AC[kk].indexOf(t) > -1) { cx.idea = kk; var iw = IDEAS.filter(function (i) { return i[1] === kk; })[0]; if (iw) cx.price = Math.max(MIN, iw[2]); break; } } stkSet(cx, t); $('stkBrand').blur(); });
+  $('stkAc').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; var t = b.dataset.t; $('stkBrand').value = t; $('stkAc').hidden = true; var cx = stk[si]; if (cx && cx.custom && window.LENDO_AC) { cx.idea = ''; for (var kk in window.LENDO_AC) if (window.LENDO_AC[kk].indexOf(t) > -1) { cx.idea = kk; var iw = IDEAS.filter(function (i) { return i[1] === kk; })[0]; if (iw) { cx.price = Math.max(MIN, iw[2]); cx.ideaPrice = iw[2]; } break; } } stkSet(cx, t); $('stkBrand').blur(); });
   $('stkBrand').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); var f = $('stkAc').querySelector('button'); if (f && !$('stkAc').hidden && this.value.trim().length >= 2) { this.value = f.dataset.t; } $('stkAc').hidden = true; this.blur(); stkSet(stk[si], this.value); } });
   $('stkTbs').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; stk[si].k = +b.dataset.k; stkOne(); });
   $('stkPic').addEventListener('click', function () { var x = stk[si]; if (x.imgs && x.imgs.length > 1) { x.k = (x.k + 1) % Math.min(4, x.imgs.length); stkOne(); } });

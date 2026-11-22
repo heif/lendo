@@ -352,3 +352,11 @@ a.dn2-tray{text-decoration:none;color:var(--ink)}
 .dn3-more{background:var(--cream);padding:0 10px;font-size:15px;line-height:1.1;text-align:center;gap:7px;text-wrap:balance}
 .dn3-more .plus{width:38px;height:38px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;flex:none}
 .dn3-more .plus svg{display:block}
+/* per-item price: big orange tag with − / + */
+.stk1-pr{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:2px}
+.stk1-pm{width:48px;height:48px;border:3px solid var(--ink);border-radius:14px;background:var(--cream);color:var(--ink);font-size:28px;font-weight:900;line-height:1;box-shadow:0 3px 0 var(--ink);font-family:inherit}
+.stk1-pm:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+.stk1-tag{display:inline-flex;align-items:baseline;gap:2px;background:var(--orange);color:#fff;border:3px solid var(--ink);border-radius:11px;padding:3px 14px;box-shadow:3px 3px 0 var(--ink);transform:rotate(-2deg);min-width:104px;justify-content:center}
+.stk1-tag b{font-size:28px;font-weight:900;letter-spacing:-.02em}.stk1-tag small{font-size:13px;font-weight:900}
+#stkRange{margin:8px 0 4px}
+#ideas .idea .pr{display:none}
