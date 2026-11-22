@@ -132,8 +132,8 @@ rentals.get('/r/:id', requireUser, async (c) => {
         {/* 3A: compact header (who · item · dates · $) + pinned where/when strip */}
         <a class="rhd" href={'/i/' + it.id}>
           {it.avatar_key ? <img class="cut" data-trim="1" src={'/p/' + it.avatar_key} alt="" /> : photos[0] ? <img class="cut" data-trim="1" src={'/c/' + photos[0].r2_key + '?s=200'} alt="" /> : <span class="rhd-ph"></span>}
-          <div><b><span class="ownlink" onclick={`event.preventDefault();location.href='${(other as any).handle ? '/' + (other as any).handle : '/u/' + other.id}'`}>{firstName(other.name)}</span> · {it.name}</b>
-            <div>{r.status === 'inquiry' ? (isOwner ? 'Question about your item' : 'Questions before renting') : !dead ? null : <>{fmtRange(r.start_day, r.end_day)} · {isOwner ? `you earn ${money(payoutOf(r) + xRent)}${r.status === 'held' ? ` after ${c.env.FEE_PCT}% fee` : ''}` : `${money(r.total_cents + xTotal)}${r.status === 'held' ? ' held' : ' paid'}`}</>}</div></div>
+          <div style="min-width:0"><b class="rhd-t">{it.name}</b>
+            <div>{isOwner ? '' : 'from '}<span class="ownlink" onclick={`event.preventDefault();location.href='${(other as any).handle ? '/' + (other as any).handle : '/u/' + other.id}'`}>{firstName(other.name)}</span> · {r.status === 'inquiry' ? (isOwner ? 'question about your item' : 'questions before renting') : <>{fmtRange(r.start_day, r.end_day)} · {isOwner ? `you earn ${money(payoutOf(r) + xRent)}${r.status === 'held' ? ` after ${c.env.FEE_PCT}% fee` : ''}` : `${money(r.total_cents + xTotal)}${r.status === 'held' ? ' held' : ' paid'}`}</>}</div></div>
         </a>
         {r.status !== 'inquiry' && !dead ? (() => { const nm = firstName(other.name), spot = r.meet_spot || (spots.length === 1 ? spots[0] : '');
           const chg = spots.length > 1 ? <u onclick="var d=document.querySelector('.rstrip');d.open=!d.open">Change</u> : null;
@@ -148,7 +148,17 @@ rentals.get('/r/:id', requireUser, async (c) => {
             [stage === 3 ? 'Returned' : 'Return ' + dayWord(r.end_day, it.lng) + timeWord(r.return_time), stage === 2 ? <>{spot ? spot + ' · ' : ''}{chg}</> : null, retNote],
           ];
           const now = stage === 0 ? 1 : stage === 1 ? 2 : stage === 2 ? 3 : 4;
-          return <ol class="rsteps">{S.map(([t, x, n], i) => <li class={i < now ? 'done' : i === now ? 'now' : ''}><i>{i < now ? '✓' : ''}</i><b>{t}</b>{x ? <span>{x}</span> : null}{n ? <em>{n}</em> : null}</li>)}</ol>; })() : null}
+          /* B: slim 4-dot bar + one "now" box + footer (promise · cancel) */
+          const LB = ['Asked', 'YES', 'Pickup', 'Return'];
+          const cur = S[now];
+          const how = stage === 1 && !r.pickup_time ? `Set a time with ${nm} in the chat` : stage === 2 && !r.return_time ? `Set a return time with ${nm} in the chat` : null;
+          const cancel = !isOwner && stage <= 1 ? <button type="submit" form="cancelForm">{stage === 0 ? 'Cancel request' : 'Cancel rental'}</button> : null;
+          const prom = stage >= 1 && r.promise_at ? <span>✓ {isOwner ? `${nm} signed the promise` : 'Promise signed'} · <u onclick="document.getElementById('promView').showModal()">View</u></span> : <span></span>;
+          return <>
+            <div class="rbar">{LB.map((l, i) => <div class={'rb ' + (i < now ? 'done' : i === now ? 'now' : '')}><i>{i < now ? '✓' : ''}</i><small>{l}</small></div>)}</div>
+            {cur ? <div class="rnow"><b>{cur[0]}</b>{cur[1] ? <span>{cur[1]}</span> : null}{how ? <span>{how}</span> : null}{cur[2] ? <span>{cur[2]}</span> : null}</div> : null}
+            {cancel || (stage >= 1 && r.promise_at) ? <div class="rfoot">{prom}{cancel}</div> : null}
+          </>; })() : null}
         {paused ? <a class="hint sms-only" href={smsHref(c.env, 'OK')} style="text-align:center;color:#b3261e;font-weight:700;display:block">📵 Lendo texts paused · <u>tap to text OK</u> and turn them back on</a> : null}
         {r.status === 'inquiry' ? (!isOwner ? <a class="btn pri full" href={'/i/' + it.id}>Rent it · {money(it.price_cents)}/day</a> : null) : dead ? <div class="flash err" style="margin:0">{r.status === 'declined' ? `${firstName(owner.name)} couldn't do those days.` : r.status === 'expired' ? 'No answer in time.' : 'Canceled.'} Nothing was charged.</div> : null}
         {!dead && (stage === 1 || stage === 2) ? (
@@ -220,7 +230,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
               <div class="hint" style="text-align:center;margin-top:8px">{isOwner ? 'You have a copy' : `${ow} has a copy too`}</div>
             </div></dialog>
           );
-          if (r.promise_at) return <>{view}<button type="button" class="btn sm full" onclick="document.getElementById('promView').showModal()">✓ {isOwner ? `${cu} signed the promise` : 'Promise signed'} · <u>View</u></button></>;
+          if (r.promise_at) return view; /* the "Promise signed · View" link sits in the card footer */
           if (r.status !== 'confirmed') return null; // only matters before pickup
           if (isOwner) return <div class="hint" style="text-align:center">{cu} hasn’t signed the promise yet · reminder texted</div>;
           return (<>

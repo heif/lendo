@@ -873,3 +873,20 @@ header h1.sr,.sr{position:absolute!important;width:1px;height:1px;overflow:hidde
 .qrlbl{align-self:center;font-size:12px;font-weight:900;letter-spacing:.04em;color:var(--mute);text-transform:uppercase;margin-right:2px}
 .rchip.qr{border:2px dashed var(--ink);background:#fff;border-radius:18px 18px 6px 18px}
 .rchip.qr i{font-style:normal;display:inline-grid;place-items:center;width:22px;height:22px;border-radius:11px;background:var(--ink);color:#fff;font-size:13px;margin-left:4px}
+
+/* rental status card B (11/22): slim 4-dot bar · one "now" box · footer */
+.rbar{display:flex;margin:6px 2px 0}
+.rb{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;position:relative;min-width:0}
+.rb::before{content:'';position:absolute;top:8px;right:50%;width:100%;height:3px;background:#D9D4C8;z-index:0}
+.rb:first-child::before{display:none}
+.rb.done::before,.rb.now::before{background:var(--ink)}
+.rb i{position:relative;z-index:1;width:19px;height:19px;box-sizing:border-box;border-radius:50%;border:2.5px solid #D9D4C8;background:#fff;display:grid;place-items:center;font-style:normal;font-size:10px;font-weight:900;color:#fff}
+.rb.done i{background:var(--ink);border-color:var(--ink)}.rb.now i{background:var(--orange);border-color:var(--ink)}
+.rb small{font-size:12px;font-weight:800;color:#9A958A}.rb.done small{color:var(--ink)}.rb.now small{color:var(--orange)}
+.rnow{background:#FFF1EA;border-radius:12px;padding:9px 12px;display:flex;flex-direction:column;gap:2px}
+.rnow b{font-size:17px;font-weight:900}.rnow span{font-size:13.5px;font-weight:700;color:var(--mute)}
+.rnow span u,.rnow span button{font:inherit;color:var(--ink);background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}
+.rfoot{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1.5px solid #EEEBE3;padding-top:9px;font-size:14px;font-weight:700}
+.rfoot u,.rfoot button{font:inherit;color:var(--ink);background:none;border:0;padding:0;text-decoration:underline;cursor:pointer;min-height:32px}
+.rhd>div>div{font-size:13px;font-weight:700;color:var(--mute)}
+.rhd b.rhd-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rhd .ownlink{text-decoration:underline;text-underline-offset:2px}
