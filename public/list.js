@@ -40,6 +40,7 @@
     /* stock photos on: one button → the item screens (camera lives there as "Snap yours"); off: the camera as before */
     $('toCam').textContent = stk0 ? 'NEXT' : !picked.length ? 'OPEN CAMERA' : 'SNAP ' + picked.length + (picked.length === 1 ? ' THING' : ' THINGS');
     $('pick2').hidden = true; $('toCam').hidden = false;
+    nextOk();
   }
   $('ideas').addEventListener('click', function (e) { var b = e.target.closest('.idea'); if (!b) return; var n = b.dataset.n, i = picked.indexOf(n); if (i > -1) picked.splice(i, 1); else picked.push(n); renderIdeas(); });
   $('moreIdeas').addEventListener('click', function () { more = true; renderIdeas(); });
@@ -68,7 +69,9 @@
     try { $('ideaType').blur(); } catch (e) {}
     var firstOn = document.querySelector('#ideas .on'); if (firstOn && firstOn.scrollIntoView) firstOn.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
-  $('ideaType').addEventListener('input', ideaAcShow);
+  /* NEXT is grayed out until something is checked or typed */
+  function nextOk() { if (!CFG.stock) return; $('toCam').disabled = !picked.length && $('ideaType').value.trim().length < 2; }
+  $('ideaType').addEventListener('input', function () { ideaAcShow(); nextOk(); });
   /* phones: the keyboard's Done/Go submits the form, and leaving the box with text in it adds it too (a tapped suggestion clears the box first) */
   $('ideaType').addEventListener('blur', function () { setTimeout(function () { $('ideaAc').hidden = true; if ($('ideaType').value.trim().length > 1) ideaAdd($('ideaType').value); }, 220); });
   $('ideaType').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); ideaAdd(this.value); } });
