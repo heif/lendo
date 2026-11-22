@@ -46,7 +46,7 @@ export const Layout: FC<LayoutProps> = (p) => {
             )}
             <a class="logo" href="/" aria-label="Lendo home (map)"><span class="wave" aria-hidden="true">👋</span>Lendo</a>
             {p.headerCenter ? <span class="sp"></span> : <span class="sep" aria-hidden="true"></span>}
-            {p.headerCenter ? p.headerCenter : <h1>{p.title}</h1>}
+            {p.headerCenter ? p.headerCenter : <h1 class="sr">{p.title}</h1>}
             <span class="sp"></span>
             {u ? <a class="hchat" href="/inbox" aria-label={'Inbox' + (u.unread ? ` (${u.unread} unread)` : '')}><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5c4.9 0 8.5 3.3 8.5 7.6s-3.6 7.6-8.5 7.6c-1 0-2-.1-2.9-.4L4.5 20l1.3-3.6C4.3 15 3.5 13.2 3.5 11.1 3.5 6.8 7.1 3.5 12 3.5z" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linejoin="round" /></svg>{u.unread ? <span class="badge">{u.unread}</span> : null}</a> : null}
             <details class={'acct' + (u ? ' in' : '')}>
