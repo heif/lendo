@@ -25,9 +25,16 @@
   if (WANT && !IDEAS.some(function (i) { return i[1].toLowerCase() === WANT.toLowerCase(); })) IDEAS.unshift(['📦', WANT, 12]);
   if (WANT && picked.indexOf(WANT) < 0) { var wi = IDEAS.filter(function (i) { return i[1].toLowerCase() === WANT.toLowerCase(); })[0]; picked.push(wi ? wi[1] : WANT); }
   function renderIdeas() {
-    var list = more ? IDEAS : IDEAS.slice(0, 10);
+    /* 8 fit on a phone screen with the More link showing; anything picked always shows */
+    var list = more ? IDEAS : IDEAS.filter(function (i, k) { return k < 8 || picked.indexOf(i[1]) > -1; });
     $('ideas').innerHTML = list.map(function (i, k) { var on = picked.indexOf(i[1]) > -1; return '<button type="button" class="idea' + (on ? ' on' : '') + '" data-n="' + esc(i[1]) + '" data-p="' + i[2] + '"><span class="mk">' + (on ? '✓' : '') + '</span><span class="em"><img src="/p/wanted/' + i[0] + '.png" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'"></span><span class="nm">' + esc(i[1]) + '</span><span class="pr">~$' + i[2] + '/day</span></button>'; }).join('');
     $('moreIdeas').hidden = more;
+    /* never let "More ideas" sit under the NEXT bar: drop unpicked rows until it shows (phones of any height) */
+    if (!more) requestAnimationFrame(function () { try {
+      var foot = document.querySelector('#st-ideas .lf-foot'), m = $('moreIdeas'); if (!foot || !m || !m.offsetParent) return;
+      var rows = [].slice.call($('ideas').querySelectorAll('.idea:not(.on)'));
+      while (rows.length > 4 && m.getBoundingClientRect().bottom > foot.getBoundingClientRect().top - 4) rows.pop().remove();
+    } catch (e) {} });
     /* stock photos on: picking → NEXT (no camera), camera is the link under it */
     var stk0 = CFG.stock; /* Snap | Find it always, even before picking (Find it with nothing picked = type what it is) */
     /* stock photos on: one button → the item screens (camera lives there as "Snap yours"); off: the camera as before */
