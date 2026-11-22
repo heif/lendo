@@ -620,7 +620,7 @@
   function wiggleRot(id) { if (!(id in wigPhase)) wigPhase[id] = [Math.random() * 6.283, 2.2 + Math.floor(Math.random() * 4) * 0.45]; var w = wigPhase[id], t = (performance.now() - wigT0) / 1000; return Math.sin(t * 6.283 / w[1] + w[0]) * 3.5; }
   function startWiggle() {
     var busy = false; map.on('movestart', function () { busy = true; }); map.on('moveend', function () { busy = false; });
-    setInterval(function () { if (busy || document.hidden || !SHOW.length) return; drawPins(); }, 90);
+    setInterval(function () { if (busy || document.hidden || !SHOW.length) return; drawPins(); }, 125); /* ~8 redraws a second: the sway is slow and small, so it still reads smooth */
   }
 
   // desktop: poster sits beside the tapped marker (right side, or left if no room), clamped to the map; phones keep bottom-center
