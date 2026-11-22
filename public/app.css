@@ -905,3 +905,12 @@ header h1.sr,.sr{position:absolute!important;width:1px;height:1px;overflow:hidde
 .rlist span{display:inline}.rlist span::before{content:' · '}
 .rlist .rsign{margin-left:2px;padding:3px 12px!important;box-shadow:0 2px 0 var(--ink)}
 .rlist .rsign{display:block;margin:6px 0 2px}
+
+/* chat bubbles, iMessage-style (11/22): round bubble + classic curved tail (two pseudo-elements), no border/shadow */
+.msg .bub{position:relative;border:0!important;box-shadow:none!important;border-radius:22px!important;padding:12px 17px}
+.msg:not(.sys) .bub::before,.msg:not(.sys) .bub::after{content:'';position:absolute;bottom:0;height:22px;pointer-events:none}
+.msg.me .bub::before{right:-7px;width:20px;background:var(--ink);border-bottom-left-radius:16px 14px}
+.msg.me .bub::after{right:-26px;width:26px;background:var(--cream,#F5F3EE);border-bottom-left-radius:10px}
+.msg:not(.me):not(.sys) .bub::before{left:-7px;width:20px;background:#fff;border-bottom-right-radius:16px 14px}
+.msg:not(.me):not(.sys) .bub::after{left:-26px;width:26px;background:var(--cream,#F5F3EE);border-bottom-right-radius:10px}
+.msg:not(.sys){padding:0 10px}
