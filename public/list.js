@@ -16,6 +16,7 @@
   function shrink(f, cb) { var img = new Image(); img.onload = function () { var s = Math.min(1, 1400 / Math.max(img.width, img.height)), c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); c.toBlob(function (b) { if (b) cb(b); }, 'image/jpeg', 0.86); URL.revokeObjectURL(img.src); }; img.src = URL.createObjectURL(f); }
   var picked = [], shots = [], step = 'ideas', t0 = null, clockT, stream = null, retakeIdx = null, more = false;
   var fmt = function (n) { return '$' + n; };
+  var HOVERDEV = !!(window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches); /* computers */
   function esc(s) { return String(s).replace(/[<>&"]/g, function (c) { return ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]; }); }
   function show(name) { step = name; ['ideas', 'ai', 'stk', 'cam', 'review', 'q', 'done'].forEach(function (s) { $('st-' + s).hidden = s !== name; }); document.documentElement.classList.toggle('camdark', name === 'cam'); if (name === 'cam') startCam(); else stopCam(); if (name === 'review') renderReview(); if (name === 'q') renderQ(); }
   function clock() { if (!t0) return '0:00'; var s = Math.round((Date.now() - t0) / 1000); return Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2); }
@@ -340,8 +341,24 @@
     canvas.toBlob(function (b) { if (b) addShot(b); }, 'image/jpeg', 0.86);
   }
   $('shutter').addEventListener('click', snap);
-  $('file').addEventListener('change', function () { var f = this.files[0]; if (!f) return; var img = new Image(); img.onload = function () { var s = Math.min(1, 1400 / Math.max(img.width, img.height)); canvas.width = Math.round(img.width * s); canvas.height = Math.round(img.height * s); canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height); canvas.toBlob(function (b) { if (b) addShot(b); }, 'image/jpeg', 0.86); }; img.src = URL.createObjectURL(f); this.value = ''; });
-  $('camFallback').addEventListener('click', function () { $('file').click(); });
+  /* one way in for any picked or dropped picture: shrink → same path as a snapped photo */
+  function useFile(f) { if (!f || !/^image\//.test(f.type || 'image/')) return; var img = new Image(); img.onload = function () { var s = Math.min(1, 1400 / Math.max(img.width, img.height)); canvas.width = Math.round(img.width * s); canvas.height = Math.round(img.height * s); canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height); canvas.toBlob(function (b) { if (b) addShot(b); }, 'image/jpeg', 0.86); }; img.src = URL.createObjectURL(f); }
+  $('file').addEventListener('change', function () { useFile(this.files[0]); this.value = ''; });
+  /* photo library (phones) / choose a file (computers): standard bottom-left spot of a camera screen */
+  $('pickFile').addEventListener('change', function () { useFile(this.files[0]); this.value = ''; });
+  $('libBtn').addEventListener('click', function () { $('pickFile').click(); });
+  /* computers: drop a photo anywhere on the camera screen */
+  (function () { var cam = $('st-cam'), n = 0;
+    function has(e) { return e.dataTransfer && [].indexOf.call(e.dataTransfer.types || [], 'Files') > -1; }
+    cam.addEventListener('dragenter', function (e) { if (!has(e)) return; e.preventDefault(); n++; cam.classList.add('dropping'); });
+    cam.addEventListener('dragover', function (e) { if (has(e)) e.preventDefault(); });
+    cam.addEventListener('dragleave', function () { if (--n <= 0) { n = 0; cam.classList.remove('dropping'); } });
+    cam.addEventListener('drop', function (e) { e.preventDefault(); n = 0; cam.classList.remove('dropping'); var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f) useFile(f); });
+    /* a photo dropped anywhere else on the page doesn't open in the browser tab */
+    window.addEventListener('dragover', function (e) { if (has(e)) e.preventDefault(); }); window.addEventListener('drop', function (e) { if (has(e)) e.preventDefault(); });
+  })();
+  $('camFallback').addEventListener('click', function () { (HOVERDEV ? $('pickFile') : $('file')).click(); });
+  if (HOVERDEV) { $('camFallback').textContent = 'Choose a photo'; $('tapHint').firstChild.textContent = 'Or drop a photo here '; }
   $('doneBtn').addEventListener('click', function () { show('review'); });
   $('thumbWrap').addEventListener('click', function () { show('review'); });
   $('camClose').addEventListener('click', function () { if (shots.length) show('review'); else show('ideas'); });

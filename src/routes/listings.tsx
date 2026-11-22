@@ -97,7 +97,7 @@ const listPage = async (c: any) => {
       {/* camera */}
       <section id="st-cam" class="cam" hidden>
         <video id="cam" playsinline muted autoplay></video>
-        <input type="file" id="file" accept="image/*" capture="environment" hidden /><input type="file" id="moreFile" accept="image/*" multiple hidden /><input type="file" id="labelFile" accept="image/*" capture="environment" hidden />
+        <input type="file" id="file" accept="image/*" capture="environment" hidden /><input type="file" id="moreFile" accept="image/*" multiple hidden /><input type="file" id="labelFile" accept="image/*" capture="environment" hidden /><input type="file" id="pickFile" accept="image/*" hidden />
         <div class="cam-top">
           <button type="button" class="cam-x" id="camClose" aria-label="Close"><svg width="14" height="14" viewBox="0 0 12 12"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg></button>
           <div class="cam-hints"><span class="hint-big" id="hintBig"></span><span class="hint-sm" id="hint"></span></div>
@@ -105,11 +105,13 @@ const listPage = async (c: any) => {
         <div class="cam-br"><i></i><i></i><i></i><i></i></div>
         <div class="tap" id="tapHint">Tap to take a picture <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 4V19M6 13L12 19L18 13" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg></div>
         <button type="button" class="cam-fallback" id="camFallback" hidden>Open camera</button>
+        <div class="dropzone" aria-hidden="true"><span>Drop photo</span></div>
         <div class="flash" id="flash"></div>
         <div class="toast-ok" id="toast"><span>✓</span>Got it</div>
         <div class="minilist" id="miniList" hidden></div>
         <div class="cam-bar">
           <button type="button" class="thumbwrap" id="thumbWrap" hidden><img id="thumb" alt="" /><span id="count">0</span></button>
+          <button type="button" class="libbtn" id="libBtn" aria-label="Choose a photo"><i dangerouslySetInnerHTML={{ __html: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" /><circle cx="9" cy="9.5" r="1.8" /><path d="M21 16l-5.5-5.5L6 20" /></svg>' }} /></button>
           <button type="button" class="shutter" id="shutter" aria-label="Take photo"><span></span></button>
           <button type="button" class="donebtn" id="doneBtn" hidden>Done →</button>
         </div>

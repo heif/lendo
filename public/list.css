@@ -360,3 +360,12 @@ a.dn2-tray{text-decoration:none;color:var(--ink)}
 .stk1-tag b{font-size:28px;font-weight:900;letter-spacing:-.02em}.stk1-tag small{font-size:13px;font-weight:900}
 #stkRange{margin:8px 0 4px}
 #ideas .idea .pr{display:none}
+/* photo library / choose-file button: bottom-left of the camera bar (standard camera layout) */
+.libbtn{grid-column:1;grid-row:1;justify-self:start;width:52px;height:52px;border-radius:12px;border:2.5px solid #fff;background:transparent;color:#fff;display:grid;place-items:center;padding:0}
+.libbtn i{line-height:0}
+.thumbwrap:not([hidden])~.libbtn{display:none}
+/* drop a photo (computers) */
+.dropzone{position:absolute;inset:14px;z-index:5;border:4px dashed #fff;border-radius:24px;background:rgba(30,58,43,.55);display:none;place-items:center;pointer-events:none}
+.dropzone span{color:#fff;font-size:24px;font-weight:900}
+.dropping .dropzone{display:grid}
+.dropping .cam-fallback,.dropping .tap{opacity:0}
