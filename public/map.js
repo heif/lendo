@@ -740,7 +740,9 @@
     /* streets on screen (streets, paths, avenues — no highways, rail or ferries), read once per view */
     function readStreets() {
       if (roadLayers === null) { try { roadLayers = (map.getStyle().layers || []).filter(function (l) { return l['source-layer'] === 'road' && l.type === 'line'; }).map(function (l) { return l.id; }); } catch (e) { roadLayers = []; } }
-      var fs = []; try { fs = roadLayers.length ? map.queryRenderedFeatures({ layers: roadLayers }) : map.queryRenderedFeatures(); } catch (e) {}
+      var fs = []; try { if (roadLayers.length) fs = map.queryRenderedFeatures({ layers: roadLayers }); } catch (e) { fs = []; }
+      /* styles that keep their roads out of reach by layer id: read everything once instead (still only once per view) */
+      if (!fs.length) { roadLayers = []; try { fs = map.queryRenderedFeatures(); } catch (e) { fs = []; } }
       streets = [];
       fs.forEach(function (f) {
         if (f.sourceLayer !== 'road' || !f.geometry || !/LineString/.test(f.geometry.type)) return;
@@ -801,6 +803,7 @@
     }
     map.on('movestart', function () { moving = true; }); map.on('moveend', function () { moving = false; sweep(); });
     window.__sweepWalkers = sweep;
+    window.__walkers = function () { return { streets: streets ? streets.length : null, roadLayers: roadLayers ? roadLayers.length : null, groups: walkers.length, fits: wanted(), boxes: OBST.length, at: walkers.map(function (w) { return [Math.round(w.x), Math.round(w.y)]; }) }; }; /* for checking from the console */
     var last = performance.now();
     function tick(now) {
       var dt = Math.min(50, now - last); last = now;
