@@ -10,7 +10,7 @@ import { saveSearch, allowMore } from './alerts';
 import { listingById, userById } from './db';
 import { textUser } from './blooio';
 import { customerCancel, relay } from './rentals';
-import { money, now, firstName } from './util';
+import { money, now, firstName, addDays } from './util';
 import { CITIES } from './places';
 
 export type Intent =
@@ -49,7 +49,7 @@ LENDO FACTS
 - Messages between owner and customer go by text and also show on the rental page (lendo.co/r/…). If someone hasn't texted Lendo back in a while, Lendo holds further texts to them until they reply (a texting-service limit); they still see everything on the rental page
 Today is ${localToday()}.`;
   const facts = [
-    ctx.rental ? `RENTAL FACTS: they are the ${ctx.role} of "${ctx.item}" with ${ctx.other}, ${ctx.rental.start_day} to ${ctx.rental.end_day}, status ${STATUS_WORDS[ctx.rental.status] || ctx.rental.status}.${ctx.otherTexts ? ' ' + ctx.otherTexts : ''}` : 'No active rental.',
+    ctx.rental ? `RENTAL FACTS: they are the ${ctx.role} of "${ctx.item}" with ${ctx.other}, pickup ${ctx.rental.start_day}, due back ${addDays(ctx.rental.end_day, 1)} (a rental day is 24 hours), status ${STATUS_WORDS[ctx.rental.status] || ctx.rental.status}.${ctx.otherTexts ? ' ' + ctx.otherTexts : ''}` : 'No active rental.',
     ctx.listings.length ? `Their listings: ${ctx.listings.map(l => `${l.name} ($${l.price_cents / 100}/day)`).join('; ')}.` : 'They have no listings.',
   ].join('\n');
   try {

@@ -8,7 +8,7 @@ import { addMessage, listingById, rentalById, userById } from './db';
 import { textUser } from './blooio';
 import { stripe } from './stripe';
 import { payoutOf, quote } from './money';
-import { addDays, daysBetween, firstName, fmtDay, id, money, now, rentFor } from './util';
+import { addDays, backDay, daysBetween, firstName, fmtDay, id, money, now, rentFor } from './util';
 
 export type Ext = { id: string; rental_id: string; listing_id: string; from_day: string; new_end: string; days: number; rent_cents: number; fee_cents: number; total_cents: number; tax_cents?: number; payout_cents?: number | null; status: 'requested' | 'held' | 'confirmed' | 'declined' | 'expired' | 'canceled'; stripe_checkout_id: string | null; stripe_payment_intent: string | null; paid_out: number; expires_at: number | null; created_at: number; updated_at: number };
 const HOLD_HOURS = 24;
@@ -80,8 +80,8 @@ export async function markExtHeld(env: Env, xid: string, pi: string | null, cs: 
   await env.DB.prepare(`UPDATE rental_extensions SET status = 'held', stripe_payment_intent = ?, stripe_checkout_id = COALESCE(?, stripe_checkout_id), expires_at = ?, updated_at = ? WHERE id = ?`).bind(pi, cs, now() + HOLD_HOURS * 3600000, now(), xid).run();
   const r = (await rentalById(env.DB, x.rental_id))!;
   const [owner, cust, it] = await Promise.all([userById(env.DB, r.owner_id), userById(env.DB, r.renter_id), listingById(env.DB, r.listing_id)]);
-  await addMessage(env, r.id, null, `${firstName(cust!.name)} asked to keep it until ${fmtDay(x.new_end)} (+${x.days} day${x.days === 1 ? '' : 's'})`, 'system');
-  await textUser(env, owner!, `${firstName(cust!.name)} wants to keep your ${it!.name} until ${fmtDay(x.new_end)} · you'd earn ${money(payoutOf(x))} more. Reply YES or NO`, 'rental', r.id);
+  await addMessage(env, r.id, null, `${firstName(cust!.name)} asked to keep it until ${fmtDay(backDay(x.new_end))} (+${x.days} day${x.days === 1 ? '' : 's'})`, 'system');
+  await textUser(env, owner!, `${firstName(cust!.name)} wants to keep your ${it!.name} until ${fmtDay(backDay(x.new_end))} · you'd earn ${money(payoutOf(x))} more. Reply YES or NO`, 'rental', r.id);
 }
 
 // owner YES → capture, move the return day, pay the owner the extra rent
@@ -103,7 +103,7 @@ export async function acceptExt(env: Env, x: Ext): Promise<boolean> {
       await logErr(env.DB, 'ext capture', e, { rental: r.id });
       await env.DB.prepare(`UPDATE rental_extensions SET status = 'expired', updated_at = ? WHERE id = ?`).bind(now(), x.id).run();
       const cust = (await userById(env.DB, r.renter_id))!;
-      await textUser(env, cust, `The card hold for the extra days ran out, so it wasn't extended · return day stays ${fmtDay(r.end_day)}`, 'rental', r.id);
+      await textUser(env, cust, `The card hold for the extra days ran out, so it wasn't extended · return day stays ${fmtDay(backDay(r.end_day))}`, 'rental', r.id);
       return false;
     }
   }
@@ -117,8 +117,8 @@ export async function acceptExt(env: Env, x: Ext): Promise<boolean> {
       await logEvent(env.DB, 'money.payout', { rental: r.id, user: owner!.id, cents: payoutOf(x), data: { ext: x.id } });
     } catch (e) { await logErr(env.DB, 'ext payout', e, { rental: r.id }); }
   }
-  await addMessage(env, r.id, null, `Extended · now due back ${fmtDay(x.new_end)}`, 'system');
-  await textUser(env, cust!, `${firstName(owner!.name)} said yes · keep the ${it!.name} until ${fmtDay(x.new_end)}${x.total_cents >= 50 ? ` · ${money(x.total_cents)} charged` : ''}`, 'money', r.id);
+  await addMessage(env, r.id, null, `Extended · now due back ${fmtDay(backDay(x.new_end))}`, 'system');
+  await textUser(env, cust!, `${firstName(owner!.name)} said yes · keep the ${it!.name} until ${fmtDay(backDay(x.new_end))}${x.total_cents >= 50 ? ` · ${money(x.total_cents)} charged` : ''}`, 'money', r.id);
   await textUser(env, owner!, `Done · ${firstName(cust!.name)} brings it back ${fmtDay(x.new_end)}`, 'rental', r.id);
   return true;
 }
@@ -132,8 +132,8 @@ export async function declineExt(env: Env, x: Ext, why: 'declined' | 'expired' |
   if (x.status !== 'held') return; // never got to the owner: nothing to tell anyone
   const r = (await rentalById(env.DB, x.rental_id))!;
   const [owner, cust] = await Promise.all([userById(env.DB, r.owner_id), userById(env.DB, r.renter_id)]);
-  await addMessage(env, r.id, null, `Not extended · due back ${fmtDay(r.end_day)}`, 'system');
-  await textUser(env, cust!, `${why === 'declined' ? `${firstName(owner!.name)} can't do the extra days` : 'No answer on the extra days'} · nothing charged · due back ${fmtDay(r.end_day)}`, 'rental', r.id);
+  await addMessage(env, r.id, null, `Not extended · due back ${fmtDay(backDay(r.end_day))}`, 'system');
+  await textUser(env, cust!, `${why === 'declined' ? `${firstName(owner!.name)} can't do the extra days` : 'No answer on the extra days'} · nothing charged · due back ${fmtDay(backDay(r.end_day))}`, 'rental', r.id);
 }
 
 // owner's YES/NO by text: the newest held extension on one of their rentals

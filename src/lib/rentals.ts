@@ -6,7 +6,7 @@ import { addMessage, busyDays, listingById, rentalById, setRentalStatus, userByI
 import { textUser } from './blooio';
 import { captureRental, payoutRental, placeDeposit, refundPart, releaseDeposit, releaseHold } from './stripe';
 import { feePct, payoutOf, quote } from './money';
-import { firstName, fmtRange, localToday, money, now } from './util';
+import { backDay, firstName, fmtDay, fmtRange, localToday, money, now } from './util';
 
 const HOLD_HOURS = 24;
 
@@ -110,7 +110,7 @@ export async function pickedUp(env: Env, r: Rental, photoKey: string | null) {
   await setRentalStatus(env.DB, r.id, 'picked_up', { pickup_photo_key: photoKey });
   const { owner, renter, listing } = await parties(env, r);
   await addMessage(env, r.id, null, photoKey ? `${firstName(owner.name)} took the pickup photo · time-stamped, you both have it` : `Picked up`, 'system');
-  await textUser(env, renter, `You've got the ${listing.name}. Return ${fmtRange(r.end_day, r.end_day)}`, 'pickup', r.id);
+  await textUser(env, renter, `You've got the ${listing.name} · back ${fmtDay(backDay(r.end_day))}${r.pickup_time ? ' around the same time' : ''} · reply OK to confirm`, 'pickup', r.id);
   try { if (await payoutRental(env, r, owner)) await textUser(env, owner, `${money(payoutOf(r))} is on its way to your account`, 'money', r.id); } catch (e) { await logErr(env.DB, 'payout failed', e, { rental: r.id }); }
   return true;
 }

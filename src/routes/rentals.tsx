@@ -14,7 +14,7 @@ import { Layout } from '../pages/layout';
 import { createFlag, Flag, FLAGGABLE, type FlagKind } from '../lib/flags';
 import { requireUser } from '../lib/auth';
 import { addMessage, busyDays, firstPhotos, listingById, photosFor, rentalById, userById } from '../lib/db';
-import { id, money, now, daysBetween, dayStr, addDays, fmtRange, rentFor, firstName, fmtDay } from '../lib/util';
+import { id, money, now, daysBetween, dayStr, addDays, fmtRange, rentFor, firstName, fmtDay, backDay } from '../lib/util';
 import { cardSetupUrl, createCheckout, connectOnboardingUrl, DEPOSIT_CENTS, flushPendingPayouts, stripe } from '../lib/stripe';
 import { payoutOf, quote, taxRateFor } from '../lib/money';
 import { selfMigrate } from '../lib/migrate';
@@ -151,7 +151,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
             [signed ? (isOwner ? `${nm} signed Promise` : 'You signed Promise') : isOwner ? `${nm}’s Promise` : `Sign Promise to ${nm}`,
               signed ? [<u onclick="document.getElementById('promView').showModal()">View</u>] : promNow ? (isOwner ? ['not signed yet · reminder texted'] : ['3 quick checks']) : stage === 0 ? ['before pickup'] : []],
             [stage > 2 || r.status === 'picked_up' ? 'Picked up' : 'Pickup ' + dayWord(r.start_day, it.lng) + timeWord(r.pickup_time), stage === 1 && !promNow ? [spot, chg, how, pickNote] : stage >= 2 ? [pickNote] : []],
-            [stage === 3 ? 'Returned' : 'Return ' + dayWord(r.end_day, it.lng) + timeWord(r.return_time), stage === 2 ? [spot, chg, how, retNote] : stage === 3 ? [retNote] : []],
+            [stage === 3 ? 'Returned' : 'Return ' + dayWord(backDay(r.end_day), it.lng) + timeWord(r.return_time || r.pickup_time), stage === 2 ? [spot, chg, how, retNote] : stage === 3 ? [retNote] : []],
           ];
           const now = stage === 0 ? 1 : promNow ? 2 : stage === 1 ? 3 : stage === 2 ? 4 : 5;
           const cancel = !isOwner && stage <= 1 ? <button type="submit" form="cancelForm">{stage === 0 ? 'Cancel request' : 'Cancel rental'}</button> : null;
@@ -163,7 +163,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
         {r.status === 'inquiry' ? (!isOwner ? <a class="btn pri full" href={'/i/' + it.id}>Rent it · {money(it.price_cents)}/day</a> : null) : dead ? <div class="flash err" style="margin:0">{r.status === 'declined' ? `${firstName(owner.name)} couldn't do those days.` : r.status === 'expired' ? 'No answer in time.' : 'Canceled.'} Nothing was charged.</div> : null}
         {!dead && (stage === 1 || stage === 2) ? (
           <details class="rstrip">
-            <summary><span>📍 <b>{r.meet_spot || (spots.length === 1 ? spots[0] : 'Pick a meet spot')}</b> <span class="hint">· {stage === 1 ? 'pickup ' + dayWord(r.start_day, it.lng) + timeWord(r.pickup_time) : 'back ' + dayWord(r.end_day, it.lng) + timeWord(r.return_time)}</span></span><u>Change</u></summary>
+            <summary><span>📍 <b>{r.meet_spot || (spots.length === 1 ? spots[0] : 'Pick a meet spot')}</b> <span class="hint">· {stage === 1 ? 'pickup ' + dayWord(r.start_day, it.lng) + timeWord(r.pickup_time) : 'back ' + dayWord(backDay(r.end_day), it.lng) + timeWord(r.return_time || r.pickup_time)}</span></span><u>Change</u></summary>
             <div class="rstrip-in">
               {spots.length ? <form method="post" action={'/r/' + r.id + '/spot'} class="row" style="gap:6px;flex-wrap:wrap">{spots.map(sp => <button class={'btn sm' + (sp === r.meet_spot ? ' pri' : '')} name="spot" value={sp} type="submit">📍 {sp}</button>)}</form> : null}
 
@@ -194,7 +194,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
         {/* extend: customer picks a later return day → card hold → owner YES */}
         {ox && ox.status === 'held' ? (isOwner ? (
           <div class="card" style="border:2px solid var(--ink)">
-            <b>{firstName(other.name)} wants to keep it until {fmtDay(ox.new_end)} · you'd earn {money(payoutOf(ox))} more</b>
+            <b>{firstName(other.name)} wants to keep it until {fmtDay(backDay(ox.new_end))} · you'd earn {money(payoutOf(ox))} more</b>
             <div class="row" style="margin-top:10px;gap:8px">
               <a class="btn pri sms-only" style="flex:1;display:grid;place-items:center;text-decoration:none" href={smsHref(c.env, 'YES')}>💬 YES</a>
               <form method="post" action={`/r/${r.id}/ext/${ox.id}/accept`} style="flex:1" class="web-only"><button class="btn pri full" type="submit">YES</button></form>
@@ -202,12 +202,12 @@ rentals.get('/r/:id', requireUser, async (c) => {
             </div>
             <div class="hint" style="margin-top:8px">or reply YES / NO by text</div>
           </div>
-        ) : <div class="card"><b>Asked {firstName(other.name)} to keep it until {fmtDay(ox.new_end)}</b><div class="hint">{money(ox.total_cents)} held on your card · charged only if {firstName(other.name)} says yes</div></div>) : null}
+        ) : <div class="card"><b>Asked {firstName(other.name)} to keep it until {fmtDay(backDay(ox.new_end))}</b><div class="hint">{money(ox.total_cents)} held on your card · charged only if {firstName(other.name)} says yes</div></div>) : null}
         {extCells.length ? (
           <form method="post" action={'/r/' + r.id + '/extend'} class="card" data-o={firstName(other.name)}>
-            <b>Need it longer?</b><div class="hint" style="margin-top:2px">Now due back {fmtDay(r.end_day)}{extOk.length ? '' : ' · booked right after, so it can’t be extended'}</div>
+            <b>Need it longer?</b><div class="hint" style="margin-top:2px">Now due back {fmtDay(backDay(r.end_day))}{extOk.length ? '' : ' · booked right after, so it can’t be extended'}</div>
             {extOk.length ? <>
-              <div class="days" style="margin-top:8px">{extCells.map(d => { const ok = extOk.includes(d), p = ok ? extPrice(c.env, r, it.price_cents, it.week_cents, d) : null; const dt = new Date(d + 'T00:00:00Z');
+              <div class="days" style="margin-top:8px">{extCells.map(d => { const ok = extOk.includes(d), p = ok ? extPrice(c.env, r, it.price_cents, it.week_cents, d) : null; const dt = new Date(backDay(d) + 'T00:00:00Z'); /* cell shows the return day (24h after the last rented day) */
                 return <label style="display:block"><input type="radio" name="to" value={d} disabled={!ok} hidden data-p={p ? money(p.total) : ''} onchange="var f=this.form;[].forEach.call(f.querySelectorAll('.days button'),function(b){b.classList.remove('on')});this.nextElementSibling.classList.add('on');f.querySelector('.xgo').disabled=false;f.querySelector('.xgo').textContent='Ask ' + f.dataset.o + ' · +' + this.dataset.p" /><button type="button" class={ok ? '' : 'busy'} disabled={!ok} onclick="this.previousElementSibling.click()" style="width:100%"><small>{dt.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })}</small><b>{dt.getUTCDate()}</b></button></label>; })}</div>
               <button class="btn pri full xgo" type="submit" disabled style="margin-top:10px">Pick a new return day</button>
               <div class="hint" style="margin-top:6px">Card held now · charged only if {firstName(other.name)} says yes</div>
@@ -300,7 +300,7 @@ f.addEventListener('change',ok);f.addEventListener('submit',function(){document.
               <form method="post" action={'/r/' + r.id + (stage === 1 ? '/pickup' : '/return')} enctype="multipart/form-data"><label class="rchip hot">📷 {stage === 1 ? 'Handed over' : 'Got it back'}<input type="file" name="photo" accept="image/*" capture="environment" hidden onchange="this.form.submit()" /></label></form>
               <form method="post" action={'/r/' + r.id + (stage === 1 ? '/pickup' : '/return')} enctype="multipart/form-data" onsubmit={`return confirm('${stage === 1 ? 'Mark picked up' : 'Mark returned'} without a photo?')`}><button class="rchip" type="submit">✓ No photo</button></form>
             </> : null}
-            {meetDue(stage === 1 ? r.start_day : r.end_day, stage === 1 ? r.pickup_time : r.return_time, it.lng) ? <><span class="qrlbl">Tap to send</span><a class="rchip qr sms-only" href={smsHref(c.env, "I'm here")} style="text-decoration:none">👋 “I’m here” <i aria-hidden="true">↑</i></a><form method="post" action={'/r/' + r.id + '/msg'} class="web-only"><input type="hidden" name="body" value="I'm here" /><button class="rchip qr" type="submit">👋 “I’m here” <i aria-hidden="true">↑</i></button></form></> : null}
+            {meetDue(stage === 1 ? r.start_day : backDay(r.end_day), stage === 1 ? r.pickup_time : r.return_time || r.pickup_time, it.lng) ? <><span class="qrlbl">Tap to send</span><a class="rchip qr sms-only" href={smsHref(c.env, "I'm here")} style="text-decoration:none">👋 “I’m here” <i aria-hidden="true">↑</i></a><form method="post" action={'/r/' + r.id + '/msg'} class="web-only"><input type="hidden" name="body" value="I'm here" /><button class="rchip qr" type="submit">👋 “I’m here” <i aria-hidden="true">↑</i></button></form></> : null}
 
           </div> : null}
           <form method="post" action={'/r/' + r.id + '/msg'} class="compose" style="position:static;padding:6px 0 0">
@@ -383,7 +383,7 @@ rentals.post('/r/:id/time', requireUser, async (c) => {
   await c.env.DB.prepare(`UPDATE rentals SET ${col} = ?, updated_at = ? WHERE id = ?`).bind(t, now(), r.id).run();
   await logEvent(c.env.DB, 'rental.' + col, { user: u.id, rental: r.id, data: { t, was: (r as any)[col] ?? null } });
   const it = (await listingById(c.env.DB, r.listing_id))!;
-  await relay(c.env, r, u, `${kind === 'return' ? 'Return' : 'Pickup'} ${dayWord(kind === 'return' ? r.end_day : r.start_day, it.lng)} around ${fmtHM(t)}?`, 'web');
+  await relay(c.env, r, u, `${kind === 'return' ? 'Return' : 'Pickup'} ${dayWord(kind === 'return' ? backDay(r.end_day) : r.start_day, it.lng)} around ${fmtHM(t)}?`, 'web');
   return c.redirect('/r/' + r.id);
 });
 rentals.post('/r/:id/spot', requireUser, async (c) => {

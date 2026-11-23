@@ -102,3 +102,6 @@ export function tzFor(lng?: number | null): string { return lng != null && lng <
 export function localToday(lng?: number | null): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: tzFor(lng), year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 }
+
+/* a rental day is 24 hours: a 1-day rental (start = end) comes back the next day, at the pickup time */
+export const backDay = (end: string) => addDays(end, 1);
