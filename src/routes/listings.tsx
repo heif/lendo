@@ -69,9 +69,10 @@ const listPage = async (c: any) => {
             </div>
             <div id="stkAbout" hidden>
               <div class="stk1-about"><span id="stkAbT"></span><div><div class="stk1-lbl" style="margin:0">About yours</div><b id="stkAbN"></b></div></div>
-            <input id="stkDet" class="stk1-in stk1-det" placeholder="Details (optional) · e.g. 2 batteries + charger" autocomplete="off" enterkeyhint="done" maxlength={300} />
-            <div class="stk1-lbl">Condition</div>
-            <div class="stk1-gr" id="stkGr">{['A', 'B', 'C', 'D', 'E'].map(g => <button type="button" data-g={g} class={'g' + g}><b>{g}</b><small>{({ A: 'Great', B: 'Good', C: 'OK', D: 'Poor', E: 'Junk' } as any)[g]}</small></button>)}</div>
+              <div class="stk1-q"><div class="stk1-qh"><i>1</i><b>What shape is it in?</b></div>
+              <div class="stk1-gr" id="stkGr">{['A', 'B', 'C', 'D', 'E'].map(g => <button type="button" data-g={g} class={'g' + g}><b>{g}</b><small>{({ A: 'Great', B: 'Good', C: 'OK', D: 'Poor', E: 'Junk' } as any)[g]}</small></button>)}</div></div>
+              <div class="stk1-q opt"><div class="stk1-qh"><i>2</i><b>Anything to add?</b><span>optional</span></div>
+              <input id="stkDet" class="stk1-in stk1-det" placeholder="e.g. 2 batteries + charger" autocomplete="off" enterkeyhint="done" maxlength={300} /></div>
             </div>
           </div>
           <div id="stkAll" hidden>

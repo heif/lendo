@@ -117,7 +117,7 @@
     /* no headline: a big, clear "1 of 3 · Drill" (nothing for a single typed-in thing) */
     var one = stk.length === 1 && x.custom; $('stkH').hidden = one; $('stkDots').hidden = one || stk.length === 1;
     $('stkH').innerHTML = '<b>' + (si + 1) + ' of ' + stk.length + '</b>' + (x.custom ? '' : '<span>' + esc(x.name) + '</span>');
-    $('stkDet').placeholder = 'Details (optional) · e.g. ' + (DET_EG[x.custom ? x.idea || '' : x.name] || 'what\'s included, size, color');
+    $('stkDet').placeholder = 'e.g. ' + (DET_EG[x.custom ? x.idea || '' : x.name] || 'what\'s included, size, color');
     var eg = (window.LENDO_AC && window.LENDO_AC[x.name] || []).filter(function (t) { return /[A-Z]/.test(t.charAt(0)) && /\s/.test(t); })[0];
     $('stkBrand').placeholder = x.custom ? 'Brand / model' : 'Brand / model' + (eg ? ' · e.g. ' + eg : '');
     if (document.activeElement !== $('stkBrand')) $('stkBrand').value = x.brand;
