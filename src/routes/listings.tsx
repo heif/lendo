@@ -249,15 +249,19 @@ listings.get('/api/stock', async (c) => {
   const q = String(c.req.query('q') || '').replace(/\b\d+\s*-?\s*(pc|pcs|piece|pieces|pack)\b/gi, ' ').replace(/\b(kit|combo|bundle|with accessories|accessories|fly more)\b/gi, ' ').replace(/\s+/g, ' ').trim().slice(0, 100); if (!q) return c.json({ imgs: [] });
   /* name the maker when people leave it off ("AirPods max" → Apple AirPods max): the search finds the real product */
   const MAKER: [RegExp, string][] = [[/\b(airpods|macbook|imac|ipad|iphone|apple watch|homepod|magic keyboard)\b/i, 'Apple'], [/\b(kindle|echo dot|fire tv)\b/i, 'Amazon'], [/\b(switch oled|joy-?con)\b/i, 'Nintendo'], [/\b(ps5|playstation)\b/i, 'Sony'], [/\bgalaxy\b/i, 'Samsung'], [/\b(quest 3|quest 2)\b/i, 'Meta'], [/\b(pixel \d)\b/i, 'Google'], [/\bthinkpad\b/i, 'Lenovo'], [/\bvitamix\b/i, '']];
-  let q2 = q; for (const [re, mk] of MAKER) if (mk && re.test(q2) && !new RegExp('\\b' + mk + '\\b', 'i').test(q2)) { q2 = mk + ' ' + q2; break; }
+  /* "fly rod fishing rod" → "fly rod fishing": drop repeated words (brand box + item name often overlap) */
+  const seen = new Set<string>(); let q2 = q.split(' ').filter(w => { const k = w.toLowerCase().replace(/s$/, ''); if (seen.has(k)) return false; seen.add(k); return true; }).join(' ');
+  for (const [re, mk] of MAKER) if (mk && re.test(q2) && !new RegExp('\\b' + mk + '\\b', 'i').test(q2)) { q2 = mk + ' ' + q2; break; }
   /* same model, same photos: cache a week so repeat searches ("Milwaukee M18 drill") come back instantly */
   const ck = new Request('https://lendo.co/__stock?v=2&q=' + encodeURIComponent(q2.toLowerCase()));
   try { const hit = await caches.default.match(ck); if (hit) return c.json(await hit.json()); } catch (e) {}
   try {
-    const r = await fetch('https://api.search.brave.com/res/v1/images/search?safesearch=strict&count=8&q=' + encodeURIComponent(q2 + ' product photo white background'), { headers: { accept: 'application/json', 'X-Subscription-Token': c.env.BRAVE_API_KEY } });
-    if (r.status === 429) return c.json({ imgs: [], retry: true }); /* Brave allows ~1 search/sec: the page queues and retries */
-    if (!r.ok) { await logErr(c.env.DB, 'stock search', new Error('brave ' + r.status)); return c.json({ imgs: [] }); }
-    const j: any = await r.json();
+    /* Brave allows ~1 search/sec: wait + retry here once, then let the page retry. Try the clean-product query first, then the plain name */
+    const brave = async (qq: string) => { for (let t = 0; t < 2; t++) { const r = await fetch('https://api.search.brave.com/res/v1/images/search?safesearch=strict&count=12&q=' + encodeURIComponent(qq), { headers: { accept: 'application/json', 'X-Subscription-Token': c.env.BRAVE_API_KEY! } }); if (r.status === 429) { await new Promise(res => setTimeout(res, 1200)); continue; } if (!r.ok) { await logErr(c.env.DB, 'stock search', new Error('brave ' + r.status)); return { results: [] }; } return await r.json() as any; } return null; };
+    let j: any = await brave(q2 + ' product photo white background');
+    if (!j) return c.json({ imgs: [], retry: true });
+    if (!(j.results || []).length) { await new Promise(res => setTimeout(res, 1100)); j = await brave(q2) || { results: [] }; }
+    if (!(j.results || []).length) await logEvent(c.env.DB, 'stock.none', { user: c.get('user')!.id, data: { q: q2 } });
     /* best first: store / maker product shots (clean, square-ish), never social or stock-art sites */
     const GOOD = /(apple|amazon|bestbuy|target|walmart|bhphotovideo|adorama|homedepot|lowes|rei|dickssportinggoods|costco|crutchfield|sony|bose|samsung|dewalt|milwaukeetool|makitatools|ryobitools|kitchenaid|breville|delonghi|ninjakitchen|uppababy|bugaboo|nintendo|playstation|xbox|canon|nikon|fujifilm|jbl|logitech|dell|lenovo|hp|microsoft|garmin|dyson|sharkclean|wayfair|ikea|patagonia|thenorthface|backcountry|evo|zappos|staples|officedepot|newegg|ebayimg|shopify|cdn\.shopify)\./i;
     const BAD = /(pinterest|pinimg|reddit|redd\.it|etsy|facebook|instagram|tiktok|shutterstock|istockphoto|gettyimages|alamy|dreamstime|depositphotos|freepik|vecteezy|youtube|ytimg|wikipedia)/i;

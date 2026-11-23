@@ -103,7 +103,7 @@
     if (!x) return; stkQ.splice(stkQ.indexOf(x), 1); stkBusy = true; var q = stkLabel(x), tries = 0;
     (function go() {
       fetch('/api/stock?q=' + encodeURIComponent(q)).then(function (r) { return r.json(); }).then(function (j) {
-        if (j.retry && tries++ < 2) return setTimeout(go, 1500);
+        if (j.retry && tries++ < 5) return setTimeout(go, 1500 + tries * 500);
         if (stkLabel(x) === q) { x.imgs = j.imgs || []; x.k = 0; } else stkQ.unshift(x); /* brand changed meanwhile → search again */
         done();
       }).catch(function () { x.imgs = []; done(); });
@@ -249,7 +249,7 @@
   function stockFetch(list, tries) {
     var x = list.shift(); if (!x) return;
     fetch('/api/stock?q=' + encodeURIComponent(x.name + (x.detail ? ' ' + x.detail.split(' · ')[0] : ''))).then(function (r) { return r.json(); }).then(function (j) {
-      if (j.retry && (tries || 0) < 2) { list.unshift(x); return setTimeout(function () { stockFetch(list, (tries || 0) + 1); }, 1500); }
+      if (j.retry && (tries || 0) < 5) { list.unshift(x); return setTimeout(function () { stockFetch(list, (tries || 0) + 1); }, 1500); }
       x.imgs = j.imgs || []; x.k = 0; stockRender(); setTimeout(function () { stockFetch(list, 0); }, 1100);
     }).catch(function () { x.imgs = []; stockRender(); setTimeout(function () { stockFetch(list, 0); }, 1100); });
   }
