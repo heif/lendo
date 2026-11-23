@@ -88,7 +88,7 @@
   /* what "Details" should prompt for, per item */
   var DET_EG = { 'Drill': '2 batteries + charger, bit set', 'Tent': 'sleeps 4, rainfly + stakes', 'Projector': '1080p, HDMI cable, screen', 'Stand mixer': 'dough hook + whisk + paddle', 'Party speaker': 'mic included, 12 hr battery', 'Ladder': '6 ft, fiberglass', 'Bike': 'medium frame, lock + helmet', 'Camera': '24-70mm lens, 2 batteries, 64GB card', 'Guitar': 'case + strap, amp not included', 'Stroller': 'rain cover, cup holder', 'Pressure washer': '2000 PSI, 3 nozzles', 'Scooter': '20 mi range, charger', 'Skis': '170 cm, bindings set for size 10 boot', 'Suitcase': '22 in carry-on, spinner wheels', 'Kayak': 'paddle + life jacket', 'Air fryer': '6 qt, 2 baskets', 'Espresso machine': 'built-in grinder, milk pitcher', 'Tool kit': '120 pieces, hard case', 'Saw': '7 1/4 in blade, battery + charger', 'Karaoke mic': '2 mics, Bluetooth', 'Pickleball set': '4 paddles + 6 balls', 'Sewing machine': 'foot pedal, extra bobbins', 'Telescope': '130mm, tripod + 2 eyepieces', 'Snow boots': "women's 8, waterproof", 'Sled': 'fits 2 kids', 'Space heater': '1500W, tip-over shutoff', 'Snow blower': '24 in, electric start', 'Winter parka': "men's M, rated to -20°F", 'Holiday lights': '300 ft, warm white, timer', 'Roasting pan': 'fits a 20 lb turkey, rack', 'Ice skates': "size 9, guards included", 'Folding table': '6 ft, seats 6', 'Humidifier': '1 gal tank, quiet', 'Snowboard': '156 cm, bindings, boots size 10' };
   var stk = [], si = 0, stkQ = [], stkBusy = false;
-  function stkLabel(x) { var b = (x.brand || '').trim(); if (x.custom) return x.idea && b.toLowerCase().indexOf(x.idea.toLowerCase()) < 0 ? b + ' ' + x.idea.toLowerCase() : b; if (!b) return x.name; return b.toLowerCase().indexOf(x.name.toLowerCase()) > -1 ? b : b + ' ' + x.name.toLowerCase(); }
+  function stkLabel(x) { var b = (x.brand || '').trim(); if (x.custom) return x.idea && x.idea !== 'Home' && b.toLowerCase().indexOf(x.idea.toLowerCase()) < 0 ? b + ' ' + x.idea.toLowerCase() : b; if (!b) return x.name; return b.toLowerCase().indexOf(x.name.toLowerCase()) > -1 ? b : b + ' ' + x.name.toLowerCase(); }
   function stkStart() {
     if (!CFG.user) { location.href = '/login?next=' + encodeURIComponent('/list?stk=' + picked.join('|')); return; }
     if (!picked.length) { stk = [{ name: '', custom: true, price: MIN, brand: '', det: '', grade: 'A', imgs: [], k: 0 }]; si = 0; stkQ = []; show('stk'); stkOne(); setTimeout(function () { $('stkBrand').focus(); }, 50); return; }
@@ -164,16 +164,26 @@
   }
   /* chip suggestions: this idea's list, or for a typed-in thing, the idea whose name shares a word ("flycaster rod" → Fishing rod) */
   function chipPool(x) {
-    var L = window.LENDO_AC || {}, key = !x.custom ? x.name : x.idea;
-    if (!key && x.brand) { var ws = x.brand.toLowerCase().split(/\s+/).filter(function (w) { return w.length > 2; }); for (var k in L) { var kw = k.toLowerCase().split(/\s+/); if (ws.some(function (w) { return kw.some(function (z) { return z === w || z === w.replace(/s$/, ''); }); })) { key = k; break; } } }
-    return key ? acList(key).filter(function (t) { return /[A-Z0-9]/.test(t.charAt(0)); }) : [];
+    var L = window.LENDO_AC || {};
+    if (!x.custom && L[x.name]) return acList(x.name).filter(function (t) { return /[A-Z0-9]/.test(t.charAt(0)); });
+    /* typed-in thing: terms from any list that share a real word with it ("monitor 27 in" → monitors, never the whole 'Home' grab-bag) */
+    var STOP = /^(home|the|and|for|with|set|kit|in|ft|my|a|an|of|new|old|big|small|large|mini|pro|max|plus)$/i;
+    var ws = (x.brand || '').toLowerCase().split(/[^a-z0-9]+/).filter(function (w) { return w.length > 2 && !STOP.test(w) && !/^\d+$/.test(w); }).map(function (w) { return w.replace(/s$/, ''); });
+    if (!ws.length) return [];
+    var hit = [], seen = {};
+    for (var k in L) { var kw = k.toLowerCase().split(/\s+/).map(function (w) { return w.replace(/s$/, ''); }), keyHit = k !== 'Home' && ws.some(function (w) { return kw.indexOf(w) > -1; });
+      L[k].forEach(function (t) { var tw = t.toLowerCase().split(/[^a-z0-9]+/).map(function (w) { return w.replace(/s$/, ''); });
+        var n = ws.filter(function (w) { return tw.indexOf(w) > -1; }).length + (keyHit ? 0.5 : 0);
+        if (n > 0 && !seen[t.toLowerCase()]) { seen[t.toLowerCase()] = 1; hit.push([n, t]); } }); }
+    return hit.sort(function (a, b) { return b[0] - a[0]; }).map(function (h) { return h[1]; }).filter(function (t) { return /[A-Z0-9]/.test(t.charAt(0)); });
   }
+
   /* "Not it?" chips: brands first (+ Orvis adds the brand to the search), then a few exact models / sizes */
-  var GENERIC = /^(fly|spinning|baitcasting|surf|telescopic|ice|kids?|golf|tennis|inflatable|paddle|rolling|portable|electric|cordless|folding|camping|hiking|baby|car|record|tv|generator|kayak|soft|hard|mini|large|small|outdoor|indoor|wooden|metal|plastic|adult|youth)$/i;
+  var GENERIC = /^(fly|spinning|baitcasting|surf|telescopic|ice|kids?|golf|tennis|inflatable|paddle|rolling|portable|electric|cordless|folding|camping|hiking|baby|car|record|tv|generator|kayak|soft|hard|mini|large|small|outdoor|indoor|wooden|metal|plastic|adult|youth|ultrawide|gaming)$/i;
   function chipList(pool, cur) {
     var br = [], seen = {}, specs = [];
     pool.forEach(function (t) { var w = t.split(' '), b = /^(st\.|g\.|ugly|abu|the|big|red|camp|solo|scotty)$/i.test(w[0]) ? w[0] + ' ' + w[1] : w[0];
-      if (GENERIC.test(w[0]) || /\d/.test(b)) { if (specs.length < 3 && cur.indexOf(t.toLowerCase()) < 0) specs.push({ l: t.length > 22 ? t.slice(0, 21) + '…' : t, q: t }); return; }
+      if (GENERIC.test(w[0]) || /\d/.test(b) || cur.indexOf(w[0].toLowerCase()) > -1) { if (specs.length < 3 && cur.indexOf(t.toLowerCase()) < 0) specs.push({ l: t.length > 22 ? t.slice(0, 21) + '…' : t, q: t }); return; }
       var k = b.toLowerCase(); if (seen[k] || cur.indexOf(k) > -1) return; seen[k] = 1; br.push({ l: b, q: b, add: true }); });
     return br.slice(0, 7).concat(specs);
   }
