@@ -914,3 +914,15 @@ header h1.sr,.sr{position:absolute!important;width:1px;height:1px;overflow:hidde
 .msg:not(.me):not(.sys) .bub::before{left:-7px;width:20px;background:#fff;border-bottom-right-radius:16px 14px}
 .msg:not(.me):not(.sys) .bub::after{left:-26px;width:26px;background:var(--cream,#F5F3EE);border-bottom-right-radius:10px}
 .msg:not(.sys){padding:0 10px}
+/* status card, vertically tight (11/22) */
+.rcard{padding:10px 12px;gap:6px}
+.rhd img,.rhd .rhd-ph{width:38px;height:38px}
+.rhd b{font-size:15px;line-height:1.15}.rhd div div{margin-top:0}
+.rlist{gap:2px;margin:0}
+.rlist div{font-size:14.5px;line-height:1.25}.rlist span{font-size:13px}
+.rlist i{width:17px;height:17px;font-size:9px;margin-top:0}
+.rlist .rsign{display:inline-block;margin:0 0 0 6px;padding:1px 11px!important;font-size:13px!important;box-shadow:0 2px 0 var(--ink)}
+.rfoot{padding-top:4px;margin-top:0;font-size:13.5px}.rfoot u,.rfoot button{min-height:26px}
+.rcard>a.hint{margin:0;font-size:12.5px}
+.rfoot{border-top:0;padding-top:0;margin-top:-4px}
+.rpaused{color:#b3261e;font-weight:700;text-decoration:none;font-size:12.5px}.rpaused u{color:#b3261e}
