@@ -171,7 +171,7 @@
   var GENERIC = /^(fly|spinning|baitcasting|surf|telescopic|ice|kids?|golf|tennis|inflatable|paddle|rolling|portable|electric|cordless|folding|camping|hiking|baby|car|record|tv|generator|kayak|soft|hard|mini|large|small|outdoor|indoor|wooden|metal|plastic|adult|youth)$/i;
   function chipList(pool, cur) {
     var br = [], seen = {}, specs = [];
-    pool.forEach(function (t) { var w = t.split(' '), b = /^(st\.|g\.)$/i.test(w[0]) ? w[0] + ' ' + w[1] : w[0];
+    pool.forEach(function (t) { var w = t.split(' '), b = /^(st\.|g\.|ugly|abu|the|big|red|camp|solo|scotty)$/i.test(w[0]) ? w[0] + ' ' + w[1] : w[0];
       if (GENERIC.test(w[0]) || /\d/.test(b)) { if (specs.length < 3 && cur.indexOf(t.toLowerCase()) < 0) specs.push({ l: t.length > 22 ? t.slice(0, 21) + '…' : t, q: t }); return; }
       var k = b.toLowerCase(); if (seen[k] || cur.indexOf(k) > -1) return; seen[k] = 1; br.push({ l: b, q: b, add: true }); });
     return br.slice(0, 7).concat(specs);
