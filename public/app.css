@@ -926,3 +926,11 @@ header h1.sr,.sr{position:absolute!important;width:1px;height:1px;overflow:hidde
 .rcard>a.hint{margin:0;font-size:12.5px}
 .rfoot{border-top:0;padding-top:0;margin-top:-4px}
 .rpaused{color:#b3261e;font-weight:700;text-decoration:none;font-size:12.5px}.rpaused u{color:#b3261e}
+
+/* listing availability (11/23): Mon–Sun grid, off = grey + struck, rented = locked */
+.days.av button{height:50px}
+.days.av button.off,.days.av button.today.off{background:#E9E5DC;border-color:#E9E5DC;color:#A8A399}
+.days.av button.off b{text-decoration:line-through;text-decoration-thickness:2.5px}
+.days.av button.busy i{color:#8A857B}
+.days.av button.today{border:2.5px solid var(--ink)}
+.days.av button.busy{background:#DCE5DF;border-color:#DCE5DF;color:var(--ink)}.days.av button.busy b{text-decoration:none}.days.av button.busy i{color:var(--ink)}

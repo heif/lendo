@@ -387,9 +387,9 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
   if (!it || it.owner_id !== u.id) return c.notFound();
   const photos = await photosFor(c.env.DB, it.id);
   const today = localToday(it.lng);
-  const busy = await busyDays(c.env.DB, it.id, today, addDays(today, 13));
+  const busy = await busyDays(c.env.DB, it.id, today, addDays(today, 27));
   const blocked = new Set((await c.env.DB.prepare('SELECT day FROM blocked_days WHERE listing_id = ? AND day >= ?').bind(it.id, today).all<{ day: string }>()).results.map(r => r.day));
-  const days = Array.from({ length: 14 }, (_, i) => addDays(today, i));
+  const days = Array.from({ length: 28 }, (_, i) => addDays(today, i));
   const gr = await shownGrade(c.env, it.id, (it as any).grade);
   return c.html(
     <Layout title="Edit listing" user={u} back="/listings">
@@ -419,12 +419,17 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
         <div class="dmeter" id="dmeter"></div>
         <script src="/details.js"></script>
         <script dangerouslySetInnerHTML={{ __html: `lendoDetailsBind(document.getElementById('desc'), document.getElementById('dmeter'))` }} />
-        <div class="m" style="font-size:11px;color:var(--mute);margin-top:8px">tap a day to block it</div>
-        <div class="days">
-          {days.map(d => {
+        {/* availability: Mon–Sun grid, 4 weeks, tap a day to turn it off (grey, struck through) · rented days locked */}
+        <div class="field" style="margin-top:14px"><span>Availability</span></div>
+        <div class="hint" style="margin:-4px 0 6px">Tap the days it’s not available</div>
+        <div class="days-hd">{['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(w => <span>{w}</span>)}</div>
+        <div class="days av">
+          {Array.from({ length: (new Date(today + 'T12:00:00Z').getUTCDay() + 6) % 7 }, () => <span />)}
+          {days.map((d, i) => {
             const rented = busy.has(d) && !blocked.has(d);
-            const dt = new Date(d + 'T12:00:00Z');
-            return <label><input type="checkbox" name="block" value={d} checked={blocked.has(d)} disabled={rented} style="display:none" /><button type="button" class={rented ? 'busy' : blocked.has(d) ? 'on' : ''} disabled={rented} onclick="var i=this.previousElementSibling;i.checked=!i.checked;this.classList.toggle('on',i.checked)" aria-label={fmtDay(d) + (rented ? ' rented' : '')} style="width:100%">{dt.toLocaleDateString('en-US', { weekday: 'narrow', timeZone: 'UTC' })} {dt.getUTCDate()}</button></label>;
+            const dt = new Date(d + 'T12:00:00Z'), n = dt.getUTCDate();
+            const top = i === 0 ? 'Today' : n === 1 ? dt.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }) : '';
+            return <label><input type="checkbox" name="block" value={d} checked={blocked.has(d)} disabled={rented} style="display:none" /><button type="button" class={(rented ? 'busy' : blocked.has(d) ? 'off' : '') + (i === 0 ? ' today' : '')} disabled={rented} onclick="var i=this.previousElementSibling;i.checked=!i.checked;this.classList.toggle('off',i.checked)" aria-label={fmtDay(d) + (rented ? ' rented' : '')} style="width:100%">{top ? <small>{top}</small> : null}<b>{n}</b>{rented ? <i>rented</i> : null}</button></label>;
           })}
         </div>
         
