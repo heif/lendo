@@ -148,7 +148,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
           const S: [string, any[]][] = [
             [isOwner ? `${nm} asked` : 'You asked', stage === 0 ? [isOwner ? `you’d earn ${earn} after ${c.env.FEE_PCT}% fee` : `${tot} held (not a charge)`] : []],
             [stage === 0 ? (isOwner ? 'Say YES or NO' : `Waiting for ${nm}’s YES`) : (isOwner ? 'You said YES' : `${nm} said YES`), stage >= 1 ? [isOwner ? `you earn ${earn}` : `${tot} paid`] : []],
-            [signed ? (isOwner ? `${nm} signed the promise` : 'Promise signed') : isOwner ? `${nm}’s promise` : `Sign your promise to ${nm}`,
+            [signed ? (isOwner ? `${nm} signed Promise` : 'You signed Promise') : isOwner ? `${nm}’s Promise` : `Sign Promise to ${nm}`,
               signed ? [<u onclick="document.getElementById('promView').showModal()">View</u>] : promNow ? (isOwner ? ['not signed yet · reminder texted'] : ['3 quick checks']) : stage === 0 ? ['before pickup'] : []],
             [stage > 2 || r.status === 'picked_up' ? 'Picked up' : 'Pickup ' + dayWord(r.start_day, it.lng) + timeWord(r.pickup_time), stage === 1 && !promNow ? [spot, chg, how, pickNote] : stage >= 2 ? [pickNote] : []],
             [stage === 3 ? 'Returned' : 'Return ' + dayWord(r.end_day, it.lng) + timeWord(r.return_time), stage === 2 ? [spot, chg, how, retNote] : stage === 3 ? [retNote] : []],
