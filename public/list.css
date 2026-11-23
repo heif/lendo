@@ -406,12 +406,6 @@ a.dn2-tray{text-decoration:none;color:var(--ink)}
 /* "📷 Mine" tile closes the photo strip (11/23) */
 .stk1-tbs .stk1-mine{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font:inherit;font-size:12px;font-weight:900;color:var(--ink,#1E3A2B);background:#fff;border:2.5px dashed var(--ink,#1E3A2B)!important}
 
-/* About yours: two numbered questions, the 2nd marked optional (11/23) */
-.stk1-q{background:#fff;border:2.5px solid var(--ink,#1E3A2B);border-radius:18px;padding:12px;margin-top:10px}
-.stk1-q.opt{border-style:dashed;background:transparent}
-.stk1-qh{display:flex;align-items:center;gap:9px;margin-bottom:10px}
-.stk1-qh i{flex:none;width:26px;height:26px;border-radius:50%;background:var(--ink,#1E3A2B);color:#fff;font-style:normal;font-weight:900;font-size:14px;display:grid;place-items:center}
-.stk1-q.opt .stk1-qh i{background:#fff;color:var(--ink,#1E3A2B);border:2.5px solid var(--ink,#1E3A2B)}
-.stk1-qh b{font-size:17px;font-weight:900}
-.stk1-qh span{margin-left:auto;font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8A857B;background:#EEEBE3;border-radius:99px;padding:3px 9px}
-.stk1-q .stk1-gr{margin:0}.stk1-q .stk1-det{margin:0;width:100%;box-sizing:border-box}
+/* About yours, minimal (11/23): two plain labeled fields, no cards / dashes / number badges */
+.stk1-q{margin-top:14px}.stk1-q .stk1-gr{margin:0}.stk1-q .stk1-det{margin:0;width:100%;box-sizing:border-box}
+.stk1-tbs .stk1-mine,.stk1-snapt{border-style:solid!important}
