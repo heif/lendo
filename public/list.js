@@ -125,7 +125,8 @@
     [].forEach.call($('stkGr').children, function (b) { b.classList.toggle('on', b.dataset.g === x.grade); });
     var im = x.imgs && x.imgs[x.k];
     $('stkPic').innerHTML = x.custom && !x.brand ? '<span class="stk1-wait">Type what it is · a photo shows up</span>' : !x.imgs ? '<span class="stk1-wait">Finding a photo…</span>' : im ? '<img src="' + esc(im.thumb) + '" alt="">' : '<span class="stk1-none">No photo found</span><button type="button" class="stk1-snapt" id="stkSnapT"><i>📷</i>Snap yours</button>';
-    $('stkTbs').innerHTML = x.imgs && x.imgs.length > 1 ? x.imgs.slice(0, 4).map(function (y, k) { return '<button type="button" data-k="' + k + '" class="' + (k === x.k ? 'on' : '') + '"><img src="' + esc(y.thumb) + '" alt=""></button>'; }).join('') : '';
+    /* the photo choices end with a dashed "📷 Mine" tile: snap your own instead */
+    $('stkTbs').innerHTML = x.imgs && x.imgs.length ? x.imgs.slice(0, 4).map(function (y, k) { return '<button type="button" data-k="' + k + '" class="' + (k === x.k ? 'on' : '') + '"><img src="' + esc(y.thumb) + '" alt=""></button>'; }).join('') + '<button type="button" class="stk1-mine" data-cam="1"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h1.5a2 2 0 0 0 1.8-1.1l.4-.8A2 2 0 0 1 10.5 4h3a2 2 0 0 1 1.8 1.1l.4.8A2 2 0 0 0 17.5 7H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/><circle cx="12" cy="13" r="3.4"/></svg>Mine</button>' : '';
     $('stkNote').hidden = false;
     /* refine: tap-to-add chips (brands/models for this thing) + a "Not it?" search right under the photos */
     var cur = (x.brand || '').toLowerCase(), pool = chipPool(x);
@@ -137,11 +138,11 @@
     /* two steps per thing: find it (photo + price) → about yours (condition + details) */
     $('stkFind').hidden = !!x.about; $('stkAbout').hidden = !x.about;
     if (x.about) { $('stkAbT').innerHTML = im ? '<img src="' + esc(im.thumb) + '" alt="">' : ''; $('stkAbN').textContent = stkLabel(x) + ' · $' + x.price + '/day'; }
-    $('stkNote').hidden = !(x.imgs && x.imgs.length > 1);
+    $('stkNote').hidden = !(x.imgs && x.imgs.length); $('stkNote').textContent = x.imgs && x.imgs.length > 1 ? 'Tap the closest one · or snap yours' : 'Or snap yours';
     /* the owner sets the price right here: big tag with − / +, plus a typical range for this kind of thing */
     $('stkPv').textContent = '$' + x.price; var base = x.custom ? (x.ideaPrice || 0) : (x.basePrice || x.price);
     $('stkRange').textContent = 'Your price' + (base ? ' · typical $' + Math.max(MIN, Math.round(base * 0.7)) + '–' + Math.round(base * 1.4) : '');
-    $('stkGo').hidden = false; $('stkGo').textContent = x.about ? (stk.slice(si + 1).some(function (y) { return !y.yes && !y.snap && !y.skip; }) ? 'NEXT THING →' : 'DONE →') : '✓ LOOKS LIKE MINE'; $('stkGo').disabled = !im; $('stkSnap').hidden = !!x.about || !!(x.imgs && !im && !(x.custom && !x.brand)); $('stkSkip').hidden = false;
+    $('stkGo').hidden = false; $('stkGo').textContent = x.about ? (stk.slice(si + 1).some(function (y) { return !y.yes && !y.snap && !y.skip; }) ? 'NEXT THING →' : 'DONE →') : '✓ LOOKS LIKE MINE'; $('stkGo').disabled = !im; $('stkSnap').hidden = !!x.about || !!x.imgs; /* photos → "📷 Mine" tile; no photo → Snap yours tile */ $('stkSkip').hidden = false;
   }
   function stkNext() { si++; while (si < stk.length && (stk[si].yes || stk[si].snap || stk[si].skip)) si++; if (si < stk.length) { stkOne(); stkPump(); return; }
     /* only snaps left, nothing to post → straight to the camera (no in-between screen) */
@@ -217,7 +218,7 @@
   $('stkRef').addEventListener('submit', function (e) { e.preventDefault(); var v = $('stkRefIn').value.trim(); if (v.length < 2) return; var x = stk[si], b = (x.brand || '').trim();
     /* adds to what's there unless it already names the thing ("Orvis" + "flycaster rod" → "Orvis flycaster rod") */
     var q = b && v.toLowerCase().indexOf(b.toLowerCase()) < 0 ? v + ' ' + b : v; $('stkRefIn').value = ''; $('stkRefIn').blur(); $('stkBrand').value = q; stkSet(x, q); });
-  $('stkTbs').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; stk[si].k = +b.dataset.k; stkOne(); });
+  $('stkTbs').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; if (b.dataset.cam) { $('stkSnap').click(); return; } stk[si].k = +b.dataset.k; stkOne(); });
   $('stkPic').addEventListener('click', function () { var x = stk[si]; if (x.imgs && x.imgs.length > 1) { x.k = (x.k + 1) % Math.min(4, x.imgs.length); stkOne(); } });
   $('stkSnap').addEventListener('click', function () { var x = stk[si]; x.snap = true; x.yes = false;
     /* confirm it's saved for the camera, then move on */

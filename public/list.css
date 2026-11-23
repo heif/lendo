@@ -402,3 +402,6 @@ a.dn2-tray{text-decoration:none;color:var(--ink)}
 .stk1-about img{width:64px;height:64px;object-fit:contain;background:#fff;border-radius:12px}
 .stk1-about b{font-size:17px;font-weight:900}
 .stk1-chips{flex-wrap:wrap;overflow:visible;margin-right:0;padding-right:0}
+
+/* "📷 Mine" tile closes the photo strip (11/23) */
+.stk1-tbs .stk1-mine{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font:inherit;font-size:12px;font-weight:900;color:var(--ink,#1E3A2B);background:#fff;border:2.5px dashed var(--ink,#1E3A2B)!important}
