@@ -394,7 +394,7 @@
   var PL = null, plCity = 'nyc', curCity = null;
   function loadPlaces(cb) { if (PL) return cb(PL); fetch('/api/places').then(function (r) { return r.json(); }).then(function (j) { PL = j; cb(j); }).catch(function () {}); }
   // City count bounces across the screen once (<4s) when you land in a city, and again whenever a new thing gets listed there (checked every 30s)
-  var bounceCity = null, bounceN = {};
+  var bounceCity = null, bounceN = {}, BOUNCE_ON = false;
   function cityCount(id, cb) { fetch('/api/city-count?city=' + id, { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) { cb(j.n || 0); }).catch(function () {}); }
   function checkCityBounce(force) {
     loadPlaces(function () {
@@ -402,7 +402,7 @@
       var fresh = ct.id !== bounceCity; bounceCity = ct.id;
       cityCount(ct.id, function (n) {
         var prev = bounceN[ct.id]; bounceN[ct.id] = n; if ($('scHoodC')) $('scHoodC').textContent = n.toLocaleString();
-        if (n && (fresh || (prev != null && n > prev))) window.lendoBounce(n.toLocaleString(), 1, 3500);
+        if (BOUNCE_ON && n && (fresh || (prev != null && n > prev))) window.lendoBounce(n.toLocaleString(), 1, 3500); /* paused 11/23 (Scott): flip BOUNCE_ON to bring it back */
       });
     });
   }

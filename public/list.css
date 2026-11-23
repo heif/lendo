@@ -409,3 +409,11 @@ a.dn2-tray{text-decoration:none;color:var(--ink)}
 /* About yours, minimal (11/23): two plain labeled fields, no cards / dashes / number badges */
 .stk1-q{margin-top:14px}.stk1-q .stk1-gr{margin:0}.stk1-q .stk1-det{margin:0;width:100%;box-sizing:border-box}
 .stk1-tbs .stk1-mine,.stk1-snapt{border-style:solid!important}
+
+/* "Where are your things?" sheet (no GPS, no saved spot) */
+.where-sh{position:fixed;inset:0;z-index:200;background:rgba(30,58,43,.45);display:flex;align-items:flex-end;justify-content:center}
+.where-in{width:100%;max-width:520px;background:var(--cream,#F5F3EE);border-radius:22px 22px 0 0;padding:20px 18px 26px;box-sizing:border-box}
+.where-in b{display:block;font-size:22px;font-weight:900}.where-in p{margin:4px 0 12px;font-size:14px;font-weight:700;color:#6b6a63}
+.where-in input{width:100%;box-sizing:border-box;font:inherit;font-size:17px;font-weight:700;padding:13px 14px;border:2.5px solid var(--ink,#1E3A2B);border-radius:14px;background:#fff;margin-bottom:10px}
+.where-in .cta{width:100%}.where-gps{display:block;margin:12px auto 0;font-weight:800}.where-err{display:block;text-align:center;color:#b3261e;font-weight:800;margin-top:8px}
+@media (min-width:760px){.where-sh{align-items:center}.where-in{border-radius:22px}}

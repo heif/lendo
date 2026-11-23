@@ -1,3 +1,4 @@
+import { setUserWhere } from '../lib/where';
 import type { MiddlewareHandler } from 'hono';
 // Admin (allowlisted phones only): pricing rules + identification test.
 import { Hono } from 'hono';
@@ -36,6 +37,13 @@ admin.post('/admin/users/:id/keeplive', async (c) => {
   const r = await c.env.DB.prepare(`UPDATE listings SET status = 'live', paused_why = 'keep' WHERE owner_id = ? AND (paused_why = 'notext' OR (status = 'live' AND paused_why IS NULL))`).bind(uid).run();
   await logEvent(c.env.DB, 'admin.keeplive', { user: c.get('user')!.id, data: { owner: uid, n: r.meta.changes } });
   return c.redirect('/admin/users');
+});
+/* set where someone's things are (cross streets / ZIP), and put their no-location listings on the map */
+admin.post('/admin/users/:id/where', async (c) => {
+  const f = await c.req.parseBody(); const t = await userById(c.env.DB, c.req.param('id')); if (!t) return c.notFound();
+  const r = await setUserWhere(c.env, t, String(f.place || ''), c.get('user')!.id);
+  await logEvent(c.env.DB, 'admin.where', { user: c.get('user')!.id, data: { owner: t.id, place: String(f.place || '').slice(0, 120), ok: !!r, fixed: r?.fixed ?? 0 } });
+  return c.redirect('/admin/users?q=' + encodeURIComponent(t.name || ''));
 });
 admin.post('/admin/users/:id/as', async (c) => {
   if (c.get('user')?.admin_level !== 'owner') return c.notFound();

@@ -1,6 +1,19 @@
 // Snap-flow: ideas → camera (1 photo) → one question at a time (card stack; sign-up after the item questions) → done. Minimal copy. Config: window.LENDO_LIST = { minPrice, hood, shareUrl, hasGps }.
 (function () {
   var CFG = window.LENDO_LIST || {}, MIN = CFG.minPrice || 8;
+  /* no GPS and no saved spot → ask where the things are before posting, so they land on the map */
+  function needWhere(go) {
+    if (window._gps || CFG.hasLoc || !CFG.user) { go(); return; }
+    var o = document.createElement('div'); o.className = 'where-sh';
+    o.innerHTML = '<div class="where-in"><b>Where are your things?</b><p>Cross streets or ZIP · only the area shows on the map</p><form><input name="p" placeholder="e.g. W 29th & 9th Ave" autocomplete="street-address" enterkeyhint="done" required minlength="2"><button class="cta" type="submit">PUT IT ON THE MAP</button></form><button type="button" class="lnk where-gps">📍 Use my location</button><small class="where-err" hidden>Couldn’t find that · try cross streets + neighborhood</small></div>';
+    document.body.appendChild(o); var inp = o.querySelector('input'); setTimeout(function () { inp.focus(); }, 50);
+    function done() { CFG.hasLoc = true; o.remove(); go(); }
+    o.querySelector('form').addEventListener('submit', function (e) { e.preventDefault(); var bt = o.querySelector('.cta'); bt.disabled = true; bt.textContent = 'FINDING…';
+      fetch('/api/me/where', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ place: inp.value }) }).then(function (r) { return r.json(); }).then(function (j) { if (j && j.ok) done(); else throw 0; })
+        .catch(function () { bt.disabled = false; bt.textContent = 'PUT IT ON THE MAP'; o.querySelector('.where-err').hidden = false; }); });
+    o.querySelector('.where-gps').addEventListener('click', function () { if (!navigator.geolocation) return; navigator.geolocation.getCurrentPosition(function (p) { window._gps = [p.coords.latitude, p.coords.longitude]; o.remove(); go(); }, function () { o.querySelector('.where-err').hidden = false; o.querySelector('.where-err').textContent = 'Location is off · type cross streets or ZIP'; }, { timeout: 8000 }); });
+    o.addEventListener('click', function (e) { if (e.target === o) o.remove(); });
+  }
   var $ = function (id) { return document.getElementById(id); };
   // [icon key (same drawn icons as the map's wanted ghosts), name, $/day]
   var IDEAS = [['drill', 'Drill', 8], ['tent', 'Tent', 15], ['projector', 'Projector', 18], ['mixer2', 'Stand mixer', 10], ['speaker', 'Party speaker', 14], ['ladder', 'Ladder', 9], ['bike', 'Bike', 20], ['camera', 'Camera', 25], ['guitar', 'Guitar', 12], ['stroller2', 'Stroller', 10], ['pwasher', 'Pressure washer', 22],
@@ -251,6 +264,7 @@
     if ($('stkAll').hidden) { var x = stk[si]; if (!(x.imgs && x.imgs[x.k])) return; if (!x.about) { x.about = true; stkOne(); $('st-stk').querySelector('.lf-scroll').scrollTop = 0; return; } x.yes = true; x.about = false; stkNext(); return; }
     var ok = stkOk(), sn = stk.filter(function (x) { return x.snap; }).map(function (x) { return x.name; });
     if (!ok.length) { if (sn.length) stkToCam(sn); return; }
+    if (!go.dataset.where) { go.dataset.where = '1'; needWhere(function () { go.click(); }); return; } delete go.dataset.where;
     var items = ok.map(function (x) { var im = x.imgs[x.k]; return { name: stkLabel(x), price: x.price, img: im.src, thumb: im.thumb, idea: x.custom ? (x.idea || '') : x.name, brand: (x.brand || '').trim(), details: (x.det || '').trim(), grade: x.grade }; });
     go.disabled = true; go.textContent = 'POSTING…';
     fetch('/api/list-stock', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items: items, lat: window._gps ? window._gps[0] : undefined, lng: window._gps ? window._gps[1] : undefined }) })
@@ -461,12 +475,13 @@
   $('rows').addEventListener('input', function (e) { var inp = e.target, row = inp.closest('.row-item'); if (!row) return; var i = +row.dataset.i; if (inp.dataset.act === 'name') { shots[i].name = inp.value; shots[i].touched.name = true; $('listBtn').disabled = shots.some(function (s) { return !s.name.trim(); }); } if (inp.dataset.act === 'note') { shots[i].note = inp.value; shots[i].touched.note = true; grow(inp); var dm = row.querySelector('.dmeter'); if (dm && window.lendoDetails) dm.innerHTML = window.lendoDetails(inp.value); } });
   function grow(t) { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 160) + 'px'; }
   $('backCam').addEventListener('click', function () { show('cam'); });
-  $('listBtn').addEventListener('click', function () {
+  $('listBtn').addEventListener('click', function () { needWhere(postShots); });
+  function postShots() {
     var fd = new FormData(); shots.forEach(function (s, i) { (s.extra || []).forEach(function (x, k) { fd.append('photo_' + i + '_' + (k + 1), x.blob, 'p' + i + '_' + (k + 1) + '.jpg'); }); fd.append('name_' + i, s.name.trim()); if (s.ai && s.ai.name) fd.append('ai_' + i, s.ai.name); fd.append('price_' + i, s.price); fd.append('week_' + i, s.week || 0); fd.append('note_' + i, s.note); fd.append('grade_' + i, s.grade || 'A'); fd.append('photo_' + i, s.blob, 'p' + i + '.jpg'); });
     if (window._gps) { fd.append('lat', window._gps[0]); fd.append('lng', window._gps[1]); }
     $('listBtn').disabled = true; $('listBtn').textContent = 'LISTING…';
     fetch('/api/list', { method: 'POST', body: fd }).then(function (r) { if (r.status === 401) { location.href = '/login?next=/list'; return null; } return r.json(); }).then(function (j) { if (!j) return; renderDone(j); show('done'); }).catch(function () { $('listBtn').disabled = false; $('listBtn').textContent = 'TRY AGAIN'; });
-  });
+ }
 
   // ---- done
   function renderDone(j) {
@@ -620,7 +635,8 @@
   $('qCard').addEventListener('input', function (e) { var s0 = cur(), q0 = qs()[QI]; if (e.target.id === 'qv' && s0 && q0) s0.touched[q0.k] = true; if (e.target.id === 'qv' && e.target.tagName === 'TEXTAREA' && $('qMeter') && window.lendoDetails) $('qMeter').innerHTML = window.lendoDetails(e.target.value); });
   $('qDone').addEventListener('click', function (e) { var b = e.target.closest('.q-line'); if (!b) return; var i = +b.dataset.i, q = qs()[i]; if (q && ITEMQ[q.k]) { QI = i; renderQ(); } });
   $('qPh').addEventListener('click', function () { retakeIdx = 0; show('cam'); });
-  function listIt() {
+  function listIt() { needWhere(listIt0); }
+  function listIt0() {
     var s = cur(); $('qCard').innerHTML = '<div class="q-h" style="margin:8px 0">Listing<span class="dots"><i>.</i><i>.</i><i>.</i></span></div>';
     var fd = new FormData(); (s.extra || []).forEach(function (x, k) { fd.append('photo_0_' + (k + 1), x.blob, 'p0_' + (k + 1) + '.jpg'); });
     fd.append('name_0', s.name.trim()); if (s.ai && s.ai.name) fd.append('ai_0', s.ai.name); fd.append('price_0', s.price); fd.append('week_0', 0); fd.append('note_0', s.note || ''); fd.append('grade_0', s.grade || 'A'); if (s.hold) fd.append('hold_0', '1'); fd.append('photo_0', s.blob, 'p0.jpg');

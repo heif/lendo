@@ -366,7 +366,7 @@ export const personPage = async (c: Ctx, uid: string) => {
         </div>
       </section>
       
-      {nItems >= 10 ? <>
+      {false && nItems >= 10 ? <> {/* number bounce paused 11/23 (Scott) */}
         <script src="/pinball.js"></script>
         {raw(`<script>lendoBounce(${JSON.stringify(String(nItems))}, ${Math.min(nItems, 40)}, 5000)</script>`)}
       </> : null}
