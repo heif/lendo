@@ -64,7 +64,6 @@ const listPage = async (c: any) => {
             <form class="stk1-ref" id="stkRef"><b>Not it?</b><input id="stkRefIn" placeholder="Add brand / model" autocomplete="off" autocapitalize="words" enterkeyhint="search" /><button type="submit" aria-label="Search" dangerouslySetInnerHTML={{ __html: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20 20"/></svg>' }} /></form>
             <div class="stk1-chips" id="stkChips"></div>
             <button type="button" class="stk1-snap" id="stkSnap"><i dangerouslySetInnerHTML={{ __html: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h1.5a2 2 0 0 0 1.8-1.1l.4-.8A2 2 0 0 1 10.5 4h3a2 2 0 0 1 1.8 1.1l.4.8A2 2 0 0 0 17.5 7H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z" /><circle cx="12" cy="13" r="3.4" /></svg>' }} />Take a photo of mine instead</button>
-            <div class="stk1-lbl" style="text-align:center">Your price</div>
             <div class="stk1-pr" id="stkPr"><button type="button" class="stk1-pm" data-d="-1" aria-label="Lower price">−</button><span class="stk1-tag"><b id="stkPv">$8</b><small>/day</small></span><button type="button" class="stk1-pm" data-d="1" aria-label="Raise price">+</button></div>
             <div class="stk1-note" id="stkRange"></div>
             </div>

@@ -140,7 +140,7 @@
     $('stkNote').hidden = !(x.imgs && x.imgs.length > 1);
     /* the owner sets the price right here: big tag with − / +, plus a typical range for this kind of thing */
     $('stkPv').textContent = '$' + x.price; var base = x.custom ? (x.ideaPrice || 0) : (x.basePrice || x.price);
-    $('stkRange').textContent = base ? 'Typical for ' + (x.custom ? (x.idea ? 'a ' + x.idea.toLowerCase() : 'this') : (/s$/.test(x.name) ? x.name.toLowerCase() : 'a ' + x.name.toLowerCase())) + ': $' + Math.max(MIN, Math.round(base * 0.7)) + '–' + Math.round(base * 1.4) : 'You can change it anytime';
+    $('stkRange').textContent = 'Your price' + (base ? ' · typical $' + Math.max(MIN, Math.round(base * 0.7)) + '–' + Math.round(base * 1.4) : '');
     $('stkGo').hidden = false; $('stkGo').textContent = x.about ? (stk.slice(si + 1).some(function (y) { return !y.yes && !y.snap && !y.skip; }) ? 'NEXT THING →' : 'DONE →') : '✓ LOOKS LIKE MINE'; $('stkGo').disabled = !im; $('stkSnap').hidden = !!x.about || !!(x.imgs && !im && !(x.custom && !x.brand)); $('stkSkip').hidden = false;
   }
   function stkNext() { si++; while (si < stk.length && (stk[si].yes || stk[si].snap || stk[si].skip)) si++; if (si < stk.length) { stkOne(); stkPump(); return; }
