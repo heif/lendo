@@ -37,8 +37,8 @@ export function daysBetween(a: string, b: string): number {
   return Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000) + 1;
 }
 export function fmtDay(day: string): string {
-  const d = new Date(day + 'T12:00:00Z');
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+  const d = new Date(day + 'T12:00:00Z'); /* "Sat 11/28" (Scott, 11/24: numeric dates everywhere) */
+  return `${d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })} ${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
 }
 export function fmtRange(a: string, b: string): string {
   return a === b ? fmtDay(a) : `${fmtDay(a)} → ${fmtDay(b)}`;

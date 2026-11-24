@@ -4,6 +4,8 @@ import { logErr } from './log';
 import { itemLink } from './urls';
 import { addMessage, busyDays, listingById, rentalById, setRentalStatus, userById } from './db';
 import { textUser } from './blooio';
+import { emailRequest } from './email';
+import { cutoutUrl } from './cutout';
 import { captureRental, payoutRental, placeDeposit, refundPart, releaseDeposit, releaseHold } from './stripe';
 import { feePct, payoutOf, quote } from './money';
 import { backDay, firstName, fmtDay, fmtRange, localToday, money, now } from './util';
@@ -32,7 +34,10 @@ export async function markHeld(env: Env, r: Rental, paymentIntent: string | null
   const { owner, renter, listing } = await parties(env, r);
   const url = `${env.APP_URL}/r/${r.id}`;
   await addMessage(env, r.id, null, `${firstName(renter.name)} requested ${fmtRange(r.start_day, r.end_day)} · card held · waiting for ${firstName(owner.name)}`, 'system');
-  await textUser(env, owner, `${firstName(renter.name)} wants your ${listing.name} ${fmtRange(r.start_day, r.end_day)}. You'd earn ${money(payoutOf(r))}. Reply YES to accept or NO to pass. ${url}`, 'rental', r.id);
+  /* the request goes by email at the same time as the text, always (Scott, 11/24) */
+  const ph = await env.DB.prepare('SELECT r2_key FROM photos WHERE listing_id = ? ORDER BY pos LIMIT 1').bind(listing.id).first<{ r2_key: string }>().catch(() => null);
+  const em = await emailRequest(env, r, owner, renter, listing, money(payoutOf(r)), ph ? cutoutUrl(env, ph.r2_key, 160, 160) : null).catch(async e => { await logErr(env.DB, 'request email', e, { rental: r.id }); return { ok: false }; });
+  await textUser(env, owner, `${firstName(renter.name)} wants your ${listing.name} ${fmtRange(r.start_day, r.end_day)}. You'd earn ${money(payoutOf(r))}. Reply YES to accept or NO to pass. ${url}`, 'rental', r.id, { emailed: em.ok });
   await textUser(env, renter, `Requested ${listing.name} from ${firstName(owner.name)} for ${fmtRange(r.start_day, r.end_day)}. Your card is held, not charged, until they say yes. We'll text you. ${url}`, 'rental', r.id);
 }
 

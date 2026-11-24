@@ -68,13 +68,14 @@ const row = (env: Env, user: User, text: string, category: TextCategory, rentalI
   env.DB.prepare('INSERT INTO outbound_texts (id, user_id, body, category, rental_id, provider_id, created_at) VALUES (?,?,?,?,?,?,?)').bind(id('t'), user.id, text, category, rentalId ?? null, pid, now()).run();
 
 // Text a user and log it so the Inbox page shows "what we text you".
-export async function textUser(env: Env, user: User, text: string, category: TextCategory, rentalId?: string) {
+export async function textUser(env: Env, user: User, text: string, category: TextCategory, rentalId?: string, opt?: { emailed?: boolean }) {
+  const mail: typeof emailFromText = opt?.emailed ? async () => ({ ok: true }) : emailFromText; /* already emailed alongside this text: no second email */
   if ((category === 'nudge' && !user.nudges) || (!user.texts && category !== 'login')) { await logEvent(env.DB, 'text.suppressed', { user: user.id, rental: rentalId, data: { category, why: !user.texts ? 'STOP' : 'nudges off', body: text.slice(0, 300) } }); return; }
   /* left the optional rental-texts box unchecked: only login codes by text; what matters goes by email, all of it shows in the web inbox */
   if (user.sms_ok === 0 && category !== 'login') {
     await logEvent(env.DB, 'text.suppressed', { user: user.id, rental: rentalId, data: { category, why: 'no text opt-in', body: text.slice(0, 300) } });
     await row(env, user, text, category, rentalId, null);
-    if (WORTH.has(category)) await emailFromText(env, user, text, rentalId, 'Sent by email because rental texts are off for your number · turn them on by texting OK to Lendo');
+    if (WORTH.has(category)) await mail(env, user, text, rentalId, 'Sent by email because rental texts are off for your number · turn them on by texting OK to Lendo');
     return { ok: false, error: 'optout' };
   }
   if ((user as any).android && twilioSmsOn(env) && !linqOn(env)) { /* Linq does its own SMS fallback */
@@ -89,7 +90,7 @@ export async function textUser(env: Env, user: User, text: string, category: Tex
     let via = 'held', pid: string | null = null;
     if (WORTH.has(category)) {
       if (twilioSmsOn(env) && !linqOn(env)) { const r2 = await sendTwilioSms(env, user.phone, text + ' · Text OK to Lendo to get these by iMessage'); if (r2.ok) { via = 'sms'; pid = null; } }
-      if (via === 'held' && user.email) { const e = await emailFromText(env, user, text, rentalId, 'Sent by email because texts to you are waiting on a reply · text OK to Lendo to get them again'); if (e.ok) via = 'email'; }
+      if (via === 'held' && user.email) { const e = await mail(env, user, text, rentalId, 'Sent by email because texts to you are waiting on a reply · text OK to Lendo to get them again'); if (e.ok) via = 'email'; }
     }
     await logEvent(env.DB, 'text.suppressed', { user: user.id, rental: rentalId, data: { category, why: `waiting for a response (${streak} of ${allow} unanswered)`, went: via, body: text.slice(0, 300) } });
     await row(env, user, text, category, rentalId, pid); /* still shows in the web inbox */
@@ -101,7 +102,7 @@ export async function textUser(env: Env, user: User, text: string, category: Tex
   const r = await sendRaw(env, user.phone, text);
   if (!r.ok) { console.warn('text not sent', user.id, category, r.error); await logEvent(env.DB, 'text.failed', { user: user.id, rental: rentalId, data: { category, err: String(r.error).slice(0, 300), body: text.slice(0, 300) } });
     /* the provider refused (its own count can differ from ours): same fallback */
-    if (WORTH.has(category) && user.email && /429|awaiting|streak|inactive|restricted/i.test(String(r.error))) await emailFromText(env, user, text, rentalId, 'Sent by email because a text to you didn’t go through · text OK to Lendo to get them again'); }
+    if (WORTH.has(category) && user.email && /429|awaiting|streak|inactive|restricted/i.test(String(r.error))) await mail(env, user, text, rentalId, 'Sent by email because a text to you didn’t go through · text OK to Lendo to get them again'); }
   await row(env, user, text, category, rentalId, r.message_id ?? null);
   return r;
 }

@@ -359,7 +359,7 @@ export const personPage = async (c: Ctx, uid: string) => {
             {reviews.results.map(r => (
               <div class="prev">
                 <div class="q">{r.st >= 3 ? '👍' : '👎'} {r.rv ? `“${r.rv}”` : (r.st >= 3 ? 'Thumbs up' : 'Thumbs down')}</div>
-                <div class="w">{firstName(r.nm)} · {r.item} · {new Date(r.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                <div class="w">{firstName(r.nm)} · {r.item} · {new Date(r.at).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })}</div>
               </div>
             ))}
           </div> : null}

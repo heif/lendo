@@ -43,7 +43,7 @@ admin.post('/admin/users/:id/keeplive', async (c) => {
 admin.post('/admin/email-test', async (c) => {
   const f = await c.req.parseBody(); const to = String(f.to || '').trim().toLowerCase();
   if (!validEmail(to)) return c.json({ ok: false, error: 'bad email' }, 400);
-  const r = await emailUser(c.env, { ...c.get('user')!, email: to }, 'Maya wants your ladder · Sat–Sun (test)', ['Maya (Chelsea) asked to rent your Louisville ladder, Sat to Sun. You’d earn $15.30'], [{ label: 'YES', url: c.env.APP_URL, pri: true }, { label: 'NO', url: c.env.APP_URL }], 'Sent as a test from Lendo admin', undefined, { title: 'Maya wants your Louisville ladder', money: '$15.30', img: c.env.APP_URL + '/p/' + (String(f.img || '') || 'none'), sub: 'Sat Nov 28 → Mon Nov 30 · Maya is in Chelsea', more: { label: 'More about Maya and the pickup', url: c.env.APP_URL } });
+  const r = await emailUser(c.env, { ...c.get('user')!, email: to }, 'Maya wants your ladder · Sat–Sun (test)', ['Maya wants your Louisville ladder'], [], 'Sent as a test from Lendo admin', undefined, { title: 'Maya wants your Louisville ladder', img: null, more: { label: 'More', url: c.env.APP_URL }, steps: [{ t: 'Maya (Chelsea) asked', state: 'done' }, { t: 'Your answer', d: '· you earn $15.30', state: 'now', btns: [{ label: 'YES', url: c.env.APP_URL, pri: true }, { label: 'NO', url: c.env.APP_URL }] }, { t: 'Pickup Sat 11/28', d: '· deposit hold on Maya’s card' }, { t: 'Return Mon 11/30', d: '· hold released' }] });
   return c.json({ ...r, key: emailOn(c.env) });
 });
 /* set where someone's things are (cross streets / ZIP), and put their no-location listings on the map */

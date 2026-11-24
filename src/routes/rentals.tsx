@@ -156,7 +156,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
           const now = stage === 0 ? 1 : promNow ? 2 : stage === 1 ? 3 : stage === 2 ? 4 : 5;
           const cancel = !isOwner && stage <= 1 ? <button type="submit" form="cancelForm">{stage === 0 ? 'Cancel request' : 'Cancel rental'}</button> : null;
           return <>
-            <ol class="rlist">{S.map(([t, d], i) => { const dd = sep(d); return <li class={i < now || (i === 2 && signed) ? 'done' : i === now ? 'now' : ''}><i>{i < now || (i === 2 && signed) ? '✓' : ''}</i><div><b>{t}</b>{dd.length ? <span>{dd}</span> : null}{i === 2 && promNow && !isOwner ? <button type="button" class="rsign" onclick="document.getElementById('promSign').showModal()">✍️ Sign</button> : null}</div></li>; })}</ol>
+            <ol class="rlist">{S.map(([t, d], i) => { const dd = sep(d); return <li class={i < now || (i === 2 && signed) ? 'done' : i === now ? 'now' : ''}><i></i><div><b>{t}</b>{dd.length ? <span>{dd}</span> : null}{i === 2 && promNow && !isOwner ? <button type="button" class="rsign" onclick="document.getElementById('promSign').showModal()">✍️ Sign</button> : null}</div></li>; })}</ol>
             {cancel ? <div class="rfoot">{paused ? <a class="rpaused sms-only" href={smsHref(c.env, 'OK')}>📵 Texts paused · <u>text OK</u></a> : <span></span>}{cancel}</div> : null}
           </>; })() : null}
         {paused && !(!isOwner && stage <= 1 && r.status !== 'inquiry' && !dead) ? <a class="hint sms-only" href={smsHref(c.env, 'OK')} style="text-align:center;color:#b3261e;font-weight:700;display:block">📵 Lendo texts paused · <u>tap to text OK</u></a> : null}
@@ -220,7 +220,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
         {/* community agreement: customer signs once confirmed; owner sees status + a copy */}
         {!dead && stage >= 1 ? (() => {
           const ow = firstName(owner.name) || 'the owner', cu = firstName(isOwner ? other.name : u.name) || 'Customer';
-          const when = r.promise_at ? new Date(r.promise_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) : '';
+          const when = r.promise_at ? new Date(r.promise_at).toLocaleString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) : '';
           const view = (
             <dialog id="promView" class="psheet"><div class="psheet-in">
               <div class="psheet-h"><b>{isOwner ? `${cu}’s promise to you` : `Your promise to ${ow}`}</b><button type="button" class="psheet-x" aria-label="Close" onclick="this.closest('dialog').close()" dangerouslySetInnerHTML={{ __html: X_SVG }} /></div>
@@ -570,7 +570,7 @@ rentals.get('/inbox', requireUser, async (c) => {
   const wmsgs = wrows.length ? (await c.env.DB.prepare(`SELECT sender_id, body, rental_id, created_at FROM messages WHERE rental_id IN (${wrows.map(() => '?').join(',')}) ORDER BY created_at`).bind(...wrows.map(r => r.id)).all<{ sender_id: string | null; body: string; rental_id: string; created_at: number }>()).results : [];
   const itemOf = (rid: string) => wrows.find(r => r.id === rid)?.item || '';
   const paused = await textsPaused(c.env, u);
-  const fmtT = (t: number) => new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
+  const fmtT = (t: number) => new Date(t).toLocaleString('en-US', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
   return c.html(
     <Layout title="Chats" user={u} headerCenter={<span class="sp"></span>}>
       <ChatPick rows={chats} me={u.id} cur={wid ? '/inbox?with=' + wid : '/inbox'} />

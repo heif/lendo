@@ -1,5 +1,6 @@
 // Email = backup channel (texts first). Plain, like a text, with chunky buttons. Sent through Resend when RESEND_API_KEY is set.
-import type { Env, User } from './env';
+import type { Env, Listing, Rental, User } from './env';
+import { backDay, firstName, fmtDay, fmtRange } from './util';
 import { logEvent } from './log';
 
 export const emailOn = (env: Env) => !!env.RESEND_API_KEY;
@@ -7,21 +8,23 @@ export const validEmail = (e: string) => /^[^\s@]{1,64}@[^\s@]+\.[a-z]{2,}$/i.te
 const esc = (s: string) => s.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]!));
 
 export type Btn = { label: string; url: string; pri?: boolean };
-export type Card = { title: string; sub?: string; money?: string; img?: string | null; more?: { label: string; url: string } };
-/* card style (Scott, 11/24): cream card, item photo + headline + $ tag, one detail line, chunky buttons, "more on the web" link. Max 480px wide, so it looks the same on phones and computers */
+export type Step = { t: string; d?: string; state?: 'done' | 'now'; btns?: Btn[] };
+export type Card = { title: string; img?: string | null; steps?: Step[]; sub?: string; more?: { label: string; url: string } };
+/* plain (no box) so it fits any phone; fluid up to 480px. Same steps + timeline rail as the top of the rental page (Scott, 11/24) */
 export function emailHtml(lines: string[], btns: Btn[], why: string, card?: Card): string {
   const F = 'Helvetica,Arial,sans-serif';
-  const b = btns.length ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px"><tr>${btns.map((x, k) => `<td width="${Math.floor(100 / btns.length)}%" style="padding-${k ? 'left' : 'right'}:${btns.length > 1 ? 4 : 0}px"><a href="${esc(x.url)}" style="display:block;text-align:center;padding:13px 0;border-radius:14px;border:2.5px solid #1E3A2B;font:900 16px ${F};text-decoration:none;${x.pri ? 'background:#FF4F00;color:#ffffff' : 'background:#ffffff;color:#1E3A2B'}">${esc(x.label)}</a></td>`).join('')}</tr></table>` : '';
+  const bRow = (bs: Btn[], top: number) => bs.length ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:${top}px"><tr>${bs.map((x, k) => `<td width="${Math.floor(100 / bs.length)}%" style="padding-${k ? 'left' : 'right'}:${bs.length > 1 ? 4 : 0}px"><a href="${esc(x.url)}" style="display:block;text-align:center;padding:11px 0;border-radius:14px;border:2.5px solid #1E3A2B;font:900 16px ${F};text-decoration:none;${x.pri ? 'background:#FF4F00;color:#ffffff' : 'background:#ffffff;color:#1E3A2B'}">${esc(x.label)}</a></td>`).join('')}</tr></table>` : '';
   const c = card || { title: lines[0] || '', sub: lines.slice(1).join(' · ') };
-  const img = c.img ? `<td width="72" style="padding-right:14px;vertical-align:middle"><img src="${esc(c.img)}" width="64" height="64" alt="" style="display:block;width:64px;height:64px;object-fit:contain;background:#ffffff;border-radius:12px"></td>` : '';
-  const money = c.money ? `<div style="margin-top:6px;font:15px ${F};color:#1E3A2B">you earn <span style="display:inline-block;background:#FF4F00;color:#ffffff;font-weight:900;border:2px solid #1E3A2B;border-radius:8px;padding:2px 8px">${esc(c.money)}</span></div>` : '';
-  const more = c.more ? `<div style="text-align:center;margin-top:14px"><a href="${esc(c.more.url)}" style="font:800 14px ${F};color:#1E3A2B">${esc(c.more.label)}</a></div>` : '';
-  return `<div style="background:#ffffff;padding:16px 8px"><div style="max-width:480px;margin:0 auto">
-<div style="background:#F5F3EE;border:2.5px solid #1E3A2B;border-radius:18px;padding:18px">
-<div style="font:900 15px ${F};color:#1E3A2B;margin-bottom:12px">👋 Lendo</div>
-<table role="presentation" cellpadding="0" cellspacing="0"><tr>${img}<td style="vertical-align:middle"><div style="font:900 19px/1.2 ${F};color:#1E3A2B">${esc(c.title)}</div>${money}</td></tr></table>
-${c.sub ? `<div style="font:14px/1.45 ${F};color:#3d5446;margin-top:12px">${esc(c.sub)}</div>` : ''}${b}${more}</div>
-<div style="text-align:center;font:12px ${F};color:#8A857B;margin-top:12px">${esc(why)}</div></div></div>`;
+  const img = c.img ? `<td width="66" style="padding-right:12px;vertical-align:middle"><img src="${esc(c.img)}" width="54" height="54" alt="" style="display:block;width:54px;height:54px;object-fit:contain;background:#F5F3EE;border-radius:12px"></td>` : '';
+  const steps = c.steps?.length ? `<div style="margin:16px 0 0 5px;border-left:3px solid #E6E1D6">${c.steps.map(st => {
+    const on = !!st.state, dot = st.state === 'now' ? '#FF4F00' : st.state === 'done' ? '#1E3A2B' : '#E6E1D6';
+    return `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-left:-7px"><tr><td width="21" style="vertical-align:top;padding-top:9px"><div style="width:11px;height:11px;border-radius:6px;background:${dot}"></div></td><td style="padding:5px 0;font:15px/1.3 ${F};color:${on ? '#1E3A2B' : '#9A958A'}"><b style="font-weight:800">${esc(st.t)}</b>${st.d ? ` <span style="font-size:13.5px;font-weight:700;color:${st.state === 'now' ? '#3d5446' : '#8A857B'}">${esc(st.d)}</span>` : ''}${st.btns ? bRow(st.btns, 8) : ''}</td></tr></table>`;
+  }).join('')}</div>` : '';
+  const more = c.more ? `<div style="margin-top:14px"><a href="${esc(c.more.url)}" style="font:800 14px ${F};color:#1E3A2B">${esc(c.more.label)}</a></div>` : '';
+  return `<div style="background:#ffffff;padding:8px 0"><div style="max-width:480px">
+<table role="presentation" cellpadding="0" cellspacing="0"><tr>${img}<td style="vertical-align:middle;font:900 19px/1.2 ${F};color:#1E3A2B">${esc(c.title)}</td></tr></table>
+${c.sub ? `<div style="font:14px/1.45 ${F};color:#3d5446;margin-top:12px">${esc(c.sub)}</div>` : ''}${steps}${c.steps?.length ? '' : bRow(btns, 16)}${more}
+<div style="font:12px ${F};color:#8A857B;margin-top:20px">${esc(why)}</div></div></div>`;
 }
 
 export async function emailUser(env: Env, user: User, subject: string, lines: string[], btns: Btn[], why: string, rentalId?: string, card?: Card): Promise<{ ok: boolean; error?: string }> {
@@ -49,5 +52,19 @@ export async function emailFromText(env: Env, user: User, text: string, rentalId
   const btns: Btn[] = asks ? [{ label: 'YES', url, pri: true }, { label: 'NO', url }] : [{ label: 'OPEN LENDO', url, pri: true }];
   const clean = body.replace(/ · reply YES or NO/i, '').replace(/ — reply YES or NO/i, '');
   const [title, ...rest] = clean.split(' · ');
-  return emailUser(env, user, title.slice(0, 90), [clean], btns, why, rentalId, { title, sub: rest.join(' · ') || undefined, more: { label: 'See details on Lendo', url } });
+  return emailUser(env, user, title.slice(0, 90), [clean], btns, why, rentalId, { title, sub: rest.join(' · ') || undefined, more: { label: 'More', url } });
+}
+
+/* rental request → owner: emailed at the same time as the text, always (Scott, 11/24) */
+export async function emailRequest(env: Env, r: Rental, owner: User, cust: User, it: Listing, earn: string, img: string | null) {
+  if (!owner.email) return { ok: false };
+  const who = firstName(cust.name || 'A neighbor'), url = `${env.APP_URL}/r/${r.id}`, dep = (it.deposit_cents || 0) > 0;
+  const title = `${who} wants your ${it.name}`;
+  return emailUser(env, owner, `${title} · ${fmtRange(r.start_day, backDay(r.end_day))}`, [`${title}, ${fmtRange(r.start_day, backDay(r.end_day))}. You’d earn ${earn}`],
+    [{ label: 'YES', url, pri: true }, { label: 'NO', url }], 'Lendo emails rental requests along with the text', r.id,
+    { title, img, more: { label: 'More', url }, steps: [
+      { t: `${who}${cust.hood ? ` (${cust.hood})` : ''} asked`, state: 'done' },
+      { t: 'Your answer', d: `· you earn ${earn}`, state: 'now', btns: [{ label: 'YES', url, pri: true }, { label: 'NO', url }] },
+      { t: `Pickup ${fmtDay(r.start_day)}`, d: dep ? `· deposit hold on ${who}’s card` : undefined },
+      { t: `Return ${fmtDay(backDay(r.end_day))}`, d: dep ? '· hold released' : undefined }] });
 }
