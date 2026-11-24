@@ -13,6 +13,7 @@ import { linqParse, linqVerify } from '../lib/linq';
 import { ensureUser, rentalById, unpauseTexted, userByPhone } from '../lib/db';
 import { loginLink } from '../lib/auth';
 import { accept, activeRentalFor, decline, holdDeposit, markHeld, relay } from '../lib/rentals';
+import { onDispute } from '../lib/claims';
 import { hmacHex, normPhone, timingSafeEq, firstName } from '../lib/util';
 
 export const webhooks = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -31,13 +32,13 @@ webhooks.post('/webhooks/stripe', async (c) => {
     const xid = extFromSession(cs);
     const rid = xid ? null : cs.metadata?.rental_id || cs.client_reference_id;
     if (xid) await markExtHeld(c.env, xid, typeof cs.payment_intent === 'string' ? cs.payment_intent : cs.payment_intent?.id ?? null, cs.id);
-    if (cs.mode === 'setup') { /* new card for a $150 hold that didn't take → save it, try again */
+    if (cs.mode === 'setup') { /* new card for a deposit hold that didn't take → save it, try again */
       const did = await cardFromSetup(c.env, cs); const r = did ? await rentalById(c.env.DB, did) : null;
       if (r && (r.status === 'confirmed' || r.status === 'picked_up') && r.deposit_status === 'due') await holdDeposit(c.env, r);
     } else if (rid) {
       const r = await rentalById(c.env.DB, rid);
       const pi = typeof cs.payment_intent === 'string' ? cs.payment_intent : cs.payment_intent?.id ?? null;
-      if (r && (r.deposit_cents || 0) > 0) await rememberCard(c.env, r.id, pi);
+      if (r) await rememberCard(c.env, r.id, pi); /* every rental: the deposit hold at pickup (and any claim) uses this card */
       if (r) await markHeld(c.env, r, pi, cs.id);
     }
   } else if (ev.type === 'checkout.session.expired') {
@@ -51,6 +52,9 @@ webhooks.post('/webhooks/stripe', async (c) => {
     const r = await c.env.DB.prepare('SELECT * FROM rentals WHERE stripe_payment_intent = ?').bind(pi.id).first<Rental>();
     // a free / sub-50¢ rental is released on purpose at accept — not an expiry
     if (r && r.status === 'held' && r.total_cents >= 50) await decline(c.env, r, 'expired');
+  } else if (ev.type === 'charge.dispute.created' || ev.type === 'charge.dispute.closed' || ev.type === 'charge.dispute.updated') {
+    /* bank dispute (chargeback): evidence file onto it, admin told, guarantee cap applied when it closes (claims.ts) */
+    try { await onDispute(c.env, ev.data.object as Stripe.Dispute, ev.type); } catch (e) { await logErr(c.env.DB, 'dispute webhook', e); }
   }
   return c.json({ received: true });
 });

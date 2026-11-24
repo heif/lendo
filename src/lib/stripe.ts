@@ -3,7 +3,8 @@
 // Owners connect a Stripe Express account for payouts; captured rent is transferred to it.
 import Stripe from 'stripe';
 import { logErr, logEvent } from './log';
-import type { Env, Listing, Rental, User } from './env';
+import type { Claim, Env, Listing, Rental, User } from './env';
+import { money } from './util';
 import { payoutOf } from './money';
 
 export function stripe(env: Env): Stripe | null {
@@ -25,10 +26,12 @@ export async function createCheckout(env: Env, rental: Rental, listing: Listing,
       { quantity: 1, price_data: { currency: 'usd', unit_amount: rental.rent_cents, product_data: { name: `${listing.name} · ${rental.days} day${rental.days === 1 ? '' : 's'}` } } },
       ...((rental.tax_cents || 0) > 0 ? [{ quantity: 1, price_data: { currency: 'usd', unit_amount: rental.tax_cents, product_data: { name: `Sales tax (${+(rental.tax_rate * 100).toFixed(3)}%)` } } }] : []),
     ],
-    /* $150 hold at pickup needs the card again later, off-session → save it to a Stripe customer now */
-    ...((rental.deposit_cents || 0) > 0 ? { customer_creation: 'always' as const } : {}),
+    /* every rental has a deposit hold at pickup (the item's value): it needs the card again later, off-session → save it to a Stripe customer now.
+       The customer sees and accepts the hold and how problems are decided before paying (also the record for a bank dispute) */
+    customer_creation: 'always' as const,
+    ...((rental.deposit_cents || 0) > 0 ? { custom_text: { submit: { message: `At pickup a ${money(rental.deposit_cents!)} hold (not a charge) goes on this card for the item's value, released after return. If there's a problem, Lendo's AI decides what's owed from the photos and what you each say, up to the hold` } } } : {}),
     payment_intent_data: {
-      ...((rental.deposit_cents || 0) > 0 ? { setup_future_usage: 'off_session' as const } : {}),
+      setup_future_usage: 'off_session' as const,
       capture_method: 'manual',
       metadata: { rental_id: rental.id, listing_id: listing.id, renter_id: renter.id },
       description: `Lendo rental ${rental.id}`,
@@ -118,13 +121,16 @@ export async function flushPendingPayouts(env: Env, owner: User): Promise<number
     await logEvent(env.DB, 'money.payout', { rental: x.rental_id, user: owner.id, cents: x.rent_cents, data: { ext: x.id, late: true } });
     n++;
   }
+  /* settled claims owed to this owner */
+  const cs = await env.DB.prepare(`SELECT * FROM claims WHERE owner_id = ? AND settled_at IS NOT NULL AND owner_due_cents > 0 AND paid_out = 0 AND payout_ok = 1`).bind(owner.id).all<Claim>().catch(() => ({ results: [] as Claim[] }));
+  for (const cl of cs.results) { try { if (await payClaim(env, cl, owner)) n++; } catch (e) { await logErr(env.DB, 'claim payout', e, { rental: cl.rental_id }); } }
   return n;
 }
 
-// ---------- $150 hold (deposit): items the owner marked "worth over $150 now" ----------
-// Placed on pickup day (rental page / cron / Handed over), released at return or cancel. Never captured automatically:
-// a damage claim is a separate, reviewed step. Card authorizations last ~7 days → renewed while the item is out.
-export const DEPOSIT_CENTS = 15000;
+// ---------- Deposit hold: every rental, for the item's value (set by AI, src/lib/value.ts) ----------
+// Placed on pickup day (rental page / cron / Handed over). Released when the owner says all good, 24h after return, or at cancel.
+// Captured only by a final AI ruling on a claim (collectAward, src/lib/claims.ts). Card authorizations last ~7 days → renewed while
+// the item is out or a claim is open.
 
 // the rental's checkout saved the card: remember customer + card on the rental (webhook, after markHeld)
 export async function rememberCard(env: Env, rentalId: string, piId: string | null): Promise<void> {
@@ -145,7 +151,7 @@ export async function placeDeposit(env: Env, r: Rental, renew = false): Promise<
   if (!r.stripe_customer || !r.stripe_pm) { await env.DB.prepare(`UPDATE rentals SET deposit_status = 'failed' WHERE id = ?`).bind(r.id).run(); await logEvent(env.DB, 'money.deposit_failed', { rental: r.id, user: r.renter_id, cents: r.deposit_cents, data: { why: 'no saved card' } }); return 'failed'; }
   try {
     const pi = await s.paymentIntents.create({ amount: r.deposit_cents!, currency: 'usd', customer: r.stripe_customer, payment_method: r.stripe_pm, off_session: true, confirm: true, capture_method: 'manual',
-      description: `Lendo $150 hold · rental ${r.id}`, metadata: { rental_id: r.id, kind: 'deposit' } },
+      description: `Lendo deposit hold · rental ${r.id}`, metadata: { rental_id: r.id, kind: 'deposit' } },
       { idempotencyKey: `dep_${r.id}_${r.stripe_pm}_${renew ? 'r' + Math.floor(Date.now() / 86400000) : Math.floor(Date.now() / 60000)}` }); /* per minute: a retry after a decline isn't replayed; cron + page in the same minute share one hold */
     if (pi.status !== 'requires_capture') throw new Error(`deposit ${pi.id} is ${pi.status}`);
     if (renew && r.deposit_pi && r.deposit_pi !== pi.id) { try { await s.paymentIntents.cancel(r.deposit_pi); } catch { /* old one may have lapsed */ } }
@@ -181,4 +187,87 @@ export async function cardFromSetup(env: Env, cs: Stripe.Checkout.Session): Prom
   const pm = typeof si.payment_method === 'string' ? si.payment_method : si.payment_method?.id ?? null, cust = typeof si.customer === 'string' ? si.customer : si.customer?.id ?? (typeof cs.customer === 'string' ? cs.customer : null);
   if (pm && cust) await env.DB.prepare(`UPDATE rentals SET stripe_customer = ?, stripe_pm = ?, deposit_status = CASE WHEN deposit_status = 'failed' THEN 'due' ELSE deposit_status END WHERE id = ?`).bind(cust, pm, rid).run();
   return rid;
+}
+
+// ---------- Claims: a final AI ruling says the customer owes `cents` (≤ the deposit) ----------
+// Capture it from the hold (the rest of the hold is released by Stripe); if the hold lapsed, charge the saved card.
+// Safe to run again for the same claim (settle retries a few times before Lendo covers it): a capture or charge that already
+// went through is found and counted, never taken twice. Returns what was actually collected.
+export async function collectAward(env: Env, r: Rental, cents: number, claimId: string, attempt = 0): Promise<{ cents: number; how: 'hold' | 'card' | 'none'; pi: string | null }> {
+  const s = stripe(env);
+  const mark = () => env.DB.prepare(`UPDATE rentals SET deposit_status = 'captured' WHERE id = ?`).bind(r.id).run();
+  if (cents < 50) return { cents: 0, how: 'none', pi: null };
+  if (!s) { await mark(); await logEvent(env.DB, 'money.claim_collected', { rental: r.id, user: r.renter_id, cents, data: { dev: true, claim: claimId } }); return { cents, how: 'hold', pi: null }; }
+  if (r.deposit_pi && (r.deposit_status === 'held' || r.deposit_status === 'captured')) {
+    try {
+      const pi = await s.paymentIntents.retrieve(r.deposit_pi);
+      if (pi.status === 'succeeded') { await mark(); return { cents: pi.amount_received, how: 'hold', pi: pi.id }; } /* a retry after the capture went through */
+      if (pi.status === 'requires_capture') {
+        const amt = Math.min(cents, pi.amount_capturable);
+        await s.paymentIntents.capture(pi.id, { amount_to_capture: amt }); /* a PaymentIntent can only be captured once; the status check above covers a repeat */
+        await mark();
+        await logEvent(env.DB, 'money.claim_collected', { rental: r.id, user: r.renter_id, cents: amt, data: { pi: pi.id, how: 'hold', hold: pi.amount_capturable, claim: claimId } });
+        return { cents: amt, how: 'hold', pi: pi.id };
+      }
+    } catch (e) {
+      await logErr(env.DB, 'claim capture', e, { rental: r.id });
+      /* second review (11/24): a capture can go through even when its answer errors. Look again before charging the card,
+         and while the hold is still capturable leave it for the next try instead of charging the card on top of it */
+      try {
+        const again = await s.paymentIntents.retrieve(r.deposit_pi);
+        if (again.status === 'succeeded') { await mark(); await logEvent(env.DB, 'money.claim_collected', { rental: r.id, user: r.renter_id, cents: again.amount_received, data: { pi: again.id, how: 'hold', claim: claimId, late: true } }); return { cents: again.amount_received, how: 'hold', pi: again.id }; }
+        if (again.status === 'requires_capture') return { cents: 0, how: 'none', pi: null };
+      } catch { return { cents: 0, how: 'none', pi: null }; }
+    }
+  }
+  if (r.stripe_customer && r.stripe_pm) {
+    try {
+      /* an earlier attempt may have charged the card even though its answer never arrived: look before charging again */
+      const prior = (await s.paymentIntents.list({ customer: r.stripe_customer, limit: 30 })).data.find(x => x.metadata?.claim_id === claimId && x.status === 'succeeded');
+      if (prior) { await mark(); return { cents: prior.amount_received, how: 'card', pi: prior.id }; }
+      const pi = await s.paymentIntents.create({ amount: cents, currency: 'usd', customer: r.stripe_customer, payment_method: r.stripe_pm, off_session: true, confirm: true,
+        description: `Lendo claim · rental ${r.id}`, metadata: { rental_id: r.id, kind: 'claim', claim_id: claimId } }, { idempotencyKey: `claimchg_${claimId}_${attempt}` });
+      if (pi.status === 'succeeded') {
+        await mark();
+        await logEvent(env.DB, 'money.claim_collected', { rental: r.id, user: r.renter_id, cents, data: { pi: pi.id, how: 'card', claim: claimId } });
+        return { cents, how: 'card', pi: pi.id };
+      }
+    } catch (e) { await logErr(env.DB, 'claim charge', e, { rental: r.id }); }
+  }
+  await logEvent(env.DB, 'money.claim_uncollected', { rental: r.id, user: r.renter_id, cents, data: { claim: claimId } });
+  return { cents: 0, how: 'none', pi: null };
+}
+
+// Pay the owner what a settled claim owes them (claims.owner_due_cents; no Lendo fee on it). For now every claim payout is
+// released by a person after a FaceTime call with the owner (claims.payout_ok, /admin/claims; Scott, 11/24). No connected
+// account yet → paid when they connect (flushPendingPayouts).
+export async function payClaim(env: Env, cl: Claim, owner: User): Promise<boolean> {
+  const s = stripe(env);
+  if (cl.paid_out || cl.owner_due_cents <= 0 || !cl.payout_ok) return false;
+  if (!s) { await env.DB.prepare('UPDATE claims SET paid_out = 1 WHERE id = ?').bind(cl.id).run(); await logEvent(env.DB, 'money.claim_payout', { rental: cl.rental_id, user: owner.id, cents: cl.owner_due_cents, data: { dev: true, claim: cl.id } }); return true; }
+  if (!owner.stripe_account_id) return false;
+  /* pay out of the collected charge itself when it covers it (no wait for the balance to clear) */
+  let src: string | undefined;
+  if (cl.collect_pi && cl.collected_cents >= cl.owner_due_cents) { try { const pi = await s.paymentIntents.retrieve(cl.collect_pi); src = typeof pi.latest_charge === 'string' ? pi.latest_charge : pi.latest_charge?.id; } catch { /* falls back to the balance */ } }
+  await s.transfers.create({ amount: cl.owner_due_cents, currency: 'usd', destination: owner.stripe_account_id, transfer_group: cl.rental_id, ...(src ? { source_transaction: src } : {}), metadata: { rental_id: cl.rental_id, claim_id: cl.id } }, { idempotencyKey: `claimpay_${cl.id}` });
+  await env.DB.prepare('UPDATE claims SET paid_out = 1 WHERE id = ?').bind(cl.id).run();
+  await logEvent(env.DB, 'money.claim_payout', { rental: cl.rental_id, user: owner.id, cents: cl.owner_due_cents, data: { acct: owner.stripe_account_id, claim: cl.id, from_charge: !!src } });
+  return true;
+}
+
+// Bank dispute (chargeback) on a Lendo charge: put the evidence file on it. submit=false leaves it as a draft in the
+// Stripe dashboard for a person to send; submit=true sends it (final, can't be changed after).
+export async function disputeEvidence(env: Env, disputeId: string, ev: { text: string; product: string; name?: string | null; email?: string | null; serviceDate?: string | null; disclosure: string; files: { key: string; as: 'customer_signature' | 'service_documentation' | 'uncategorized_file' }[] }, submit: boolean): Promise<boolean> {
+  const s = stripe(env); if (!s) return false;
+  const evidence: Stripe.DisputeUpdateParams.Evidence = { product_description: ev.product.slice(0, 1000), uncategorized_text: ev.text.slice(0, 19000), cancellation_policy_disclosure: ev.disclosure.slice(0, 1000),
+    ...(ev.name ? { customer_name: ev.name } : {}), ...(ev.email ? { customer_email_address: ev.email } : {}), ...(ev.serviceDate ? { service_date: ev.serviceDate } : {}) };
+  for (const f of ev.files) {
+    try {
+      const o = await env.PHOTOS.get(f.key); if (!o || o.size > 4_000_000) continue;
+      const up = await s.files.create({ purpose: 'dispute_evidence', file: { data: new Uint8Array(await o.arrayBuffer()), name: f.key.split('/').pop() || 'photo.jpg', type: 'application/octet-stream' } as any });
+      (evidence as any)[f.as] = up.id;
+    } catch (e) { await logErr(env.DB, `dispute file ${disputeId} ${f.key}`, e); }
+  }
+  await s.disputes.update(disputeId, { evidence, submit });
+  return true;
 }

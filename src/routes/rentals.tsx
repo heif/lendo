@@ -15,10 +15,12 @@ import { createFlag, Flag, FLAGGABLE, type FlagKind } from '../lib/flags';
 import { requireUser } from '../lib/auth';
 import { addMessage, busyDays, firstPhotos, listingById, photosFor, rentalById, userById } from '../lib/db';
 import { id, money, now, daysBetween, dayStr, addDays, fmtRange, rentFor, firstName, fmtDay, backDay } from '../lib/util';
-import { cardSetupUrl, createCheckout, connectOnboardingUrl, DEPOSIT_CENTS, flushPendingPayouts, stripe } from '../lib/stripe';
+import { cardSetupUrl, createCheckout, connectOnboardingUrl, flushPendingPayouts, stripe } from '../lib/stripe';
+import { HIGH_CENTS, holdFor } from '../lib/value';
+import { canOpen, claimFor, isOpen } from '../lib/claims';
 import { payoutOf, quote, taxRateFor } from '../lib/money';
 import { selfMigrate } from '../lib/migrate';
-import { accept, decline, customerCancel, holdDeposit, markHeld, pickedUp, rate, relay, returned } from '../lib/rentals';
+import { accept, allGood, decline, customerCancel, holdDeposit, markHeld, pickedUp, rate, relay, returned } from '../lib/rentals';
 import { smsHref, textsPaused, textUser } from '../lib/blooio';
 
 export const rentals = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -50,8 +52,10 @@ rentals.post('/i/:id/rent', async (c) => {
     .bind(rid, it.id, it.owner_id, u.id, start, end, days, q.rent, q.fee, q.total, q.credit, q.tax, rate, q.payout, 'requested', t, t).run();
   /* right after a deploy the tax columns may not exist yet (cron migrates every 5 min) → migrate now and retry */
   try { await ins(); } catch { await selfMigrate(c.env); await ins(); }
-  /* worth over $150 now (owner's toggle) → $150 hold at pickup; the card is saved at checkout for it */
-  if ((it.deposit_cents || 0) > 0) await c.env.DB.prepare(`UPDATE rentals SET deposit_cents = ?, deposit_status = 'due' WHERE id = ?`).bind(DEPOSIT_CENTS, rid).run();
+  /* every rental: a deposit hold at pickup for the item's value, set by AI in the background ~1h after listing (value.ts). The request never waits on the AI: no value yet → an estimate from the daily price. The card is saved at checkout for the hold */
+  const val = await holdFor(c.env, it);
+  await c.env.DB.prepare(`UPDATE rentals SET deposit_cents = ?, deposit_status = 'due' WHERE id = ?`).bind(val.cents, rid).run();
+  await logEvent(c.env.DB, 'rental.deposit_set', { user: u.id, rental: rid, listing: it.id, cents: val.cents, data: { src: val.src, capped: val.capped } });
   const r = (await rentalById(c.env.DB, rid))!;
   const url = await createCheckout(c.env, r, it, u);
   if (url) return c.redirect(url, 303);
@@ -62,9 +66,9 @@ rentals.post('/i/:id/rent', async (c) => {
 
 // ---------- Rental page ----------
 // Community agreement: the customer's promise to the owner (prototype "Your promise to …"), signed before pickup
-const PROMISES = (owner: string) => [
+const PROMISES = (owner: string, dep?: string) => [
   `I’ll be on time. If I’m running late, I’ll text ${owner}`,
-  `I’ll treat it like my neighbor’s and bring it back clean and working. If I break or lose it, I’ll pay to fix or replace it`,
+  `I’ll treat it like my neighbor’s and bring it back clean and working. If I break or lose it, I’ll pay to fix or replace it${dep ? `, up to the ${dep} hold on my card. If ${owner} and I disagree, Lendo’s AI decides from the photos and what we each say, and we both go with it` : ''}`,
   `I use it at my own risk. ${owner} and Lendo aren’t responsible if I get hurt`,
 ];
 
@@ -106,7 +110,8 @@ rentals.get('/r/:id', requireUser, async (c) => {
   const other = (await userById(c.env.DB, isOwner ? r.renter_id : r.owner_id))!;
   const owner = isOwner ? u : other;
   const it = (await listingById(c.env.DB, r.listing_id))!;
-  /* $150 hold: owner opening the pickup on/after pickup day places it, so they see "OK to hand over" before letting go */
+  const cl = await claimFor(c.env, r.id);
+  /* deposit hold: owner opening the pickup on/after pickup day places it, so they see "OK to hand over" before letting go */
   if (isOwner && r.status === 'confirmed' && r.deposit_status === 'due' && r.start_day <= localToday(it.lng)) { try { await holdDeposit(c.env, r); Object.assign(r, await rentalById(c.env.DB, r.id)); } catch { /* cron retries */ } }
   const photos = await photosFor(c.env.DB, it.id);
   const msgs = await c.env.DB.prepare(`SELECT m.*, u.name sender_name FROM messages m LEFT JOIN users u ON u.id = m.sender_id WHERE m.rental_id = ?1 OR (?2 != 'inquiry' AND m.rental_id IN (SELECT id FROM rentals WHERE listing_id = ?3 AND renter_id = ?4 AND status = 'inquiry')) ORDER BY m.created_at`).bind(r.id, r.status, r.listing_id, r.renter_id).all<{ id: string; sender_id: string | null; body: string; via: string; created_at: number; sender_name: string | null }>();
@@ -125,7 +130,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
   const chats = await chatList(c.env.DB, u.id);
   const extCells = live && !isOwner && !ox ? Array.from({ length: Math.min(EXT_MAX_DAYS, Math.max(7, extOk.length + 1)) }, (_, i) => addDays(r.end_day, i + 1)) : [];
   return c.html(
-    <Layout title={isOwner ? 'Rental of your ' + it.name : 'Your rental'} user={u} back="/inbox" headerCenter={<span class="sp"></span>} flash={c.req.query('paid') ? (r.status === 'held' ? `Card held. Waiting for ${firstName(owner.name)}.` : null) : null}>
+    <Layout title={isOwner ? 'Rental of your ' + it.name : 'Your rental'} user={u} back="/inbox" headerCenter={<span class="sp"></span>} flash={c.req.query('paid') ? (r.status === 'held' ? `Card held. Waiting for ${firstName(owner.name)}.` : null) : null} flashErr={c.req.query('needphoto') ? 'Take the handover photo first · it shows what was handed over' : undefined}>
       <ChatPick rows={chats} me={u.id} cur={'/r/' + r.id} />
       <div class="rpage">
       <div class="rcard">
@@ -140,7 +145,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
           const tot = money(r.total_cents + xTotal), earn = money(payoutOf(r) + xRent);
           const dep = (r.deposit_cents || 0) > 0 ? money(r.deposit_cents!) : '', dst = r.deposit_status;
           const pickNote = !dep ? null : dst === 'held' || stage >= 2 ? (isOwner ? `✓ ${dep} hold on ${nm}'s card${stage === 1 ? ' · OK to hand over' : ''}` : `✓ ${dep} hold (not a charge) on your card`) : dst === 'failed' ? null : (isOwner ? `${dep} hold goes on ${nm}'s card` : `${dep} hold (not a charge) on your card`);
-          const retNote = !dep ? null : stage === 3 || dst === 'released' ? `✓ ${dep} hold returned` : `${dep} hold returned when it’s back`;
+          const retNote = !dep ? null : dst === 'captured' ? 'hold settled by the decision' : dst === 'released' ? `✓ ${dep} hold released` : stage === 3 && dst === 'held' ? (cl && cl.status !== 'withdrawn' ? `${dep} hold stays until the problem is decided` : `${dep} hold released within 24h`) : stage === 3 ? null : `${dep} hold released after it’s back`;
           /* A · clean list (11/22): one size, each step's detail on its own line, promise is a step, Cancel in a footer */
           const how = stage === 1 && !r.pickup_time ? `set a time with ${nm} in the chat` : stage === 2 && !r.return_time ? `set a return time with ${nm} in the chat` : null;
           const signed = !!r.promise_at, promNow = stage === 1 && !signed;
@@ -217,6 +222,22 @@ rentals.get('/r/:id', requireUser, async (c) => {
 
 
 
+        {/* a problem was reported: both sides get to the claim from here */}
+        {cl && cl.status !== 'withdrawn' ? <a class="card" href={'/r/' + r.id + '/claim'} style="border:2px solid var(--ink);display:block;text-decoration:none;color:inherit">
+          <b>{cl.status === 'final' ? `Decided · ${(cl.final_cents || 0) > 0 ? `${isOwner ? firstName(other.name) + ' owes' : 'you owe'} ${money(cl.final_cents!)}` : 'no charge'}` : isOpen(cl) && cl.status === 'ruled' ? `Decision · ${(cl.award_cents || 0) > 0 ? money(cl.award_cents!) : 'no charge'} · OK it or ask for a second look` : 'Problem reported · being decided'}</b>
+          <div class="hint">{(cl.status === 'response' || cl.status === 'reply') ? (isOwner ? `Waiting for ${firstName(other.name)}’s side` : 'Your turn · add your side') : cl.status === 'rebuttal' ? (isOwner ? 'Your turn · reply' : `Waiting for ${firstName(other.name)}’s reply`) : cl.status === 'final' ? 'Final' : ''} <u>View</u></div>
+        </a> : null}
+        {/* returned: the hold stays 24h so the owner can check the item */}
+        {isOwner && stage === 3 && r.deposit_status === 'held' && !cl ? <div class="card" style="border:2px solid var(--ink)">
+          <b>All good with the {it.name}?</b>
+          <div class="row" style="margin-top:10px;gap:8px">
+            <form method="post" action={'/r/' + r.id + '/allgood'} style="flex:1"><button class="btn pri full" type="submit">All good · release hold</button></form>
+            <a class="btn" href={'/r/' + r.id + '/claim'} style="display:grid;place-items:center;text-decoration:none">Report a problem</a>
+          </div>
+          <div class="hint" style="margin-top:8px">{money(r.deposit_cents || 0)} hold on {firstName(other.name)}’s card releases on its own {fmtT((r.returned_at || r.updated_at) + 24 * 3600e3)}</div>
+        </div> : null}
+        {isOwner && !cl && canOpen(r, it) === 'not_returned' ? <a class="hint" href={'/r/' + r.id + '/claim'} style="display:block;text-align:center;font-weight:700;color:#b3261e">Not back yet? Report it</a> : null}
+
         {/* community agreement: customer signs once confirmed; owner sees status + a copy */}
         {!dead && stage >= 1 ? (() => {
           const ow = firstName(owner.name) || 'the owner', cu = firstName(isOwner ? other.name : u.name) || 'Customer';
@@ -225,7 +246,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
             <dialog id="promView" class="psheet"><div class="psheet-in">
               <div class="psheet-h"><b>{isOwner ? `${cu}’s promise to you` : `Your promise to ${ow}`}</b><button type="button" class="psheet-x" aria-label="Close" onclick="this.closest('dialog').close()" dangerouslySetInnerHTML={{ __html: X_SVG }} /></div>
               <div class="hint">{it.name} · {fmtRange(r.start_day, r.end_day)}</div>
-              <div class="plist">{PROMISES(ow).map(t => <div class="prom"><span class="pbox on">✓</span><span>{t}</span></div>)}</div>
+              <div class="plist">{PROMISES(ow, (r.deposit_cents || 0) > 0 ? money(r.deposit_cents!) : undefined).map(t => <div class="prom"><span class="pbox on">✓</span><span>{t}</span></div>)}</div>
               <div class="psig">{r.promise_sig ? <img src={'/p/' + r.promise_sig} alt="Signature" /> : null}<div class="hint row" style="justify-content:space-between"><span>Signed by {isOwner ? cu : 'you'}</span><span>{when}</span></div></div>
               <div class="hint" style="text-align:center;margin-top:8px">{isOwner ? 'You have a copy' : `${ow} has a copy too`}</div>
             </div></dialog>
@@ -237,7 +258,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
             <dialog id="promSign" class="psheet"><form method="post" action={'/r/' + r.id + '/promise'} class="psheet-in" id="promForm">
               <div class="psheet-h"><b>Your promise to {ow}</b><button type="button" class="psheet-x" aria-label="Close" onclick="this.closest('dialog').close()" dangerouslySetInnerHTML={{ __html: X_SVG }} /></div>
               <div class="hint">Neighbor to neighbor. Tap each one</div>
-              <div class="plist">{PROMISES(ow).map((t, i) => <label class="prom"><input type="checkbox" name={'p' + i} required /><span class="pbox"></span><span>{t}</span></label>)}</div>
+              <div class="plist">{PROMISES(ow, (r.deposit_cents || 0) > 0 ? money(r.deposit_cents!) : undefined).map((t, i) => <label class="prom"><input type="checkbox" name={'p' + i} required /><span class="pbox"></span><span>{t}</span></label>)}</div>
               <div class="psig"><div class="row" style="justify-content:space-between;align-items:center"><b style="font-size:13px">Sign with your finger</b><button type="button" class="btn sm" id="sigClear" style="height:30px">Clear</button></div>
                 <canvas id="sigpad" width="640" height="200" aria-label="Signature pad"></canvas>
                 <div class="hint">Your finger signature is your signature</div></div>
@@ -275,7 +296,7 @@ f.addEventListener('change',ok);f.addEventListener('submit',function(){document.
             <button class="btn pri full" type="submit" style="margin-top:8px">Rate</button>
           </form>
         ) : myRating ? <div class="hint">You gave {myRating >= 3 ? '👍' : '👎'}</div> : null}
-        {isOwner && (r.status === 'returned' || r.status === 'closed') ? <div class="flagrow" style="justify-content:flex-start"><Flag kind="rental" target={r.id} rental={r.id} back={'/r/' + r.id} user={u} label="Problem with the return?" /></div> : null}
+        {isOwner && (r.status === 'returned' || r.status === 'closed') && !cl && r.deposit_status !== 'held' ? <div class="flagrow" style="justify-content:flex-start"><Flag kind="rental" target={r.id} rental={r.id} back={'/r/' + r.id} user={u} label="Problem with the return?" /></div> : null}
 
       </div>
         <div class="msgs">
@@ -298,7 +319,7 @@ f.addEventListener('change',ok);f.addEventListener('submit',function(){document.
           {stage === 1 || stage === 2 ? <div class="rchips">
             {isOwner ? <>
               <form method="post" action={'/r/' + r.id + (stage === 1 ? '/pickup' : '/return')} enctype="multipart/form-data"><label class="rchip hot">📷 {stage === 1 ? 'Handed over' : 'Got it back'}<input type="file" name="photo" accept="image/*" capture="environment" hidden onchange="this.form.submit()" /></label></form>
-              <form method="post" action={'/r/' + r.id + (stage === 1 ? '/pickup' : '/return')} enctype="multipart/form-data" onsubmit={`return confirm('${stage === 1 ? 'Mark picked up' : 'Mark returned'} without a photo?')`}><button class="rchip" type="submit">✓ No photo</button></form>
+              {stage === 1 && (r.deposit_cents || 0) > HIGH_CENTS ? null : <form method="post" action={'/r/' + r.id + (stage === 1 ? '/pickup' : '/return')} enctype="multipart/form-data" onsubmit={`return confirm('${stage === 1 ? 'Mark picked up' : 'Mark returned'} without a photo?')`}><button class="rchip" type="submit">✓ No photo</button></form>}
             </> : null}
             {meetDue(stage === 1 ? r.start_day : backDay(r.end_day), stage === 1 ? r.pickup_time : r.return_time || r.pickup_time, it.lng) ? <><span class="qrlbl">Tap to send</span><a class="rchip qr sms-only" href={smsHref(c.env, "I'm here")} style="text-decoration:none">👋 “I’m here” <i aria-hidden="true">↑</i></a><form method="post" action={'/r/' + r.id + '/msg'} class="web-only"><input type="hidden" name="body" value="I'm here" /><button class="rchip qr" type="submit">👋 “I’m here” <i aria-hidden="true">↑</i></button></form></> : null}
 
@@ -421,7 +442,14 @@ rentals.post('/r/:id/promise', requireUser, async (c) => {
   return c.redirect('/r/' + r.id);
 });
 
-/* $150 hold: owner retries a hold that didn't take; customer adds a card for it */
+/* owner checked the returned item: release the hold now */
+rentals.post('/r/:id/allgood', requireUser, async (c) => {
+  const u = c.get('user')!; const r = await rentalById(c.env.DB, c.req.param('id'));
+  if (!r || r.owner_id !== u.id) return c.notFound();
+  await allGood(c.env, r, 'owner');
+  return c.redirect('/r/' + r.id);
+});
+/* deposit hold: owner retries a hold that didn't take; customer adds a card for it */
 rentals.post('/r/:id/hold', requireUser, async (c) => {
   const u = c.get('user')!; const r = await rentalById(c.env.DB, c.req.param('id'));
   if (!r || r.owner_id !== u.id) return c.notFound();
@@ -438,7 +466,10 @@ rentals.get('/r/:id/card', requireUser, async (c) => {
 rentals.post('/r/:id/pickup', requireUser, async (c) => {
   const u = c.get('user')!; const r = await rentalById(c.env.DB, c.req.param('id'));
   if (!r || r.owner_id !== u.id) return c.notFound();
-  await pickedUp(c.env, r, await savePhoto(c, r, 'pickup'));
+  const photo = await savePhoto(c, r, 'pickup');
+  /* a hold over $500 needs the handover photo: it's the proof of what was handed over, and in what shape */
+  if (!photo && (r.deposit_cents || 0) > HIGH_CENTS && r.status === 'confirmed') return c.redirect('/r/' + r.id + '?needphoto=1');
+  await pickedUp(c.env, r, photo);
   return c.redirect('/r/' + r.id);
 });
 rentals.post('/r/:id/return', requireUser, async (c) => {

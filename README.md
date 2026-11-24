@@ -76,4 +76,4 @@ Then:
 Local dev note: the Workers AI binding (`AI`, used for item avatars) needs Cloudflare auth even locally — `npx wrangler login` once, or `CLOUDFLARE_API_TOKEN=…`. Everything else runs offline with blank keys.
 
 ## Not in v1 (on purpose)
-Admin tools · neighborhood promo payouts ($1/item) · FaceTime owner check · nudges/milestone texts (schema has `category`, no sender yet) · deposits · disputes/refunds UI · write API keys · email · search ranking beyond LIKE.
+Admin tools · neighborhood promo payouts ($1/item) · FaceTime owner check · nudges/milestone texts (schema has `category`, no sender yet) · write API keys · email · search ranking beyond LIKE.

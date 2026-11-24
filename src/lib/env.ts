@@ -49,6 +49,7 @@ export type User = {
 export type Listing = {
   id: string; owner_id: string; name: string; description: string | null; price_cents: number; week_cents: number | null;
   deposit_cents: number; status: 'live' | 'paused' | 'review' | 'removed'; paused_why?: string | null; stock_photo?: number; hood: string | null; hood_id: string | null; lat: number | null; lng: number | null; emoji: string | null; avatar_key: string | null; avatar_style: string | null; demo: number; created_at: number; grade?: string;
+  value_cents?: number | null; value_why?: string | null; value_src?: 'ai' | 'appeal' | 'est' | null; value_at?: number | null; value_appeal?: string | null; value_nudged?: number; issues?: string | null; /* issues: what's wrong with it, asked when the grade isn't A */ /* item value = deposit hold, set by AI */
 };
 
 export type Rental = {
@@ -62,7 +63,20 @@ export type Rental = {
   renter_rating: number | null; renter_review: string | null; owner_rating: number | null; owner_review: string | null;
   created_at: number; updated_at: number; expires_at: number | null;
   held_at: number | null; owner_nudges: number; alts: string | null; credit_cents: number; list_rent_cents: number | null; late_cancel: number; tax_cents: number; payout_cents: number | null; tax_rate: number;
-  deposit_cents?: number; deposit_pi?: string | null; deposit_status?: 'due' | 'held' | 'failed' | 'released' | null; deposit_at?: number | null; stripe_customer?: string | null; stripe_pm?: string | null;
+  deposit_cents?: number; deposit_pi?: string | null; deposit_status?: 'due' | 'held' | 'failed' | 'released' | 'captured' | null; returned_at?: number | null; deposit_at?: number | null; stripe_customer?: string | null; stripe_pm?: string | null;
 };
+
+// A problem with a rental, decided by AI. One per rental.
+export type ClaimStatus = 'response' | 'rebuttal' | 'reply' | 'judging' | 'ruled' | 'reviewing' | 'final' | 'withdrawn';
+export type Claim = {
+  id: string; rental_id: string; listing_id: string; owner_id: string; customer_id: string; kind: 'damage' | 'missing' | 'not_returned' | 'other';
+  status: ClaimStatus; deposit_cents: number; step_due: number | null;
+  award_cents: number | null; ruling: string | null; ruled_at: number | null; review_due: number | null; owner_ok: number; customer_ok: number;
+  final_cents: number | null; final: string | null; final_at: number | null; settled_at: number | null;
+  collected_cents: number; collect_how: 'hold' | 'card' | 'none' | null; collect_pi: string | null; owner_due_cents: number; paid_out: number; payout_ok: number; payout_by: string | null; payout_at: number | null; tries: number;
+  cb_id: string | null; cb_status: string | null; cb_cents: number | null; cb_evidence_at: number | null; lendo_loss_cents: number; owner_excess_cents: number;
+  created_at: number; updated_at: number;
+};
+export type ClaimEntry = { id: string; claim_id: string; who: 'owner' | 'customer' | 'ai'; step: string; body: string | null; photos: string | null; at: number };
 
 export type Vars = { user: User | null };
