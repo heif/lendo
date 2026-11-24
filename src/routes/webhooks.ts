@@ -168,7 +168,9 @@ export async function handleText(c: Context<{ Bindings: Env; Variables: Vars }>,
   }
   if (kw === 'STOP' || kw === 'UNSUBSCRIBE' || kw === 'CANCEL') {
     /* Twilio (SMS) sends its own STOP confirmation; the iMessage line needs one from Lendo */
-    if (via === 'text' && !(user as any).android) await textUser(c.env, user, `Lendo: you're unsubscribed and won't get more texts. Reply START to resubscribe`, 'rental').catch(() => null);
+    /* a lone "cancel" is a carrier opt-out word: honor it, but if they have a rental, say how to cancel that instead */
+    const rc = kw === 'CANCEL' ? await activeRentalFor(c.env, user.id).catch(() => null) : null;
+    if (via === 'text' && !(user as any).android) await textUser(c.env, user, `Lendo: you're unsubscribed and won't get more texts. Reply START to resubscribe${rc ? ` · To cancel your rental instead: ${c.env.APP_URL}/r/${rc.id}` : ''}`, 'rental').catch(() => null);
     await c.env.DB.prepare('UPDATE users SET texts = 0, nudges = 0 WHERE id = ?').bind(user.id).run();
     return c.json({ ok: true });
   }
