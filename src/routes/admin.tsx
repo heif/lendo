@@ -1,4 +1,5 @@
 import { setUserWhere } from '../lib/where';
+import { emailUser, emailOn, validEmail } from '../lib/email';
 import type { MiddlewareHandler } from 'hono';
 // Admin (allowlisted phones only): pricing rules + identification test.
 import { Hono } from 'hono';
@@ -37,6 +38,13 @@ admin.post('/admin/users/:id/keeplive', async (c) => {
   const r = await c.env.DB.prepare(`UPDATE listings SET status = 'live', paused_why = 'keep' WHERE owner_id = ? AND (paused_why = 'notext' OR (status = 'live' AND paused_why IS NULL))`).bind(uid).run();
   await logEvent(c.env.DB, 'admin.keeplive', { user: c.get('user')!.id, data: { owner: uid, n: r.meta.changes } });
   return c.redirect('/admin/users');
+});
+/* send one test email (checks the Resend key + lendo.co sending domain) */
+admin.post('/admin/email-test', async (c) => {
+  const f = await c.req.parseBody(); const to = String(f.to || '').trim().toLowerCase();
+  if (!validEmail(to)) return c.json({ ok: false, error: 'bad email' }, 400);
+  const r = await emailUser(c.env, { ...c.get('user')!, email: to }, 'Maya wants your ladder · Sat–Sun (test)', ['Maya (Chelsea) asked to rent your Louisville ladder, Sat to Sun. You’d earn $15.30', 'This is a test from Lendo admin'], [{ label: 'YES', url: c.env.APP_URL, pri: true }, { label: 'NO', url: c.env.APP_URL }], 'Sent as a test from Lendo admin');
+  return c.json({ ...r, key: emailOn(c.env) });
 });
 /* set where someone's things are (cross streets / ZIP), and put their no-location listings on the map */
 admin.post('/admin/users/:id/where', async (c) => {
