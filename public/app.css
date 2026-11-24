@@ -934,3 +934,8 @@ header h1.sr,.sr{position:absolute!important;width:1px;height:1px;overflow:hidde
 .days.av button.busy i{color:#8A857B}
 .days.av button.today{border:2.5px solid var(--ink)}
 .days.av button.busy{background:#DCE5DF;border-color:#DCE5DF;color:var(--ink)}.days.av button.busy b{text-decoration:none}.days.av button.busy i{color:var(--ink)}
+
+/* optional rental-texts checkbox on /login (Twilio 10DLC) */
+.smsopt{display:flex;gap:10px;align-items:flex-start;margin:2px 0 14px;cursor:pointer}
+.smsopt input{flex:none;width:24px;height:24px;margin:1px 0 0;accent-color:var(--ink);cursor:pointer}
+.smsopt b{display:block;font-size:15px;font-weight:800}.smsopt small{display:block;font-size:12.5px;font-weight:600;color:var(--mute);line-height:1.4;margin-top:3px}

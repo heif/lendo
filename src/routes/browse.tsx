@@ -574,14 +574,15 @@ browse.get('/sms', (c) => {
       <section class="sec" style="border-bottom:0;font-size:15px;line-height:1.5">
         <h2 style="font-size:26px;font-weight:900;letter-spacing:-.02em;margin:0 0 4px">Lendo texts: how to opt in</h2>
         <p class="hint" style="margin:0">Lendo · lendo.co · neighbor-to-neighbor rentals</p>
-        <p style="margin:12px 0 0">Lendo texts login codes, rental requests (reply YES or NO), pickup and return updates, payment notices, and search alerts users turn on. People opt in one of two ways</p>
-        <h3 style={H2}>1. On lendo.co</h3>
+        <p style="margin:12px 0 0">Lendo texts login codes people request, and, only to people who opt in, rental requests (reply YES or NO), pickup and return updates, payment notices, and search alerts they turn on. Rental texts are optional and never required to use Lendo. People opt in one of two ways</p>
+        <h3 style={H2}>1. On lendo.co (optional checkbox)</h3>
         <ul style={UL}>
-          <li>At <a href="/login">lendo.co/login</a>, a person types their mobile number and taps <b>Text me a code</b></li>
-          <li>Right under the button: “By tapping Text me a code, you agree to get texts from Lendo: login codes, rental updates and alerts you turn on · msg frequency varies · msg &amp; data rates may apply · reply STOP to opt out, HELP for help · numbers never shared or sold · Privacy · Terms”</li>
-          <li>Phone fields elsewhere on lendo.co open a “Get texts from Lendo?” box with the same terms and an <b>Agree</b> button</li>
+          <li>At <a href="/login">lendo.co/login</a>, a person types their mobile number to get a one-time login code they asked for</li>
+          <li>Under the number is a separate checkbox, <b>unchecked by default</b>: “Text me rental updates (optional) · Requests, YES/NO, pickup and return · msg frequency varies · msg &amp; data rates may apply · reply STOP to opt out, HELP for help”</li>
+          <li>Checking it is not required. People who leave it unchecked can still log in, list, rent and use every feature; their updates come by email and on lendo.co, and Lendo texts them only the login codes they request</li>
+          <li>Each opt-in is recorded with the time, method and device</li>
         </ul>
-        <img src="/optin-login.png" alt="lendo.co/login: phone number field, Text me a code button, and the texting terms under it" style="display:block;width:100%;max-width:320px;margin:12px 0;border:3px solid #1E3A2B;border-radius:18px" />
+        <img src="/optin-login.png" alt="lendo.co/login: phone number field, an unchecked optional checkbox for rental update texts with the texting terms, and the Text me a code button" style="display:block;width:100%;max-width:320px;margin:12px 0;border:3px solid #1E3A2B;border-radius:18px" />
         <h3 style={H2}>2. By texting Lendo first</h3>
         <ul style={UL}>
           <li>A person texts Lendo at {nice} (for example from a sign or a friend’s link)</li>

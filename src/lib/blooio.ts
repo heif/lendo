@@ -48,6 +48,9 @@ export async function textStreak(env: Env, uid: string): Promise<number> {
 // Text a user and log it so the Inbox page shows "what we text you".
 export async function textUser(env: Env, user: User, text: string, category: TextCategory, rentalId?: string) {
   // eslint-disable-next-line no-param-reassign
+  /* left the optional rental-texts box unchecked (Twilio 10DLC): only login codes; the rest stays in the web inbox (+ email when built) */
+  if (user.sms_ok === 0 && category !== 'login') { await logEvent(env.DB, 'text.suppressed', { user: user.id, rental: rentalId, data: { category, why: 'no text opt-in', body: text.slice(0, 300) } });
+    await env.DB.prepare('INSERT INTO outbound_texts (id, user_id, body, category, rental_id, provider_id, created_at) VALUES (?,?,?,?,?,?,?)').bind(id('t'), user.id, text, category, rentalId ?? null, null, now()).run(); return { ok: false, error: 'optout' }; }
   if ((category === 'nudge' && !user.nudges) || (!user.texts && category !== 'login')) { await logEvent(env.DB, 'text.suppressed', { user: user.id, rental: rentalId, data: { category, why: !user.texts ? 'STOP' : 'nudges off', body: text.slice(0, 300) } }); return; }
   // Until they've texted us once, iOS tends to spam-filter messages with links from an unknown number,
   // and Blooio allows only 3 outbound on a new conversation. So: no links, and ask for a reply.

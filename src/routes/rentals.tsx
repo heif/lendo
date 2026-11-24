@@ -121,7 +121,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
   const xRent = xs?.rent || 0, xTotal = xs?.total || 0;
   const ox = live ? await openExt(c.env, r.id) : null;
   const extOk = live && !isOwner && !ox ? await extendableDays(c.env, r) : [];
-  const paused = (await textStreak(c.env, u.id)) >= STREAK_MAX;
+  const paused = u.sms_ok === 0 || (await textStreak(c.env, u.id)) >= STREAK_MAX; /* texts off (unchecked at signup) shows the same 'text OK' turn-on */
   const chats = await chatList(c.env.DB, u.id);
   const extCells = live && !isOwner && !ox ? Array.from({ length: Math.min(EXT_MAX_DAYS, Math.max(7, extOk.length + 1)) }, (_, i) => addDays(r.end_day, i + 1)) : [];
   return c.html(
@@ -569,7 +569,7 @@ rentals.get('/inbox', requireUser, async (c) => {
   const wname = wrows.length ? firstName(wrows[0].owner_id === wid ? wrows[0].owner_name : wrows[0].renter_name) : '';
   const wmsgs = wrows.length ? (await c.env.DB.prepare(`SELECT sender_id, body, rental_id, created_at FROM messages WHERE rental_id IN (${wrows.map(() => '?').join(',')}) ORDER BY created_at`).bind(...wrows.map(r => r.id)).all<{ sender_id: string | null; body: string; rental_id: string; created_at: number }>()).results : [];
   const itemOf = (rid: string) => wrows.find(r => r.id === rid)?.item || '';
-  const paused = (await textStreak(c.env, u.id)) >= STREAK_MAX;
+  const paused = u.sms_ok === 0 || (await textStreak(c.env, u.id)) >= STREAK_MAX; /* texts off (unchecked at signup) shows the same 'text OK' turn-on */
   const fmtT = (t: number) => new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
   return c.html(
     <Layout title="Chats" user={u} headerCenter={<span class="sp"></span>}>

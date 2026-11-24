@@ -109,7 +109,7 @@ async function inboundText(c: Context<{ Bindings: Env; Variables: Vars }>, phone
     if (!/^\+1\d{10}$/.test(phone) || kw === 'STOP' || kw === 'HELP') return c.json({ ok: true, unknown: true });
     /* a new person texting first (gift card button, Text Lendo bar): they're in — account by phone, texted login link */
     const nu = await ensureUser(c.env.DB, phone);
-    await c.env.DB.prepare('UPDATE users SET replied = 1, android = ? WHERE id = ?').bind(sms ? 1 : 0, nu.id).run(); nu.replied = 1; if (sms) (nu as any).android = 1;
+    await c.env.DB.prepare('UPDATE users SET replied = 1, android = ? WHERE id = ?').bind(sms ? 1 : 0, nu.id).run(); await c.env.DB.prepare('UPDATE users SET sms_ok = 1 WHERE id = ?').bind(nu.id).run().catch(() => 0); await logEvent(c.env.DB, 'sms.optin', { user: nu.id, data: { via: 'texted Lendo first' } }); nu.replied = 1; if (sms) (nu as any).android = 1;
     await logEvent(c.env.DB, 'user.signup', { user: nu.id, data: { via: 'text' } });
     const gift = /\$5|gift/i.test(text), giftVar = /off rental/i.test(text) ? 'a' : 'b'; /* A/B: "$5 off rental" vs "$5 gift card" */
     if (gift) await logEvent(c.env.DB, 'ab.gift5', { user: nu.id, data: { ev: 'claim', var: giftVar, via: 'text' } });
@@ -137,6 +137,8 @@ export async function handleText(c: Context<{ Bindings: Env; Variables: Vars }>,
   await c.env.DB.prepare('INSERT INTO inbound_texts (id, user_id, body, via, created_at) VALUES (?,?,?,?,?)').bind(crypto.randomUUID(), user.id, text.slice(0, 500), via, Date.now()).run().catch(() => {});
   if (!user.replied && via === 'text') { await c.env.DB.prepare('UPDATE users SET replied = 1 WHERE id = ?').bind(user.id).run(); user.replied = 1; }
   if (via === 'text') await unpauseTexted(c.env.DB, user.id).catch(() => 0);
+  /* texting Lendo turns rental texts on (documented opt-in method 2 at lendo.co/sms) — but never after STOP, which has its own START */
+  if (via === 'text' && user.sms_ok === 0 && user.texts && !/^(STOP|UNSUBSCRIBE|CANCEL|END|QUIT|STOPALL)$/.test(kw)) { await c.env.DB.prepare('UPDATE users SET sms_ok = 1 WHERE id = ?').bind(user.id).run().catch(() => 0); user.sms_ok = 1; await logEvent(c.env.DB, 'sms.optin', { user: user.id, data: { via: 'texted Lendo', body: text.slice(0, 60) } }); }
   if (kw === 'OK' || kw === 'OKAY' || kw === 'K' || kw === 'GOT IT' || kw === 'THANKS' || kw === 'THANK YOU') {
     /* OK to a Lendo confirm ask = acknowledged; no reply (the inbound text already reset Blooio's count) */
     const last = await c.env.DB.prepare(`SELECT body FROM outbound_texts WHERE user_id = ? ORDER BY created_at DESC LIMIT 1`).bind(user.id).first<{ body: string }>().catch(() => null);

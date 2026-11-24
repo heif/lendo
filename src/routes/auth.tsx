@@ -1,12 +1,12 @@
 import { twilioSmsOn } from '../lib/twiliosms';
 import { raw } from 'hono/html';
 import { Hono } from 'hono';
-import { logEvent } from '../lib/log';
+import { logEvent, logErr } from '../lib/log';
 import { PhotoField, saveUserPhoto } from '../lib/userphoto';
 import type { Env, Vars } from '../lib/env';
 import { Layout } from '../pages/layout';
 import { startLogin, finishLogin, logout, smsFallback, useLoginLink } from '../lib/auth';
-import { normPhone, prettyPhone } from '../lib/util';
+import { normPhone, prettyPhone, now } from '../lib/util';
 import { ensureUser } from '../lib/db';
 import { sendRaw, smsHref } from '../lib/blooio';
 import { setCookie, getCookie } from 'hono/cookie';
@@ -25,8 +25,10 @@ auth.get('/login', (c) => {
         <h2 style="margin:0 0 10px;font-size:24px;font-weight:900;letter-spacing:-.02em">Your phone number</h2>
         <input type="hidden" name="next" value={next} />
         <label class="field"><span>Phone</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(646) 555-0199" required autofocus /></label>
+        {/* rental texts are optional (Twilio 10DLC): unchecked by default; the login code is a one-time text the person asks for */}
+        <label class="smsopt"><input type="checkbox" name="sms_ok" value="1" /><span><b>Text me rental updates (optional)</b><small>Requests, YES/NO, pickup and return · msg frequency varies · msg &amp; data rates may apply · reply STOP to opt out, HELP for help</small></span></label>
         <button class="btn pri full" type="submit">Text me a code</button>
-        <p class="hint" style="margin-top:14px;line-height:1.45">By tapping Text me a code, you agree to get texts from Lendo: login codes, rental updates and alerts you turn on · msg frequency varies · msg &amp; data rates may apply · reply STOP to opt out, HELP for help · numbers never shared or sold · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
+        <p class="hint" style="margin-top:14px;line-height:1.45">Lendo texts your one-time login code. Without rental texts, updates come by email and on lendo.co · numbers never shared or sold · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
       </form>
     </Layout>
   );
@@ -45,12 +47,12 @@ auth.post('/login', async (c) => {
         <h2 style="margin:0 0 6px;font-size:24px;font-weight:900;letter-spacing:-.02em">Check your texts</h2>
         <p class="hint" style="margin:0 0 10px">Sent to {prettyPhone(phone)}{r.devCode ? <b> DEV MODE — code is {r.devCode}</b> : null}</p>
         {r.note ? <p class="hint" style="margin:-4px 0 10px;color:#B33A00">{r.note}</p> : null}
-        <input type="hidden" name="phone" value={phone} /><input type="hidden" name="next" value={next} />
+        <input type="hidden" name="phone" value={phone} /><input type="hidden" name="next" value={next} />{f.sms_ok ? <input type="hidden" name="sms_ok" value="1" /> : null}
         <label class="field"><span>6-digit code</span><input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength={6} required autofocus style="letter-spacing:.3em;font-size:22px!important;height:56px" /></label>
         <button class="btn pri full" type="submit">Continue</button>
       </form>
-      <form method="post" action="/login" style="padding:0 16px 10px"><input type="hidden" name="phone" value={phone} /><input type="hidden" name="next" value={next} /><button class="btn full" type="submit">Text me a new code</button></form>
-      {smsFallback(c.env) && f.via !== 'sms' ? <form method="post" action="/login" style="padding:0 16px"><input type="hidden" name="phone" value={phone} /><input type="hidden" name="next" value={next} /><input type="hidden" name="via" value="sms" /><button class="btn full" type="submit">No text after a minute? Send it by SMS</button></form> : null}
+      <form method="post" action="/login" style="padding:0 16px 10px"><input type="hidden" name="phone" value={phone} /><input type="hidden" name="next" value={next} />{f.sms_ok ? <input type="hidden" name="sms_ok" value="1" /> : null}<button class="btn full" type="submit">Text me a new code</button></form>
+      {smsFallback(c.env) && f.via !== 'sms' ? <form method="post" action="/login" style="padding:0 16px"><input type="hidden" name="phone" value={phone} /><input type="hidden" name="next" value={next} />{f.sms_ok ? <input type="hidden" name="sms_ok" value="1" /> : null}<input type="hidden" name="via" value="sms" /><button class="btn full" type="submit">No text after a minute? Send it by SMS</button></form> : null}
     </Layout>
   );
 });
@@ -61,14 +63,19 @@ auth.post('/login/verify', async (c) => {
   const next = safeNext(String(f.next || '/'));
   if (!phone) return c.redirect('/login');
   const u = await finishLogin(c, phone, String(f.code || ''));
+  if (u) try {
+    /* record the rental-text choice: checked → on (logged as consent); unchecked → off only for a brand-new account (older accounts keep what they had) */
+    if (f.sms_ok) { if (u.sms_ok !== 1) { await c.env.DB.prepare('UPDATE users SET sms_ok = 1 WHERE id = ?').bind(u.id).run(); await logEvent(c.env.DB, 'sms.optin', { user: u.id, data: { via: 'login checkbox', ip: c.req.header('cf-connecting-ip') || null, ua: (c.req.header('user-agent') || '').slice(0, 160) } }); } }
+    else if (u.sms_ok == null && now() - (u.created_at || 0) < 15 * 60e3) { await c.env.DB.prepare('UPDATE users SET sms_ok = 0 WHERE id = ?').bind(u.id).run(); await logEvent(c.env.DB, 'sms.optin_skipped', { user: u.id, data: { via: 'login checkbox' } }); }
+  } catch (e) { await logErr(c.env.DB, 'sms_ok save', e); } /* column arrives with the next cron self-migrate; never block login */
   if (!u) return c.html(
     <Layout title="Enter code" user={null} back="/login" flashErr="That code didn't match — check the latest text and try again">
       <form method="post" action="/login/verify" style="padding:20px 16px">
-        <input type="hidden" name="phone" value={phone} /><input type="hidden" name="next" value={next} />
+        <input type="hidden" name="phone" value={phone} /><input type="hidden" name="next" value={next} />{f.sms_ok ? <input type="hidden" name="sms_ok" value="1" /> : null}
         <label class="field"><span>6-digit code</span><input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength={6} required autofocus style="letter-spacing:.3em;font-size:22px!important;height:56px" /></label>
         <button class="btn pri full" type="submit">Continue</button>
       </form>
-      <form method="post" action="/login" style="padding:0 16px"><input type="hidden" name="phone" value={phone} /><input type="hidden" name="next" value={next} /><button class="btn full" type="submit">Text me a new code</button></form>
+      <form method="post" action="/login" style="padding:0 16px"><input type="hidden" name="phone" value={phone} /><input type="hidden" name="next" value={next} />{f.sms_ok ? <input type="hidden" name="sms_ok" value="1" /> : null}<button class="btn full" type="submit">Text me a new code</button></form>
     </Layout>, 400);
   if (!u.name) return c.redirect('/welcome?next=' + encodeURIComponent(next));
   return c.redirect(next);
