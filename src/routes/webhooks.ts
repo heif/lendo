@@ -9,6 +9,7 @@ import type Stripe from 'stripe';
 import type { Env, Rental, User, Vars } from '../lib/env';
 import { cardFromSetup, rememberCard, stripe } from '../lib/stripe';
 import { parseInbound, textUser } from '../lib/blooio';
+import { linqParse, linqVerify } from '../lib/linq';
 import { ensureUser, rentalById, unpauseTexted, userByPhone } from '../lib/db';
 import { loginLink } from '../lib/auth';
 import { accept, activeRentalFor, decline, holdDeposit, markHeld, relay } from '../lib/rentals';
@@ -89,6 +90,25 @@ async function blooioInbound(c: Context<{ Bindings: Env; Variables: Vars }>) {
   if (!m) return c.json({ ok: true, ignored: 'no sender' });
   return inboundText(c, normPhone(m.from) || m.from, m.text, false);
 }
+/* Linq: iMessage/RCS/SMS in one; same handling as Blooio. Subscribe message.received (+ delivery events) to https://lendo.co/webhooks/linq */
+webhooks.post('/webhooks/linq', async (c) => {
+  try {
+    const raw = await c.req.text();
+    if (c.env.LINQ_WEBHOOK_SECRET && !(await linqVerify(c.env.LINQ_WEBHOOK_SECRET, k => c.req.header(k), raw))) return c.text('bad signature', 401);
+    let j: any; try { j = JSON.parse(raw); } catch { return c.text('bad json', 400); }
+    const m = linqParse(j);
+    if (!m) return c.json({ ok: true });
+    /* at-least-once delivery: drop repeats by event id */
+    const eid = String(j.event_id || ''); if (eid) { const seen = await c.env.DB.prepare('SELECT 1 FROM events WHERE kind = ? AND data = ? LIMIT 1').bind('linq.event', eid).first().catch(() => null); if (seen) return c.json({ ok: true, dup: true }); await logEvent(c.env.DB, 'linq.event', { data: eid }); }
+    if (m.event !== 'message.received') {
+      if (m.event.startsWith('message.')) { const d = j.data || {}; await logEvent(c.env.DB, 'text.status', { data: { status: m.event.slice(8), id: d.id || d.message_id || d.message?.id || null, err: d.error || d.error_message || d.reason || null, via: d.service || null } }); }
+      return c.json({ ok: true, logged: m.event });
+    }
+    c.executionCtx.waitUntil(c.env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('last_inbound', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(JSON.stringify({ t: Date.now(), ev: 'linq ' + m.event, from: String(m.from).slice(-4), via: m.service || null })).run().then(() => {}));
+    if (m.mine || !m.from || !m.text) return c.json({ ok: true, ignored: true });
+    return inboundText(c, normPhone(m.from) || m.from, m.text, /sms|rcs/i.test(m.service || ''));
+  } catch (e: any) { await logErr(c.env.DB, 'linq inbound', e); return c.json({ ok: false }, 500); }
+});
 /* Android: texts to the Twilio SMS number (form-encoded), same handling as Blooio; replies go back by Twilio */
 webhooks.post('/webhooks/twilio', async (c) => {
   const f = Object.fromEntries(Object.entries(await c.req.parseBody()).map(([k, v]) => [k, String(v)]));

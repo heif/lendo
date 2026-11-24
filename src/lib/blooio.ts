@@ -1,3 +1,4 @@
+import { linqOn, linqSend } from './linq';
 import { sendTwilioSms, twilioSmsOn } from './twiliosms';
 // Blooio — iMessage (falls back to SMS on Blooio's side) for login codes and rental texts.
 // Docs: https://docs.blooio.com  (POST {BASE}/chats/{phone}/messages  { text, attachments? })
@@ -17,6 +18,7 @@ export const GIFT_TEXT = 'Free $5 gift card please';
 export const smsHref = (env: Env, body: string) => `sms:+1${(env.LENDO_NUMBER || '').replace(/\D/g, '').slice(-10)}?&body=${encodeURIComponent(body)}`;
 
 export async function sendRaw(env: Env, phone: string, text: string, attachments?: string[]): Promise<{ ok: boolean; message_id?: string; error?: string }> {
+  if (linqOn(env)) return linqSend(env, phone, text, id('idem'));
   if (!env.BLOOIO_API_KEY) {
     console.log(`[blooio:dev] → ${phone}: ${text}${attachments?.length ? ' [+' + attachments.length + ' attachment]' : ''}`);
     return { ok: true, message_id: 'dev_' + id() };
@@ -55,7 +57,7 @@ export async function textUser(env: Env, user: User, text: string, category: Tex
   // Until they've texted us once, iOS tends to spam-filter messages with links from an unknown number,
   // and Blooio allows only 3 outbound on a new conversation. So: no links, and ask for a reply.
   /* Blooio stops a conversation after 6 texts in a row with no reply (429 streak_limit). The 5th asks for a reply; past 6 we hold instead of failing */
-  if ((user as any).android && twilioSmsOn(env)) {
+  if ((user as any).android && twilioSmsOn(env) && !linqOn(env)) { /* Linq does its own SMS fallback */
     const r2 = await sendTwilioSms(env, user.phone, text.replace(/ ?\(Reply OK to get links \+ updates here\.\)/, ''));
     if (!r2.ok) await logEvent(env.DB, 'text.failed', { user: user.id, rental: rentalId, data: { category, via: 'twilio', err: String(r2.error).slice(0, 300), body: text.slice(0, 300) } });
     await env.DB.prepare('INSERT INTO outbound_texts (id, user_id, body, category, rental_id, provider_id, created_at) VALUES (?,?,?,?,?,?,?)').bind(id('t'), user.id, text, category, rentalId ?? null, r2.message_id ?? null, now()).run();

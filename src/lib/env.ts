@@ -18,6 +18,8 @@ export type Env = {
   STRIPE_WEBHOOK_SECRET?: string;
   BLOOIO_API_KEY?: string;
   BLOOIO_WEBHOOK_SECRET?: string;
+  LINQ_API_KEY?: string;          // set → all texts go through Linq instead of Blooio
+  LINQ_WEBHOOK_SECRET?: string;   // whsec_… from the Linq webhook subscription
   MAPBOX_SECRET_TOKEN?: string;
   TWILIO_ACCOUNT_SID?: string;    // login codes by SMS via Twilio Verify (works on Android / non-iMessage); unset → Blooio
   TWILIO_AUTH_TOKEN?: string;
