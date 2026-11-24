@@ -473,15 +473,23 @@
     var el = hov.getElement(); el.onmouseenter = function () { overPop = true; clearTimeout(hovT); }; el.onmouseleave = function () { overPop = false; if (HOVER) hideHov(); };
     el.onclick = function (ev) { var ol = ev.target.closest('.ownlink'); if (ol) { ev.preventDefault(); location.href = ol.dataset.u; } };
     if (window.lendoTrim) window.lendoTrim();
+    prefetch('/i/' + it.id); /* the grown pin is one tap from the item page: fetch it now so the tap opens instantly */
   }
+  var pre = {};
+  function prefetch(u) { if (pre[u]) return; pre[u] = 1; try { fetch(u, { credentials: 'same-origin', priority: 'low' }).catch(function () {}); } catch (e) {} /* fetch, not <link rel=prefetch>: Safari ignores prefetch links */ }
+  /* tap feedback right away, then go (no waiting on the map's click event) */
+  function go(u) { var im = hov.getElement() && hov.getElement().querySelector('.hv'); if (im) im.classList.add('press'); location.href = u; }
   /* the grown photo lets the mouse through (to reach nearby pins), so clicks on it are caught here → that item's page */
   function photoHit(e) {
     if (!hovId) return false; var im = hov.getElement() && hov.getElement().querySelector('.hv img'); if (!im) return false;
     var r = im.getBoundingClientRect(), x = e.originalEvent.clientX, y = e.originalEvent.clientY;
-    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) { location.href = '/i/' + hovId; return true; }
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) { go('/i/' + hovId); return true; }
     return false;
   }
   if (HOVER) map.on('mousemove', function (e) { if (!hovId) return; var im = hov.getElement() && hov.getElement().querySelector('.hv img'); if (!im) return; var r = im.getBoundingClientRect(), x = e.originalEvent.clientX, y = e.originalEvent.clientY; if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) { map.getCanvas().style.cursor = 'pointer'; clearTimeout(hovT); } });
+  if (!HOVER) { var t0 = null; map.getCanvasContainer().addEventListener('touchstart', function (e) { t0 = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() } : null; }, { passive: true });
+    map.getCanvasContainer().addEventListener('touchend', function (e) { if (!t0 || !hovId || Date.now() - t0.t > 400) return; var c = e.changedTouches[0]; if (Math.abs(c.clientX - t0.x) > 10 || Math.abs(c.clientY - t0.y) > 10) return;
+      var im = hov.getElement() && hov.getElement().querySelector('.hv img'); if (!im) return; var r = im.getBoundingClientRect(); if (c.clientX >= r.left && c.clientX <= r.right && c.clientY >= r.top && c.clientY <= r.bottom) { e.preventDefault(); go('/i/' + hovId); } }); }
   ['pins', 'mini'].forEach(function (l) {
     map.on('click', l, function (e) { if (photoHit(e)) return; var f = e.features[0]; if (HOVER) { location.href = '/i/' + f.properties.id; return; } showHov(f); });
     if (HOVER) { map.on('mousemove', l, function (e) { showHov(e.features[0]); }); map.on('mouseleave', l, hideHov); }

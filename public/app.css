@@ -963,3 +963,6 @@ header h1.sr,.sr{position:absolute!important;width:1px;height:1px;overflow:hidde
   .gpanel:has(.gp-qr) .gp-in{display:none}.gpanel.alt .gp-in{display:flex;width:100%;box-sizing:border-box;height:36px}.gpanel.alt .gp-alt{display:none}
   .gpanel .gp-in input{flex:1;min-width:0;width:auto;font-size:14px}.gpanel .gp-in button{width:36px;flex:none}
 }
+
+/* tapped grown pin: instant press feedback while the item page opens */
+.hovpop .hv.press img{transform:scale(.94);transition:transform .08s}

@@ -280,6 +280,7 @@ browse.get('/saved', async (c) => {
   if (!u) return c.redirect('/login?next=/saved');
   const rows = await c.env.DB.prepare(`SELECT l.* FROM saved s JOIN listings l ON l.id = s.listing_id WHERE s.user_id = ? AND l.status != 'removed' ORDER BY s.created_at DESC`).bind(u.id).all<Listing>();
   const ph = await firstPhotos(c.env.DB, rows.results.map(r => r.id));
+  c.header('cache-control', 'private, max-age=60'); /* map pins prefetch this page; a tap within a minute opens it from cache */
   return c.html(
     <Layout title="Saved" user={u}>
       <div class="itemgrid">
