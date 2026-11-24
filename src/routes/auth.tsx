@@ -32,9 +32,10 @@ auth.get('/login', (c) => {
           <p class="hint" style="margin:10px 0 0">Scan with your phone’s camera, or text <b>OK</b> to {prettyPhone('+1' + num10(c.env))} · tap the link Lendo texts back</p></div>
         <script src="/qrgen.js"></script>
         <script dangerouslySetInnerHTML={{ __html: `(function(){var q=document.getElementById('lgQr');if(!q||!window.qrcode||!matchMedia('(pointer:fine)').matches)return;var qr=qrcode(0,'M');qr.addData(q.dataset.sms);qr.make();var m=qr.getModuleCount(),s=5,pad=2,c=document.createElement('canvas');c.width=c.height=(m+pad*2)*s;var g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.fillStyle='#1E3A2B';for(var r=0;r<m;r++)for(var k=0;k<m;k++)if(qr.isDark(r,k))g.fillRect((k+pad)*s,(r+pad)*s,s,s);q.appendChild(c)})()` }} />
-        <div style="text-align:center;font-weight:900;color:var(--mute);margin:18px 0 0">or use a code</div>
+        <button type="button" class="lg-alt" onclick="var f=document.getElementById('lgCode');f.hidden=false;this.hidden=true;f.querySelector('input[name=phone]').focus()">Another way</button>
       </div> : null}
-      <form method="post" action="/login" style="padding:12px 16px 20px">
+      {/* text-first: the code form opens from "Another way" (open by default with ?code=1, and whenever there is no Lendo number) */}
+      <form method="post" action="/login" id="lgCode" hidden={!!num10(c.env) && c.req.query('code') !== '1'} style="padding:12px 16px 20px">
         <h2 style="margin:0 0 10px;font-size:20px;font-weight:900;letter-spacing:-.02em">Your phone number</h2>
         <input type="hidden" name="next" value={next} />
         <label class="field"><span>Phone</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(646) 555-0199" required /></label>

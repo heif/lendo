@@ -577,7 +577,7 @@ browse.get('/sms', (c) => {
         <p style="margin:12px 0 0">Lendo texts login codes people request, and, only to people who opt in, rental requests (reply YES or NO), pickup and return updates, payment notices, and search alerts they turn on. Rental texts are optional and never required to use Lendo. People opt in one of two ways</p>
         <h3 style={H2}>1. On lendo.co (optional checkbox)</h3>
         <ul style={UL}>
-          <li>At <a href="/login">lendo.co/login</a>, a person types their mobile number to get a one-time login code they asked for</li>
+          <li>At <a href="/login?code=1">lendo.co/login</a> (“Another way”), a person types their mobile number to get a one-time login code they asked for</li>
           <li>Under the number is a separate checkbox, <b>unchecked by default</b>: “Text me rental updates (optional) · Requests, YES/NO, pickup and return · msg frequency varies · msg &amp; data rates may apply · reply STOP to opt out, HELP for help”</li>
           <li>Checking it is not required. People who leave it unchecked can still log in, list, rent and use every feature; their updates come by email and on lendo.co, and Lendo texts them only the login codes they request</li>
           <li>Each opt-in is recorded with the time, method and device</li>
