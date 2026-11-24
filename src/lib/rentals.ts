@@ -122,13 +122,25 @@ export async function pickedUp(env: Env, r: Rental, photoKey: string | null) {
 
 export async function returned(env: Env, r: Rental, photoKey: string | null) {
   if (r.status !== 'picked_up' && r.status !== 'confirmed') return false;
-  await setRentalStatus(env.DB, r.id, 'returned', { return_photo_key: photoKey });
-  if (r.deposit_status === 'held') { await releaseDeposit(env, r); await addMessage(env, r.id, null, `${money(r.deposit_cents!)} hold released`, 'system'); }
+  await setRentalStatus(env.DB, r.id, 'returned', { return_photo_key: photoKey, returned_at: now() });
   const { owner, renter, listing } = await parties(env, r);
   const url = `${env.APP_URL}/r/${r.id}`;
-  await addMessage(env, r.id, null, `${firstName(owner.name)} confirmed the return · rate each other`, 'system');
-  await textUser(env, renter, `${firstName(owner.name)} confirmed the return. How was the ${listing.name}? Rate it: ${url}`, 'rental', r.id);
-  await textUser(env, owner, `Returned. How was ${firstName(renter.name)}? Rate them: ${url}`, 'rental', r.id);
+  /* the hold stays 24h after return so the owner can check the item: "All good" releases it now, "Report a problem" opens a claim (claims.ts) */
+  const held = r.deposit_status === 'held', dep = money(r.deposit_cents || 0);
+  await addMessage(env, r.id, null, `${firstName(owner.name)} confirmed the return · rate each other${held ? ` · ${dep} hold released within 24h` : ''}`, 'system');
+  await textUser(env, renter, `${firstName(owner.name)} confirmed the return.${held ? ` Your ${dep} hold is released within 24h.` : ''} How was the ${listing.name}? Rate it: ${url}`, 'rental', r.id);
+  await textUser(env, owner, `Returned. ${held ? `All good? Release ${firstName(renter.name)}'s ${dep} hold, or report a problem within 24h: ${url}` : `How was ${firstName(renter.name)}? Rate them: ${url}`}`, 'rental', r.id);
+  return true;
+}
+
+// Owner says the item came back fine (or 24h passed with no claim): the hold comes off.
+export async function allGood(env: Env, r: Rental, by: 'owner' | 'clock'): Promise<boolean> {
+  if ((r.status !== 'returned' && r.status !== 'closed') || r.deposit_status !== 'held') return false;
+  if (await env.DB.prepare(`SELECT 1 FROM claims WHERE rental_id = ? AND status != 'withdrawn'`).bind(r.id).first().catch(() => null)) return false;
+  await releaseDeposit(env, r);
+  const { owner, renter, listing } = await parties(env, r);
+  await addMessage(env, r.id, null, by === 'owner' ? `${firstName(owner.name)} says all good · ${money(r.deposit_cents!)} hold released` : `${money(r.deposit_cents!)} hold released`, 'system');
+  await textUser(env, renter, `Your ${money(r.deposit_cents!)} hold for the ${listing.name} is released. Your bank drops it within a few days`, 'money', r.id);
   return true;
 }
 
@@ -223,7 +235,7 @@ export async function nudgePromises(env: Env) {
   }
 }
 
-// $150 hold: place it (pickup day / Handed over / new card) and tell both sides. Returns the hold state.
+// Deposit hold (the item's value): place it (pickup day / Handed over / new card) and tell both sides. Returns the hold state.
 export async function holdDeposit(env: Env, r: Rental): Promise<'held' | 'failed' | 'skip'> {
   const res = await placeDeposit(env, r);
   if (res === 'skip') return res;
@@ -238,12 +250,17 @@ export async function holdDeposit(env: Env, r: Rental): Promise<'held' | 'failed
   return res;
 }
 
-// cron: holds due on pickup day (owner's local date); renew holds older than 6 days while the item is out (card auths lapse ~7 days)
+// cron: holds due on pickup day (owner's local date); renew holds older than 6 days while the item is out or a claim is open
+// (card auths lapse ~7 days); release holds 24h after return when no problem was reported
 export async function depositsDue(env: Env): Promise<number> {
   let n = 0;
   const due = await env.DB.prepare(`SELECT r.* FROM rentals r WHERE r.status = 'confirmed' AND r.deposit_status = 'due' AND r.start_day <= ? LIMIT 20`).bind(localToday()).all<Rental>();
   for (const r of due.results) { try { await holdDeposit(env, r); n++; } catch (e) { await logErr(env.DB, 'deposit due', e, { rental: r.id }); } }
-  const old = await env.DB.prepare(`SELECT * FROM rentals WHERE status = 'picked_up' AND deposit_status = 'held' AND deposit_at < ? LIMIT 20`).bind(Date.now() - 6 * 86400000).all<Rental>();
+  const old = await env.DB.prepare(`SELECT * FROM rentals WHERE deposit_status = 'held' AND deposit_at < ? AND (status = 'picked_up' OR id IN (SELECT rental_id FROM claims WHERE status IN ('response','rebuttal','reply','judging','ruled','reviewing'))) LIMIT 20`).bind(Date.now() - 6 * 86400000).all<Rental>();
   for (const r of old.results) { try { await placeDeposit(env, r, true); n++; } catch (e) { await logErr(env.DB, 'deposit renew', e, { rental: r.id }); } }
+  const back = await env.DB.prepare(`SELECT * FROM rentals WHERE status IN ('returned','closed') AND deposit_status = 'held' AND COALESCE(returned_at, updated_at) < ? AND id NOT IN (SELECT rental_id FROM claims WHERE status != 'withdrawn') LIMIT 20`).bind(Date.now() - 24 * 3600000).all<Rental>();
+  for (const r of back.results) { try { if (await allGood(env, r, 'clock')) n++; } catch (e) { await logErr(env.DB, 'deposit release', e, { rental: r.id }); } }
+  /* returned with a hold that never went on (card didn't take it, or handed back early): nothing to release, close it out */
+  await env.DB.prepare(`UPDATE rentals SET deposit_status = 'released' WHERE status IN ('returned','closed') AND deposit_status IN ('due','failed') AND COALESCE(returned_at, updated_at) < ? AND id NOT IN (SELECT rental_id FROM claims WHERE status != 'withdrawn')`).bind(Date.now() - 24 * 3600000).run();
   return n;
 }

@@ -2,7 +2,7 @@ import { minPriceCents } from '../lib/identify';
 import { getCookie } from 'hono/cookie';
 import { bonusOpen, nycLeft, NYC_CAP } from '../lib/db';
 import { hereOf } from '../lib/places';
-import { DEPOSIT_CENTS } from '../lib/stripe';
+import { appealValue, ensureValue } from '../lib/value';
 import { Hono } from 'hono';
 import { cutoutUrl } from '../lib/cutout';
 import { smsHref } from '../lib/blooio';
@@ -336,7 +336,6 @@ listings.post('/api/list', async (c) => {
     const photos = await Promise.all(files.slice(0, 6).map(async p => ({ bytes: await p.arrayBuffer(), type: p.type })));
     const wk = Math.round(parseFloat(String(f[`week_${i}`] || '0')) * 100);
     const lid = await createListing(c.env, c.executionCtx, u, { name, priceCents: price, weekCents: wk > 0 ? wk : null, description: String(f[`note_${i}`] || ''), lat: isNaN(lat) ? null : lat, lng: isNaN(lng) ? null : lng, photos, grade: String(f[`grade_${i}`] || 'A') });
-    if (f[`hold_${i}`] === '1') await c.env.DB.prepare('UPDATE listings SET deposit_cents = ? WHERE id = ?').bind(DEPOSIT_CENTS, lid).run(); /* worth over $150 now → $150 hold at pickup */
     await assignHandle(c.env, u.id, u.name).catch(() => null); await assignSlug(c.env, lid, u.id, name).catch(() => null);
     const ph0 = await c.env.DB.prepare('SELECT r2_key FROM photos WHERE listing_id = ? ORDER BY pos LIMIT 1').bind(lid).first<{ r2_key: string }>().catch(() => null);
     out.push({ id: lid, name, url: await itemLink(c.env, lid), cut: ph0 ? cutoutUrl(c.env, ph0.r2_key, 600, 600) : null } as any); /* posted screen shows the cut-out even if the in-flow one didn't land */
@@ -421,8 +420,12 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
           {gr.customers ? <div class="row" style="gap:10px;margin-top:4px"><Grade g={gr.letter} /><span class="hint">{GRADE_WORD[gr.letter]} · set by customers now (average of yours + {gr.customers} customer grade{gr.customers === 1 ? '' : 's'})</span></div>
             : <div class="grdpick" style="margin-top:4px">{GRADES.map(g => <label><input type="radio" name="grade" value={g} checked={g === gr.letter} /><Grade g={g} /></label>)}</div>}
         </div>
-        <input type="hidden" name="hold_set" value="1" />
-        <label class={'q-hold edit-hold' + ((it.deposit_cents || 0) > 0 ? ' on' : '')} style="margin:4px 0 14px"><span>Worth over $150 now?<small>On: customers get a $150 hold (not a charge) at pickup, released at return</small></span><input type="checkbox" name="hold" value="1" checked={(it.deposit_cents || 0) > 0} onchange="this.parentNode.classList.toggle('on',this.checked)" /><i></i></label>
+        {/* item value = the deposit hold on every rental. Set by Lendo's AI at the first request; the owner can ask for it now. The one appeal is tucked away on purpose */}
+        <div class="field"><span>Value</span>
+          {it.value_cents && it.value_src !== 'est' ? <div><b>{money(it.value_cents)}</b> <span class="hint">· set by Lendo · customers get a hold (not a charge) for this at pickup{it.value_why ? ' · ' + it.value_why : ''}</span>
+              {!it.value_appeal ? <div class="hint" style="margin-top:4px"><a href={`/listings/${it.id}/value`} style="color:inherit">Looks wrong?</a></div> : null}</div>
+            : <div class="hint">Lendo sets it at the first request · customers get a hold (not a charge) for it at pickup · <button type="submit" formaction={`/listings/${it.id}/value/now`} formnovalidate style="background:none;border:0;padding:0;font:inherit;color:inherit;text-decoration:underline">get it now</button></div>}
+        </div>
         <label class="field"><span>Description</span><textarea name="description" id="desc" maxlength={600} placeholder="Model · what’s included · condition · good for">{it.description || ''}</textarea></label>
         <div class="dmeter" id="dmeter"></div>
         <script src="/details.js"></script>
@@ -500,6 +503,40 @@ listings.post('/listings/:id/photos/:pid/cover', requireUser, async (c) => {
   return c.redirect(`/listings/${it.id}/edit`);
 });
 
+// Item value (deposit hold): owner asks for it now; one appeal, then it's final
+listings.post('/listings/:id/value/now', requireUser, async (c) => {
+  const u = c.get('user')!; const it = await listingById(c.env.DB, c.req.param('id'));
+  if (!it || it.owner_id !== u.id) return c.notFound();
+  await ensureValue(c.env, it);
+  return c.redirect(`/listings/${it.id}/edit`);
+});
+listings.get('/listings/:id/value', requireUser, async (c) => {
+  const u = c.get('user')!; const it = await listingById(c.env.DB, c.req.param('id'));
+  if (!it || it.owner_id !== u.id) return c.notFound();
+  if (!it.value_cents || it.value_appeal) return c.redirect(`/listings/${it.id}/edit`);
+  return c.html(<Layout title="Item value" user={u} back={`/listings/${it.id}/edit`}>
+    <form method="post" action={`/listings/${it.id}/value`} enctype="multipart/form-data" style="padding:4px 12px 40px">
+      <div class="card"><b>{it.name} · {money(it.value_cents)}</b><div class="hint">{it.value_why}</div></div>
+      <label class="field"><span>Why it’s wrong</span><textarea name="body" maxlength={800} required placeholder="Exact model, what’s included, what one like it sells for used"></textarea></label>
+      <label class="field"><span>Receipt or label photo (optional)</span><input type="file" name="photos" accept="image/*" multiple style="height:auto;padding:10px 12px" /></label>
+      <button class="btn pri full" type="submit">Look again</button>
+      <div class="hint" style="margin-top:8px">One time per item · Lendo looks again and that value is final · it can go up or down · rentals already requested keep their hold</div>
+      {c.req.query('err') ? <div class="flash err" style="margin:12px 0 0">Couldn’t look again just now · try in a minute</div> : null}
+    </form>
+  </Layout>);
+});
+listings.post('/listings/:id/value', requireUser, async (c) => {
+  const u = c.get('user')!; const it = await listingById(c.env.DB, c.req.param('id'));
+  if (!it || it.owner_id !== u.id) return c.notFound();
+  const f = await c.req.parseBody({ all: true }); const body = String(f.body || '').trim().slice(0, 800);
+  if (!body || !it.value_cents || it.value_appeal) return c.redirect(`/listings/${it.id}/edit`);
+  const files = ([] as unknown[]).concat(f.photos || []).filter((x): x is File => x instanceof File && x.size > 0 && x.size < 8_000_000).slice(0, 3);
+  const keys: string[] = [];
+  for (const p of files) { const key = `${it.id}/value-${Date.now()}-${keys.length}.jpg`; await c.env.PHOTOS.put(key, await p.arrayBuffer(), { httpMetadata: { contentType: p.type || 'image/jpeg' } }); keys.push(key); }
+  const res = await appealValue(c.env, it, body, keys);
+  return c.redirect(res === 'failed' ? `/listings/${it.id}/value?err=1` : `/listings/${it.id}/edit`);
+});
+
 listings.post('/listings/:id/edit', requireUser, async (c) => {
   const u = c.get('user')!;
   const it = await listingById(c.env.DB, c.req.param('id'));
@@ -513,7 +550,6 @@ listings.post('/listings/:id/edit', requireUser, async (c) => {
   await c.env.DB.prepare('UPDATE listings SET name = ?, description = ?, price_cents = ?, week_cents = ?, emoji = ? WHERE id = ?')
     .bind(nm, ds, price, week, em, it.id).run();
   await logEvent(c.env.DB, 'listing.edited', { user: u.id, listing: it.id, cents: price, data: { was: { name: it.name, price: it.price_cents, desc: it.description }, now: { name: nm, price, desc: ds } } });
-  if (f.hold_set) { const dep = f.hold === '1' ? DEPOSIT_CENTS : 0; if (dep !== (it.deposit_cents || 0)) { await c.env.DB.prepare('UPDATE listings SET deposit_cents = ? WHERE id = ?').bind(dep, it.id).run(); await logEvent(c.env.DB, 'listing.hold', { user: u.id, listing: it.id, cents: dep }); } }
   if (isGrade(f.grade)) { const gr = await shownGrade(c.env, it.id, (it as any).grade); if (!gr.customers) await c.env.DB.prepare('UPDATE listings SET grade = ? WHERE id = ?').bind(f.grade, it.id).run().catch(() => {}); }
   const today = localToday(it.lng);
   await c.env.DB.prepare('DELETE FROM blocked_days WHERE listing_id = ? AND day >= ?').bind(it.id, today).run();

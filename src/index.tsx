@@ -28,6 +28,8 @@ import { api } from './routes/api';
 import { meetup } from './routes/meetup';
 import { admin } from './routes/admin';
 import { expireHolds , chaseHolds, depositsDue } from './lib/rentals';
+import { claimsTick } from './lib/claims';
+import { claims } from './routes/claims';
 import { Layout } from './pages/layout';
 
 const app = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -69,6 +71,7 @@ app.route('/', auth);
 app.route('/', browse);
 app.route('/', listings);
 app.route('/', rentals);
+app.route('/', claims);
 app.route('/', meetup);
 app.route('/', admin);
 app.route('/', pretty);   // readable URLs last: lendo.co/heif, /nyc/tribeca/ladder
@@ -90,6 +93,7 @@ export default {
     try { const e = await escalateHolds(env); if (e) console.log(`escalated ${e} requests by email`); } catch (e) { console.warn('escalate', e); }
     try { const c = await chaseHolds(env); if (c) console.log(`chase: ${c} texts`); } catch (e) { console.warn('chase', e); }
     try { const d = await depositsDue(env); if (d) console.log(`deposits: ${d}`); } catch (e) { console.warn('deposits', e); }
+    try { const k = await claimsTick(env); if (k) console.log(`claims: ${k}`); } catch (e) { console.warn('claims', e); }
     // backfill custom icons for the wanted catalog, a few per tick (Flux + cutout each)
     try {
       const done = await iconsDone(env);

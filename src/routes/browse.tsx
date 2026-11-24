@@ -1,3 +1,4 @@
+import { guaranteeCap } from '../lib/claims';
 import { Hono, type Context } from 'hono';
 import { GIFT_TEXT, smsHref } from '../lib/blooio';
 import { Flag } from '../lib/flags';
@@ -200,7 +201,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
               <button type="button" class="btn" data-q="1" style="flex:1;line-height:1.1"><b style="font-size:15px">1 day</b><small style="font-size:13px;font-weight:700">{money(it.price_cents)}</small></button>
               {it.week_cents && it.week_cents < it.price_cents * 7 ? <button type="button" class="btn" data-q="7" style="flex:1.3;line-height:1.1;position:relative"><b style="font-size:15px">1 week</b><small style="font-size:13px;font-weight:700">{money(it.week_cents)} <s style="color:var(--mute);font-weight:600">{money(it.price_cents * 7)}</s></small><span style="position:absolute;right:-6px;top:-9px;background:var(--orange);color:#fff;border:1.5px solid var(--ink);border-radius:8px;font-size:10px;font-weight:900;padding:2px 6px">{Math.round(100 - it.week_cents / (it.price_cents * 7) * 100)}% OFF</span></button> : null}
             </div>
-            {(it.deposit_cents || 0) > 0 ? <div class="ihold">{money(it.deposit_cents!)} hold (not a charge) on your card at pickup · released at return</div> : null}
+            <div class="ihold">{it.value_cents ? money(it.value_cents) + ' hold' : 'Hold for the item’s value'} (not a charge) on your card at pickup · released after return · <a href="/how-it-works#hold" style="color:inherit">how it works</a></div>
             <div class="days-hd">{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((w, i) => <span>{w}</span>)}</div>
             <div class="days" id="days" style={`--lead:${new Date(days[0] + 'T12:00:00Z').getUTCDay()}`}>
               {days.map((d, i) => {
@@ -475,7 +476,8 @@ browse.post('/profile/edit', async (c) => {
 
 // ---------- How it works (was /about, "Why Lendo") ----------
 browse.get('/about', (c) => c.redirect('/how-it-works', 301));
-browse.get('/how-it-works', (c) => {
+browse.get('/how-it-works', async (c) => {
+  const cap = await guaranteeCap(c.env);
   // TEMP placeholder copy (flywheel kept). Real copy: commit d47e814
   const u = c.get('user');
   const H2 = 'font-size:26px;font-weight:900;letter-spacing:-.02em;margin:0 0 10px';
@@ -499,6 +501,16 @@ browse.get('/how-it-works', (c) => {
       <section class="sec" style="border-bottom:0;font-size:15px;line-height:1.5;padding-top:0">
         <h2 style={H2}>Quo</h2>
         <p>Tavi zemi · Soba zemi · Soba plato · Nelo ranosen · Gri lessa · Pleta lessa</p>
+      </section>
+      <section class="sec" id="hold" style="border-bottom:0;font-size:15px;line-height:1.5;padding-top:0">
+        <h2 style={H2}>If something goes wrong</h2>
+        <ul style="margin:0;padding-left:20px">
+          <li style="margin:0 0 8px">Every rental has a hold (not a charge) on the customer’s card for what the item is worth · released after it’s back</li>
+          <li style="margin:0 0 8px">Lendo’s AI sets what it’s worth, not the owner</li>
+          <li style="margin:0 0 8px">A problem? The owner reports it within 24h of the return · you each say your side, with photos</li>
+          <li style="margin:0 0 8px">Lendo’s AI decides what’s owed, up to the hold · either of you can ask for one second look · then it’s final for you both</li>
+          <li style="margin:0 0 8px">Owners get what’s decided, even if a card company reverses the charge, up to {money(cap)}</li>
+        </ul>
       </section>
       <figure class="flywheel" id="flywheel">
         <img src="/flywheel.svg" width="532" height="418" alt="The Lendo flywheel: more items listed, more convenient, more rentals, then more money saved and earned, more ratings and trust, more fun, and more neighbors met, which bring more people to try, which brings more items listed. At the center: more local connection and affordability." />
@@ -601,7 +613,8 @@ browse.get('/sms', (c) => {
 });
 
 // ---------- Terms of Service (basic; full version later) ----------
-browse.get('/terms', (c) => {
+browse.get('/terms', async (c) => {
+  const cap = await guaranteeCap(c.env);
   const u = c.get('user');
   const H2 = 'font-size:20px;font-weight:900;letter-spacing:-.02em;margin:18px 0 6px';
   const num = (c.env.LENDO_NUMBER || '').replace(/\D/g, '').slice(-10);
@@ -629,7 +642,9 @@ browse.get('/terms', (c) => {
           <li>Owners set prices and dates and must own what they list; customers pay the rent plus sales tax</li>
           <li>Lendo charges owners a 15% fee out of the rent</li>
           <li>Cards are held when a rental is requested, charged when the owner says YES, and released on NO or expiry</li>
-          <li>Items marked worth over $150 get a $150 hold (not a charge) while out</li>
+          <li>Every rental has a deposit: a hold (not a charge) on the customer’s card for the item’s value, placed at pickup and released after return. Lendo’s AI sets the value</li>
+          <li>If an owner reports a problem (damage, missing parts, not returned), the owner and customer each give statements and photos, and Lendo’s AI decides what the customer owes, up to the hold. Either side can ask for one second look. After that the decision is final for both, and the amount is charged from the hold</li>
+          <li>If a customer’s card company reverses a charge the AI decided, Lendo still pays the owner that amount, up to {money(cap)}</li>
           <li>Return items on time and in the same condition</li>
         </ul>
         <h3 style={H2}>Rules</h3>

@@ -3,6 +3,7 @@ import type { Hono } from 'hono';
 import type { Env, Vars } from '../lib/env';
 import { accept, customerCancel, decline, holdDeposit, pickedUp, returned } from '../lib/rentals';
 import { placeDeposit, stripe } from '../lib/stripe';
+import { guaranteeCap, KINDS, setting } from '../lib/claims';
 import { rentalById } from '../lib/db';
 import { CATEGORIES, REASONS, routeFor, routes } from '../lib/flags';
 import { Layout } from '../pages/layout';
@@ -32,7 +33,7 @@ const NAV_CSS = `.adn{position:sticky;top:0;z-index:20;background:var(--cream,#F
 .adn a{padding:5px 9px;border-radius:8px;font-size:12.5px;font-weight:700;text-decoration:none;color:var(--ink);opacity:.7}.adn a:hover{opacity:1;background:rgba(30,58,43,.06)}
 .adn a.on{opacity:1;background:var(--ink);color:#fff}.adn i{width:1px;align-self:stretch;margin:4px 5px;background:rgba(30,58,43,.18)}
 .adn sup{font-size:10px;font-weight:800;color:#fff;background:#FF4F00;border-radius:999px;padding:0 5px;margin-left:3px;vertical-align:2px}`;
-const NAV: ([string, string, ('review' | 'error' | 'flag')?] | null)[] = [['/admin', 'Home'], ['/admin/flags', 'Flags', 'flag'], ['/admin/log', 'Log'], ['/admin/rentals', 'Rentals'], ['/admin/users', 'Users'], ['/admin/texts', 'Texts'], ['/admin/texting', 'Texting check'], ['/admin/searches', 'Searches'], ['/admin/log?kind=error', 'Errors', 'error'], null, ['/admin/review', 'Photos', 'review'], ['/admin/promo', 'Promo'], ['/admin/ab', 'A/B'], ['/admin/paytest', 'Pay test'], ['/admin/pricing', 'Pricing'], ['/admin/wanted', 'Wanted'], ['/admin/demo', 'Demo'], ['/admin/debug', 'System'], ['/admin/access', 'Access']];
+const NAV: ([string, string, ('review' | 'error' | 'flag')?] | null)[] = [['/admin', 'Home'], ['/admin/flags', 'Flags', 'flag'], ['/admin/log', 'Log'], ['/admin/rentals', 'Rentals'], ['/admin/claims', 'Claims'], ['/admin/users', 'Users'], ['/admin/texts', 'Texts'], ['/admin/texting', 'Texting check'], ['/admin/searches', 'Searches'], ['/admin/log?kind=error', 'Errors', 'error'], null, ['/admin/review', 'Photos', 'review'], ['/admin/promo', 'Promo'], ['/admin/ab', 'A/B'], ['/admin/paytest', 'Pay test'], ['/admin/pricing', 'Pricing'], ['/admin/wanted', 'Wanted'], ['/admin/demo', 'Demo'], ['/admin/debug', 'System'], ['/admin/access', 'Access']];
 export async function AdminNav({ c, path }: { c: any; path: string }) {
   const [rv, er, fl] = await Promise.all([
     c.env.DB.prepare(`SELECT COUNT(*) n FROM listings WHERE status = 'review'`).first().catch(() => null),
@@ -77,21 +78,21 @@ export function registerDash(admin: A) {
     const B = (rid: string, act: string, l: string) => <form method="post" action={`/admin/paytest/${rid}/${act}`} style="display:inline"><button class="btn sm" type="submit">{l}</button></form>;
     return c.html(<Shell c={c} title="Payments test" path="/admin/paytest">
       <div class="hint" style="margin-bottom:10px">Stripe TEST mode. Rent something on your phone with test card 4242 4242 4242 4242 (any future date, any CVC), then play the owner here. Each step runs the real code path; Stripe state is read live</div>
-      <form method="post" action="/admin/paytest/item" class="row" style="gap:6px;margin-bottom:12px;align-items:center"><span class="hint">Test item (not yours):</span><input name="lid" placeholder="listing id, e.g. l_…" style="height:34px;border:1.5px solid #e3dfd6;border-radius:8px;padding:0 8px;width:220px" /><select name="dep"><option value="15000">$150 hold ON</option><option value="0">hold off</option></select><button class="btn sm pri" type="submit">Set</button></form>
-      <div class="ad-wrap"><table class="ad-t"><tr><th>Rental</th><th>Status</th><th>Rent payment (Stripe)</th><th>$150 hold</th><th>Owner actions</th></tr>
+      <form method="post" action="/admin/paytest/item" class="row" style="gap:6px;margin-bottom:12px;align-items:center"><span class="hint">Test item (not yours) · set its value (the hold):</span><input name="lid" placeholder="listing id, e.g. l_…" style="height:34px;border:1.5px solid #e3dfd6;border-radius:8px;padding:0 8px;width:220px" /><input name="usd" type="number" min="1" placeholder="$ value" style="height:34px;border:1.5px solid #e3dfd6;border-radius:8px;padding:0 8px;width:90px" /><button class="btn sm pri" type="submit">Set</button></form>
+      <div class="ad-wrap"><table class="ad-t"><tr><th>Rental</th><th>Status</th><th>Rent payment (Stripe)</th><th>Deposit hold</th><th>Owner actions</th></tr>
         {rows.map((r, i) => <tr><td><a href={'/r/' + r.id}>{r.item}</a><br /><span class="hint">{r.id} · {r.start_day}→{r.end_day} · {money(r.total_cents)}</span></td><td>{r.status}</td><td>{piRows[i][0]}</td>
           <td>{r.deposit_cents ? `${r.deposit_status || ''} · ${piRows[i][1]}${r.stripe_pm ? ' · card saved' : ' · no card saved'}` : 'off'}</td>
           <td style="white-space:nowrap">{r.status === 'held' ? <>{B(r.id, 'yes', 'YES')} {B(r.id, 'no', 'NO')}</> : null}
-            {r.status === 'confirmed' ? <>{r.deposit_cents && r.deposit_status !== 'held' ? B(r.id, 'hold', 'Place $150 hold') : null} {B(r.id, 'pickup', 'Handed over')} {B(r.id, 'cancel', 'Customer cancels')}</> : null}
+            {r.status === 'confirmed' ? <>{r.deposit_cents && r.deposit_status !== 'held' ? B(r.id, 'hold', 'Place hold') : null} {B(r.id, 'pickup', 'Handed over')} {B(r.id, 'cancel', 'Customer cancels')}</> : null}
             {r.status === 'picked_up' ? <>{r.deposit_status === 'held' ? B(r.id, 'renew', 'Renew hold') : null} {B(r.id, 'return', 'Returned')}</> : null}</td></tr>)}
       </table></div>
     </Shell>);
   });
   admin.post('/admin/paytest/item', async (c) => {
     if (!testMode(c)) return c.notFound();
-    const f = await c.req.parseBody(); const lid = String(f.lid || '').trim(), dep = f.dep === '15000' ? 15000 : 0;
-    await c.env.DB.prepare('UPDATE listings SET deposit_cents = ? WHERE id = ?').bind(dep, lid).run();
-    await logEvent(c.env.DB, 'admin.paytest', { user: c.get('user')!.id, listing: lid, cents: dep, data: { act: 'item_hold' } });
+    const f = await c.req.parseBody(); const lid = String(f.lid || '').trim(), dep = Math.max(100, Math.round(parseFloat(String(f.usd || '0')) * 100) || 0);
+    await c.env.DB.prepare(`UPDATE listings SET value_cents = ?, value_src = 'ai', value_why = 'set in pay test', value_at = ? WHERE id = ?`).bind(dep, Date.now(), lid).run();
+    await logEvent(c.env.DB, 'admin.paytest', { user: c.get('user')!.id, listing: lid, cents: dep, data: { act: 'item_value' } });
     return c.redirect('/admin/paytest');
   });
   admin.post('/admin/paytest/:id/:act', async (c) => {
@@ -107,6 +108,34 @@ export function registerDash(admin: A) {
     else if (act === 'renew') await placeDeposit(c.env, r, true);
     await logEvent(c.env.DB, 'admin.paytest', { user: c.get('user')!.id, rental: r.id, data: { act } });
     return c.redirect('/admin/paytest');
+  });
+
+  // ---------- Claims: problems decided by AI, bank disputes, the guarantee cap ----------
+  admin.get('/admin/claims', async (c) => {
+    const rows = await all<any>(c, `SELECT cl.*, l.name item, o.name oname, cu.name cname FROM claims cl JOIN listings l ON l.id = cl.listing_id JOIN users o ON o.id = cl.owner_id JOIN users cu ON cu.id = cl.customer_id ORDER BY cl.created_at DESC LIMIT 200`);
+    const cap = await guaranteeCap(c.env), auto = (await setting(c.env, 'cb_auto_submit', '0')) === '1';
+    const tot = (k: string) => rows.reduce((n, r) => n + (r[k] || 0), 0);
+    return c.html(<Shell c={c} title="Claims" path="/admin/claims">
+      <form method="post" action="/admin/claims/settings" class="row" style="gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+        <span class="hint">Lendo pays the owner up to</span><input name="cap" type="number" min="0" step="1" value={String(cap / 100)} style="height:34px;border:1.5px solid #e3dfd6;border-radius:8px;padding:0 8px;width:90px" />
+        <span class="hint">when a card can’t be charged or a bank reverses it ·</span>
+        <label class="hint"><input type="checkbox" name="auto" value="1" checked={auto} /> send the evidence file to the bank automatically (off = saved as a draft in Stripe)</label>
+        <button class="btn sm pri" type="submit">Save</button>
+      </form>
+      <div class="hint" style="margin-bottom:8px">{rows.length} claims · decided for owners {money(tot('final_cents'))} · collected {money(tot('collected_cents'))} · Lendo’s loss {money(tot('lendo_loss_cents'))} · paid above the cap {money(tot('owner_excess_cents'))}</div>
+      <div class="ad-wrap"><table class="ad-t"><tr><th>Opened</th><th>Item</th><th>Owner → customer</th><th>Type</th><th>Status</th><th class="n">Hold</th><th class="n">Decision</th><th class="n">Final</th><th class="n">Collected</th><th class="n">Owner due</th><th>Bank dispute</th></tr>
+        {rows.map(r => <tr><td style="white-space:nowrap">{new Date(r.created_at).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', timeZone: 'America/New_York' })}</td><td><a href={'/r/' + r.rental_id + '/claim'}>{r.item}</a></td><td>{r.oname} → {r.cname}</td><td>{KINDS[r.kind as keyof typeof KINDS] || r.kind}</td><td>{r.status}{r.tries ? ` · ${r.tries} failed tries` : ''}</td>
+          <td class="n">{money(r.deposit_cents)}</td><td class="n">{r.award_cents != null ? money(r.award_cents) : ''}</td><td class="n">{r.final_cents != null ? money(r.final_cents) : ''}</td><td class="n">{r.settled_at ? `${money(r.collected_cents)} ${r.collect_how || ''}` : ''}</td><td class="n">{r.owner_due_cents ? `${money(r.owner_due_cents)}${r.paid_out ? ' ✓' : ' waiting'}` : ''}</td>
+          <td>{r.cb_id ? `${r.cb_status} · ${money(r.cb_cents || 0)}${r.cb_evidence_at ? ' · file on it' : ' · NO file'}` : ''}</td></tr>)}
+      </table>{rows.length ? null : <p class="hint">Nothing yet</p>}</div>
+    </Shell>);
+  });
+  admin.post('/admin/claims/settings', async (c) => {
+    if (c.get('user')?.admin_level !== 'owner') return c.notFound();
+    const f = await c.req.parseBody(); const cap = Math.max(0, Math.round(parseFloat(String(f.cap || '0')) * 100) || 0), auto = f.auto === '1' ? '1' : '0';
+    for (const [k, v] of [['guarantee_cap_cents', String(cap)], ['cb_auto_submit', auto]]) await c.env.DB.prepare(`INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(k, v).run();
+    await logEvent(c.env.DB, 'admin.claims_settings', { user: c.get('user')!.id, cents: cap, data: { auto } });
+    return c.redirect('/admin/claims');
   });
 
   // ---------- A/B: $5 button copy (exp gift5) ----------

@@ -1,6 +1,6 @@
 // Email = backup channel (texts first). Plain, like a text, with chunky buttons. Sent through Resend when RESEND_API_KEY is set.
 import type { Env, Listing, Rental, User } from './env';
-import { backDay, firstName, fmtDay, fmtRange } from './util';
+import { backDay, firstName, fmtDay, fmtRange, money } from './util';
 import { logEvent } from './log';
 
 export const emailOn = (env: Env) => !!env.RESEND_API_KEY;
@@ -58,13 +58,13 @@ export async function emailFromText(env: Env, user: User, text: string, rentalId
 /* rental request → owner: emailed at the same time as the text, always (Scott, 11/24) */
 export async function emailRequest(env: Env, r: Rental, owner: User, cust: User, it: Listing, earn: string, img: string | null) {
   if (!owner.email) return { ok: false };
-  const who = firstName(cust.name || 'A neighbor'), url = `${env.APP_URL}/r/${r.id}`, dep = (it.deposit_cents || 0) > 0;
+  const who = firstName(cust.name || 'A neighbor'), url = `${env.APP_URL}/r/${r.id}`, dep = (r.deposit_cents || 0) > 0;
   const title = `${who} wants your ${it.name}`, md = (d: string) => `${+d.slice(5, 7)}/${+d.slice(8, 10)}`;
   return emailUser(env, owner, `${title} · ${fmtRange(r.start_day, backDay(r.end_day))}`, [`${title}, ${fmtRange(r.start_day, backDay(r.end_day))}. You’d earn ${earn}`],
     [{ label: 'YES', url, pri: true }, { label: 'NO', url }], '', r.id,
     { title, img, more: { label: 'More', url }, steps: [
       { t: `${who} asked for ${fmtRange(r.start_day, backDay(r.end_day))}`, state: 'done' },
       { t: 'Your answer', state: 'now', btns: [{ label: 'YES', sub: `${who} charged`, url, pri: true }, { label: 'NO', url }] },
-      { t: `Pickup ${md(r.start_day)}`, d: `· you get ${earn}`, more: dep ? [`Deposit hold on ${who}’s card`] : undefined },
-      { t: `Return ${md(backDay(r.end_day))}`, more: dep ? ['Deposit hold released if no damage etc'] : undefined }] });
+      { t: `Pickup ${md(r.start_day)}`, d: `· you get ${earn}`, more: dep ? [`${money(r.deposit_cents!)} hold on ${who}’s card`] : undefined },
+      { t: `Return ${md(backDay(r.end_day))}`, more: dep ? ['Hold released when you say all good'] : undefined }] });
 }
