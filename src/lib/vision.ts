@@ -1,3 +1,4 @@
+import { claudeText } from './util';
 // Claude (Haiku, vision) helpers for icons: describe a photo for the artist, and check a drawn icon is the same
 // kind of object. Flux takes words literally ("bullhorn" → bull horns), so the prompt names the object
 // unambiguously and every drawn icon is checked before it goes on the map.
@@ -14,7 +15,7 @@ async function ask(env: Env, images: ArrayBuffer[], text: string, max = 80): Pro
       body: JSON.stringify({ model: 'claude-haiku-5-5', max_tokens: max, messages: [{ role: 'user', content: [
         ...images.map(im => ({ type: 'image', source: { type: 'base64', media_type: mime(im), data: b64(im) } })), { type: 'text', text }] }] }) });
     if (!r.ok) { console.warn('vision', r.status); return null; }
-    const j: any = await r.json(); return String(j?.content?.[0]?.text || '').trim() || null;
+    const j: any = await r.json(); return claudeText(j).trim() || null;
   } catch (e) { console.warn('vision', e); return null; }
 }
 

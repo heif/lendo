@@ -1,3 +1,4 @@
+import { claudeText } from './util';
 import type { Env } from './env';
 import { drawIcon, makeCutout } from './avatar';
 import { WANTED_ALL } from './places';
@@ -71,7 +72,7 @@ export async function looksLike(env: Env, png: ArrayBuffer, label: string): Prom
         { type: 'image', source: { type: 'base64', media_type: 'image/png', data: btoa(bin) } },
         { type: 'text', text: `Would a shopper instantly recognize this icon as "${label}" (the actual product itself, not food, wood, a symbol or a related object) AND contain no person at all — no rider, no silhouette, no figure, no face, hands or other body part? Answer only YES or NO.` }] }] }) });
     if (!r.ok) return null;
-    const j: any = await r.json(); return /^\s*YES/i.test(j?.content?.[0]?.text || '');
+    const j: any = await r.json(); return /^\s*YES/i.test(claudeText(j));
   } catch { return null; }
 }
 export async function makeWantedIcon(env: Env, key: string): Promise<boolean> {

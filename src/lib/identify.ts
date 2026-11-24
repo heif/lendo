@@ -1,3 +1,5 @@
+import { claudeText } from './util';
+import { logErr } from './log';
 // Visual identification of a snapped item → name, description, category, retail estimate → suggested price.
 import type { Env } from './env';
 
@@ -74,7 +76,10 @@ Look-alikes: tell similar products apart by concrete details (e.g. AirPods Max =
 brand_matters: true if the brand/model changes what a renter expects for this kind of item (per the brand rule), else false.${fixes}
 Reply with JSON only: {"name":"","brand":"<visible brand or null>","model":"<visible model or null>","brand_matters":true,"description":"","category":"<one of: ${CATS.join(', ')}>","retail_usd":<new retail price of this brand/model in USD>,"confidence":"high|medium|low"}` }] }] }) });
     if (!r.ok) { lastClaude = lastRaw = 'claude ' + r.status + ' ' + (await r.text().catch(() => '')).slice(0, 300); return null; }
-    const j: any = await r.json(); const t = String(j?.content?.[0]?.text || ''); lastClaude = lastRaw = t;
+    const j: any = await r.json();
+    /* the answer is every text block joined (the first block isn't always text) */
+    const t = (Array.isArray(j?.content) ? j.content : []).filter((b: any) => b?.type === 'text').map((b: any) => String(b.text || '')).join('\n');
+    lastClaude = lastRaw = t || `claude ${model} no text · stop=${j?.stop_reason} · blocks=${(j?.content || []).map((b: any) => b?.type).join(',')}`;
     const m = t.match(/\{[\s\S]*\}/); return m ? JSON.parse(m[0]) : null;
   } catch (e: any) { lastClaude = lastRaw = 'claude ERR ' + (e?.message || e); return null; }
 }
@@ -88,7 +93,7 @@ async function nameFits(env: Env, photos: ArrayBuffer[], name: string, brand: st
       body: JSON.stringify({ model: 'claude-haiku-5-5', max_tokens: 5, messages: [{ role: 'user', content: [...photos.map(img),
         { type: 'text', text: `Someone labeled the item in this photo "${name}"${brand ? ` (brand: ${brand})` : ''}. Check it strictly against what is actually visible: is it the right kind of object, and is any named brand, character or product line clearly shown (logo, printed text, unmistakable design)? A plain teddy bear is not "Mickey Mouse"; unbranded headphones are not "Beats". Answer only YES if the label is accurate, or NO.` }] }] }) });
     if (!r.ok) return true;
-    const j: any = await r.json(); return !/^\s*NO/i.test(String(j?.content?.[0]?.text || ''));
+    const j: any = await r.json(); return !/^\s*NO/i.test(claudeText(j));
   } catch { return true; }
 }
 
@@ -99,7 +104,8 @@ export async function identifyItem(env: Env, photo: ArrayBuffer, hint?: string |
   // confident → a quick second look checks the name against the photo; mismatch → Sonnet, told what was wrong
   let wrong = '';
   if (cj && cj.name && cj.confidence === 'high' && !(await nameFits(env, photos, String(cj.name), cj.brand || null))) wrong = `\nA first guess, "${cj.name}", was checked and does NOT match the photo. Don't repeat it; name only what is visible.`;
-  if (cj && (cj.confidence !== 'high' || wrong)) { const cj2 = await identifyClaude(env, photos, hint, 'claude-sonnet-5-5', fixes + wrong); if (cj2 && cj2.name) cj = cj2; }
+  if (!cj || !cj.name) { const first = lastClaude; cj = await identifyClaude(env, photos, hint, 'claude-sonnet-5-5', fixes); if (!cj || !cj.name) { await logErr(env.DB, 'identify', new Error(('haiku: ' + first + ' | sonnet: ' + lastClaude).slice(0, 600))); } } /* first model gave nothing → the stronger one tries before any fallback */
+  else if (cj.confidence !== 'high' || wrong) { const cj2 = await identifyClaude(env, photos, hint, 'claude-sonnet-5-5', fixes + wrong); if (cj2 && cj2.name) cj = cj2; }
   if (cj && cj.name) {
     const cat = CATS.includes(String(cj.category || '').trim()) ? String(cj.category).trim() : guessCategory(String(cj.name));
     const retail = typeof cj.retail_usd === 'number' ? cj.retail_usd : parseFloat(String(cj.retail_usd || '').replace(/[^0-9.]/g, '')) || null;

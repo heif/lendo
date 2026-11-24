@@ -1,3 +1,4 @@
+import { claudeText } from './util';
 // Photo safety filter: every new listing's first photo gets a quick Claude look.
 // Flagged → status 'review' (hidden from map/search/alerts) until an admin OKs it at /admin/review.
 import type { Env } from './env';
@@ -19,7 +20,7 @@ Hold it if it shows: nudity or sexual content; gore or injury; guns or weapons; 
 People merely visible in the background, or someone holding the item, is fine.
 Reply with JSON only: {"hold":true|false,"reason":"<3-8 words>"}` }] }] }) });
     if (!r.ok) return { ok: true, reason: 'check failed ' + r.status };
-    const j: any = await r.json(); const m = String(j?.content?.[0]?.text || '').match(/\{[\s\S]*\}/);
+    const j: any = await r.json(); const m = claudeText(j).match(/\{[\s\S]*\}/);
     const v = m ? JSON.parse(m[0]) : null;
     return { ok: !v?.hold, reason: String(v?.reason || '').slice(0, 80) };
   } catch (e: any) { return { ok: true, reason: 'check error ' + (e?.message || e) }; }

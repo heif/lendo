@@ -3,7 +3,7 @@ import { logEvent } from './log';
 // Plain-English texting: Claude turns a text into one of a few actions. Anything touching money or bookings
 // is parked in pending_actions and only runs after the sender replies YES.
 import type { Env, Listing, Rental, User } from './env';
-import { localToday } from './util';
+import { localToday, claudeText } from './util';
 import { weekDefault } from './util';
 import { itemLink } from './urls';
 import { saveSearch, allowMore } from './alerts';
@@ -60,7 +60,7 @@ Today is ${localToday()}.`;
     });
     if (!r.ok) { console.warn('intent http', r.status, await r.text()); return null; }
     const j: any = await r.json();
-    const out = String(j.content?.[0]?.text || '');
+    const out = claudeText(j);
     const m = out.match(/\{[\s\S]*\}/); if (!m) return null;
     const v = JSON.parse(m[0]);
     if (!v || typeof v.action !== 'string') return null;

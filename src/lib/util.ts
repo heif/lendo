@@ -105,3 +105,6 @@ export function localToday(lng?: number | null): string {
 
 /* a rental day is 24 hours: a 1-day rental (start = end) comes back the next day, at the pickup time */
 export const backDay = (end: string) => addDays(end, 1);
+
+/* text of a Claude reply: every text block joined (the first block isn't always text) */
+export const claudeText = (j: any): string => (Array.isArray(j?.content) ? j.content : []).filter((b: any) => b?.type === 'text').map((b: any) => String(b.text || '')).join('\n');
