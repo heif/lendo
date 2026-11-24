@@ -19,7 +19,7 @@ import { cardSetupUrl, createCheckout, connectOnboardingUrl, DEPOSIT_CENTS, flus
 import { payoutOf, quote, taxRateFor } from '../lib/money';
 import { selfMigrate } from '../lib/migrate';
 import { accept, decline, customerCancel, holdDeposit, markHeld, pickedUp, rate, relay, returned } from '../lib/rentals';
-import { smsHref, STREAK_MAX, textStreak, textUser } from '../lib/blooio';
+import { smsHref, textsPaused, textUser } from '../lib/blooio';
 
 export const rentals = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -121,7 +121,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
   const xRent = xs?.rent || 0, xTotal = xs?.total || 0;
   const ox = live ? await openExt(c.env, r.id) : null;
   const extOk = live && !isOwner && !ox ? await extendableDays(c.env, r) : [];
-  const paused = u.sms_ok === 0 || (await textStreak(c.env, u.id)) >= STREAK_MAX; /* texts off (unchecked at signup) shows the same 'text OK' turn-on */
+  const paused = await textsPaused(c.env, u);
   const chats = await chatList(c.env.DB, u.id);
   const extCells = live && !isOwner && !ox ? Array.from({ length: Math.min(EXT_MAX_DAYS, Math.max(7, extOk.length + 1)) }, (_, i) => addDays(r.end_day, i + 1)) : [];
   return c.html(
@@ -569,12 +569,12 @@ rentals.get('/inbox', requireUser, async (c) => {
   const wname = wrows.length ? firstName(wrows[0].owner_id === wid ? wrows[0].owner_name : wrows[0].renter_name) : '';
   const wmsgs = wrows.length ? (await c.env.DB.prepare(`SELECT sender_id, body, rental_id, created_at FROM messages WHERE rental_id IN (${wrows.map(() => '?').join(',')}) ORDER BY created_at`).bind(...wrows.map(r => r.id)).all<{ sender_id: string | null; body: string; rental_id: string; created_at: number }>()).results : [];
   const itemOf = (rid: string) => wrows.find(r => r.id === rid)?.item || '';
-  const paused = u.sms_ok === 0 || (await textStreak(c.env, u.id)) >= STREAK_MAX; /* texts off (unchecked at signup) shows the same 'text OK' turn-on */
+  const paused = await textsPaused(c.env, u);
   const fmtT = (t: number) => new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
   return c.html(
     <Layout title="Chats" user={u} headerCenter={<span class="sp"></span>}>
       <ChatPick rows={chats} me={u.id} cur={wid ? '/inbox?with=' + wid : '/inbox'} />
-      {paused ? <a class="hint sms-only" href={smsHref(c.env, 'OK')} style="text-align:center;color:#b3261e;font-weight:700;margin:10px 12px 0;display:block">📵 Texts to your phone are paused after {STREAK_MAX} with no reply · <u>tap to text OK</u> (typing here doesn’t count)</a> : null}
+      {paused ? <a class="hint sms-only" href={smsHref(c.env, 'OK')} style="text-align:center;color:#b3261e;font-weight:700;margin:10px 12px 0;display:block">📵 Texts to your phone are paused · <u>tap to text OK</u></a> : null}
       <div class="msgs" id="inbox" style="padding:12px 12px 8px">
         {wid ? wmsgs.map(m => { const me = m.sender_id === u.id, sys = !m.sender_id; return (
           <div class={'msg' + (me ? ' me' : sys ? ' sys' : '')}>

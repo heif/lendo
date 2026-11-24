@@ -1,7 +1,7 @@
 import { twilioSigOk } from '../lib/twiliosms';
 import { answerPending, actOn, intentContext, parseIntent, statusBackstop } from '../lib/intent';
 import { logErr, logEvent } from '../lib/log';
-import { CONFIRM_ASK, KEEP_ASK } from '../lib/blooio';
+import { CONFIRM_ASK, KEEP_ASK, recordTap, TAP_RE } from '../lib/blooio';
 import { acceptExt, declineExt, extById, extFromSession, heldExtForOwner, markExtHeld } from '../lib/extend';
 import { turnOff } from '../lib/alerts';
 import { Hono, type Context } from 'hono';
@@ -80,6 +80,7 @@ async function blooioInbound(c: Context<{ Bindings: Env; Variables: Vars }>) {
   let j: any; try { j = JSON.parse(raw); } catch { return c.text('bad json', 400); }
   const ev = (c.req.header('x-blooio-event') || j.event || j.type || '').toString();
   if (ev && ev !== 'message.received') {
+    if (/reaction|tapback/i.test(ev)) { const d = j.data || j; const ph = normPhone(String(d.sender || d.external_id || d.from || d.handle || '')); const tu = ph ? await userByPhone(c.env.DB, ph) : null; if (tu && d.direction !== 'outbound' && !d.is_from_me) { await recordTap(c.env, tu.id, 'tapback ' + (d.reaction || d.type || '')); await logEvent(c.env.DB, 'text.tap', { user: tu.id }); } return c.json({ ok: true, tap: !!tu }); }
     /* delivery receipts (message.sent / delivered / failed / read …) → events 'text.status', matched to outbound_texts.provider_id in /admin/texts */
     if (ev.startsWith('message.')) { const d = j.data || j; await logEvent(c.env.DB, 'text.status', { data: { status: ev.slice(8), id: d.message_id || d.id || j.message_id || null, to: String(d.external_id || d.recipient || d.to || d.chat_id || '').slice(-4), err: d.error || d.error_message || d.reason || null, via: d.protocol || d.service || null } }); }
     return c.json({ ok: true, logged: ev });
@@ -101,6 +102,7 @@ webhooks.post('/webhooks/linq', async (c) => {
     /* at-least-once delivery: drop repeats by event id */
     const eid = String(j.event_id || ''); if (eid) { const seen = await c.env.DB.prepare('SELECT 1 FROM events WHERE kind = ? AND data = ? LIMIT 1').bind('linq.event', eid).first().catch(() => null); if (seen) return c.json({ ok: true, dup: true }); await logEvent(c.env.DB, 'linq.event', { data: eid }); }
     if (m.event !== 'message.received') {
+      if (m.event === 'reaction.added') { const d = j.data || {}; const ph = normPhone(String(d.from || d.from_handle?.handle || '')); const tu = ph && !d.is_from_me ? await userByPhone(c.env.DB, ph) : null; if (tu) { await recordTap(c.env, tu.id, 'tapback ' + (d.reaction_type || '')); await logEvent(c.env.DB, 'text.tap', { user: tu.id }); } return c.json({ ok: true, tap: !!tu }); }
       if (m.event.startsWith('message.')) { const d = j.data || {}; await logEvent(c.env.DB, 'text.status', { data: { status: m.event.slice(8), id: d.id || d.message_id || d.message?.id || null, err: d.error || d.error_message || d.reason || null, via: d.service || null } }); }
       return c.json({ ok: true, logged: m.event });
     }
@@ -123,6 +125,7 @@ async function inboundText(c: Context<{ Bindings: Env; Variables: Vars }>, phone
   const m = { text: body };
   const user = await userByPhone(c.env.DB, phone);
   const text = m.text.trim();
+  if (user && TAP_RE.test(text)) { await recordTap(c.env, user.id, text); await logEvent(c.env.DB, 'text.tap', { user: user.id }); return c.json({ ok: true, tap: true }); } /* 'Liked "…"' = a tapback, not a message */
   const kw = text.toUpperCase().replace(/[^A-Z ]/g, '').trim();
   if (!user) {
     await logEvent(c.env.DB, 'text.in_unknown', { data: { from: phone, body: text.slice(0, 500) } });

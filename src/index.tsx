@@ -10,6 +10,7 @@ import { nudgePromises } from './lib/rentals';
 import { pretty } from './routes/pretty';
 import { backfillUrls } from './lib/urls';
 import { selfMigrate } from './lib/migrate';
+import { escalateHolds } from './lib/escalate';
 import { morningBundle } from './lib/alerts';
 import { backfillAvatars, auditAvatars } from './lib/avatar';
 import { fixDemoLand } from './lib/demo-land';
@@ -86,6 +87,7 @@ export default {
     try { const p = await pauseUntexted(env); if (p) console.log(`paused ${p} listings: owner never texted back`); } catch (e) { console.warn('notext pause', e); }
     const n = await expireHolds(env);
     if (n) console.log(`expired ${n} held requests`);
+    try { const e = await escalateHolds(env); if (e) console.log(`escalated ${e} requests by email`); } catch (e) { console.warn('escalate', e); }
     try { const c = await chaseHolds(env); if (c) console.log(`chase: ${c} texts`); } catch (e) { console.warn('chase', e); }
     try { const d = await depositsDue(env); if (d) console.log(`deposits: ${d}`); } catch (e) { console.warn('deposits', e); }
     // backfill custom icons for the wanted catalog, a few per tick (Flux + cutout each)

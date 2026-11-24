@@ -939,3 +939,5 @@ header h1.sr,.sr{position:absolute!important;width:1px;height:1px;overflow:hidde
 .smsopt{display:flex;gap:10px;align-items:flex-start;margin:2px 0 14px;cursor:pointer}
 .smsopt input{flex:none;width:24px;height:24px;margin:1px 0 0;accent-color:var(--ink);cursor:pointer}
 .smsopt b{display:block;font-size:15px;font-weight:800}.smsopt small{display:block;font-size:12.5px;font-weight:600;color:var(--mute);line-height:1.4;margin-top:3px}
+/* shown only on computers (mouse) */
+.pc-only{display:none}@media (pointer:fine){.pc-only{display:block}}html.android .pc-only{display:block}

@@ -32,7 +32,7 @@ export const listings = new Hono<{ Bindings: Env; Variables: Vars }>();
 // ---------- List fast ----------
 const listPage = async (c: any) => {
   const u = c.get('user'); /* guests can snap + answer; phone/code come after the item questions */
-  const cfg = JSON.stringify({ stock: !!c.env.BRAVE_API_KEY, minPrice: (await minPriceCents(c.env)) / 100, hood: u?.hood || '', user: u ? { name: u.name || '', hood: u.hood || '', replied: !!u.replied } : null, hasLoc: !!(u && (u.lat != null || u.address || u.cross_streets)), sms: smsHref(c.env, 'OK'), shareUrl: u ? c.env.APP_URL + ((u as any).handle ? '/' + (u as any).handle : '/u/' + u.id) : c.env.APP_URL });
+  const cfg = JSON.stringify({ stock: !!c.env.BRAVE_API_KEY, minPrice: (await minPriceCents(c.env)) / 100, hood: u?.hood || '', user: u ? { name: u.name || '', hood: u.hood || '', email: u.email || '', replied: !!u.replied } : null, hasLoc: !!(u && (u.lat != null || u.address || u.cross_streets)), sms: smsHref(c.env, 'OK'), shareUrl: u ? c.env.APP_URL + ((u as any).handle ? '/' + (u as any).handle : '/u/' + u.id) : c.env.APP_URL });
   return c.html(
     <Layout title="Rent out your stuff" user={u} promo={false} htmlClass="mappage" head={<link rel="stylesheet" href="/list.css" />}>
       {await bonusOpen(c.env.DB, u, hereOf(c, u)) ? await (async () => { const left = await nycLeft(c.env.DB), f = left / NYC_CAP, C = 2 * Math.PI * 9;

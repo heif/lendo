@@ -8,11 +8,13 @@ import { Layout } from '../pages/layout';
 import { startLogin, finishLogin, logout, smsFallback, useLoginLink } from '../lib/auth';
 import { normPhone, prettyPhone, now } from '../lib/util';
 import { ensureUser } from '../lib/db';
+import { validEmail } from '../lib/email';
 import { sendRaw, smsHref } from '../lib/blooio';
 import { setCookie, getCookie } from 'hono/cookie';
 
 export const auth = new Hono<{ Bindings: Env; Variables: Vars }>();
 
+const num10 = (env: Env) => (env.LENDO_NUMBER || '').replace(/\D/g, '').slice(-10);
 const safeNext = (n: string | undefined) => (n && n.startsWith('/') && !n.startsWith('//') ? n : '/');
 
 auth.get('/login', (c) => {
@@ -21,13 +23,24 @@ auth.get('/login', (c) => {
   if (u) return c.redirect(next);
   return c.html(
     <Layout title="Log in" user={null}>
-      <form method="post" action="/login" style="padding:20px 16px">
-        <h2 style="margin:0 0 10px;font-size:24px;font-weight:900;letter-spacing:-.02em">Your phone number</h2>
+      {/* text-first: the person texts Lendo, so Lendo is never an unknown sender; Lendo texts back a login link. The code form stays right below */}
+      {num10(c.env) ? <div style="padding:22px 16px 0">
+        <h2 style="margin:0 0 10px;font-size:24px;font-weight:900;letter-spacing:-.02em">Join or log in</h2>
+        <a class="btn pri full sms-only" href={smsHref(c.env, 'OK')} style="display:grid;place-items:center;text-decoration:none">💬 Text OK to Lendo</a>
+        <p class="hint sms-only" style="margin:10px 0 0">Opens Messages · send it · tap the link Lendo texts back</p>
+        <div class="pc-only" style="text-align:center"><span id="lgQr" data-sms={`SMSTO:+1${num10(c.env)}:OK`} aria-label="Scan to text Lendo" style="display:inline-block;background:#fff;border:2.5px solid var(--ink);border-radius:14px;padding:8px;line-height:0"></span>
+          <p class="hint" style="margin:10px 0 0">Scan with your phone’s camera, or text <b>OK</b> to {prettyPhone('+1' + num10(c.env))} · tap the link Lendo texts back</p></div>
+        <script src="/qrgen.js"></script>
+        <script dangerouslySetInnerHTML={{ __html: `(function(){var q=document.getElementById('lgQr');if(!q||!window.qrcode||!matchMedia('(pointer:fine)').matches)return;var qr=qrcode(0,'M');qr.addData(q.dataset.sms);qr.make();var m=qr.getModuleCount(),s=5,pad=2,c=document.createElement('canvas');c.width=c.height=(m+pad*2)*s;var g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.fillStyle='#1E3A2B';for(var r=0;r<m;r++)for(var k=0;k<m;k++)if(qr.isDark(r,k))g.fillRect((k+pad)*s,(r+pad)*s,s,s);q.appendChild(c)})()` }} />
+        <div style="text-align:center;font-weight:900;color:var(--mute);margin:18px 0 0">or use a code</div>
+      </div> : null}
+      <form method="post" action="/login" style="padding:12px 16px 20px">
+        <h2 style="margin:0 0 10px;font-size:20px;font-weight:900;letter-spacing:-.02em">Your phone number</h2>
         <input type="hidden" name="next" value={next} />
-        <label class="field"><span>Phone</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(646) 555-0199" required autofocus /></label>
+        <label class="field"><span>Phone</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(646) 555-0199" required /></label>
         {/* rental texts are optional (Twilio 10DLC): unchecked by default; the login code is a one-time text the person asks for */}
         <label class="smsopt"><input type="checkbox" name="sms_ok" value="1" /><span><b>Text me rental updates (optional)</b><small>Requests, YES/NO, pickup and return · msg frequency varies · msg &amp; data rates may apply · reply STOP to opt out, HELP for help</small></span></label>
-        <button class="btn pri full" type="submit">Text me a code</button>
+        <button class="btn full" type="submit">Text me a code</button>
         <p class="hint" style="margin-top:14px;line-height:1.45">Lendo texts your one-time login code. Without rental texts, updates come by email and on lendo.co · numbers never shared or sold · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
       </form>
     </Layout>
@@ -91,6 +104,8 @@ auth.get('/welcome', async (c) => {
         <h2 style="margin:0 0 6px;font-size:24px;font-weight:900;letter-spacing:-.02em">What should neighbors call you?</h2>
         <input type="hidden" name="next" value={next} />
         <label class="field"><span>Your name</span><input name="name" placeholder="Fiona Smith" required maxlength={40} autofocus /></label>
+        <label class="field"><span>Email</span><input name="email" type="email" inputmode="email" autocomplete="email" placeholder="you@email.com" required maxlength={120} value={u.email || ''} /></label>
+        <p class="hint" style="margin:-6px 0 12px">Only for receipts and anything a text misses</p>
         <PhotoField name={null} label="Your photo (optional)" />
         <label class="field"><span>Neighborhood (optional)</span><input name="hood" placeholder="Chelsea" maxlength={60} /></label>
         <button class="btn pri full" type="submit">Done</button>
@@ -105,6 +120,7 @@ auth.post('/welcome', async (c) => {
   const f = await c.req.parseBody();
   await c.env.DB.prepare('UPDATE users SET name = ?, hood = COALESCE(NULLIF(?, \'\'), hood) WHERE id = ?')
     .bind(String(f.name || '').trim().slice(0, 40) || 'Neighbor', String(f.hood || '').trim().slice(0, 60), u.id).run();
+  { const em = String(f.email || '').trim().toLowerCase(); if (validEmail(em)) await c.env.DB.prepare('UPDATE users SET email = ? WHERE id = ?').bind(em, u.id).run().catch(() => 0); }
   if (f.photo) await saveUserPhoto(c.env, u.id, f.photo).catch(() => null);
   await logEvent(c.env.DB, 'profile.setup', { user: u.id, data: { name: String(f.name || '').trim().slice(0, 40), hood: String(f.hood || '').trim().slice(0, 60), photo: !!f.photo } });
   const nx = safeNext(String(f.next || '/'));
@@ -132,6 +148,7 @@ auth.post('/api/auth/me', async (c) => {
   const u = c.get('user'); if (!u) return c.json({ ok: false }, 401);
   const j = await c.req.json().catch(() => ({} as any));
   const name = String(j.name ?? '').trim().slice(0, 40), hood = String(j.hood ?? '').trim().slice(0, 60);
+  { const em = String(j.email ?? '').trim().toLowerCase(); if (em) { if (!validEmail(em)) return c.json({ ok: false, error: 'That email doesn’t look right' }, 400); await c.env.DB.prepare('UPDATE users SET email = ? WHERE id = ?').bind(em, u.id).run().catch(() => 0); } }
   await c.env.DB.prepare('UPDATE users SET name = COALESCE(NULLIF(?, \'\'), name), hood = COALESCE(NULLIF(?, \'\'), hood) WHERE id = ?').bind(name, hood, u.id).run();
   await logEvent(c.env.DB, 'profile.setup', { user: u.id, data: { name, hood, via: 'list' } });
   return c.json({ ok: true });

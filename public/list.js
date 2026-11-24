@@ -574,6 +574,7 @@
     if (NEED.name && !HAVE) L.push(FN); /* name before phone — unless they said they're already on Lendo */
     if (SIGNUP) L.push({ k: 'phone', line: function () { return AUTH.pretty || AUTH.phone; } }, { k: 'code', line: function () { return 'Phone confirmed'; } });
     if (NEED.name && HAVE) L.push(FN); /* returning person whose account has no name yet */
+    if (!(ME && ME.email) || NEED.email) { NEED.email = true; L.push({ k: 'email', line: function () { return (ME && ME.email) || ''; } }); } /* required: receipts + anything a text misses */
     if (NEED.hood) L.push({ k: 'hood', line: function () { return (ME && ME.hood) || ''; } });
     L.push({ k: 'name', line: function () { return s.name || '…'; } }, { k: 'price', line: function () { return '$' + s.price + '/day'; } }, { k: 'note', line: function () { return s.note ? s.note : 'No details'; } });
     return L;
@@ -596,6 +597,7 @@
     if (q.k === 'phone') h = card(n, 'Your cell #', '', '<input class="q-in" id="qv" type="tel" autocomplete="tel" inputmode="tel" placeholder="(646) 555-0101" value="' + esc(AUTH.phone) + '">', 'Text me a code');
     if (q.k === 'code') h = card(n, 'Code we texted', AUTH.dev ? 'DEV code ' + AUTH.dev : '', '<input class="q-in" id="qv" inputmode="numeric" autocomplete="one-time-code" maxlength="6" style="letter-spacing:.3em">', 'Confirm');
     if (q.k === 'fname') h = card(n, 'Your first name', '', '<input class="q-in" id="qv" autocomplete="given-name" maxlength="40" value="' + esc((ME && ME.name) || PNAME) + '">' + (!ME ? '<button type="button" class="q-have" id="qHave">Already on Lendo? Use your phone #</button>' : ''), 'Next');
+    if (q.k === 'email') h = card(n, 'Your email', 'Only for receipts and anything a text misses', '<input class="q-in" id="qv" type="email" inputmode="email" autocomplete="email" maxlength="120" placeholder="you@email.com" value="' + esc((ME && ME.email) || '') + '">', 'Next', false);
     if (q.k === 'hood') h = card(n, 'Your neighborhood', '', '<input class="q-in" id="qv" maxlength="60" placeholder="West Village" value="' + esc(CFG.hood || '') + '">', 'Next', true);
     $('qCard').innerHTML = h; var v = $('qv'); if (v && !soft) setTimeout(function () { try { v.focus({ preventScroll: true }); } catch (e) {} }, 60);
   }
@@ -617,6 +619,7 @@
     if (q.k === 'code') { var b2 = $('qNext'); b2.disabled = true;
       return api('/api/auth/verify', { phone: AUTH.norm, code: val }).then(function (j) { if (!j.ok) { b2.disabled = false; return err(j.error || 'Try again'); } ME = j.user; NEED.hood = !ME.hood; if (HAVE) NEED.name = !ME.name; if (PNAME && !ME.name) { ME.name = PNAME; api('/api/auth/me', { name: PNAME }); } var L = qs(), k = 0; for (var i = 0; i < L.length; i++) if (L[i].k === 'code') k = i; QI = k + 1; renderQ(); }); }
     if (q.k === 'fname') { if (!val) return err('A first name, so neighbors know who’s lending'); if (!ME) { PNAME = val; return go(); } /* not logged in yet: saved right after the code */ ME.name = val; return api('/api/auth/me', { name: val }).then(go, go); }
+    if (q.k === 'email') { if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(val)) return err('An email, for receipts and anything a text misses'); ME = ME || {}; ME.email = val; return api('/api/auth/me', { email: val }).then(function (j) { if (j && j.ok === false) return err(j.error || 'Try again'); go(); }, go); }
     if (q.k === 'hood') { if (!skipped && val) { ME = ME || {}; ME.hood = val; CFG.hood = val; return api('/api/auth/me', { hood: val }).then(go, go); } return go(); }
   }
   $('qCard').addEventListener('click', function (e) {
