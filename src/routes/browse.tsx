@@ -1,4 +1,4 @@
-import { valueNow } from '../lib/value';
+import { holdFor } from '../lib/value';
 import { guaranteeCap } from '../lib/claims';
 import { Hono, type Context } from 'hono';
 import { GIFT_TEXT, smsHref } from '../lib/blooio';
@@ -154,6 +154,7 @@ export const itemPage = async (c: Ctx, lid: string, pretty = false) => {
   /* viewer already renting this: a smart link to their rental */
   const mine = u && !isOwner ? await c.env.DB.prepare(`SELECT id, status, start_day, end_day FROM rentals WHERE listing_id = ? AND renter_id = ? AND status IN ('held','confirmed','picked_up','returned') ORDER BY created_at DESC LIMIT 1`).bind(it.id, u.id).first<{ id: string; status: string; start_day: string; end_day: string }>().catch(() => null) : null;
   const gr = await shownGrade(c.env, it.id, it.grade);
+  const hold = await holdFor(c.env, it);
   const ir = await c.env.DB.prepare('SELECT COUNT(*) n, SUM(item_rating >= 3) up FROM rentals WHERE listing_id = ? AND item_rating IS NOT NULL').bind(it.id).first<{ n: number; up: number }>().catch(() => null);
   return c.html(
     <Layout title={it.name} headerCenter={<span />} user={u} flash={c.req.query('canceled') ? 'Checkout canceled — nothing was charged.' : null}>
@@ -183,7 +184,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
           {isOwner ? <a class="btn sm" href={'/listings/' + it.id + '/edit'} style="flex-shrink:0;margin-left:8px">✎ Edit</a> : null}
         </div>
         {ir?.n ? <div class="hint" style="margin-top:2px">👍 {ir.up || 0} of {ir.n}</div> : null}
-        <div class="ititle"><p style="flex:1;min-width:0;margin:0;font-size:14px;line-height:1.35;color:var(--ink2);white-space:pre-wrap">{it.description || ''}</p><GradeInfo g={gr.letter} customers={gr.customers} owner={(owner.name || 'Owner').split(' ')[0]} cls="inrow" /></div>
+        <div class="ititle"><p style="flex:1;min-width:0;margin:0;font-size:14px;line-height:1.35;color:var(--ink2);white-space:pre-wrap">{it.description || ''}{it.issues ? (it.description ? '\n' : '') + 'Known issues: ' + it.issues : ''}</p><GradeInfo g={gr.letter} customers={gr.customers} owner={(owner.name || 'Owner').split(' ')[0]} cls="inrow" /></div>
         <div class="askrow">{!isOwner && it.status === 'live' ? (it.demo || !u
           ? <a class="askbtn" href={it.demo ? '#' : '/i/' + it.id + '/ask'} onclick={it.demo ? "event.preventDefault();toast('Demo item — messaging is off')" : undefined}>Ask a question</a>
           : <details class="askd" ontoggle="if(this.open)this.querySelector('textarea').focus()"><summary class="askbtn">Ask a question</summary>
@@ -202,7 +203,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
               <button type="button" class="btn" data-q="1" style="flex:1;line-height:1.1"><b style="font-size:15px">1 day</b><small style="font-size:13px;font-weight:700">{money(it.price_cents)}</small></button>
               {it.week_cents && it.week_cents < it.price_cents * 7 ? <button type="button" class="btn" data-q="7" style="flex:1.3;line-height:1.1;position:relative"><b style="font-size:15px">1 week</b><small style="font-size:13px;font-weight:700">{money(it.week_cents)} <s style="color:var(--mute);font-weight:600">{money(it.price_cents * 7)}</s></small><span style="position:absolute;right:-6px;top:-9px;background:var(--orange);color:#fff;border:1.5px solid var(--ink);border-radius:8px;font-size:10px;font-weight:900;padding:2px 6px">{Math.round(100 - it.week_cents / (it.price_cents * 7) * 100)}% OFF</span></button> : null}
             </div>
-            <div class="ihold">{money(valueNow(it).cents)} hold (not a charge) on your card at pickup · released after return · <a href="/how-it-works#hold" style="color:inherit">how it works</a></div>
+            <div class="ihold">{money(hold.cents)} hold (not a charge) on your card at pickup · released after return · <a href="/how-it-works#hold" style="color:inherit">how it works</a></div>
             <div class="days-hd">{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((w, i) => <span>{w}</span>)}</div>
             <div class="days" id="days" style={`--lead:${new Date(days[0] + 'T12:00:00Z').getUTCDay()}`}>
               {days.map((d, i) => {
@@ -644,7 +645,9 @@ browse.get('/terms', async (c) => {
           <li>Cards are held when a rental is requested, charged when the owner says YES, and released on NO or expiry</li>
           <li>Every rental has a deposit: a hold (not a charge) on the customer’s card for the item’s value, placed at pickup and released after return. Lendo’s AI sets the value</li>
           <li>If an owner reports a problem (damage, missing parts, not returned), the owner and customer each give statements and photos, and Lendo’s AI decides what the customer owes, up to the hold. Either side can ask for one second look. After that the decision is final for both, and the amount is charged from the hold</li>
-          <li>If a customer’s card company reverses a charge the AI decided, Lendo still pays the owner that amount, up to {money(cap)}</li>
+          <li>Money from a decision is released to the owner after a short video call with Lendo</li>
+          <li>If a customer’s card company reverses a charge the AI decided, Lendo still pays the owner that amount, up to {money(cap)}, when the hold was on the card at handover</li>
+          <li>A hold over $500 needs two or more photos of the owner’s own item; until then the hold is $500. A hold over $500 also needs a handover photo</li>
           <li>Return items on time and in the same condition</li>
         </ul>
         <h3 style={H2}>Rules</h3>

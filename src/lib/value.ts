@@ -6,9 +6,13 @@
 // Value = what it costs today to replace this item with the same thing in the same condition (used price), not new retail.
 import type { Env, Listing } from './env';
 import { logErr, logEvent } from './log';
-import { claudeText } from './util';
+import { claudeText, firstName, money } from './util';
+import { textUser } from './blooio';
+import { userById } from './db';
 
 export const VALUE_MODEL = 'claude-sonnet-5-5';
+/* fraud guard (Scott, 11/24): a hold above this needs 2+ photos, none of them a standard web photo. Until then the hold stops here */
+export const HIGH_CENTS = 50000;
 const MIN_CENTS = 1000, MAX_CENTS = 2000000; /* sanity bounds only: $10 to $20,000 */
 const round5 = (cents: number) => Math.max(MIN_CENTS, Math.min(MAX_CENTS, Math.round(cents / 500) * 500));
 const GRADE_WORD: Record<string, string> = { A: 'great', B: 'good', C: 'ok', D: 'poor', E: 'junk' };
@@ -60,6 +64,7 @@ async function ask(env: Env, l: Listing, appeal?: { text: string; photos: string
     `Name: ${JSON.stringify(l.name)}`,
     `Description: ${JSON.stringify(l.description || '')}`,
     `Condition grade: ${l.grade || 'A'} (${GRADE_WORD[l.grade || 'A'] || 'great'})`,
+    l.issues ? `Known issues, in the owner's words: ${JSON.stringify(l.issues.slice(0, 600))}` : '',
     `Daily rental price: $${(l.price_cents / 100).toFixed(0)}`,
     `Photos: ${keys.length ? `first ${keys.length} listing photo(s)${l.stock_photo ? ' (standard web photos, not this unit)' : ''}` : 'none'}`,
     appeal ? `The owner says the first value ($${((l.value_cents || 0) / 100).toFixed(0)}: ${l.value_why || ''}) is wrong. Their note: ${JSON.stringify(appeal.text.slice(0, 800))}.${appeal.photos.length ? ` The last ${Math.min(3, appeal.photos.length)} image(s) are what they added (receipt, label, etc).` : ''} Look again from scratch. Move the value only as far as checkable facts support (a readable receipt, a model number, a visible accessory). A bare claim is not evidence` : '',
@@ -81,6 +86,18 @@ export function valueNow(l: Listing): Valued {
   return l.value_cents ? { cents: l.value_cents, why: l.value_why || '', src: l.value_src || 'est' } : estimateValue(l);
 }
 
+// The hold for a rental requested now: the value, held at HIGH_CENTS until the listing has 2+ real photos of the owner's own item.
+export async function photosOk(env: Env, l: Listing): Promise<boolean> {
+  if (l.stock_photo) return false;
+  const n = await env.DB.prepare('SELECT COUNT(*) n FROM photos WHERE listing_id = ?').bind(l.id).first<{ n: number }>().catch(() => null);
+  return (n?.n || 0) >= 2;
+}
+export async function holdFor(env: Env, l: Listing): Promise<Valued & { capped: boolean }> {
+  const v = valueNow(l);
+  if (v.cents > HIGH_CENTS && !(await photosOk(env, l))) return { ...v, cents: HIGH_CENTS, capped: true };
+  return { ...v, capped: false };
+}
+
 // The listing's value, asking the AI if it has none (or only an estimate). Used by the cron and the owner's "get it now".
 // Never throws. If the AI doesn't answer, the estimate is kept and value_at is stamped so the cron waits before retrying.
 export async function ensureValue(env: Env, l: Listing): Promise<Valued> {
@@ -100,8 +117,27 @@ export async function valueDue(env: Env, max = 5): Promise<number> {
   const rows = (await env.DB.prepare(`SELECT * FROM listings WHERE status = 'live' AND demo = 0 AND (value_cents IS NULL OR value_src = 'est') AND created_at < ? AND (value_at IS NULL OR value_at < ?) ORDER BY created_at DESC LIMIT ?`)
     .bind(Date.now() - hrs * 3600e3, Date.now() - 6 * 3600e3, max).all<Listing>()).results;
   let n = 0;
-  for (const l of rows) { const v = await ensureValue(env, l); if (v.src !== 'est') n++; }
+  for (const l of rows) {
+    const v = await ensureValue(env, l); if (v.src === 'est') continue; n++;
+    try { await nudge(env, l, v); } catch (e) { await logErr(env.DB, 'value nudge', e, { listing: l.id }); }
+  }
   return n;
+}
+
+// Once per item, at valuation time (Scott, 11/24): worth over $500 → ask for 2+ real photos; condition below A → ask what's wrong with it.
+async function nudge(env: Env, l: Listing, v: Valued) {
+  let done = l.value_nudged || 0; const was = done;
+  const owner = await userById(env.DB, l.owner_id); if (!owner) return;
+  const url = `${env.APP_URL}/listings/${l.id}/edit`;
+  if (!(done & 1) && v.cents > HIGH_CENTS && !(await photosOk(env, l))) {
+    await textUser(env, owner, `${firstName(owner.name)}, your ${l.name} is worth about ${money(v.cents)}. To be covered for all of it, add 2 or more photos of yours${l.stock_photo ? ' (it has a standard web photo now)' : ''}. Until then customers' holds stop at ${money(HIGH_CENTS)}: ${url}`, 'rental');
+    done |= 1;
+  }
+  if (!(done & 2) && (l.grade || 'A') !== 'A' && !l.issues) {
+    await textUser(env, owner, `Your ${l.name} is listed as ${l.grade} (${GRADE_WORD[l.grade || 'A']}). What's wrong with it? Add it so customers know and you're covered if there's a problem later: ${url}#issues`, 'rental');
+    done |= 2;
+  }
+  if (done !== was) await env.DB.prepare('UPDATE listings SET value_nudged = ? WHERE id = ?').bind(done, l.id).run();
 }
 
 // Owner's one appeal. The AI's second answer stands, up or down.

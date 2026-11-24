@@ -16,7 +16,7 @@ import { requireUser } from '../lib/auth';
 import { addMessage, busyDays, firstPhotos, listingById, photosFor, rentalById, userById } from '../lib/db';
 import { id, money, now, daysBetween, dayStr, addDays, fmtRange, rentFor, firstName, fmtDay, backDay } from '../lib/util';
 import { cardSetupUrl, createCheckout, connectOnboardingUrl, flushPendingPayouts, stripe } from '../lib/stripe';
-import { valueNow } from '../lib/value';
+import { HIGH_CENTS, holdFor } from '../lib/value';
 import { canOpen, claimFor, isOpen } from '../lib/claims';
 import { payoutOf, quote, taxRateFor } from '../lib/money';
 import { selfMigrate } from '../lib/migrate';
@@ -53,9 +53,9 @@ rentals.post('/i/:id/rent', async (c) => {
   /* right after a deploy the tax columns may not exist yet (cron migrates every 5 min) → migrate now and retry */
   try { await ins(); } catch { await selfMigrate(c.env); await ins(); }
   /* every rental: a deposit hold at pickup for the item's value, set by AI in the background ~1h after listing (value.ts). The request never waits on the AI: no value yet → an estimate from the daily price. The card is saved at checkout for the hold */
-  const val = valueNow(it);
+  const val = await holdFor(c.env, it);
   await c.env.DB.prepare(`UPDATE rentals SET deposit_cents = ?, deposit_status = 'due' WHERE id = ?`).bind(val.cents, rid).run();
-  await logEvent(c.env.DB, 'rental.deposit_set', { user: u.id, rental: rid, listing: it.id, cents: val.cents, data: { src: val.src } });
+  await logEvent(c.env.DB, 'rental.deposit_set', { user: u.id, rental: rid, listing: it.id, cents: val.cents, data: { src: val.src, capped: val.capped } });
   const r = (await rentalById(c.env.DB, rid))!;
   const url = await createCheckout(c.env, r, it, u);
   if (url) return c.redirect(url, 303);
@@ -130,7 +130,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
   const chats = await chatList(c.env.DB, u.id);
   const extCells = live && !isOwner && !ox ? Array.from({ length: Math.min(EXT_MAX_DAYS, Math.max(7, extOk.length + 1)) }, (_, i) => addDays(r.end_day, i + 1)) : [];
   return c.html(
-    <Layout title={isOwner ? 'Rental of your ' + it.name : 'Your rental'} user={u} back="/inbox" headerCenter={<span class="sp"></span>} flash={c.req.query('paid') ? (r.status === 'held' ? `Card held. Waiting for ${firstName(owner.name)}.` : null) : null}>
+    <Layout title={isOwner ? 'Rental of your ' + it.name : 'Your rental'} user={u} back="/inbox" headerCenter={<span class="sp"></span>} flash={c.req.query('paid') ? (r.status === 'held' ? `Card held. Waiting for ${firstName(owner.name)}.` : null) : null} flashErr={c.req.query('needphoto') ? 'Take the handover photo first · it shows what was handed over' : undefined}>
       <ChatPick rows={chats} me={u.id} cur={'/r/' + r.id} />
       <div class="rpage">
       <div class="rcard">
@@ -319,7 +319,7 @@ f.addEventListener('change',ok);f.addEventListener('submit',function(){document.
           {stage === 1 || stage === 2 ? <div class="rchips">
             {isOwner ? <>
               <form method="post" action={'/r/' + r.id + (stage === 1 ? '/pickup' : '/return')} enctype="multipart/form-data"><label class="rchip hot">📷 {stage === 1 ? 'Handed over' : 'Got it back'}<input type="file" name="photo" accept="image/*" capture="environment" hidden onchange="this.form.submit()" /></label></form>
-              <form method="post" action={'/r/' + r.id + (stage === 1 ? '/pickup' : '/return')} enctype="multipart/form-data" onsubmit={`return confirm('${stage === 1 ? 'Mark picked up' : 'Mark returned'} without a photo?')`}><button class="rchip" type="submit">✓ No photo</button></form>
+              {stage === 1 && (r.deposit_cents || 0) > HIGH_CENTS ? null : <form method="post" action={'/r/' + r.id + (stage === 1 ? '/pickup' : '/return')} enctype="multipart/form-data" onsubmit={`return confirm('${stage === 1 ? 'Mark picked up' : 'Mark returned'} without a photo?')`}><button class="rchip" type="submit">✓ No photo</button></form>}
             </> : null}
             {meetDue(stage === 1 ? r.start_day : backDay(r.end_day), stage === 1 ? r.pickup_time : r.return_time || r.pickup_time, it.lng) ? <><span class="qrlbl">Tap to send</span><a class="rchip qr sms-only" href={smsHref(c.env, "I'm here")} style="text-decoration:none">👋 “I’m here” <i aria-hidden="true">↑</i></a><form method="post" action={'/r/' + r.id + '/msg'} class="web-only"><input type="hidden" name="body" value="I'm here" /><button class="rchip qr" type="submit">👋 “I’m here” <i aria-hidden="true">↑</i></button></form></> : null}
 
@@ -466,7 +466,10 @@ rentals.get('/r/:id/card', requireUser, async (c) => {
 rentals.post('/r/:id/pickup', requireUser, async (c) => {
   const u = c.get('user')!; const r = await rentalById(c.env.DB, c.req.param('id'));
   if (!r || r.owner_id !== u.id) return c.notFound();
-  await pickedUp(c.env, r, await savePhoto(c, r, 'pickup'));
+  const photo = await savePhoto(c, r, 'pickup');
+  /* a hold over $500 needs the handover photo: it's the proof of what was handed over, and in what shape */
+  if (!photo && (r.deposit_cents || 0) > HIGH_CENTS && r.status === 'confirmed') return c.redirect('/r/' + r.id + '?needphoto=1');
+  await pickedUp(c.env, r, photo);
   return c.redirect('/r/' + r.id);
 });
 rentals.post('/r/:id/return', requireUser, async (c) => {

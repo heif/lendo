@@ -10,6 +10,14 @@ Built in a side thread on 11/24/2026. This note hands it to the main Lendo threa
 5. Chargebacks: Lendo pays the owner what the AI decided even if a bank reverses it, up to a cap
 6. Why: one clean answer to "what if they break it / what if I'm blamed"
 
+## Fraud guards (Scott, 11/24)
+1. Every claim payout is released by a person after a FaceTime call with the owner (`/admin/claims` → "Called · release"). Collection from the customer's hold is still automatic
+2. Guarantee cap $250, in the Terms only. Not on How it works, not in texts. Applies only if the hold was on the card at handover
+3. Hold over $500 needs 2+ photos of the owner's own item (no standard web photo); until then the hold is $500. Owner is texted once at valuation
+4. Hold over $500 needs the handover photo (no "No photo" option)
+5. Grade below A: owner is texted once at valuation to say what's wrong (`listings.issues`, "Known issues" on the edit page). Customers see it; the AI uses it for the value and for rulings
+6. Known open risk: two accounts + a stolen card can still fake a rental and a claim. The call is the main defense for now
+
 ## What's built
 - `migrations/0039_value_claims.sql`: `listings.value_*`, `rentals.returned_at`, `claims`, `claim_entries`, settings `guarantee_cap_cents` (25000 = $250; stated in the Terms only, not advertised; applies only if the hold was on the card at handover), `cb_auto_submit` (0). Registered in `src/lib/migrate.ts`
 - `src/lib/value.ts`: `valueDue` (cron, 5 items per run), `valueNow` (request time, no AI), `ensureValue` (AI, used price not new; keeps an estimate from the daily price if the AI doesn't answer, retried after 6h), `appealValue` (once)

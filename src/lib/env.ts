@@ -49,7 +49,7 @@ export type User = {
 export type Listing = {
   id: string; owner_id: string; name: string; description: string | null; price_cents: number; week_cents: number | null;
   deposit_cents: number; status: 'live' | 'paused' | 'review' | 'removed'; paused_why?: string | null; stock_photo?: number; hood: string | null; hood_id: string | null; lat: number | null; lng: number | null; emoji: string | null; avatar_key: string | null; avatar_style: string | null; demo: number; created_at: number; grade?: string;
-  value_cents?: number | null; value_why?: string | null; value_src?: 'ai' | 'appeal' | 'est' | null; value_at?: number | null; value_appeal?: string | null; /* item value = deposit hold, set by AI */
+  value_cents?: number | null; value_why?: string | null; value_src?: 'ai' | 'appeal' | 'est' | null; value_at?: number | null; value_appeal?: string | null; value_nudged?: number; issues?: string | null; /* issues: what's wrong with it, asked when the grade isn't A */ /* item value = deposit hold, set by AI */
 };
 
 export type Rental = {
@@ -73,7 +73,7 @@ export type Claim = {
   status: ClaimStatus; deposit_cents: number; step_due: number | null;
   award_cents: number | null; ruling: string | null; ruled_at: number | null; review_due: number | null; owner_ok: number; customer_ok: number;
   final_cents: number | null; final: string | null; final_at: number | null; settled_at: number | null;
-  collected_cents: number; collect_how: 'hold' | 'card' | 'none' | null; collect_pi: string | null; owner_due_cents: number; paid_out: number; tries: number;
+  collected_cents: number; collect_how: 'hold' | 'card' | 'none' | null; collect_pi: string | null; owner_due_cents: number; paid_out: number; payout_ok: number; payout_by: string | null; payout_at: number | null; tries: number;
   cb_id: string | null; cb_status: string | null; cb_cents: number | null; cb_evidence_at: number | null; lendo_loss_cents: number; owner_excess_cents: number;
   created_at: number; updated_at: number;
 };

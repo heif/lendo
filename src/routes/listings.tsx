@@ -2,7 +2,7 @@ import { minPriceCents } from '../lib/identify';
 import { getCookie } from 'hono/cookie';
 import { bonusOpen, nycLeft, NYC_CAP } from '../lib/db';
 import { hereOf } from '../lib/places';
-import { appealValue, ensureValue } from '../lib/value';
+import { appealValue, ensureValue, HIGH_CENTS, photosOk } from '../lib/value';
 import { Hono } from 'hono';
 import { cutoutUrl } from '../lib/cutout';
 import { smsHref } from '../lib/blooio';
@@ -423,9 +423,12 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
         {/* item value = the deposit hold on every rental. Set by Lendo's AI in the background about an hour after listing; the owner can ask for it now. The one appeal is tucked away on purpose */}
         <div class="field"><span>Value</span>
           {it.value_cents && it.value_src !== 'est' ? <div><b>{money(it.value_cents)}</b> <span class="hint">· set by Lendo · customers get a hold (not a charge) for this at pickup{it.value_why ? ' · ' + it.value_why : ''}</span>
+              {it.value_cents > HIGH_CENTS && !(await photosOk(c.env, it)) ? <div class="hint" style="margin-top:4px;color:#b3261e;font-weight:700">Holds stop at {money(HIGH_CENTS)} until this has 2 or more photos of yours{it.stock_photo ? ' (it has a standard web photo now)' : ''}</div> : null}
               {!it.value_appeal ? <div class="hint" style="margin-top:4px"><a href={`/listings/${it.id}/value`} style="color:inherit">Looks wrong?</a></div> : null}</div>
             : <div class="hint">Lendo sets it about an hour after listing · customers get a hold (not a charge) for it at pickup · <button type="submit" formaction={`/listings/${it.id}/value/now`} formnovalidate style="background:none;border:0;padding:0;font:inherit;color:inherit;text-decoration:underline">get it now</button></div>}
         </div>
+        {/* asked when the grade isn't A: customers see it, the value accounts for it, and it's on file if there's a problem later */}
+        {(gr.letter !== 'A' || it.issues) ? <label class="field" id="issues"><span>Known issues</span><textarea name="issues" maxlength={600} placeholder="What’s wrong with it: scratches, a missing part, a weak battery" style="min-height:60px">{it.issues || ''}</textarea></label> : null}
         <label class="field"><span>Description</span><textarea name="description" id="desc" maxlength={600} placeholder="Model · what’s included · condition · good for">{it.description || ''}</textarea></label>
         <div class="dmeter" id="dmeter"></div>
         <script src="/details.js"></script>
@@ -549,6 +552,10 @@ listings.post('/listings/:id/edit', requireUser, async (c) => {
   const em = nm === it.name && it.emoji ? it.emoji : emojiFor(nm, ds); // map icon is automatic, not owner-edited
   await c.env.DB.prepare('UPDATE listings SET name = ?, description = ?, price_cents = ?, week_cents = ?, emoji = ? WHERE id = ?')
     .bind(nm, ds, price, week, em, it.id).run();
+  if (f.issues !== undefined) { const iss = String(f.issues || '').trim().slice(0, 600) || null; if (iss !== (it.issues || null)) {
+    /* what's wrong with it changes what it's worth: the cron values it again (an appealed value stays) */
+    await c.env.DB.prepare('UPDATE listings SET issues = ?' + (it.value_appeal ? '' : `, value_src = CASE WHEN value_cents IS NULL THEN value_src ELSE 'est' END, value_at = NULL`) + ' WHERE id = ?').bind(iss, it.id).run();
+    await logEvent(c.env.DB, 'listing.issues', { user: u.id, listing: it.id, data: { now: iss, was: it.issues || null } }); } }
   await logEvent(c.env.DB, 'listing.edited', { user: u.id, listing: it.id, cents: price, data: { was: { name: it.name, price: it.price_cents, desc: it.description }, now: { name: nm, price, desc: ds } } });
   if (isGrade(f.grade)) { const gr = await shownGrade(c.env, it.id, (it as any).grade); if (!gr.customers) await c.env.DB.prepare('UPDATE listings SET grade = ? WHERE id = ?').bind(f.grade, it.id).run().catch(() => {}); }
   const today = localToday(it.lng);

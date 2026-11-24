@@ -162,6 +162,7 @@ async function caseFile(env: Env, cl: Claim): Promise<{ content: any[]; text: st
   const lines: string[] = [
     `CASE ${cl.id} · claim type: ${cl.kind}`,
     `Item: ${JSON.stringify(listing.name)} · description: ${JSON.stringify(listing.description || '')} · owner's condition grade ${listing.grade || 'A'} (A great … E junk)`,
+    `Known issues the owner listed before this rental (these are not the customer's doing): ${listing.issues ? JSON.stringify(listing.issues) : 'none listed'}`,
     `Item value (set by Lendo's AI before the rental; this is the hold and the most that can be charged): $${(cl.deposit_cents / 100).toFixed(0)}${listing.value_why ? ` · basis: ${listing.value_why}` : ''}`,
     `Owner: ${o}. Customer: ${cu}`,
     `Rental: ${rental.start_day} to ${rental.end_day} (${rental.days} day${rental.days === 1 ? '' : 's'}), due back ${backDay(rental.end_day)}. Today is ${localToday(listing.lng)}. Rental status: ${rental.status}`,
@@ -297,14 +298,25 @@ export async function settle(env: Env, cl: Claim): Promise<void> {
   const loss = Math.max(0, ownerDue - got.cents);
   await env.DB.prepare('UPDATE claims SET collected_cents = ?, collect_how = ?, collect_pi = ?, owner_due_cents = ?, lendo_loss_cents = ? WHERE id = ?').bind(got.cents, got.how, got.pi, ownerDue, loss, cl.id).run();
   await logEvent(env.DB, 'claim.settled', { rental: cl.rental_id, user: owner.id, cents: F, data: { claim: cl.id, collected: got.cents, how: got.how, owner_due: ownerDue, lendo_loss: loss, cap } });
-  const fresh = (await claimById(env, cl.id))!;
-  let paid = false;
-  try { paid = await payClaim(env, fresh, owner); } catch (e) { await logErr(env.DB, 'claim payout', e, { rental: cl.rental_id }); }
   await addMessage(env, cl.rental_id, null, `Final: ${cu} owes ${money(F)}${got.cents >= F ? (got.how === 'hold' ? ` · charged from the hold${F < cl.deposit_cents ? ', the rest released' : ''}` : ' · charged to the card') : ''}`, 'system');
   if (got.cents >= F) await textUser(env, customer, `Final on the ${listing.name}: ${money(F)} charged ${got.how === 'hold' ? `from your ${dep} hold${F < cl.deposit_cents ? ', the rest is released' : ''}` : 'to your card'}`, 'money', cl.rental_id);
   else await textUser(env, customer, `Final on the ${listing.name}: you owe ${money(F)} and your card didn't take it. Lendo will be in touch`, 'money', cl.rental_id);
-  await textUser(env, owner, ownerDue > 0 ? (paid ? `Final on the ${listing.name}: ${money(ownerDue)} is on its way to your account` : `Final on the ${listing.name}: ${money(ownerDue)} is yours. Add where it should go: ${env.APP_URL}/payout`) : `Final on the ${listing.name}: ${cu} owes ${money(F)} but the card didn't take it. Lendo will be in touch`, 'money', cl.rental_id);
+  /* every claim payout waits for a person: a FaceTime call with the owner, then released at /admin/claims (releasePayout) */
+  await textUser(env, owner, ownerDue > 0 ? `Final on the ${listing.name}: ${money(ownerDue)} is yours. Lendo will FaceTime you first, then it's sent` : `Final on the ${listing.name}: ${cu} owes ${money(F)} but the card didn't take it. Lendo will be in touch`, 'money', cl.rental_id);
+  if (ownerDue > 0) await adminText(env, `Claim ${cl.id}: FaceTime ${o} (${owner.phone}), then release ${money(ownerDue)} at ${env.APP_URL}/admin/claims`, cl.rental_id);
   if (got.cents < F) await adminText(env, `Claim ${cl.id}: ${cu} owes ${money(F)}, collected ${money(got.cents)}. ${o} is due ${money(ownerDue)} (Lendo covers ${money(loss)}, cap ${money(cap)}) ${link(env, cl)}`, cl.rental_id);
+}
+
+// A person called the owner and releases the money (admin). Pays now, or when the owner adds payout details.
+export async function releasePayout(env: Env, cl: Claim, adminId: string): Promise<'paid' | 'waiting' | 'no'> {
+  if (cl.status !== 'final' || !cl.settled_at || cl.owner_due_cents <= 0 || cl.paid_out) return 'no';
+  await env.DB.prepare('UPDATE claims SET payout_ok = 1, payout_by = ?, payout_at = ? WHERE id = ? AND payout_ok = 0').bind(adminId, now(), cl.id).run();
+  await logEvent(env.DB, 'claim.payout_released', { rental: cl.rental_id, user: adminId, cents: cl.owner_due_cents, data: { claim: cl.id } });
+  const { owner, listing } = await ctx(env, cl);
+  let paid = false;
+  try { paid = await payClaim(env, (await claimById(env, cl.id))!, owner); } catch (e) { await logErr(env.DB, 'claim payout', e, { rental: cl.rental_id }); }
+  await textUser(env, owner, paid ? `${money(cl.owner_due_cents)} for the ${listing.name} is on its way to your account` : `${money(cl.owner_due_cents)} for the ${listing.name} is ready. Add where it should go: ${env.APP_URL}/payout`, 'money', cl.rental_id);
+  return paid ? 'paid' : 'waiting';
 }
 
 // ---------- cron (every 5 min) ----------

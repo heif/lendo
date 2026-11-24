@@ -5,6 +5,8 @@ ALTER TABLE listings ADD COLUMN value_why TEXT;
 ALTER TABLE listings ADD COLUMN value_src TEXT;
 ALTER TABLE listings ADD COLUMN value_at INTEGER;
 ALTER TABLE listings ADD COLUMN value_appeal TEXT;
+ALTER TABLE listings ADD COLUMN value_nudged INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE listings ADD COLUMN issues TEXT;
 ALTER TABLE rentals ADD COLUMN returned_at INTEGER;
 CREATE TABLE IF NOT EXISTS claims (
   id TEXT PRIMARY KEY,
@@ -31,6 +33,9 @@ CREATE TABLE IF NOT EXISTS claims (
   collect_pi TEXT,
   owner_due_cents INTEGER NOT NULL DEFAULT 0,
   paid_out INTEGER NOT NULL DEFAULT 0,
+  payout_ok INTEGER NOT NULL DEFAULT 0,
+  payout_by TEXT,
+  payout_at INTEGER,
   tries INTEGER NOT NULL DEFAULT 0,
   cb_id TEXT,
   cb_status TEXT,

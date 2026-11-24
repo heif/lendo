@@ -3,7 +3,7 @@ import type { Hono } from 'hono';
 import type { Env, Vars } from '../lib/env';
 import { accept, customerCancel, decline, holdDeposit, pickedUp, returned } from '../lib/rentals';
 import { placeDeposit, stripe } from '../lib/stripe';
-import { guaranteeCap, KINDS, setting } from '../lib/claims';
+import { claimById, guaranteeCap, KINDS, releasePayout, setting } from '../lib/claims';
 import { rentalById } from '../lib/db';
 import { CATEGORIES, REASONS, routeFor, routes } from '../lib/flags';
 import { Layout } from '../pages/layout';
@@ -125,10 +125,15 @@ export function registerDash(admin: A) {
       <div class="hint" style="margin-bottom:8px">{rows.length} claims · decided for owners {money(tot('final_cents'))} · collected {money(tot('collected_cents'))} · Lendo’s loss {money(tot('lendo_loss_cents'))} · paid above the cap {money(tot('owner_excess_cents'))}</div>
       <div class="ad-wrap"><table class="ad-t"><tr><th>Opened</th><th>Item</th><th>Owner → customer</th><th>Type</th><th>Status</th><th class="n">Hold</th><th class="n">Decision</th><th class="n">Final</th><th class="n">Collected</th><th class="n">Owner due</th><th>Bank dispute</th></tr>
         {rows.map(r => <tr><td style="white-space:nowrap">{new Date(r.created_at).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', timeZone: 'America/New_York' })}</td><td><a href={'/r/' + r.rental_id + '/claim'}>{r.item}</a></td><td>{r.oname} → {r.cname}</td><td>{KINDS[r.kind as keyof typeof KINDS] || r.kind}</td><td>{r.status}{r.tries ? ` · ${r.tries} failed tries` : ''}</td>
-          <td class="n">{money(r.deposit_cents)}</td><td class="n">{r.award_cents != null ? money(r.award_cents) : ''}</td><td class="n">{r.final_cents != null ? money(r.final_cents) : ''}</td><td class="n">{r.settled_at ? `${money(r.collected_cents)} ${r.collect_how || ''}` : ''}</td><td class="n">{r.owner_due_cents ? `${money(r.owner_due_cents)}${r.paid_out ? ' ✓' : ' waiting'}` : ''}</td>
+          <td class="n">{money(r.deposit_cents)}</td><td class="n">{r.award_cents != null ? money(r.award_cents) : ''}</td><td class="n">{r.final_cents != null ? money(r.final_cents) : ''}</td><td class="n">{r.settled_at ? `${money(r.collected_cents)} ${r.collect_how || ''}` : ''}</td><td class="n">{r.owner_due_cents ? <>{money(r.owner_due_cents)}{r.paid_out ? ' ✓ sent' : r.payout_ok ? ' · released, needs payout details' : r.settled_at ? <form method="post" action={`/admin/claims/${r.id}/release`} style="display:inline" onsubmit="return confirm('FaceTime call done? This sends the money')"> <button class="btn sm pri" type="submit">Called · release</button></form> : ''}</> : ''}</td>
           <td>{r.cb_id ? `${r.cb_status} · ${money(r.cb_cents || 0)}${r.cb_evidence_at ? ' · file on it' : ' · NO file'}` : ''}</td></tr>)}
       </table>{rows.length ? null : <p class="hint">Nothing yet</p>}</div>
     </Shell>);
+  });
+  admin.post('/admin/claims/:id/release', async (c) => {
+    const cl = await claimById(c.env, c.req.param('id')); if (!cl) return c.notFound();
+    await releasePayout(c.env, cl, c.get('user')!.id);
+    return c.redirect('/admin/claims');
   });
   admin.post('/admin/claims/settings', async (c) => {
     if (c.get('user')?.admin_level !== 'owner') return c.notFound();

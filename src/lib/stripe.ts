@@ -122,7 +122,7 @@ export async function flushPendingPayouts(env: Env, owner: User): Promise<number
     n++;
   }
   /* settled claims owed to this owner */
-  const cs = await env.DB.prepare(`SELECT * FROM claims WHERE owner_id = ? AND settled_at IS NOT NULL AND owner_due_cents > 0 AND paid_out = 0`).bind(owner.id).all<Claim>().catch(() => ({ results: [] as Claim[] }));
+  const cs = await env.DB.prepare(`SELECT * FROM claims WHERE owner_id = ? AND settled_at IS NOT NULL AND owner_due_cents > 0 AND paid_out = 0 AND payout_ok = 1`).bind(owner.id).all<Claim>().catch(() => ({ results: [] as Claim[] }));
   for (const cl of cs.results) { try { if (await payClaim(env, cl, owner)) n++; } catch (e) { await logErr(env.DB, 'claim payout', e, { rental: cl.rental_id }); } }
   return n;
 }
@@ -229,11 +229,12 @@ export async function collectAward(env: Env, r: Rental, cents: number, claimId: 
   return { cents: 0, how: 'none', pi: null };
 }
 
-// Pay the owner what a settled claim owes them (claims.owner_due_cents; no Lendo fee on it). No connected account yet →
-// paid when they connect (flushPendingPayouts).
+// Pay the owner what a settled claim owes them (claims.owner_due_cents; no Lendo fee on it). For now every claim payout is
+// released by a person after a FaceTime call with the owner (claims.payout_ok, /admin/claims; Scott, 11/24). No connected
+// account yet → paid when they connect (flushPendingPayouts).
 export async function payClaim(env: Env, cl: Claim, owner: User): Promise<boolean> {
   const s = stripe(env);
-  if (cl.paid_out || cl.owner_due_cents <= 0) return false;
+  if (cl.paid_out || cl.owner_due_cents <= 0 || !cl.payout_ok) return false;
   if (!s) { await env.DB.prepare('UPDATE claims SET paid_out = 1 WHERE id = ?').bind(cl.id).run(); await logEvent(env.DB, 'money.claim_payout', { rental: cl.rental_id, user: owner.id, cents: cl.owner_due_cents, data: { dev: true, claim: cl.id } }); return true; }
   if (!owner.stripe_account_id) return false;
   /* pay out of the collected charge itself when it covers it (no wait for the balance to clear) */

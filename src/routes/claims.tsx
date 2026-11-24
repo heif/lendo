@@ -115,8 +115,8 @@ claims.get('/r/:id/claim', requireUser, async (c) => {
         <div class="hint" style="margin-top:4px">{(cl.final_cents || 0) < 50 ? `${dep} hold released`
           : cl.collected_cents >= (cl.final_cents || 0) ? (cl.collect_how === 'hold' ? `Charged from the ${dep} hold${(cl.final_cents || 0) < cl.deposit_cents ? ' · the rest released' : ''}` : 'Charged to the card')
           : cl.settled_at ? 'The card didn’t take the charge · Lendo is on it' : 'Settling'}
-          {role === 'owner' && cl.owner_due_cents > 0 ? ` · ${money(cl.owner_due_cents)} ${cl.paid_out ? 'sent to your account' : 'waiting for your payout details'}` : ''}</div>
-        {role === 'owner' && cl.owner_due_cents > 0 && !cl.paid_out ? <a class="btn pri full" href="/payout" style="display:grid;place-items:center;text-decoration:none;margin-top:8px">Add payout details</a> : null}
+          {role === 'owner' && cl.owner_due_cents > 0 ? ` · ${money(cl.owner_due_cents)} ${cl.paid_out ? 'sent to your account' : cl.payout_ok ? 'waiting for your payout details' : 'sent after a FaceTime call with Lendo'}` : ''}</div>
+        {role === 'owner' && cl.owner_due_cents > 0 && !cl.paid_out && cl.payout_ok ? <a class="btn pri full" href="/payout" style="display:grid;place-items:center;text-decoration:none;margin-top:8px">Add payout details</a> : null}
       </div> : null}
 
       {role === 'admin' ? <div class="card"><div class="hint">Admin</div><pre style="white-space:pre-wrap;word-break:break-word;font-size:11px;margin:4px 0 0">{JSON.stringify({ id: cl.id, status: cl.status, deposit: cl.deposit_cents, award: cl.award_cents, final: cl.final_cents, collected: cl.collected_cents, how: cl.collect_how, owner_due: cl.owner_due_cents, paid_out: cl.paid_out, lendo_loss: cl.lendo_loss_cents, owner_excess: cl.owner_excess_cents, bank_file: (fin || rul)?.bank_file, chargeback: cl.cb_id ? { id: cl.cb_id, status: cl.cb_status, cents: cl.cb_cents, evidence_at: cl.cb_evidence_at } : null, tries: cl.tries }, null, 1)}</pre></div> : null}
