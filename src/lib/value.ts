@@ -119,26 +119,42 @@ export async function valueDue(env: Env, max = 5): Promise<number> {
   let n = 0;
   for (const l of rows) {
     const v = await ensureValue(env, l); if (v.src === 'est') continue; n++;
-    try { await nudge(env, l, v); } catch (e) { await logErr(env.DB, 'value nudge', e, { listing: l.id }); }
+  }
+  try { await nudgeOwners(env); } catch (e) { await logErr(env.DB, 'value nudge', e); }
+  return n;
+}
+
+// Once per item, after valuation (Scott, 11/24): worth over $500 → ask for 2+ real photos; condition below A → ask what's wrong with it.
+// One text per owner covering all their items, at most one a day, sent as a nudge (never chased by email/SMS, waits in the
+// inbox past the text allowance). A burst of one text per item reads as spam and gets the line blocked.
+export async function nudgeOwners(env: Env): Promise<number> {
+  const rows = (await env.DB.prepare(`SELECT * FROM listings WHERE status = 'live' AND demo = 0 AND value_cents IS NOT NULL AND value_src != 'est' AND COALESCE(value_nudged, 0) < 3 ORDER BY owner_id LIMIT 80`).all<Listing>()).results;
+  const by = new Map<string, { l: Listing; photos: boolean; issues: boolean }[]>();
+  for (const l of rows) {
+    const done = l.value_nudged || 0;
+    const photos = !(done & 1) && (l.value_cents || 0) > HIGH_CENTS && !(await photosOk(env, l));
+    const issues = !(done & 2) && (l.grade || 'A') !== 'A' && !l.issues;
+    if (!photos && !issues) { await env.DB.prepare('UPDATE listings SET value_nudged = 3 WHERE id = ?').bind(l.id).run(); continue; }
+    by.set(l.owner_id, [...(by.get(l.owner_id) || []), { l, photos, issues }]);
+  }
+  let n = 0;
+  for (const [oid, items] of by) {
+    if (await env.DB.prepare(`SELECT 1 FROM events WHERE kind = 'value.nudge' AND user_id = ? AND at > ? LIMIT 1`).bind(oid, Date.now() - 24 * 3600e3).first().catch(() => null)) continue;
+    const owner = await userById(env.DB, oid); if (!owner) continue;
+    const names = (xs: Listing[]) => xs.length <= 3 ? xs.map(x => x.name).join(', ') : `${xs.slice(0, 2).map(x => x.name).join(', ')} + ${xs.length - 2} more`;
+    const ph = items.filter(x => x.photos).map(x => x.l), iss = items.filter(x => x.issues).map(x => x.l);
+    const parts: string[] = [];
+    if (ph.length) parts.push(`${names(ph)}: worth over ${money(HIGH_CENTS)}, add 2+ photos of yours to be covered for all of it`);
+    if (iss.length) parts.push(`${names(iss)}: note any flaws so customers know and you're covered`);
+    const url = items.length === 1 ? `${env.APP_URL}/listings/${items[0].l.id}/edit${items[0].issues && !items[0].photos ? '#issues' : ''}` : `${env.APP_URL}/listings`;
+    await logEvent(env.DB, 'value.nudge', { user: oid, data: { items: items.map(x => x.l.id), photos: ph.length, issues: iss.length } });
+    await textUser(env, owner, `${firstName(owner.name)}, ${items.length === 1 ? 'one thing' : 'a few things'} to finish on your listings · ${parts.join(' · ')} ${url}`, 'nudge');
+    for (const x of items) await env.DB.prepare('UPDATE listings SET value_nudged = 3 WHERE id = ?').bind(x.l.id).run();
+    n++;
   }
   return n;
 }
 
-// Once per item, at valuation time (Scott, 11/24): worth over $500 → ask for 2+ real photos; condition below A → ask what's wrong with it.
-async function nudge(env: Env, l: Listing, v: Valued) {
-  let done = l.value_nudged || 0; const was = done;
-  const owner = await userById(env.DB, l.owner_id); if (!owner) return;
-  const url = `${env.APP_URL}/listings/${l.id}/edit`;
-  if (!(done & 1) && v.cents > HIGH_CENTS && !(await photosOk(env, l))) {
-    await textUser(env, owner, `${firstName(owner.name)}, your ${l.name} is worth about ${money(v.cents)}. To be covered for all of it, add 2 or more photos of yours${l.stock_photo ? ' (it has a standard web photo now)' : ''}. Until then customers' holds stop at ${money(HIGH_CENTS)}: ${url}`, 'rental');
-    done |= 1;
-  }
-  if (!(done & 2) && (l.grade || 'A') !== 'A' && !l.issues) {
-    await textUser(env, owner, `Your ${l.name} is listed as ${l.grade} (${GRADE_WORD[l.grade || 'A']}). What's wrong with it? Add it so customers know and you're covered if there's a problem later: ${url}#issues`, 'rental');
-    done |= 2;
-  }
-  if (done !== was) await env.DB.prepare('UPDATE listings SET value_nudged = ? WHERE id = ?').bind(done, l.id).run();
-}
 
 // Owner's one appeal. The AI's second answer stands, up or down.
 export async function appealValue(env: Env, l: Listing, text: string, photos: string[]): Promise<Valued | 'used' | 'failed'> {
