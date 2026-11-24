@@ -588,7 +588,7 @@ rentals.get('/inbox', requireUser, async (c) => {
         )) : <div class="hint" style="padding:16px 4px">Nothing here yet</div>}
         <div id="end" />
       </div>
-      <form method="post" action={wid ? '/r/' + wrows[0].id + '/msg' : '/inbox'} class="compose">
+      <form method="post" action={wid ? '/r/' + wrows[0].id + '/msg' : '/inbox'} class="compose" id="compose">
         {wid ? <input type="hidden" name="back" value={'/inbox?with=' + wid} /> : null}
         <input name="body" placeholder={wid ? `Message ${wname}` : 'Message Lendo (same as texting us)'} required maxlength={500} autocomplete="off" />
         <button type="submit" aria-label="Send" dangerouslySetInnerHTML={{ __html: SEND_SVG }} />
