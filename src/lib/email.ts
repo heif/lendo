@@ -66,5 +66,5 @@ export async function emailRequest(env: Env, r: Rental, owner: User, cust: User,
       { t: `${who} asked for ${fmtRange(r.start_day, backDay(r.end_day))}`, state: 'done' },
       { t: 'Your answer', state: 'now', btns: [{ label: 'YES', sub: `${who} charged`, url, pri: true }, { label: 'NO', url }] },
       { t: `Pickup ${md(r.start_day)}`, d: `· you get ${earn}`, more: dep ? [`Deposit hold on ${who}’s card`] : undefined },
-      { t: `Return ${md(backDay(r.end_day))}`, more: dep ? ['Deposit hold released'] : undefined }] });
+      { t: `Return ${md(backDay(r.end_day))}`, more: dep ? ['Deposit hold released if no damage etc'] : undefined }] });
 }
