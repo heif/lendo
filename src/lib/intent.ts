@@ -43,7 +43,7 @@ LENDO FACTS
 - Cancel before YES = free. After YES = half back
 - Deposit hold: every rental. A hold, not a charge, for what the item is worth (Lendo's AI sets the value, not the owner). The bank reserves it from pickup day. Released when the owner says all good, or 24 hours after return if no problem is reported; the bank drops it within a few days. Renewed every 6 days if the rental is longer
 - If something goes wrong (damage, missing parts, not returned): the owner reports it on the rental page within 24 hours of the return. Owner and customer each give their side with photos (24 hours per step). Lendo's AI decides what the customer owes, up to the hold, and it is charged from the hold. Either side can ask for one second look; after that it is final for both
-- Owners are paid what the AI decides. If a customer's card company later reverses that charge, Lendo still pays the owner, up to a cap
+- Owners are paid what the AI decides, from the hold
 - Owners get the rent minus Lendo's 15% fee, paid after pickup via Stripe; set up at lendo.co/payout
 - Payments run through Stripe; Lendo never sees full card numbers
 - Customers pay rent + sales tax; owners can give a discount or lend free

@@ -15,6 +15,8 @@
 // this process before paying (Stripe checkout text) and again in the signed promise, and the file is put on the Stripe
 // dispute automatically. If the bank still sides with the customer, the owner keeps the award up to
 // settings.guarantee_cap_cents (Lendo's loss); anything above the cap is logged for a person to handle.
+// The cap is in the Terms only: not on How it works, not in texts (Scott, 11/24). It applies only when the hold was
+// actually on the card at handover: an owner who hands over after "card didn't take the hold" gets what is collected, no more.
 import type { Claim, ClaimEntry, Env, Listing, Rental, User } from './env';
 import type Stripe from 'stripe';
 import { addMessage, listingById, rentalById, userById } from './db';
@@ -37,7 +39,7 @@ export async function setting(env: Env, key: string, dflt: string): Promise<stri
   const r = await env.DB.prepare('SELECT value FROM settings WHERE key = ?').bind(key).first<{ value: string }>().catch(() => null);
   return r?.value ?? dflt;
 }
-export const guaranteeCap = async (env: Env) => Math.max(0, parseInt(await setting(env, 'guarantee_cap_cents', '50000'), 10) || 0);
+export const guaranteeCap = async (env: Env) => Math.max(0, parseInt(await setting(env, 'guarantee_cap_cents', '25000'), 10) || 0);
 
 const due = (ms: number, lng?: number | null) => new Date(ms).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: tzFor(lng) });
 const link = (env: Env, cl: Claim) => `${env.APP_URL}/r/${cl.rental_id}/claim`;
@@ -290,7 +292,7 @@ export async function settle(env: Env, cl: Claim): Promise<void> {
   /* not collected: could be a passing Stripe error. Try again on the next few cron runs before Lendo covers it */
   if (got.cents < F && cl.tries < 5) { await env.DB.prepare('UPDATE claims SET settled_at = NULL, tries = tries + 1 WHERE id = ?').bind(cl.id).run(); return; }
   /* owner gets the award. If the card couldn't be charged, Lendo still pays it up to the cap */
-  const cap = await guaranteeCap(env);
+  const cap = rental.deposit_at ? await guaranteeCap(env) : 0; /* no hold was ever placed → nothing guaranteed (closes "hand over on a dead card, claim, collect from Lendo") */
   const ownerDue = got.cents >= F ? F : Math.max(got.cents, Math.min(F, cap));
   const loss = Math.max(0, ownerDue - got.cents);
   await env.DB.prepare('UPDATE claims SET collected_cents = ?, collect_how = ?, collect_pi = ?, owner_due_cents = ?, lendo_loss_cents = ? WHERE id = ?').bind(got.cents, got.how, got.pi, ownerDue, loss, cl.id).run();

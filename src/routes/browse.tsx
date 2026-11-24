@@ -477,8 +477,7 @@ browse.post('/profile/edit', async (c) => {
 
 // ---------- How it works (was /about, "Why Lendo") ----------
 browse.get('/about', (c) => c.redirect('/how-it-works', 301));
-browse.get('/how-it-works', async (c) => {
-  const cap = await guaranteeCap(c.env);
+browse.get('/how-it-works', (c) => {
   // TEMP placeholder copy (flywheel kept). Real copy: commit d47e814
   const u = c.get('user');
   const H2 = 'font-size:26px;font-weight:900;letter-spacing:-.02em;margin:0 0 10px';
@@ -510,7 +509,7 @@ browse.get('/how-it-works', async (c) => {
           <li style="margin:0 0 8px">Lendo’s AI sets what it’s worth, not the owner</li>
           <li style="margin:0 0 8px">A problem? The owner reports it within 24h of the return · you each say your side, with photos</li>
           <li style="margin:0 0 8px">Lendo’s AI decides what’s owed, up to the hold · either of you can ask for one second look · then it’s final for you both</li>
-          <li style="margin:0 0 8px">Owners get what’s decided, even if a card company reverses the charge, up to {money(cap)}</li>
+          <li style="margin:0 0 8px">Owners get what’s decided, paid from the hold</li>
         </ul>
       </section>
       <figure class="flywheel" id="flywheel">

@@ -11,7 +11,7 @@ Built in a side thread on 11/24/2026. This note hands it to the main Lendo threa
 6. Why: one clean answer to "what if they break it / what if I'm blamed"
 
 ## What's built
-- `migrations/0039_value_claims.sql`: `listings.value_*`, `rentals.returned_at`, `claims`, `claim_entries`, settings `guarantee_cap_cents` (50000), `cb_auto_submit` (0). Registered in `src/lib/migrate.ts`
+- `migrations/0039_value_claims.sql`: `listings.value_*`, `rentals.returned_at`, `claims`, `claim_entries`, settings `guarantee_cap_cents` (25000 = $250; stated in the Terms only, not advertised; applies only if the hold was on the card at handover), `cb_auto_submit` (0). Registered in `src/lib/migrate.ts`
 - `src/lib/value.ts`: `valueDue` (cron, 5 items per run), `valueNow` (request time, no AI), `ensureValue` (AI, used price not new; keeps an estimate from the daily price if the AI doesn't answer, retried after 6h), `appealValue` (once)
 - `src/lib/claims.ts`: the whole process, the judge prompt, settle, cron tick, bank-dispute handling. Read the header comment first
 - `src/routes/claims.tsx`: `/r/:id/claim` page and actions

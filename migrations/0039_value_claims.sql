@@ -52,5 +52,5 @@ CREATE TABLE IF NOT EXISTS claim_entries (
   at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS claim_entries_claim ON claim_entries(claim_id, at);
-INSERT OR IGNORE INTO settings (key, value) VALUES ('guarantee_cap_cents', '50000');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('guarantee_cap_cents', '25000');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('cb_auto_submit', '0');
