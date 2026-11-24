@@ -29,6 +29,7 @@ import { meetup } from './routes/meetup';
 import { admin } from './routes/admin';
 import { expireHolds , chaseHolds, depositsDue } from './lib/rentals';
 import { claimsTick } from './lib/claims';
+import { valueDue } from './lib/value';
 import { claims } from './routes/claims';
 import { Layout } from './pages/layout';
 
@@ -94,6 +95,7 @@ export default {
     try { const c = await chaseHolds(env); if (c) console.log(`chase: ${c} texts`); } catch (e) { console.warn('chase', e); }
     try { const d = await depositsDue(env); if (d) console.log(`deposits: ${d}`); } catch (e) { console.warn('deposits', e); }
     try { const k = await claimsTick(env); if (k) console.log(`claims: ${k}`); } catch (e) { console.warn('claims', e); }
+    try { const v = await valueDue(env); if (v) console.log(`valued ${v} items`); } catch (e) { console.warn('value', e); }
     // backfill custom icons for the wanted catalog, a few per tick (Flux + cutout each)
     try {
       const done = await iconsDone(env);

@@ -420,11 +420,11 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
           {gr.customers ? <div class="row" style="gap:10px;margin-top:4px"><Grade g={gr.letter} /><span class="hint">{GRADE_WORD[gr.letter]} · set by customers now (average of yours + {gr.customers} customer grade{gr.customers === 1 ? '' : 's'})</span></div>
             : <div class="grdpick" style="margin-top:4px">{GRADES.map(g => <label><input type="radio" name="grade" value={g} checked={g === gr.letter} /><Grade g={g} /></label>)}</div>}
         </div>
-        {/* item value = the deposit hold on every rental. Set by Lendo's AI at the first request; the owner can ask for it now. The one appeal is tucked away on purpose */}
+        {/* item value = the deposit hold on every rental. Set by Lendo's AI in the background about an hour after listing; the owner can ask for it now. The one appeal is tucked away on purpose */}
         <div class="field"><span>Value</span>
           {it.value_cents && it.value_src !== 'est' ? <div><b>{money(it.value_cents)}</b> <span class="hint">· set by Lendo · customers get a hold (not a charge) for this at pickup{it.value_why ? ' · ' + it.value_why : ''}</span>
               {!it.value_appeal ? <div class="hint" style="margin-top:4px"><a href={`/listings/${it.id}/value`} style="color:inherit">Looks wrong?</a></div> : null}</div>
-            : <div class="hint">Lendo sets it at the first request · customers get a hold (not a charge) for it at pickup · <button type="submit" formaction={`/listings/${it.id}/value/now`} formnovalidate style="background:none;border:0;padding:0;font:inherit;color:inherit;text-decoration:underline">get it now</button></div>}
+            : <div class="hint">Lendo sets it about an hour after listing · customers get a hold (not a charge) for it at pickup · <button type="submit" formaction={`/listings/${it.id}/value/now`} formnovalidate style="background:none;border:0;padding:0;font:inherit;color:inherit;text-decoration:underline">get it now</button></div>}
         </div>
         <label class="field"><span>Description</span><textarea name="description" id="desc" maxlength={600} placeholder="Model · what’s included · condition · good for">{it.description || ''}</textarea></label>
         <div class="dmeter" id="dmeter"></div>

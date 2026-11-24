@@ -1,6 +1,8 @@
 // Item value = the deposit hold on every rental. Set by AI, not the owner (Scott, 11/24).
-// When: at the first rental request (no work for the owner before then). An owner can ask for it earlier on the edit
-// page, and can appeal once (buried on purpose): the AI looks again with what they add, and that answer is final.
+// When: in the background, about an hour after the item is listed (cron → valueDue; settings.value_after_hours). No work
+// for the owner, and a rental request never waits on the AI: an item with no value yet gets an instant estimate from its
+// daily price for that rental. An owner can ask for the value on the edit page, and can appeal once (tucked away on
+// purpose) at any time: the AI looks again with what they add, and that answer is final. Rentals keep the hold they were requested with.
 // Value = what it costs today to replace this item with the same thing in the same condition (used price), not new retail.
 import type { Env, Listing } from './env';
 import { logErr, logEvent } from './log';
@@ -51,7 +53,7 @@ export function estimateValue(l: Pick<Listing, 'price_cents'>): Valued {
   return { cents: round5(l.price_cents * 20), why: 'Estimate from the daily price', src: 'est' };
 }
 
-async function ask(env: Env, l: Listing, appeal?: { text: string; photos: string[] }): Promise<Valued | null> {
+async function ask(env: Env, l: Listing, appeal?: { text: string; photos: string[] }, timeoutMs = 25000): Promise<Valued | null> {
   const keys = (await env.DB.prepare('SELECT r2_key FROM photos WHERE listing_id = ? ORDER BY pos LIMIT 2').bind(l.id).all<{ r2_key: string }>()).results.map(p => p.r2_key);
   const imgs = (await Promise.all([...keys, ...(appeal?.photos || []).slice(0, 3)].map(k => imageBlock(env, k)))).filter(Boolean);
   const facts = [
@@ -62,7 +64,7 @@ async function ask(env: Env, l: Listing, appeal?: { text: string; photos: string
     `Photos: ${keys.length ? `first ${keys.length} listing photo(s)${l.stock_photo ? ' (standard web photos, not this unit)' : ''}` : 'none'}`,
     appeal ? `The owner says the first value ($${((l.value_cents || 0) / 100).toFixed(0)}: ${l.value_why || ''}) is wrong. Their note: ${JSON.stringify(appeal.text.slice(0, 800))}.${appeal.photos.length ? ` The last ${Math.min(3, appeal.photos.length)} image(s) are what they added (receipt, label, etc).` : ''} Look again from scratch. Move the value only as far as checkable facts support (a readable receipt, a model number, a visible accessory). A bare claim is not evidence` : '',
   ].filter(Boolean).join('\n');
-  const out = await claude(env, VALUE_MODEL, SYS, [...imgs, { type: 'text', text: facts }], 300, appeal ? 25000 : 9000);
+  const out = await claude(env, VALUE_MODEL, SYS, [...imgs, { type: 'text', text: facts }], 300, timeoutMs);
   const j = out ? jsonIn(out) : null, usd = Number(j?.value_usd);
   if (!j || !isFinite(usd) || usd <= 0) return null;
   return { cents: round5(usd * 100), why: String(j.why || '').slice(0, 200), src: appeal ? 'appeal' : 'ai' };
@@ -74,15 +76,32 @@ async function save(env: Env, l: Listing, v: Valued, appeal?: { text: string; ph
   await logEvent(env.DB, appeal ? 'listing.value_appeal' : 'listing.value', { user: l.owner_id, listing: l.id, cents: v.cents, data: { src: v.src, why: v.why, was: l.value_cents ?? null } });
 }
 
-// The listing's value, valuing it now if it has none (or only a rough estimate). Never throws; never returns nothing:
-// if the AI can't answer in time, the rental goes ahead on an estimate and the AI is asked again at the next request.
+// Request time: the stored value, or an instant estimate. Never calls the AI, never waits.
+export function valueNow(l: Listing): Valued {
+  return l.value_cents ? { cents: l.value_cents, why: l.value_why || '', src: l.value_src || 'est' } : estimateValue(l);
+}
+
+// The listing's value, asking the AI if it has none (or only an estimate). Used by the cron and the owner's "get it now".
+// Never throws. If the AI doesn't answer, the estimate is kept and value_at is stamped so the cron waits before retrying.
 export async function ensureValue(env: Env, l: Listing): Promise<Valued> {
   if (l.value_cents && l.value_src && l.value_src !== 'est') return { cents: l.value_cents, why: l.value_why || '', src: l.value_src };
   let v: Valued | null = null;
   try { v = await ask(env, l); } catch (e) { await logErr(env.DB, 'value item', e, { listing: l.id }); }
   if (!v) v = l.value_cents ? { cents: l.value_cents, why: l.value_why || '', src: 'est' } : estimateValue(l);
-  if (v.src !== 'est' || !l.value_cents) await save(env, l, v);
+  await save(env, l, v);
   return v;
+}
+
+// cron: value live items listed more than settings.value_after_hours ago (default 1), a few per run, newest first.
+// An item the AI couldn't value is tried again after 6 hours. Demo items are skipped (their rent button isn't real).
+export async function valueDue(env: Env, max = 5): Promise<number> {
+  if (!env.ANTHROPIC_API_KEY) return 0;
+  const hrs = parseFloat((await env.DB.prepare(`SELECT value FROM settings WHERE key = 'value_after_hours'`).first<{ value: string }>().catch(() => null))?.value || '1') || 1;
+  const rows = (await env.DB.prepare(`SELECT * FROM listings WHERE status = 'live' AND demo = 0 AND (value_cents IS NULL OR value_src = 'est') AND created_at < ? AND (value_at IS NULL OR value_at < ?) ORDER BY created_at DESC LIMIT ?`)
+    .bind(Date.now() - hrs * 3600e3, Date.now() - 6 * 3600e3, max).all<Listing>()).results;
+  let n = 0;
+  for (const l of rows) { const v = await ensureValue(env, l); if (v.src !== 'est') n++; }
+  return n;
 }
 
 // Owner's one appeal. The AI's second answer stands, up or down.

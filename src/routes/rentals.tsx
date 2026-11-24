@@ -16,7 +16,7 @@ import { requireUser } from '../lib/auth';
 import { addMessage, busyDays, firstPhotos, listingById, photosFor, rentalById, userById } from '../lib/db';
 import { id, money, now, daysBetween, dayStr, addDays, fmtRange, rentFor, firstName, fmtDay, backDay } from '../lib/util';
 import { cardSetupUrl, createCheckout, connectOnboardingUrl, flushPendingPayouts, stripe } from '../lib/stripe';
-import { ensureValue } from '../lib/value';
+import { valueNow } from '../lib/value';
 import { canOpen, claimFor, isOpen } from '../lib/claims';
 import { payoutOf, quote, taxRateFor } from '../lib/money';
 import { selfMigrate } from '../lib/migrate';
@@ -52,8 +52,8 @@ rentals.post('/i/:id/rent', async (c) => {
     .bind(rid, it.id, it.owner_id, u.id, start, end, days, q.rent, q.fee, q.total, q.credit, q.tax, rate, q.payout, 'requested', t, t).run();
   /* right after a deploy the tax columns may not exist yet (cron migrates every 5 min) → migrate now and retry */
   try { await ins(); } catch { await selfMigrate(c.env); await ins(); }
-  /* every rental: a deposit hold at pickup for the item's value, set by AI (valued now if this is the item's first request); the card is saved at checkout for it */
-  const val = await ensureValue(c.env, it);
+  /* every rental: a deposit hold at pickup for the item's value, set by AI in the background ~1h after listing (value.ts). The request never waits on the AI: no value yet → an estimate from the daily price. The card is saved at checkout for the hold */
+  const val = valueNow(it);
   await c.env.DB.prepare(`UPDATE rentals SET deposit_cents = ?, deposit_status = 'due' WHERE id = ?`).bind(val.cents, rid).run();
   await logEvent(c.env.DB, 'rental.deposit_set', { user: u.id, rental: rid, listing: it.id, cents: val.cents, data: { src: val.src } });
   const r = (await rentalById(c.env.DB, rid))!;

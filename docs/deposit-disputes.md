@@ -5,14 +5,14 @@ Built in a side thread on 11/24/2026. This note hands it to the main Lendo threa
 ## Decisions (Scott, 11/24)
 1. Every rental has a deposit: a card hold (not a charge) for the item's full value
 2. The value is set by AI, not the owner. Replaces the "Worth over $150 now?" toggle and the flat $150 hold
-3. Valuation timing: not at listing (no extra owner work). Owner can ask for it early on the edit page. One appeal, tucked away, then final
+3. Valuation timing: in the background about an hour after listing (`settings.value_after_hours`, default 1). No owner work, and a rental request never waits on the AI: no value yet → instant estimate from the daily price for that rental. Owner can ask for it on the edit page. One appeal, tucked away, open any time, then final
 4. Problems are decided by AI from photos + each side's statements and rebuttals. One AI second look, then final for both
 5. Chargebacks: Lendo pays the owner what the AI decided even if a bank reverses it, up to a cap
 6. Why: one clean answer to "what if they break it / what if I'm blamed"
 
 ## What's built
 - `migrations/0039_value_claims.sql`: `listings.value_*`, `rentals.returned_at`, `claims`, `claim_entries`, settings `guarantee_cap_cents` (50000), `cb_auto_submit` (0). Registered in `src/lib/migrate.ts`
-- `src/lib/value.ts`: `ensureValue` (AI, used price not new; falls back to an estimate from the daily price if the AI doesn't answer in 9s, and asks again at the next request), `appealValue` (once)
+- `src/lib/value.ts`: `valueDue` (cron, 5 items per run), `valueNow` (request time, no AI), `ensureValue` (AI, used price not new; keeps an estimate from the daily price if the AI doesn't answer, retried after 6h), `appealValue` (once)
 - `src/lib/claims.ts`: the whole process, the judge prompt, settle, cron tick, bank-dispute handling. Read the header comment first
 - `src/routes/claims.tsx`: `/r/:id/claim` page and actions
 - `src/lib/stripe.ts`: card saved on every checkout + the hold/AI terms shown on the Stripe pay button; `collectAward`, `payClaim`, `disputeEvidence`; claims added to `flushPendingPayouts`
