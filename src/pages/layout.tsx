@@ -88,7 +88,7 @@ export const Layout: FC<LayoutProps> = (p) => {
             <form class="promo pu" id="promo" data-promo autocomplete="on" aria-label="Get $5 off" hidden>
               {/* computers: the gift button opens this panel — scan to text Lendo, or type a number */}
               <div class="gpanel" id="gpanel">
-                {site.number ? <><span class="gp-qr" id="gpQr" data-sms={`SMSTO:+1${site.number.replace(/\D/g, '').slice(-10)}:${GIFT_TEXT}`} aria-label="Scan to text Lendo"></span><span class="gp-or">or</span></> : null}
+                {site.number ? <><span class="gp-lbl">Phone camera:</span><span class="gp-qr" id="gpQr" data-sms={`SMSTO:+1${site.number.replace(/\D/g, '').slice(-10)}:${GIFT_TEXT}`} aria-label="Scan to text Lendo"></span><button type="button" class="gp-alt" onclick="this.closest('.gpanel').classList.add('alt')">Can’t snap?</button></> : null}
                 <span class="gp-in"><label class="sr">Phone number</label>
                 <input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Phone #" maxlength={14} />
                 <button type="submit" disabled aria-label="Get $5 off">→</button></span>

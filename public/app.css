@@ -948,3 +948,13 @@ header h1.sr,.sr{position:absolute!important;width:1px;height:1px;overflow:hidde
 .rlist li{margin-left:-7px;padding:4px 0}
 .rlist i{width:11px;height:11px;border:0;margin-top:4px;background:#E6E1D6;font-size:0}
 .rlist li.done i{background:var(--ink)}.rlist li.now i{background:var(--orange)}
+
+/* gift panel on computers (Scott, 11/24): just the QR, attached to the button; phone field only behind "Can't snap?" so the person texts first */
+@media (pointer:fine){
+  .promo.pu.open{gap:0!important}
+  .promo.pu.open .gpanel{flex-direction:column;align-items:flex-start;gap:5px;padding:9px 10px 8px;border-radius:14px 14px 14px 0;box-shadow:none;border-bottom:0;margin-bottom:-2px;position:relative;z-index:1}
+  .promo.pu.open .giftbtn{border-top-left-radius:0}
+  .gp-lbl{font-size:10px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:var(--mute)}
+  .promo .gp-alt{height:auto;font:inherit;font-size:11px;font-weight:800;color:var(--mute)!important;background:none!important;border:0;padding:0;text-decoration:underline;cursor:pointer}
+  .gpanel:has(.gp-qr) .gp-in{display:none}.gpanel.alt .gp-in{display:flex}.gpanel.alt .gp-alt{display:none}
+}
