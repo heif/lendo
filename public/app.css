@@ -988,3 +988,10 @@ header h1.sr,.sr{position:absolute!important;width:1px;height:1px;overflow:hidde
 
 /* no description: condition badge beside the title, no empty row (Scott, 11/25) */
 .ititle-g{flex-shrink:0;align-self:center}.ititle-g .grdd.inrow,.ititle-g .grd.inrow{zoom:.6;margin:0}
+
+/* 6-digit code: box sized to the digits, centered (Scott, 11/25) */
+input.otp{display:block;box-sizing:content-box;width:6.6ch;margin:4px auto 14px;padding:10px 4px 10px calc(4px + .5em);font:900 34px/1 ui-monospace,'SF Mono',Menlo,monospace!important;letter-spacing:.5em;text-align:left;color:var(--ink);background:#fff;border:2.5px solid var(--ink);border-bottom-width:5px;border-radius:14px;height:auto!important}
+input.otp::placeholder{color:#CFC9BC}
+input.otp{width:calc(6ch + 3em);padding:10px 0 10px .5em;overflow:hidden}
+/* condition grade bigger on the item page (Scott, 11/25) */
+.ititle .grdd.inrow,.ititle .grd.inrow,.ititle-g .grdd.inrow,.ititle-g .grd.inrow{zoom:.95!important;margin:-2px 0!important}

@@ -101,7 +101,10 @@ async function viaTwilio(env: Env, phone: string): Promise<{ ok: boolean; error?
 export const smsFallback = twilioOn;
 
 // Blooio (iMessage) first; Twilio SMS when Blooio refuses, or when the person asks for SMS ("didn't get it")
+export const TEST_PHONE = '+15555555555', TEST_CODE = '555555';
 export async function startLogin(env: Env, phone: string, via: 'auto' | 'sms' = 'auto'): Promise<{ ok: boolean; devCode?: string; error?: string; note?: string }> {
+  /* test login (Scott, 11/25): (555) 555-5555 + code 555555 — 555 numbers can't receive texts, so nothing is sent; logged like any login */
+  if (phone === TEST_PHONE) { await env.DB.prepare('INSERT OR REPLACE INTO otp_codes (phone, code, expires_at, attempts) VALUES (?,?,?,0)').bind(phone, TEST_CODE, now() + 15 * 60 * 1000).run(); await logEvent(env.DB, 'login.start', { data: { phone: '…5555', via: 'test' } }).catch(() => {}); return { ok: true, note: 'Test number · the code is 555555' }; }
   // SMS asked for: if Twilio can't send, keep them on the code screen (the iMessage code still works)
   if (via === 'sms' && twilioOn(env)) { const t = await viaTwilio(env, phone); return t.ok ? t : { ok: true, note: 'SMS isn’t available right now — use the code from your iMessage text' }; }
   await logEvent(env.DB, 'login.start', { data: { phone: '…' + phone.slice(-4), via } }).catch(() => {}); /* see sign-up attempts in the admin log */

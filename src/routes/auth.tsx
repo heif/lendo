@@ -64,7 +64,7 @@ auth.post('/login', async (c) => {
         <p class="hint" style="margin:0 0 10px">Sent to {prettyPhone(phone)}{r.devCode ? <b> DEV MODE — code is {r.devCode}</b> : null}</p>
         {r.note ? <p class="hint" style="margin:-4px 0 10px;color:#B33A00">{r.note}</p> : null}
         <input type="hidden" name="phone" value={phone} /><input type="hidden" name="next" value={next} />{f.sms_ok ? <input type="hidden" name="sms_ok" value="1" /> : null}
-        <label class="field"><span>6-digit code</span><input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength={6} required autofocus style="letter-spacing:.3em;font-size:22px!important;height:56px" /></label>
+        <input class="otp" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength={6} required autofocus aria-label="6-digit code" placeholder="······" />
         <button class="btn pri full" type="submit">Continue</button>
       </form>
       <form method="post" action="/login" style="padding:0 16px 10px"><input type="hidden" name="phone" value={phone} /><input type="hidden" name="next" value={next} />{f.sms_ok ? <input type="hidden" name="sms_ok" value="1" /> : null}<button class="btn full" type="submit">Text me a new code</button></form>
@@ -88,7 +88,7 @@ auth.post('/login/verify', async (c) => {
     <Layout title="Enter code" user={null} back="/login" flashErr="That code didn't match — check the latest text and try again">
       <form method="post" action="/login/verify" style="padding:20px 16px">
         <input type="hidden" name="phone" value={phone} /><input type="hidden" name="next" value={next} />{f.sms_ok ? <input type="hidden" name="sms_ok" value="1" /> : null}
-        <label class="field"><span>6-digit code</span><input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength={6} required autofocus style="letter-spacing:.3em;font-size:22px!important;height:56px" /></label>
+        <input class="otp" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength={6} required autofocus aria-label="6-digit code" placeholder="······" />
         <button class="btn pri full" type="submit">Continue</button>
       </form>
       <form method="post" action="/login" style="padding:0 16px"><input type="hidden" name="phone" value={phone} /><input type="hidden" name="next" value={next} />{f.sms_ok ? <input type="hidden" name="sms_ok" value="1" /> : null}<button class="btn full" type="submit">Text me a new code</button></form>
