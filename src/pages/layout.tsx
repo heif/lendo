@@ -59,6 +59,7 @@ export const Layout: FC<LayoutProps> = (p) => {
                 {u ? (
                   <>
                     <a href={'/u/' + u.id}>{(() => { const f = (u.name || '').trim().split(/\s+/)[0] || 'Your'; return f === 'Your' ? 'Your Stuff' : f + (/s$/i.test(f) ? '’' : '’s') + ' Stuff'; })()}</a>
+                    <a href="/profile/edit">Profile</a>
                     <a href="/rentals">Your rentals{u.unread ? <span class="badge-n" style="margin-left:6px">{u.unread}</span> : null}</a>
                     <a href="/saved">Saved</a>
                     <a href="/alerts">Search alerts</a>

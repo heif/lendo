@@ -447,8 +447,9 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
           })}
         </div>
         
-        <button class="btn pri full" type="submit" style="margin-top:16px">Save</button>
-        <div class="row" style="gap:8px;margin-top:12px">
+        {/* pinned to the bottom (Scott, 11/25): Save + Pause + Remove always in reach */}
+        <div class="rentbar editbar">
+          <button class="btn pri" type="submit" style="flex:1">Save</button>
           {it.status === 'review' ? <span class="pill">Posted · checking the photo</span> : <button class="btn sm" type="submit" formaction={'/listings/' + it.id + '/toggle'} formnovalidate>{it.status === 'live' ? 'Pause it' : 'Make it live'}</button>}
           <button class="btn sm" type="submit" formaction={'/listings/' + it.id + '/remove'} formnovalidate style="color:var(--red)" onclick="return confirm('Remove this listing?')">Remove</button>
         </div>
