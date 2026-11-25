@@ -7,7 +7,11 @@
   var H = document.querySelector('.logo .lh'); if (!H) { window.lendoHand = function () {}; return; }
   var RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   var G = { l: { a: 'lhL', d: 900, n: 1 }, wave: { pose: 'open', a: 'lhWave', d: 900, n: 3 }, shrug: { pose: 'open', a: 'lhShrug', d: 2200, n: 3, x: 'o82' },
-    nod: { pose: 'open', a: 'lhNod', d: 800, n: 3 }, five: { pose: 'open', a: 'lhFive', d: 1300, n: 3 }, fist: { pose: 'fist', a: 'lhBump', d: 1100, n: 3, front: 1 } };
+    nod: { pose: 'open', a: 'lhNod', d: 800, n: 3 },
+    horns: { pose: 'horns', a: 'lhRock', d: 440, n: 7 }, shaka: { pose: 'shaka', a: 'lhWiggle', d: 480, n: 5 }, jazz: { pose: 'jazz', a: 'lhJazz', d: 200, n: 12 },
+    snap: { pose: 'open', a: 'lhNone', d: 800, n: 3, x: 'fx-snap' }, drum: { pose: 'open', a: 'lhNone', d: 560, n: 4, x: 'fx-drum' }, count: { pose: 'fist', a: 'lhNone', d: 2800, n: 1, x: 'fx-count' },
+    thumb: { pose: 'thumb', a: 'lhPump', d: 650, n: 3 }, peace: { pose: 'peace', a: 'lhSway', d: 900, n: 3 }, ok: { pose: 'okk', a: 'lhPump', d: 650, n: 3 },
+    crossed: { pose: 'crossed', a: 'lhTilt', d: 1300, n: 2 }, soso: { pose: 'open', a: 'lhSoso', d: 700, n: 3 }, five: { pose: 'open', a: 'lhFive', d: 1300, n: 3 }, fist: { pose: 'fist', a: 'lhBump', d: 1100, n: 3, front: 1 } };
   var tok = 0, busy = false;
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   function reset() { H.className = 'lh'; H.style.removeProperty('--a'); }
@@ -34,10 +38,12 @@
     })();
   }
   window.lendoHand = function (x) { return play(x); };
-  /* intro: first visit to the homepage waves, then the L; every other page load does the L once. Then whatever the page asked for */
+  /* intro on every page load (first homepage visit always waves): 60% wave, 20% the L, 20% one fun or small gesture. Always ends in the L. Then whatever the page asked for */
+  var FUN = ['horns', 'shaka', 'jazz', 'snap', 'drum', 'count', 'thumb', 'peace', 'ok', 'crossed', 'soso', 'nod'];
   var first = false; try { if (location.pathname === '/' && !localStorage.getItem('lh_w')) { localStorage.setItem('lh_w', '1'); first = true; } } catch (e) {}
   var ask = document.querySelector('[data-lh]'), want = ask && ask.getAttribute('data-lh');
-  (first ? play('wave').then(function () { return tok === 1 ? play('l') : null; }) : play('l')).then(function () { if (want && !busy) play(/^[1-5]$/.test(want) ? +want : want); });
+  var roll = Math.random(), intro = first || roll < .6 ? 'wave' : roll < .8 ? 'l' : FUN[Math.floor(Math.random() * FUN.length)];
+  (intro === 'l' ? play('l') : play(intro).then(function () { return tok === 1 ? play('l') : null; })).then(function () { if (want && !busy) play(/^[1-5]$/.test(want) ? +want : want); });
   /* one-shot moments (?hi=1 after a handover, ?saved= after an edit) shouldn't replay on reload */
   try { if (/[?&](hi|saved)=/.test(location.search)) history.replaceState(null, '', location.pathname + location.search.replace(/[?&](hi|saved)=[^&]*/g, '').replace(/^&/, '?') + location.hash); } catch (e) {}
   /* stars picked on a rating → that many fingers */

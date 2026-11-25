@@ -22,6 +22,7 @@ function palm(still: boolean): string {
     + `<g class="md"${still ? curl(58.75, 64) : ''}>${R(52, 8, 13.5, 58)}</g>`
     + `<path d="M39.7 60 L91 60 C92 78 90 98 84 110 L83 124 L48.6 124 L47.6 112 C40.7 98 37.7 78 39.7 60 Z" fill="${BG}"/>`
     + L('M91 60 C92 78 90 98 84 110 L83 124', SW)
+    + (still ? '' : `<g class="sp">${L('M44 34 L38 22')}${L('M65 30 L65 16')}${L('M86 34 L92 22')}</g>`)
     + `</g></g>`;
 }
 /* the fist seen knuckles-first, for the fist bump (the arm tips toward you, the wrist goes behind the fist) */

@@ -1063,5 +1063,34 @@ input.otp{font-size:52px!important;padding:14px 0 14px .5em;border-radius:18px;m
 @keyframes lhBump{0%{transform:scale(.72)}32%{transform:scale(1.34)}42%{transform:scale(1.14) rotate(-3deg)}54%{transform:scale(1.2)}100%{transform:scale(.72)}}
 @keyframes lhSp{0%,26%{opacity:0}30%,48%{opacity:1}60%,100%{opacity:0}}
 @keyframes lhNum{0%,100%{transform:none}12%{transform:translateY(-6px)}26%{transform:none}}
+/* fun + small gestures (page-load surprises, hand.js FUN) */
+.lh .sp{opacity:0}
+.lh.horns :is(.ix,.pk){transform:none}.lh.horns :is(.md,.rg){transform:scaleY(.3)}.lh.horns .th{transform:rotate(62deg)}
+.lh.peace .ix{transform:rotate(-7deg)}.lh.peace .md{transform:rotate(6deg)}.lh.peace :is(.rg,.pk){transform:scaleY(.3)}.lh.peace .th{transform:rotate(62deg)}
+.lh.thumb :is(.ix,.md,.rg,.pk){transform:scaleY(.3)}.lh.thumb .th{transform:translate(-3px,-40px) rotate(34deg)}
+.lh.shaka :is(.ix,.md,.rg){transform:scaleY(.3)}.lh.shaka .pk{transform:rotate(14deg)}.lh.shaka .th{transform:rotate(-38deg)}
+.lh.crossed .ix{transform:none}.lh.crossed .md{transform:rotate(-16deg) translateX(-4px)}.lh.crossed :is(.rg,.pk){transform:scaleY(.3)}.lh.crossed .th{transform:rotate(62deg)}
+.lh.okk .ix{transform:scaleY(.5) rotate(-24deg)}.lh.okk :is(.md,.rg){transform:none}.lh.okk .pk{transform:rotate(10deg)}.lh.okk .th{transform:rotate(34deg)}
+.lh.jazz .ix{transform:rotate(-9deg)}.lh.jazz .md{transform:none}.lh.jazz .rg{transform:rotate(7deg)}.lh.jazz .pk{transform:rotate(14deg)}.lh.jazz .th{transform:rotate(-16deg)}
+.lh.an.fx-snap .md{animation:lhSnapM var(--d) cubic-bezier(.15,.9,.3,1) var(--n)}.lh.an.fx-snap .th{animation:lhSnapT var(--d) cubic-bezier(.15,.9,.3,1) var(--n)}.lh.an.fx-snap .sp{animation:lhSnapS var(--d) linear var(--n)}
+@keyframes lhSnapM{0%{transform:none}30%{transform:scaleY(.75) rotate(-6deg)}40%,70%{transform:scaleY(.3)}90%,100%{transform:none}}
+@keyframes lhSnapT{0%{transform:none}30%{transform:rotate(38deg)}40%{transform:rotate(10deg)}90%,100%{transform:none}}
+@keyframes lhSnapS{0%,38%{opacity:0}40%,55%{opacity:1}66%,100%{opacity:0}}
+.lh.an.fx-drum :is(.pk,.rg,.md,.ix){animation:lhTap var(--d) ease-in-out var(--n)}.lh.an.fx-drum .rg{animation-delay:70ms}.lh.an.fx-drum .md{animation-delay:140ms}.lh.an.fx-drum .ix{animation-delay:210ms}
+@keyframes lhTap{0%{transform:none}25%{transform:scaleY(.5)}50%,100%{transform:none}}
+.lh.an.fx-count .ix{animation:lhC1 var(--d) cubic-bezier(.15,.9,.3,1) 1}.lh.an.fx-count .md{animation:lhC2 var(--d) cubic-bezier(.15,.9,.3,1) 1}.lh.an.fx-count .rg{animation:lhC3 var(--d) cubic-bezier(.15,.9,.3,1) 1}.lh.an.fx-count .pk{animation:lhC4 var(--d) cubic-bezier(.15,.9,.3,1) 1}.lh.an.fx-count .th{animation:lhC5 var(--d) cubic-bezier(.15,.9,.3,1) 1}
+@keyframes lhC1{0%,8%{transform:scaleY(.3)}14%,92%{transform:none}100%{transform:scaleY(.3)}}
+@keyframes lhC2{0%,24%{transform:scaleY(.3)}30%,92%{transform:none}100%{transform:scaleY(.3)}}
+@keyframes lhC3{0%,40%{transform:scaleY(.3)}46%,92%{transform:none}100%{transform:scaleY(.3)}}
+@keyframes lhC4{0%,56%{transform:scaleY(.3)}62%,92%{transform:none}100%{transform:scaleY(.3)}}
+@keyframes lhC5{0%,72%{transform:rotate(62deg)}78%,92%{transform:none}100%{transform:rotate(62deg)}}
+@keyframes lhNone{from,to{transform:none}}
+@keyframes lhRock{0%,100%{transform:rotate(-13deg) translateY(4px)}50%{transform:rotate(11deg) translateY(-5px)}}
+@keyframes lhSway{0%,100%{transform:none}30%{transform:rotate(-9deg)}70%{transform:rotate(9deg)}}
+@keyframes lhPump{0%,100%{transform:none}40%{transform:translateY(-9px)}}
+@keyframes lhWiggle{0%,100%{transform:rotate(-14deg)}50%{transform:rotate(14deg)}}
+@keyframes lhSoso{0%,100%{transform:none}25%{transform:rotate(-18deg)}75%{transform:rotate(18deg)}}
+@keyframes lhTilt{0%,30%,100%{transform:none}55%,80%{transform:rotate(-9deg)}}
+@keyframes lhJazz{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
 @media (prefers-reduced-motion:reduce){.lh *{animation:none!important;transition:none!important}}
 .lh-none{padding:24px 16px}.lh-none b{display:block;font-size:17px}
