@@ -181,11 +181,10 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
         <div class="row" style="justify-content:space-between;align-items:flex-start">
           <h2 style="margin:0;font-size:20px;font-weight:800;line-height:1.25">{(() => { const f = (owner.name || 'Neighbor').split(' ')[0]; const nm = it.name.charAt(0).toUpperCase() + it.name.slice(1); return <><a class="ownlink" href={(owner as any).handle ? '/' + (owner as any).handle : '/u/' + owner.id} style="font-weight:500;display:block;font-size:.72em">{f + (/s$/i.test(f) ? '’' : '’s')}</a>{nm}</>; })()}</h2>
           {it.status === 'paused' && it.paused_why === 'notext' && isOwner ? <a class="pill" style="background:var(--orange);color:#fff;text-decoration:none;white-space:nowrap" href={smsHref(c.env, 'OK')}>Paused · text OK to Lendo</a> : it.status === 'paused' ? <span class="pill">paused</span> : it.status === 'review' ? <span class="pill">Posted · checking the photo</span> : null}
-          {isOwner ? <a class="btn sm" href={'/listings/' + it.id + '/edit'} style="flex-shrink:0;margin-left:8px">✎ Edit</a> : null}
         </div>
         {ir?.n ? <div class="hint" style="margin-top:2px">👍 {ir.up || 0} of {ir.n}</div> : null}
         <div class="ititle"><p style="flex:1;min-width:0;margin:0;font-size:14px;line-height:1.35;color:var(--ink2);white-space:pre-wrap">{it.description || ''}{it.issues ? (it.description ? '\n' : '') + 'Known issues: ' + it.issues : ''}</p><GradeInfo g={gr.letter} customers={gr.customers} owner={(owner.name || 'Owner').split(' ')[0]} cls="inrow" /></div>
-        <div class="askrow">{!isOwner && it.status === 'live' ? (it.demo || !u
+        <div class={'askrow' + (isOwner ? ' own-off' : '')}>{isOwner ? <span class="askbtn">Ask a question</span> : it.status === 'live' ? (it.demo || !u
           ? <a class="askbtn" href={it.demo ? '#' : '/i/' + it.id + '/ask'} onclick={it.demo ? "event.preventDefault();toast('Demo item — messaging is off')" : undefined}>Ask a question</a>
           : <details class="askd" ontoggle="if(this.open)this.querySelector('textarea').focus()"><summary class="askbtn">Ask a question</summary>
               <form class="askf" method="post" action={'/i/' + it.id + '/ask'} onsubmit={`event.preventDefault();var f=this,b=f.querySelector('button');if(!f.body.value.trim())return;b.disabled=true;fetch(f.action,{method:'POST',body:new FormData(f),headers:{accept:'application/json'}}).then(function(r){return r.json()}).then(function(j){if(!j.rid)throw 0;var d=document.createElement('div');d.className='askok';d.innerHTML='✓ Sent to ${(owner.name || 'the owner').split(' ')[0].replace(/[^\p{L}\p{N} .-]/gu, '')} · <a href="/r/'+j.rid+'">Open chat</a>';f.parentNode.replaceWith(d)}).catch(function(){b.disabled=false;f.submit()})`}>
@@ -197,8 +196,8 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
           <span class="owner-txt"><b>{shortName(owner.name)}</b><small>{rep.as_owner_avg ? `${starStr(rep.as_owner_avg)} · ${rep.rentals} rentals` : 'new to Lendo'} · {rep.listed} listed{owner.hood ? ' · ' + owner.hood : ''}</small></span>
           <svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2L8 8L2 14" fill="none" stroke="#1E3A2B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
         </a></div>
-        {!isOwner && it.status === 'live' ? (
-          <form method="post" action={'/i/' + it.id + '/rent'} id="rentForm">
+        {it.status === 'live' || isOwner ? (
+          <form method="post" action={isOwner ? undefined : '/i/' + it.id + '/rent'} id="rentForm" class={isOwner ? 'own-off' : undefined} onsubmit={isOwner ? 'return false' : undefined} aria-hidden={isOwner ? 'true' : undefined}>
             <div class="quick" id="quick" style="display:flex;gap:8px">
               <button type="button" class="btn" data-q="1" style="flex:1;line-height:1.1"><b style="font-size:15px">1 day</b><small style="font-size:13px;font-weight:700">{money(rentFor(1, it.price_cents, it.week_cents))}</small></button>
               {it.week_cents && it.week_cents < it.price_cents * 7 ? <button type="button" class="btn" data-q="7" style="flex:1.3;line-height:1.1;position:relative"><b style="font-size:15px">1 week</b><small style="font-size:13px;font-weight:700">{money(it.week_cents)} <s style="color:var(--mute);font-weight:600">{money(it.price_cents * 7)}</s></small><span style="position:absolute;right:-6px;top:-9px;background:var(--orange);color:#fff;border:1.5px solid var(--ink);border-radius:8px;font-size:10px;font-weight:900;padding:2px 6px">{Math.round(100 - it.week_cents / (it.price_cents * 7) * 100)}% OFF</span></button> : null}
@@ -229,7 +228,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
             {!isOwner ? <div class="meet-after" id="meetAfter" hidden><button type="button" id="meetChange">✎ Change</button><button type="button" id="meetBack">↺ {first}’s spot</button></div> : null}
           </div>); })()}
       </section>
-      {!isOwner && it.status === 'live' && !it.demo ? <section class="sec charges" id="charges" hidden /> : null}
+      {(it.status === 'live' && !it.demo) || isOwner ? <section class={'sec charges' + (isOwner ? ' own-off' : '')} id="charges" hidden /> : null}
       {!u ? <div style="height:84px"></div> : null /* room for the floating phone/$5 OFF bar; logged in there is no bar, so no gap */}
       {it.demo ? <div class="flash" id="demoNote" hidden style="margin:0 16px 90px">This one’s a demo — Iowa City is a preview of what a Lendo neighborhood looks like full. Nothing gets charged. <a href="/list">List your real stuff →</a></div> : null}
       {!isOwner && it.status === 'live' ? (
@@ -237,7 +236,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
           {u ? <form method="post" action={'/i/' + it.id + '/save'}><button class="btn" type="submit" aria-label={saved ? 'Unsave' : 'Save'}>{saved ? '♥' : '♡'}</button></form> : null}
           {it.demo ? <button class="btn pri" style="flex:1" id="rentBtn" type="button" onclick="document.getElementById('demoNote').hidden=false;this.textContent='DEMO LISTING'">RENT IT</button> : <button class="btn pri" style="flex:1" id="rentBtn" disabled form="rentForm" type="submit">PICK DAYS TO RENT</button>}
         </div>
-      ) : isOwner ? <div class="rentbar"><a class="btn full" href={'/listings/' + it.id + '/edit'}>This is yours — edit it</a></div> : null}
+      ) : isOwner ? <div class="rentbar"><button class="btn pri own-off" style="flex:1" id="rentBtn" type="button" disabled>PICK DAYS TO RENT</button><a class="btn" href={'/listings/' + it.id + '/edit'} style="flex:none;padding:0 20px">Edit</a></div> : null}
       {raw(`<script>
 (function(){var P=${it.price_cents},W=${it.week_cents || 0},TX=${taxRateFor(it.lat, it.lng)},CR=${credit};var bs=[].slice.call(document.querySelectorAll('#days button'));var s=null,e=null,TODAY=(bs[0]&&bs[0].classList.contains('today'))?bs[0].dataset.day:null;
 var MIN=${MIN_RENT_CENTS};function price(n){if(P<=0)return 0;var r=n*P;if(W)r=Math.min(Math.floor(n/7)*W+(n%7)*P,Math.ceil(n/7)*W);return Math.max(MIN,r)}
@@ -247,10 +246,15 @@ function nx(d,k){return new Date(Date.parse(d)+k*864e5).toISOString().slice(0,10
 function paint(){bs.forEach(function(b){var d=b.dataset.day;b.classList.toggle('on',!!s&&!!e&&d>=s&&d<=e);b.dataset.tag=!s?'':d===s?'pickup':d===e?'return':'';});var btn=document.getElementById('rentBtn');if(s&&e){var n=Math.max(1,Math.round((Date.parse(e)-Date.parse(s))/864e5));var r=price(n);btn.disabled=false;var wk=W&&r<n*P;btn.textContent='RENT '+(n===1&&s===TODAY?'TODAY':n===7&&wk?'1 WEEK':n+(n===1?' DAY':' DAYS'))+' · '+fmt(Math.max(0,r-CR)+Math.round(Math.max(0,r-CR)*TX))+(CR?' · $'+(Math.min(CR,r)/100)+' OFF':wk?' · WEEK RATE':'');document.querySelectorAll('#quick button').forEach(function(x){x.classList.toggle('pri',(x.dataset.q==='7'&&n===7)||(x.dataset.q==='1'&&n===1))});document.getElementById('start').value=s;document.getElementById('end').value=nx(e,-1);charges(n,r)}else{btn.disabled=true;btn.textContent='PICK DAYS TO RENT';charges(0,0)}}
 function charges(n,r){var el=document.getElementById('charges');if(!el)return;if(!n){el.hidden=true;return}var cr=CR?Math.min(CR,r):0,tax=Math.round((r-cr)*TX),full=n*P;var rows=[[(W&&r<full?(n===7?'1 week':n+' days')+' <s>'+fmt(full)+'</s>':fmt(P)+' × '+n+(n===1?' day':' days')),fmt(r)]];var lift=P>0&&n*P<MIN&&r===MIN;if(lift){rows[0]=[fmt(P)+' × '+n+(n===1?' day':' days'),fmt(n*P)];rows.push([fmt(MIN)+' minimum per rental',fmt(MIN)]);}var same=lift?Math.floor(MIN/P):0;if(cr)rows.push(['Credit','−'+fmt(cr)]);if(tax)rows.push(['Sales tax ('+(+(TX*100).toFixed(3))+'%)',fmt(tax)]);var tot=r-cr+tax;el.innerHTML=rows.map(function(x){return '<div class="chg"><span>'+x[0]+'</span><span>'+x[1]+'</span></div>'}).join('')+'<div class="chg tot"><span>Total</span><span>'+fmt(tot)+'</span></div>'+(same>n?'<div class="chg-note" style="color:var(--ink);font-weight:800">Keep it '+same+' days for the same '+fmt(MIN)+'</div>':'')+'<div class="chg-note">Card held now · charged only if the owner says yes</div>';el.hidden=false}
 var pend=false;
+var SMS=${JSON.stringify(!u && !it.demo && (c.env.LENDO_NUMBER || '') ? 'sms:+1' + (c.env.LENDO_NUMBER || '').replace(/\D/g, '').slice(-10) + '?&body=' : '')},NM=${JSON.stringify(it.name).replace(/</g, '\\u003c')},REF=${JSON.stringify(it.id.replace(/^l_/, ''))};
+function md(d){return (+d.slice(5,7))+'/'+(+d.slice(8,10))}
+var rf=document.getElementById('rentForm');if(rf&&SMS)rf.addEventListener('submit',function(ev){if(!s||!e)return;if(matchMedia('(pointer:coarse)').matches){ev.preventDefault();location.href=SMS+encodeURIComponent('Rent '+NM+' '+md(s)+'-'+md(e)+' · ref '+REF);var b=document.getElementById('rentBtn');b.textContent='SEND THE TEXT · LENDO TEXTS BACK A LINK'}});
 document.querySelectorAll('#quick button').forEach(function(q){q.addEventListener('click',function(){var n=+q.dataset.q,free=bs.filter(function(x){return !x.disabled});for(var i=0;i<free.length;i++){var ok=true,a=free[i].dataset.day,z=null;for(var k=0;k<n;k++){var dd=new Date(Date.parse(a)+k*864e5).toISOString().slice(0,10);var m=bs.filter(function(x){return x.dataset.day===dd})[0];if(!m||m.disabled){ok=false;break}z=dd}if(ok){s=a;e=nx(z,1);pend=false;break}}document.querySelectorAll('#quick button').forEach(function(x){x.classList.toggle('pri',x===q)});paint()})});
 bs.forEach(function(b){b.addEventListener('click',function(){var d=b.dataset.day;document.querySelectorAll('#quick button').forEach(function(x){x.classList.remove('pri')});if(b.disabled)return;if(!pend||d<=s){s=d;e=nx(d,1);pend=true}else{var ok=true;bs.forEach(function(x){if(x.disabled&&x.dataset.day>=s&&x.dataset.day<d)ok=false});if(!ok){s=d;e=nx(d,1);pend=true}else{e=d;pend=false}}paint()})});
 (function(){var im=document.querySelector('img.trimme');if(!im)return;var go=function(){try{var c=document.createElement('canvas');c.width=im.naturalWidth;c.height=im.naturalHeight;var g=c.getContext('2d');g.drawImage(im,0,0);var d=g.getImageData(0,0,c.width,c.height).data,x0=c.width,y0=c.height,x1=0,y1=0;for(var y=0;y<c.height;y++)for(var x=0;x<c.width;x++){if(d[(y*c.width+x)*4+3]>8){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}}if(x1<=x0)return;var p=6,w=x1-x0+1+p*2,h=y1-y0+1+p*2,o=document.createElement('canvas');o.width=w;o.height=h;o.getContext('2d').drawImage(c,x0-p,y0-p,w,h,0,0,w,h);im.src=o.toDataURL();im.classList.remove('trimme')}catch(e){}};if(im.complete&&im.naturalWidth)go();else im.addEventListener('load',go,{once:true})})();
-if(TODAY&&!bs[0].disabled){s=TODAY;e=nx(TODAY,1);pend=false;paint()}
+var Q=new URLSearchParams(location.search),qs=Q.get('start'),qe=Q.get('end'),has=function(d){return bs.some(function(x){return x.dataset.day===d&&!x.disabled})};
+if(qs&&qe&&qe>qs&&has(qs)){s=qs;e=qe;pend=false;paint();var rb=document.querySelector('.rentbar');if(rb)rb.scrollIntoView({block:'end'})}
+else if(TODAY&&!bs[0].disabled){s=TODAY;e=nx(TODAY,1);pend=false;paint()}
 var mm=document.getElementById('meetMid');if(mm){var M0={n:document.getElementById('meetName').textContent,l:document.getElementById('meetLine').textContent,b:document.querySelector('.meet-lbl').textContent},af=document.getElementById('meetAfter');mm.addEventListener('click',function(){document.getElementById('meetAsk').hidden=false;mm.hidden=true;af.hidden=true;document.getElementById('meetFrom').focus()});document.getElementById('meetChange').addEventListener('click',function(){af.hidden=true;document.getElementById('meetAsk').hidden=false;document.getElementById('meetFrom').focus()});document.getElementById('meetBack').addEventListener('click',function(){af.hidden=true;mm.hidden=false;document.getElementById('meetFromVal').value='';document.getElementById('meetName').textContent=M0.n;document.getElementById('meetLine').textContent=M0.l;document.querySelector('.meet-lbl').textContent=M0.b});document.getElementById('meetGo').addEventListener('click',function(){var v=document.getElementById('meetFrom').value.trim();if(v.length<3)return;document.getElementById('meetFromVal').value=v;var nm=document.getElementById('meetName'),ln=document.getElementById('meetLine');nm.textContent='Finding a spot…';ln.textContent='';document.getElementById('meetAsk').hidden=true;document.querySelector('.meet-lbl').textContent='MIDWAY MEETUP SPOT';af.hidden=false;fetch('/api/meetup/preview?listing=${it.id}&from='+encodeURIComponent(v)).then(function(r){return r.json()}).then(function(j){var sp=j.spots&&j.spots[0];if(sp){nm.textContent=sp.name;ln.textContent=(sp.address||'')+(sp.walk_owner_min!=null&&sp.walk_renter_min!=null?' · ~'+sp.walk_renter_min+' min for you, ~'+sp.walk_owner_min+' for them':'')}else{nm.textContent='Midway spot';ln.textContent='we’ll pick a café by text once it’s a go'}}).catch(function(){nm.textContent='Midway spot';ln.textContent='we’ll pick a café by text once it’s a go'})})}
 })();
 </script>`)}
@@ -280,7 +284,7 @@ browse.get('/saved', async (c) => {
   if (!u) return c.redirect('/login?next=/saved');
   const rows = await c.env.DB.prepare(`SELECT l.* FROM saved s JOIN listings l ON l.id = s.listing_id WHERE s.user_id = ? AND l.status != 'removed' ORDER BY s.created_at DESC`).bind(u.id).all<Listing>();
   const ph = await firstPhotos(c.env.DB, rows.results.map(r => r.id));
-  c.header('cache-control', 'private, max-age=60'); /* map pins prefetch this page; a tap within a minute opens it from cache */
+  c.header('cache-control', 'private, max-age=60'); c.header('vary', 'cookie'); /* map pins prefetch this page; a tap within a minute opens it from cache */
   return c.html(
     <Layout title="Saved" user={u}>
       <div class="itemgrid">
@@ -324,7 +328,7 @@ export const personPage = async (c: Ctx, uid: string) => {
             </div>;
           })()}
           <div style="flex:1;min-width:0">
-            <div class="pf-name">{who.name || 'Neighbor'}</div>
+            <div class="pf-name">{me ? who.name || 'Neighbor' : shortName(who.name)}</div>
             <div class="pf-sub">{who.hood || ''}{who.hood ? <br /> : null}Lendo since {since}</div>
             <SocialIcons u={who} />
             {me && (who as any).handle ? <div class="pf-links"><span class="pf-link">lendo.co/{(who as any).handle}</span><button type="button" class="pf-share" onclick={`var u=location.origin+location.pathname;navigator.share?navigator.share({text:'My stuff for rent on Lendo',url:u}):(navigator.clipboard.writeText(u),toast('Link copied'))`} aria-label="Share my page"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7.5 7.5L12 3l4.5 4.5" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /><path d="M6 11H5v10h14V11h-1" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg></button></div> : null}
@@ -389,18 +393,24 @@ browse.get('/profile/edit', async (c) => {
   const spotsArr: string[] = (() => { try { return u.pickup_spots ? JSON.parse(u.pickup_spots) : []; } catch { return []; } })();
   return c.html(
     <Layout title="Edit profile" user={u} back={'/u/' + u.id} flashErr={c.req.query('err') === 'taken' ? 'That link is taken — try another' : c.req.query('err') === 'handle' ? 'Links use 2–24 lowercase letters, numbers or dashes' : undefined}>
-      <form method="post" action="/profile/edit" enctype="multipart/form-data" style="padding:12px 16px 40px">
-        <PhotoField name={u.name} photo={u.photo_key} label="Your photo (optional)" />
-        <label class="field"><span>Your name</span><input name="name" value={u.name || ''} placeholder="Fiona Smith" required maxlength={40} /></label>
-        <label class="field" id="handle"><span>Your Lendo link (you can change it)</span><div style="display:flex;align-items:center;gap:2px"><b style="font-size:16px;color:#6F6A60">lendo.co/</b><input name="handle" value={(u as any).handle || ''} placeholder="yourname" pattern="[a-z0-9][a-z0-9-]{1,23}" maxlength={24} autocapitalize="none" autocomplete="off" style="flex:1" /></div></label>
-        <label class="field" style="position:relative"><span>Pickup address (private — renters only see cross streets)</span><input name="address" id="addr" value={u.address || ''} placeholder="Street address" maxlength={160} autocomplete="off" /><div id="addrSug" class="card" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:50;padding:4px;margin-top:4px"></div></label>
-        <label class="field"><span>Cross streets (public)</span><input name="cross_streets" value={u.cross_streets || ''} placeholder="W 22nd & 9th Ave" maxlength={80} /></label>
-        <div class="field"><span>Meetup spot (customers see it)</span>
-          <input type="hidden" name="pickup_spots_json" id="spotsVal" />
-          <div id="spotsPick" class="spotpick" />
+      <form class="qs" data-mode="menu" method="post" action="/profile/edit" enctype="multipart/form-data" style="padding:12px 16px 40px">
+        <div class="qmenu">
+          <button type="button" class="qrow" data-q="photo"><b>Photo</b><span>{u.photo_key ? 'Added' : 'None yet'}</span></button>
+          <button type="button" class="qrow" data-q="name"><b>Name</b><span>{u.name || 'Not set'}</span></button>
+          <button type="button" class="qrow" data-q="home"><b>Home</b><span>{[u.cross_streets, u.hood].filter(Boolean).join(' · ') || 'Not set'}</span></button>
+          <button type="button" class="qrow" data-q="spot"><b>Meetup spot</b><span>{spotsArr[0] || 'Not set'}</span></button>
+          <button type="button" class="qrow" data-q="link"><b>Lendo link</b><span>{(u as any).handle ? 'lendo.co/' + (u as any).handle : 'Not set'}</span></button>
+          <button type="button" class="qrow" data-q="social"><b>Instagram, X, LinkedIn</b><span>{SOCIALS.filter(sc => (u as any)[sc.k]).length ? SOCIALS.filter(sc => (u as any)[sc.k]).map(sc => sc.k === 'ig' ? 'Instagram' : sc.k === 'x' ? 'X' : 'LinkedIn').join(', ') : 'None'}</span></button>
         </div>
-        <script src="/spots.js"></script>
-        {raw(`<script>lendoSpots({root:'spotsPick',input:'spotsVal',token:${JSON.stringify(c.env.MAPBOX_PUBLIC_TOKEN || '')},center:${u.lat != null && u.lng != null ? JSON.stringify([u.lng, u.lat]) : 'null'},cross:${JSON.stringify(u.cross_streets || '')},initial:${JSON.stringify(spotsArr).replace(/</g, '\\u003c')}})</script>`)}
+        <div class="q" data-q="photo" hidden><h2 class="qh">Your photo</h2>
+        <PhotoField name={u.name} photo={u.photo_key} label="Your photo (optional)" />
+        </div>
+        <div class="q" data-q="name" hidden><h2 class="qh">Your name</h2><p class="hint" style="margin:-4px 0 10px">First and last · others see first name and last initial</p>
+        <label class="field"><span>Name</span><input name="name" value={u.name || ''} placeholder="Fiona Smith" required maxlength={40} /></label>
+        </div>
+        <div class="q" data-q="home" hidden><h2 class="qh">Where’s home?</h2><p class="hint" style="margin:-4px 0 10px">Your things show on the map near here · others only see cross streets and neighborhood</p>
+        <label class="field" style="position:relative"><span>Address (private)</span><input name="address" id="addr" value={u.address || ''} placeholder="Street address" maxlength={160} autocomplete="off" /><div id="addrSug" class="card" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:50;padding:4px;margin-top:4px"></div></label>
+        <label class="field"><span>Cross streets (public)</span><input name="cross_streets" value={u.cross_streets || ''} placeholder="W 22nd & 9th Ave" maxlength={80} /></label>
         <div class="field"><span>Neighborhood</span><div class="sp-search"><input name="hood" id="hoodIn" value={u.hood || ''} placeholder="Start typing… Chelsea" maxlength={60} autocomplete="off" /><div class="sp-sug" id="hoodSug" hidden /></div></div>
         {raw(`<script>(function(){var H=${JSON.stringify(CITIES.flatMap(ct => ct.hoods.map(h => [h.name, ct.name]))).replace(/</g, '\\u003c')},inp=document.getElementById('hoodIn'),box=document.getElementById('hoodSug');
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
@@ -410,11 +420,26 @@ if(!m.length){box.hidden=true;return}box.innerHTML=m.map(function(h){return '<bu
 box.addEventListener('click',function(e){var b=e.target.closest('button');if(b){inp.value=b.dataset.v;box.hidden=true}});
 document.addEventListener('click',function(e){if(!box.contains(e.target)&&e.target!==inp)box.hidden=true})})()</script>`)}
         <input type="hidden" name="lat" id="lat" value={u.lat ?? ''} /><input type="hidden" name="lng" id="lng" value={u.lng ?? ''} />
+        <button type="button" class="btn sm" onclick="navigator.geolocation.getCurrentPosition(function(p){lat.value=p.coords.latitude;lng.value=p.coords.longitude;toast('Location set')})">📍 Use my location as home base</button>
+        </div>
+        <div class="q" data-q="spot" hidden><h2 class="qh">Meetup spot</h2>
+        <div class="field"><span>Meetup spot (customers see it)</span>
+          <input type="hidden" name="pickup_spots_json" id="spotsVal" />
+          <div id="spotsPick" class="spotpick" />
+        </div>
+        <script src="/spots.js"></script>
+        {raw(`<script>lendoSpots({root:'spotsPick',input:'spotsVal',token:${JSON.stringify(c.env.MAPBOX_PUBLIC_TOKEN || '')},center:${u.lat != null && u.lng != null ? JSON.stringify([u.lng, u.lat]) : 'null'},cross:${JSON.stringify(u.cross_streets || '')},initial:${JSON.stringify(spotsArr).replace(/</g, '\\u003c')}})</script>`)}
+        </div>
+        <div class="q" data-q="link" hidden><h2 class="qh">Your Lendo link</h2>
+        <label class="field" id="handle"><span>Your Lendo link (you can change it)</span><div style="display:flex;align-items:center;gap:2px"><b style="font-size:16px;color:#6F6A60">lendo.co/</b><input name="handle" value={(u as any).handle || ''} placeholder="yourname" pattern="[a-z0-9][a-z0-9-]{1,23}" maxlength={24} autocapitalize="none" autocomplete="off" style="flex:1" /></div></label>
+        </div>
+        <div class="q" data-q="social" hidden><h2 class="qh">Instagram, X, LinkedIn</h2>
         <div class="field"><span>Your Instagram, X, LinkedIn (optional — shown as icons on your profile)</span>
           {SOCIALS.map(sc => <div class="soc-in"><span class="soc-ic">{sc.svg}</span><b>{sc.pre}</b><input name={'soc_' + sc.k} value={(u as any)[sc.k] || ''} placeholder="yourname" maxlength={120} autocomplete="off" autocapitalize="off" /></div>)}
         </div>
-        <button type="button" class="btn sm" onclick="navigator.geolocation.getCurrentPosition(function(p){lat.value=p.coords.latitude;lng.value=p.coords.longitude;toast('Location set')})">📍 Use my location as home base</button>
-        <div style="margin-top:16px"><button class="btn pri full" type="submit">Save</button></div>
+        </div>
+        <div class="qsave" hidden><button class="btn pri full" type="submit">Save</button><button type="button" class="lg-alt qback">Back</button></div>
+        <script src="/steps.js"></script>
         
       </form>
       {c.env.MAPBOX_PUBLIC_TOKEN ? raw(`<script>

@@ -155,9 +155,9 @@ export async function logout(c: Context<{ Bindings: Env; Variables: Vars }>) {
 }
 
 // ---------- log in by text: a one-time link texted to the phone (24h). Stored in otp_codes as phone='link:<token>', code=<phone> ----------
-export async function loginLink(env: Env, phone: string): Promise<string> {
+export async function loginLink(env: Env, phone: string, next?: string): Promise<string> {
   const t = (crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '')).slice(0, 32);
-  await env.DB.prepare('INSERT OR REPLACE INTO otp_codes (phone, code, expires_at, attempts) VALUES (?,?,?,0)').bind('link:' + t, phone, now() + 24 * 3600000).run();
+  await env.DB.prepare('INSERT OR REPLACE INTO otp_codes (phone, code, expires_at, attempts) VALUES (?,?,?,0)').bind('link:' + t, next && next.startsWith('/') && !next.startsWith('//') ? phone + '|' + next : phone, now() + 24 * 3600000).run();
   return `${env.APP_URL}/in/${t}`;
 }
 export async function useLoginLink(c: Context<{ Bindings: Env; Variables: Vars }>, t: string): Promise<User | null> {
@@ -165,7 +165,8 @@ export async function useLoginLink(c: Context<{ Bindings: Env; Variables: Vars }
   const row = await c.env.DB.prepare('SELECT code, expires_at FROM otp_codes WHERE phone = ?').bind('link:' + t).first<{ code: string; expires_at: number }>();
   await c.env.DB.prepare('DELETE FROM otp_codes WHERE phone = ?').bind('link:' + t).run(); /* one use */
   if (!row || row.expires_at < now()) return null;
-  const user = await ensureUser(c.env.DB, row.code);
+  const [ph, nx] = row.code.split('|');
+  const user = await ensureUser(c.env.DB, ph); if (nx) (user as any)._next = nx;
   const sid = id('s');
   await c.env.DB.prepare('INSERT INTO sessions (id, user_id, expires_at) VALUES (?,?,?)').bind(sid, user.id, now() + SESSION_DAYS * 86400000).run();
   await logEvent(c.env.DB, 'login', { user: user.id, data: { via: 'link', ua: (c.req.header('user-agent') || '').slice(0, 160) } });

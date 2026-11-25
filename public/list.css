@@ -417,3 +417,8 @@ a.dn2-tray{text-decoration:none;color:var(--ink)}
 .where-in input{width:100%;box-sizing:border-box;font:inherit;font-size:17px;font-weight:700;padding:13px 14px;border:2.5px solid var(--ink,#1E3A2B);border-radius:14px;background:#fff;margin-bottom:10px}
 .where-in .cta{width:100%}.where-gps{display:block;margin:12px auto 0;font-weight:800}.where-err{display:block;text-align:center;color:#b3261e;font-weight:800;margin-top:8px}
 @media (min-width:760px){.where-sh{align-items:center}.where-in{border-radius:22px}}
+
+.where-opts{display:flex;flex-direction:column;gap:10px}
+.where-opt{display:flex;align-items:center;gap:14px;width:100%;text-align:left;font:inherit;color:var(--ink,#1E3A2B);background:#fff;border:2.5px solid var(--ink,#1E3A2B);border-bottom-width:5px;border-radius:16px;padding:12px 16px;cursor:pointer}
+.where-opt i{font-style:normal;font-size:26px;flex:none;width:34px;text-align:center}.where-opt span{font-size:18px;font-weight:900;min-width:0}.where-opt small{display:block;font-size:13px;font-weight:700;color:#6b6a63;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.where-in form[hidden],.where-opts[hidden]{display:none}

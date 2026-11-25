@@ -1,6 +1,6 @@
 // Email = backup channel (texts first). Plain, like a text, with chunky buttons. Sent through Resend when RESEND_API_KEY is set.
 import type { Env, Listing, Rental, User } from './env';
-import { backDay, firstName, fmtDay, fmtRange, money } from './util';
+import { backDay, firstName, fmtDay, fmtRange, money, shortName } from './util';
 import { logEvent } from './log';
 
 export const emailOn = (env: Env) => !!env.RESEND_API_KEY;
@@ -63,7 +63,7 @@ export async function emailRequest(env: Env, r: Rental, owner: User, cust: User,
   return emailUser(env, owner, `${title} · ${fmtRange(r.start_day, backDay(r.end_day))}`, [`${title}, ${fmtRange(r.start_day, backDay(r.end_day))}. You’d earn ${earn}`],
     [{ label: 'YES', url, pri: true }, { label: 'NO', url }], '', r.id,
     { title, img, more: { label: 'More', url }, steps: [
-      { t: `${who} asked for ${fmtRange(r.start_day, backDay(r.end_day))}`, state: 'done' },
+      { t: `${shortName(cust.name)} asked for ${fmtRange(r.start_day, backDay(r.end_day))}`, state: 'done' },
       { t: 'Your answer', state: 'now', btns: [{ label: 'YES', sub: `${who} charged`, url, pri: true }, { label: 'NO', url }] },
       { t: `Pickup ${md(r.start_day)}`, d: `· you get ${earn}`, more: dep ? [`${money(r.deposit_cents!)} hold on ${who}’s card`] : undefined },
       { t: `Return ${md(backDay(r.end_day))}`, more: dep ? ['Hold released when you say all good'] : undefined }] });

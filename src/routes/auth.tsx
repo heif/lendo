@@ -1,6 +1,7 @@
 import { twilioSmsOn } from '../lib/twiliosms';
 import { raw } from 'hono/html';
 import { Hono } from 'hono';
+import { setUserWhere } from '../lib/where';
 import { logEvent, logErr } from '../lib/log';
 import { PhotoField, saveUserPhoto } from '../lib/userphoto';
 import type { Env, Vars } from '../lib/env';
@@ -28,6 +29,7 @@ auth.get('/login', (c) => {
         <h2 style="margin:0 0 10px;font-size:24px;font-weight:900;letter-spacing:-.02em">Join or log in</h2>
         <a class="btn pri full sms-only" href={smsHref(c.env, 'OK')} style="display:grid;place-items:center;text-decoration:none">💬 Text OK to Lendo</a>
         <p class="hint sms-only" style="margin:10px 0 0">Opens Messages · send it · tap the link Lendo texts back</p>
+        <p class="hint" style="margin:8px 0 0;font-size:12px">By continuing you agree to the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a></p>
         <div class="pc-only" style="text-align:center"><span id="lgQr" data-sms={`SMSTO:+1${num10(c.env)}:OK`} aria-label="Scan to text Lendo" style="display:inline-block;background:#fff;border:2.5px solid var(--ink);border-radius:14px;padding:8px;line-height:0"></span>
           <p class="hint" style="margin:10px 0 0">Scan with your phone’s camera, or text <b>OK</b> to {prettyPhone('+1' + num10(c.env))} · tap the link Lendo texts back</p></div>
         <script src="/qrgen.js"></script>
@@ -101,15 +103,21 @@ auth.get('/welcome', async (c) => {
   const next = safeNext(c.req.query('next'));
   return c.html(
     <Layout title="Welcome" user={u} back={null}>
-      <form method="post" action="/welcome" enctype="multipart/form-data" style="padding:20px 16px">
-        <h2 style="margin:0 0 6px;font-size:24px;font-weight:900;letter-spacing:-.02em">What should neighbors call you?</h2>
+      <form class="qs" data-mode="steps" method="post" action="/welcome" enctype="multipart/form-data" style="padding:20px 16px">
         <input type="hidden" name="next" value={next} />
-        <label class="field"><span>Your name</span><input name="name" placeholder="Fiona Smith" required maxlength={40} autofocus /></label>
-        <label class="field"><span>Email</span><input name="email" type="email" inputmode="email" autocomplete="email" placeholder="you@email.com" required maxlength={120} value={u.email || ''} /></label>
-        <p class="hint" style="margin:-6px 0 12px">Only for receipts and anything a text misses</p>
-        <PhotoField name={null} label="Your photo (optional)" />
-        <label class="field"><span>Neighborhood (optional)</span><input name="hood" placeholder="Chelsea" maxlength={60} /></label>
-        <button class="btn pri full" type="submit">Done</button>
+        <div class="q"><h2 class="qh">What’s your name?</h2>
+          <label class="field"><span>First and last</span><input name="name" placeholder="Fiona Smith" required maxlength={40} autocomplete="name" value={u.name || ''} /></label>
+          <p class="hint" style="margin:-6px 0 12px">Others see first name and last initial, like “Fiona S.”</p></div>
+        <div class="q" hidden><h2 class="qh">Your email</h2>
+          <label class="field"><span>Email</span><input name="email" type="email" inputmode="email" autocomplete="email" placeholder="you@email.com" required maxlength={120} value={u.email || ''} /></label>
+          <p class="hint" style="margin:-6px 0 12px">Only for receipts and anything a text misses</p></div>
+        <div class="q" data-skip="1" hidden><h2 class="qh">Add a photo</h2>
+          <PhotoField name={null} label="People say yes more often to a face" /></div>
+        <div class="q" data-skip="1" hidden><h2 class="qh">Where’s home?</h2>
+          <label class="field"><span>Cross streets or ZIP</span><input name="home" placeholder="W 22nd & 9th Ave" maxlength={120} autocomplete="off" value={u.cross_streets || ''} /></label>
+          <p class="hint" style="margin:-6px 0 12px">Shows what’s near you, and puts your things on the map near home · only the area shows</p></div>
+        <div class="qnav"><button class="btn pri full qnext" type="button">Next</button><button type="button" class="lg-alt qskip" hidden>Skip</button></div>
+        <script src="/steps.js"></script>
       </form>
     </Layout>
   );
@@ -119,11 +127,11 @@ auth.post('/welcome', async (c) => {
   const u = c.get('user');
   if (!u) return c.redirect('/login');
   const f = await c.req.parseBody();
-  await c.env.DB.prepare('UPDATE users SET name = ?, hood = COALESCE(NULLIF(?, \'\'), hood) WHERE id = ?')
-    .bind(String(f.name || '').trim().slice(0, 40) || 'Neighbor', String(f.hood || '').trim().slice(0, 60), u.id).run();
+  await c.env.DB.prepare('UPDATE users SET name = ? WHERE id = ?').bind(String(f.name || '').trim().slice(0, 40) || 'Neighbor', u.id).run();
+  { const home = String(f.home || '').trim(); if (home && home !== (u.cross_streets || '')) await setUserWhere(c.env, u, home, u.id).catch(() => null); } /* home = where their things are kept; sets the map spot + neighborhood */
   { const em = String(f.email || '').trim().toLowerCase(); if (validEmail(em)) await c.env.DB.prepare('UPDATE users SET email = ? WHERE id = ?').bind(em, u.id).run().catch(() => 0); }
   if (f.photo) await saveUserPhoto(c.env, u.id, f.photo).catch(() => null);
-  await logEvent(c.env.DB, 'profile.setup', { user: u.id, data: { name: String(f.name || '').trim().slice(0, 40), hood: String(f.hood || '').trim().slice(0, 60), photo: !!f.photo } });
+  await logEvent(c.env.DB, 'profile.setup', { user: u.id, data: { name: String(f.name || '').trim().slice(0, 40), home: String(f.home || '').trim().slice(0, 60), photo: !!f.photo } });
   const nx = safeNext(String(f.next || '/'));
   return c.redirect(u.replied ? nx : '/texts-on?next=' + encodeURIComponent(nx));
 });
@@ -203,7 +211,10 @@ auth.post('/promo', async (c) => {
 // texted one-time login link (gift card / Text Lendo replies)
 auth.get('/in/:t', async (c) => {
   const u = await useLoginLink(c, c.req.param('t'));
-  return c.redirect(u ? '/?hi=1' : '/login');
+  if (!u) return c.redirect('/login');
+  const nx = safeNext((u as any)._next) === '/' ? '/?hi=1' : safeNext((u as any)._next);
+  /* people who joined by texting in never saw the welcome questions (name, email): ask now, then carry on */
+  return c.redirect(!u.name || !u.email ? '/welcome?next=' + encodeURIComponent(nx) : nx);
 });
 
 // tap → iPhone/Android "Create contact" sheet for the Lendo number

@@ -31,7 +31,7 @@ rentals.post('/i/:id/rent', async (c) => {
   const lid = c.req.param('id');
   const f = await c.req.parseBody();
   const start = String(f.start || ''), end = String(f.end || '');
-  if (!u) return c.redirect('/login?next=' + encodeURIComponent(`/i/${lid}`));
+  if (!u) return c.redirect('/login?next=' + encodeURIComponent(`/i/${lid}` + (/^\d{4}-\d{2}-\d{2}$/.test(start) && /^\d{4}-\d{2}-\d{2}$/.test(end) ? `?start=${start}&end=${addDays(end, 1)}` : '')));
   const it = await listingById(c.env.DB, lid);
   if ((it as any)?.demo) return c.redirect('/i/' + c.req.param('id'));
   if (!it || it.status !== 'live') return c.notFound();
@@ -138,7 +138,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
         <a class="rhd" href={'/i/' + it.id}>
           {it.avatar_key ? <img class="cut" data-trim="1" src={'/p/' + it.avatar_key} alt="" /> : photos[0] ? <img class="cut" data-trim="1" src={'/c/' + photos[0].r2_key + '?s=200'} alt="" /> : <span class="rhd-ph"></span>}
           <div style="min-width:0"><b class="rhd-t">{it.name}</b>
-            <div>{isOwner ? '' : 'from '}<span class="ownlink" onclick={`event.preventDefault();location.href='${(other as any).handle ? '/' + (other as any).handle : '/u/' + other.id}'`}>{firstName(other.name)}</span> · {r.status === 'inquiry' ? (isOwner ? 'question about your item' : 'questions before renting') : <>{fmtRange(r.start_day, r.end_day)}{dead ? <> · {isOwner ? `you earn ${money(payoutOf(r) + xRent)}` : money(r.total_cents + xTotal)}</> : null}</>}</div></div>
+            <div>{isOwner ? '' : 'from '}<span class="ownlink" onclick={`event.preventDefault();location.href='${(other as any).handle ? '/' + (other as any).handle : '/u/' + other.id}'`}>{shortName(other.name)}</span> · {r.status === 'inquiry' ? (isOwner ? 'question about your item' : 'questions before renting') : <>{fmtRange(r.start_day, r.end_day)}{dead ? <> · {isOwner ? `you earn ${money(payoutOf(r) + xRent)}` : money(r.total_cents + xTotal)}</> : null}</>}</div></div>
         </a>
         {r.status !== 'inquiry' && !dead ? (() => { const nm = firstName(other.name), spot = r.meet_spot || (spots.length === 1 ? spots[0] : '');
           const chg = spots.length > 1 ? <u onclick="var d=document.querySelector('.rstrip');d.open=!d.open">Change</u> : null;

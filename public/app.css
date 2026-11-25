@@ -966,3 +966,13 @@ header h1.sr,.sr{position:absolute!important;width:1px;height:1px;overflow:hidde
 
 /* tapped grown pin: instant press feedback while the item page opens */
 .hovpop .hv.press img{transform:scale(.94);transition:transform .08s}
+
+/* owner looking at their own item: same page a customer sees, the parts that aren't theirs to use are greyed and don't respond */
+.own-off{opacity:.38;pointer-events:none;filter:grayscale(1);user-select:none}
+
+/* one question at a time (steps.js) */
+.qh{margin:0 0 10px;font-size:24px;font-weight:900;letter-spacing:-.02em}
+.qnav{margin-top:6px}.qsave{margin-top:16px}
+.qmenu{display:flex;flex-direction:column;gap:10px}
+.qrow{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;color:var(--ink);background:#fff;border:2.5px solid var(--ink);border-bottom-width:5px;border-radius:16px;padding:14px 16px;cursor:pointer}
+.qrow b{font-size:17px;font-weight:900;flex:none}.qrow span{font-size:14px;font-weight:700;color:var(--mute);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}

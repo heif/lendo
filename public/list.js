@@ -1,17 +1,29 @@
 // Snap-flow: ideas → camera (1 photo) → one question at a time (card stack; sign-up after the item questions) → done. Minimal copy. Config: window.LENDO_LIST = { minPrice, hood, shareUrl, hasGps }.
 (function () {
   var CFG = window.LENDO_LIST || {}, MIN = CFG.minPrice || 1;
-  /* no GPS and no saved spot → ask where the things are before posting, so they land on the map */
+  /* Where are the things kept? (Scott, 11/24) Someone listing from the office must not get their stuff pinned at the office.
+     Home saved and you're there (or no GPS) → nothing to ask. Otherwise one chunky question before posting: Home / Here / Somewhere else */
   function needWhere(go) {
-    if (window._gps || CFG.hasLoc || !CFG.user) { go(); return; }
+    if (!CFG.user || CFG.whereOk) { go(); return; }
+    var g = window._gps, h = CFG.home, far = g && h && Math.hypot(g[0] - h.lat, (g[1] - h.lng) * 0.76) > 0.006;
+    if (h && !far) { CFG.whereOk = true; go(); return; }
+    var esc = function (x) { return String(x).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
     var o = document.createElement('div'); o.className = 'where-sh';
-    o.innerHTML = '<div class="where-in"><b>Where are your things?</b><p>Cross streets or ZIP · only the area shows on the map</p><form><input name="p" placeholder="e.g. W 29th & 9th Ave" autocomplete="street-address" enterkeyhint="done" required minlength="2"><button class="cta" type="submit">PUT IT ON THE MAP</button></form><button type="button" class="lnk where-gps">📍 Use my location</button><small class="where-err" hidden>Couldn’t find that · try cross streets + neighborhood</small></div>';
-    document.body.appendChild(o); var inp = o.querySelector('input'); setTimeout(function () { inp.focus(); }, 50);
-    function done() { CFG.hasLoc = true; o.remove(); go(); }
-    o.querySelector('form').addEventListener('submit', function (e) { e.preventDefault(); var bt = o.querySelector('.cta'); bt.disabled = true; bt.textContent = 'FINDING…';
-      fetch('/api/me/where', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ place: inp.value }) }).then(function (r) { return r.json(); }).then(function (j) { if (j && j.ok) done(); else throw 0; })
+    o.innerHTML = '<div class="where-in"><b>Where are these kept?</b><p>Only the area shows on the map</p>'
+      + '<div class="where-opts">' + (h ? '<button type="button" class="where-opt" data-w="home"><i>🏠</i><span>Home<small>' + esc(h.label || 'your saved spot') + '</small></span></button>' : '')
+      + (g ? '<button type="button" class="where-opt" data-w="here"><i>📍</i><span>Right here<small>where you are now</small></span></button>' : '')
+      + (g || h ? '<button type="button" class="where-opt" data-w="else"><i>✎</i><span>Somewhere else<small>type cross streets or ZIP</small></span></button>' : '') + '</div>'
+      + '<form' + (g || h ? ' hidden' : '') + '><input name="p" placeholder="e.g. W 29th & 9th Ave" autocomplete="street-address" enterkeyhint="done" required minlength="2"><button class="cta" type="submit">PUT IT ON THE MAP</button></form>'
+      + (g || h ? '' : '<button type="button" class="lnk where-gps">📍 Use my location</button>') + '<small class="where-err" hidden>Couldn’t find that · try cross streets + neighborhood</small></div>';
+    document.body.appendChild(o); var inp = o.querySelector('input'), fm = o.querySelector('form'); if (!fm.hidden) setTimeout(function () { inp.focus(); }, 50);
+    function done() { CFG.whereOk = true; o.remove(); go(); }
+    o.querySelector('.where-opts').addEventListener('click', function (e) { var b = e.target.closest('.where-opt'); if (!b) return;
+      if (b.dataset.w === 'home') { window._gps = null; done(); } else if (b.dataset.w === 'here') done();
+      else { o.querySelector('.where-opts').hidden = true; fm.hidden = false; inp.focus(); } });
+    fm.addEventListener('submit', function (e) { e.preventDefault(); var bt = o.querySelector('.cta'); bt.disabled = true; bt.textContent = 'FINDING…';
+      fetch('/api/me/where', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ place: inp.value }) }).then(function (r) { return r.json(); }).then(function (j) { if (j && j.ok) { window._gps = null; CFG.home = { lat: j.lat, lng: j.lng, label: inp.value }; done(); } else throw 0; })
         .catch(function () { bt.disabled = false; bt.textContent = 'PUT IT ON THE MAP'; o.querySelector('.where-err').hidden = false; }); });
-    o.querySelector('.where-gps').addEventListener('click', function () { if (!navigator.geolocation) return; navigator.geolocation.getCurrentPosition(function (p) { window._gps = [p.coords.latitude, p.coords.longitude]; o.remove(); go(); }, function () { o.querySelector('.where-err').hidden = false; o.querySelector('.where-err').textContent = 'Location is off · type cross streets or ZIP'; }, { timeout: 8000 }); });
+    var gb = o.querySelector('.where-gps'); if (gb) gb.addEventListener('click', function () { if (!navigator.geolocation) return; navigator.geolocation.getCurrentPosition(function (p) { window._gps = [p.coords.latitude, p.coords.longitude]; done(); }, function () { var er = o.querySelector('.where-err'); er.hidden = false; er.textContent = 'Location is off · type cross streets or a ZIP'; }); });
     o.addEventListener('click', function (e) { if (e.target === o) o.remove(); });
   }
   var $ = function (id) { return document.getElementById(id); };
