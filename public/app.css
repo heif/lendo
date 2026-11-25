@@ -1085,6 +1085,9 @@ input.otp{font-size:52px!important;padding:14px 0 14px .5em;border-radius:18px;m
 @keyframes lhC4{0%,56%{transform:scaleY(.3)}62%,92%{transform:none}100%{transform:scaleY(.3)}}
 @keyframes lhC5{0%,72%{transform:rotate(62deg)}78%,92%{transform:none}100%{transform:rotate(62deg)}}
 @keyframes lhNone{from,to{transform:none}}
+/* the resting L is never still: a slight, slow wave */
+.lh:not(.an):not(.open):not(.fist):not(.tip):not(.fr) .palm .hd{animation:lhLwave 2.6s ease-in-out infinite}
+@keyframes lhLwave{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(5deg)}}
 @keyframes lhRock{0%,100%{transform:rotate(-13deg) translateY(4px)}50%{transform:rotate(11deg) translateY(-5px)}}
 @keyframes lhSway{0%,100%{transform:none}30%{transform:rotate(-9deg)}70%{transform:rotate(9deg)}}
 @keyframes lhPump{0%,100%{transform:none}40%{transform:translateY(-9px)}}

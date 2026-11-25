@@ -2,7 +2,8 @@
    'wave' | 'shrug' | 'nod' | 'five' | 'fist'  → the gesture, 3 times, then back to the L
    1..5                                         → holds up that many fingers for a moment
    A page can also ask with <i hidden data-lh="nod"></i> (played after the logo's own intro).
-   One thing at a time; a new call replaces the one playing. Nothing moves under reduce motion. */
+   One thing at a time; a new call replaces the one playing. The hand keeps going while the page is open (idle()) and
+   the resting L sways slightly (app.css). Nothing moves under reduce motion. */
 (function () {
   var H = document.querySelector('.logo .lh'); if (!H) { window.lendoHand = function () {}; return; }
   var RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -43,7 +44,17 @@
   var first = false; try { if (location.pathname === '/' && !localStorage.getItem('lh_w')) { localStorage.setItem('lh_w', '1'); first = true; } } catch (e) {}
   var ask = document.querySelector('[data-lh]'), want = ask && ask.getAttribute('data-lh');
   var roll = Math.random(), intro = first || roll < .6 ? 'wave' : roll < .8 ? 'l' : FUN[Math.floor(Math.random() * FUN.length)];
-  (intro === 'l' ? play('l') : play(intro).then(function () { return tok === 1 ? play('l') : null; })).then(function () { if (want && !busy) play(/^[1-5]$/.test(want) ? +want : want); });
+  (intro === 'l' ? play('l') : play(intro).then(function () { return tok === 1 ? play('l') : null; })).then(function () { if (want && !busy) return play(/^[1-5]$/.test(want) ? +want : want); }).then(idle);
+  /* keeps going while the page is open: every few seconds 60% a wave, 20% stay on the (slightly waving) L, 20% a fun or small gesture */
+  function idle() {
+    if (RM) return;
+    setTimeout(function () {
+      if (busy || document.hidden) return idle();
+      var r = Math.random(), k = r < .6 ? 'wave' : r < .8 ? null : FUN[Math.floor(Math.random() * FUN.length)];
+      if (!k) return idle();
+      play(k).then(idle);
+    }, 3000 + Math.random() * 3000);
+  }
   /* one-shot moments (?hi=1 after a handover, ?saved= after an edit) shouldn't replay on reload */
   try { if (/[?&](hi|saved)=/.test(location.search)) history.replaceState(null, '', location.pathname + location.search.replace(/[?&](hi|saved)=[^&]*/g, '').replace(/^&/, '?') + location.hash); } catch (e) {}
   /* stars picked on a rating → that many fingers */
