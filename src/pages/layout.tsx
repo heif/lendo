@@ -1,3 +1,4 @@
+import { hand } from '../lib/hand';
 import type { FC, Child } from 'hono/jsx';
 import { html, raw } from 'hono/html';
 import type { User } from '../lib/env';
@@ -44,7 +45,7 @@ export const Layout: FC<LayoutProps> = (p) => {
                 <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M9 2L4 7L9 12" fill="none" stroke="#1E3A2B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
               </a>
             )}
-            <a class="logo" href="/" aria-label="Lendo home (map)"><span class="wave" aria-hidden="true">👋</span>Lendo</a>
+            <a class="logo" href="/" aria-label="Lendo home (map)">{raw(hand())}Lendo</a>
             {p.headerCenter ? <span class="sp"></span> : <span class="sep" aria-hidden="true"></span>}
             {p.headerCenter ? p.headerCenter : <h1 class="sr">{p.title}</h1>}
             <span class="sp"></span>
@@ -112,7 +113,7 @@ window.toast=function(t){var d=document.createElement('div');d.className='toast'
 </script>`)}
       <script dangerouslySetInnerHTML={{ __html: "(function(){var q=location.search;if(!/[?&]flag(ged|err)=1/.test(q))return;var d=document.createElement('div');d.className='flagthx';d.textContent=/flagged/.test(q)?'Thanks \u2014 a person at Lendo will look at it':'Couldn\u2019t send that \u2014 try again';document.body.appendChild(d);setTimeout(function(){d.remove()},4000);try{history.replaceState(null,'',location.pathname+q.replace(/[?&]flag(ged|err)=1/,'').replace(/^&/,'?'))}catch(e){}})()" }} />
 <script dangerouslySetInnerHTML={{ __html: "(function(){var r=document.querySelector('.ro-bonus');if(!r)return;var V=(document.cookie.match(/(?:^|; )lendo_ab_l10=([abc])/)||[])[1];if(!V){V='abc'.charAt(Math.floor(Math.random()*3));document.cookie='lendo_ab_l10='+V+';path=/;max-age=34560000;samesite=lax'}var T={a:['$10 BONUS TODAY','$10 BONUS TODAY \u00b7 list 10 things'],b:['GET $10 TODAY','Get $10 cash \u00b7 list 10 things'],c:['LIST 10, GET $10','$1/item today \u00b7 up to $10']}[V];if(r){r.textContent=T[0];r.setAttribute('aria-label',T[0])}function ab(e){try{var b=JSON.stringify({exp:'list10',var:V,ev:e});navigator.sendBeacon?navigator.sendBeacon('/api/ab',b):fetch('/api/ab',{method:'POST',body:b,keepalive:true})}catch(x){}}try{if(!sessionStorage.getItem('ab_l10_seen')){sessionStorage.setItem('ab_l10_seen','1');ab('view')}}catch(x){}var ro=document.querySelector('.rent-out');if(ro&&r)ro.addEventListener('click',function(){ab('click')})})()" }} />
-<script src="/trim.js" defer></script></body>
+<script src="/trim.js" defer></script><script src="/hand.js" defer></script></body>
     </html>
   )}`;
 };

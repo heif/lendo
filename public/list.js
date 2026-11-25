@@ -1,3 +1,9 @@
+/* the hand logo (still, in its L) as an image for the share picture */
+var LH_IMG = null; (function () { var s = document.querySelector('.logo .lh svg'); if (!s) return; var c = s.cloneNode(true); c.setAttribute('xmlns', 'http://www.w3.org/2000/svg'); c.setAttribute('width', '48'); c.setAttribute('height', '49');
+  var f = c.querySelector('.front'); if (f) f.parentNode.removeChild(f);
+  [['md', 58.75, 64], ['rg', 72.5, 64], ['pk', 84.5, 66]].forEach(function (x) { var g = c.querySelector('.' + x[0]); if (g) g.setAttribute('transform', 'translate(' + x[1] + ' ' + x[2] + ') scale(1 .3) translate(' + (-x[1]) + ' ' + (-x[2]) + ')'); });
+  var t = c.querySelector('.th'); if (t) t.setAttribute('transform', 'rotate(-38 44 94)');
+  var i = new Image(); i.onload = function () { LH_IMG = i; }; i.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(c.outerHTML); })();
 // Snap-flow: ideas → camera (1 photo) → one question at a time (card stack; sign-up after the item questions) → done. Minimal copy. Config: window.LENDO_LIST = { minPrice, hood, shareUrl, hasGps }.
 (function () {
   var CFG = window.LENDO_LIST || {}, MIN = CFG.minPrice || 1;
@@ -512,6 +518,7 @@
     /* tap the picture or name → the item page */
     var L0 = Lc[0]; if (L0) { var tr = $('tray'), a = document.createElement('a'); a.href = L0.url || '/i/' + L0.id; a.className = 'dn2-tray'; a.id = 'tray'; a.innerHTML = tr.innerHTML; tr.parentNode.replaceChild(a, tr); }
     $('dnHead').textContent = shots.length === 1 ? 'Posted' : shots.length + ' posted';
+    if (window.lendoHand) lendoHand(shots.length >= 2 && shots.length <= 5 ? shots.length : 'nod');
     $('again').lastChild.textContent = 'List more stuff';
     $('dnSub').textContent = shots.length === 1 ? 'Live on the map — neighbors can rent it now' : 'Live on the map — neighbors can rent them now';
 
@@ -536,7 +543,7 @@
       g.fillStyle = '#1E3A2B'; g.fillRect(0, 0, W, 285); g.fillRect(0, 1635, W, H - 1635);
       g.textBaseline = 'alphabetic'; g.textAlign = 'center'; g.fillStyle = '#F5F3EE'; g.font = '700 34px ui-monospace,Menlo,monospace'; g.fillText('MAKE MONEY · SAVE SPACE · BUY LESS', W / 2, 160);
       g.fillStyle = '#FF4F00'; g.font = '900 40px ' + F; g.fillText('NEIGHBORS RENTING TO NEIGHBORS', W / 2, 1790);
-      g.textAlign = 'left'; g.fillStyle = '#1E3A2B'; g.font = '900 48px ' + F; g.fillText('👋 Lendo', 70, 360);
+      g.textAlign = 'left'; g.fillStyle = '#1E3A2B'; g.font = '900 48px ' + F; if (LH_IMG) { g.drawImage(LH_IMG, 70, 311, 48, 49); g.fillText('Lendo', 130, 360); } else g.fillText('Lendo', 70, 360);
       g.textAlign = 'right'; g.fillStyle = '#FF4F00'; g.font = '900 38px ' + F; g.fillText('FOR RENT' + (CFG.hood ? ' · ' + CFG.hood.toUpperCase().slice(0, 22) : ''), W - 70, 358);
       // item(s)
       var box = { x: 110, y: 400, w: 860, h: 600 };

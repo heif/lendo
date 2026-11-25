@@ -71,7 +71,8 @@
     var names = Object.keys(groups).sort(function (a, b) { return a === 'Everything else' ? 1 : b === 'Everything else' ? -1 : groups[b].length - groups[a].length; });
     if (openAisle && !groups[openAisle]) openAisle = null;
     // searching: one flat result grid, no category headers (the header would read as a different word than the search)
-    if (q.value.trim() && sorted.length) { grid.innerHTML = '<div class="ai-res">' + sorted.length + ' to rent</div><section class="aisle focus"><div class="ai-row">' + sorted.map(tile).join('') + '</div></section>'; return; }
+    if (q.value.trim() && sorted.length) { if (window.lendoHand && sorted.length <= 5 && renderGrid._hq !== q.value.trim()) { renderGrid._hq = q.value.trim(); lendoHand(sorted.length); } grid.innerHTML = '<div class="ai-res">' + sorted.length + ' to rent</div><section class="aisle focus"><div class="ai-row">' + sorted.map(tile).join('') + '</div></section>'; return; }
+    if (q.value.trim() && !sorted.length) { var qq = q.value.trim(); grid.innerHTML = '<div class="lh-none"><b>Nothing nearby</b><a href="/saved">Get a text when it’s listed</a></div>'; if (window.lendoHand && renderGrid._hq !== qq) { renderGrid._hq = qq; lendoHand('shrug'); } return; }
     if (!names.length) { grid.innerHTML = '<div class="hint" style="padding:24px 16px">Nothing here yet. Be the first — <a href="/list">list something</a>.</div>'; return; }
     var just = openAisle ? [] : items.filter(isJust).sort(function (a, b) { return b.created_at - a.created_at; });
     grid.innerHTML = (openAisle ? '<button type="button" class="ai-back" data-aisle="">‹ All categories</button>' : '') +

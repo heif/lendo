@@ -246,7 +246,7 @@ var MIN=${MIN_RENT_CENTS};function price(n){if(P<=0)return 0;var r=n*P;if(W)r=Ma
 function fmt(c){var d=c/100;return '$'+(Number.isInteger(d)?d:d.toFixed(2))}
 function nx(d,k){return new Date(Date.parse(d)+k*864e5).toISOString().slice(0,10)}
 /* a rental day = 24h: pick up on s, return on e (the day after the last rented day) · n = e − s */
-function paint(){offer();var ch=document.getElementById('calHint');if(ch)ch.hidden=!pend;bs.forEach(function(b){var d=b.dataset.day;b.classList.toggle('on',!!s&&!!e&&d>=s&&d<=e);b.dataset.tag=!s?'':d===s?'pickup':d===e?'return':'';});var btn=document.getElementById('rentBtn');if(s&&e){var n=Math.max(1,Math.round((Date.parse(e)-Date.parse(s))/864e5));var r=price(n);btn.disabled=false;var wk=W&&r<n*P;btn.textContent='RENT '+(n===1&&s===TODAY?'TODAY':n===7&&wk?'1 WEEK':n+(n===1?' DAY':' DAYS'))+' · '+fmt(Math.max(0,r-CR)+Math.round(Math.max(0,r-CR)*TX))+(CR?' · $'+(Math.min(CR,r)/100)+' OFF':wk?' · WEEK RATE':'');document.querySelectorAll('#quick button').forEach(function(x){x.classList.toggle('pri',(x.dataset.q==='7'&&n===7)||(x.dataset.q==='1'&&n===1))});document.getElementById('start').value=s;document.getElementById('end').value=nx(e,-1);charges(n,r)}else{btn.disabled=true;btn.textContent='PICK DAYS TO RENT';charges(0,0)}}
+function paint(){offer();var hn=s&&e?Math.max(1,Math.round((Date.parse(e)-Date.parse(s))/864e5)):0;if(paint._r&&hn&&hn<=5&&hn!==paint._n&&window.lendoHand)lendoHand(hn);paint._n=hn;paint._r=1;var ch=document.getElementById('calHint');if(ch)ch.hidden=!pend;bs.forEach(function(b){var d=b.dataset.day;b.classList.toggle('on',!!s&&!!e&&d>=s&&d<=e);b.dataset.tag=!s?'':d===s?'pickup':d===e?'return':'';});var btn=document.getElementById('rentBtn');if(s&&e){var n=Math.max(1,Math.round((Date.parse(e)-Date.parse(s))/864e5));var r=price(n);btn.disabled=false;var wk=W&&r<n*P;btn.textContent='RENT '+(n===1&&s===TODAY?'TODAY':n===7&&wk?'1 WEEK':n+(n===1?' DAY':' DAYS'))+' · '+fmt(Math.max(0,r-CR)+Math.round(Math.max(0,r-CR)*TX))+(CR?' · $'+(Math.min(CR,r)/100)+' OFF':wk?' · WEEK RATE':'');document.querySelectorAll('#quick button').forEach(function(x){x.classList.toggle('pri',(x.dataset.q==='7'&&n===7)||(x.dataset.q==='1'&&n===1))});document.getElementById('start').value=s;document.getElementById('end').value=nx(e,-1);charges(n,r)}else{btn.disabled=true;btn.textContent='PICK DAYS TO RENT';charges(0,0)}}
 function charges(n,r){var el=document.getElementById('charges');if(!el)return;if(!n){el.hidden=true;return}var cr=CR?Math.min(CR,r):0,tax=Math.round((r-cr)*TX),full=n*P;var rows=[[(W&&r<full?(n===7?'1 week':n+' days')+' <s>'+fmt(full)+'</s>':fmt(P)+' × '+n+(n===1?' day':' days')),fmt(r)]];var lift=P>0&&n*P<MIN&&r===MIN;if(lift)rows[0]=[n+(n===1?' day':' days')+' <small>'+fmt(MIN)+' min charge</small>',fmt(MIN)];if(cr)rows.push(['Credit','−'+fmt(cr)]);if(tax)rows.push([TXL,fmt(tax)]);var tot=r-cr+tax;el.innerHTML=rows.map(function(x){return '<div class="chg"><span>'+x[0]+'</span><span>'+x[1]+'</span></div>'}).join('')+'<div class="chg tot"><span>Total</span><span>'+fmt(tot)+'</span></div>'+'<div class="chg-note">Card held now · charged only if the owner says yes'+(HOLD?'<br>'+HOLD+' hold at pickup, not a charge · <a href="/how-it-works#hold">how it works</a>':'')+'</div>';el.hidden=false}
 var TXL=${JSON.stringify(taxLabel(taxRateFor(it.lat, it.lng)))},pend=false,HOLD=${JSON.stringify(hold.cents > 0 ? money(hold.cents) : '')};
 /* under the $5 minimum: offer the extra days that cost nothing more, only when those days are open (the owner still says yes or no) */
@@ -336,6 +336,7 @@ export const personPage = async (c: Ctx, uid: string) => {
   const items = await c.env.DB.prepare(`SELECT * FROM listings WHERE owner_id = ? AND ${me ? "status != 'removed'" : "status = 'live'"} ORDER BY created_at DESC`).bind(who.id).all<Listing>();
   const earned = me ? await c.env.DB.prepare(`SELECT COALESCE(SUM(COALESCE(payout_cents, rent_cents)),0) + COALESCE((SELECT SUM(COALESCE(x.payout_cents, x.rent_cents)) FROM rental_extensions x JOIN rentals r2 ON r2.id = x.rental_id WHERE r2.owner_id = ?1 AND x.status = 'confirmed'),0) s, COUNT(*) n FROM rentals WHERE owner_id = ?1 AND status IN ('confirmed','picked_up','returned','closed')`).bind(who.id).first<{ s: number; n: number }>().catch(() => null) : null;
   const just = me ? c.req.query('just') : null;
+  const saved = me ? c.req.query('saved') : null;
   const ph = await firstPhotos(c.env.DB, items.results.map(r => r.id));
   const reviews = await c.env.DB.prepare(`SELECT r.renter_rating st, r.renter_review rv, r.updated_at at, u.name nm, l.name item, 'as owner' tag FROM rentals r JOIN users u ON u.id = r.renter_id JOIN listings l ON l.id = r.listing_id WHERE r.owner_id = ? AND r.renter_rating IS NOT NULL
     UNION ALL SELECT r.owner_rating, r.owner_review, r.updated_at, u.name, l.name, 'as renter' FROM rentals r JOIN users u ON u.id = r.owner_id JOIN listings l ON l.id = r.listing_id WHERE r.renter_id = ? AND r.owner_rating IS NOT NULL ORDER BY at DESC LIMIT 50`).bind(who.id, who.id).all<{ st: number; rv: string | null; at: number; nm: string | null; item: string; tag: string }>();
@@ -376,6 +377,7 @@ export const personPage = async (c: Ctx, uid: string) => {
           </div>
         ) : null}
         <div class="pfcard">
+          {saved ? <i hidden data-lh="nod"></i> : null}
           <div class="pfband">{nItems ? `${nItems} thing${nItems === 1 ? '' : 's'} to rent` : 'Nothing listed yet'}</div>
           {nItems ? <div class="pfbody"><div class="pgrid">
             {items.results.map(it => (
@@ -392,6 +394,7 @@ export const personPage = async (c: Ctx, uid: string) => {
           </div></div> : null}
         </div>
         <div class="pfcard">
+          {saved ? <i hidden data-lh="nod"></i> : null}
           <div class="pfband">{th?.n ? `👍 ${th.up || 0} of ${th.n} neighbor${th.n === 1 ? '' : 's'}` : 'No reviews yet'}</div>
           {reviews.results.length ? <div class="pfbody">
             {reviews.results.map(r => (

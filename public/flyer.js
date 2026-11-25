@@ -1,3 +1,4 @@
+var LH = (function () { var t = document.getElementById('lhT'); return t ? t.innerHTML : ''; })();
 // Lays out the flyer / tape: items scattered like map pins (jittered, tilted, overlapping a little), never on a grid.
 (function () {
   var F = window.F, box = document.getElementById('in'), W = box.clientWidth, H = box.clientHeight;
@@ -27,7 +28,7 @@
       var hit = keep.some(function (r) { return px + z * 1.1 > r[0] && px < r[2] && py + z * 1.5 > r[1] && py < r[3]; }); if (hit) continue;
       var it = list[k2++], d = document.createElement('div'); d.className = 'it'; d.style.left = px + 'px'; d.style.top = py + 'px'; d.style.width = (z * 1.35) + 'px'; d.style.zIndex = 2 + Math.floor(rnd() * 3); d.style.transform = 'rotate(' + ((rnd() - .5) * 14).toFixed(1) + 'deg)';
       var fs = Math.max(4.2, z * 0.135);
-      d.innerHTML = '<img src="' + it.src + '" alt="" style="width:' + z + 'px;height:' + (z * .86) + 'px"><span class="pr" style="font-size:' + (fs * 1.25) + 'px">' + fmt(it.p) + '<small>/day</small></span><span class="nm" style="font-size:' + fs + 'px"><i>👋Lendo</i> ' + esc(poss(it.o)) + ' ' + esc(it.n) + '</span>';
+      d.innerHTML = '<img src="' + it.src + '" alt="" style="width:' + z + 'px;height:' + (z * .86) + 'px"><span class="pr" style="font-size:' + (fs * 1.25) + 'px">' + fmt(it.p) + '<small>/day</small></span><span class="nm" style="font-size:' + fs + 'px"><i>' + LH + 'Lendo</i> ' + esc(poss(it.o)) + ' ' + esc(it.n) + '</span>';
       if (F.each) d.appendChild(qr(F.url + '/i/' + it.i, Math.round(z * .62), 'L'));
       box.appendChild(d);
     }
