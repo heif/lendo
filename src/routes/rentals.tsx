@@ -563,7 +563,8 @@ rentals.post('/alerts/:id/toggle', requireUser, async (c) => {
   const u = c.get('user')!;
   await c.env.DB.prepare('UPDATE saved_searches SET active = 1 - active WHERE id = ? AND user_id = ?').bind(c.req.param('id'), u.id).run();
   await logEvent(c.env.DB, 'alert.toggled', { user: u.id, data: { id: c.req.param('id') } });
-  return c.redirect('/alerts');
+  const back = String((await c.req.parseBody().catch(() => ({} as any))).back || '');
+  return c.redirect(back === '/saved' ? '/saved' : '/alerts');
 });
 
 // URLs in a message → tappable links (text stays escaped by JSX)

@@ -58,17 +58,15 @@ export const Layout: FC<LayoutProps> = (p) => {
               <nav aria-label="Your account">
                 {u ? (
                   <>
-                    <a href={'/u/' + u.id}>{(() => { const f = (u.name || '').trim().split(/\s+/)[0] || 'Your'; return f === 'Your' ? 'Your Stuff' : f + (/s$/i.test(f) ? '’' : '’s') + ' Stuff'; })()}</a>
+                    {/* Scott, 11/25: one top row = your stuff + add more; Saved holds alerts too; legal in a small line */}
+                    <div class="acct-mine"><a class="list" href={'/u/' + u.id}>Your stuff</a><a class="list acct-add" href="/list" aria-label="Rent out more stuff">＋</a></div>
                     <a href="/profile/edit">Profile</a>
                     <a href="/rentals">Your rentals{u.unread ? <span class="badge-n" style="margin-left:6px">{u.unread}</span> : null}</a>
                     <a href="/saved">Saved</a>
-                    <a href="/alerts">Search alerts</a>
                     <a href="/how-it-works">How it works</a>
-                    <a href="/privacy">Privacy</a>
-                    <a href="/terms">Terms</a>
                     {u.admin ? <a href="/admin">Admin</a> : null}
-                    <a class="list" href="/list">Rent out your stuff</a>
                     <a href="/logout" style="color:#8A857B;font-weight:600">Log out</a>
+                    <div class="acct-legal"><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></div>
                   </>
                 ) : (
                   <>

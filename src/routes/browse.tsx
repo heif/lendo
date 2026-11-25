@@ -156,6 +156,7 @@ export const itemPage = async (c: Ctx, lid: string, pretty = false) => {
   const gr = await shownGrade(c.env, it.id, it.grade);
   const hold = await holdFor(c.env, it);
   const ir = await c.env.DB.prepare('SELECT COUNT(*) n, SUM(item_rating >= 3) up FROM rentals WHERE listing_id = ? AND item_rating IS NOT NULL').bind(it.id).first<{ n: number; up: number }>().catch(() => null);
+  c.header('cache-control', 'private, max-age=60'); c.header('vary', 'cookie'); /* map pins prefetch this page; a tap within a minute opens it from cache */
   return c.html(
     <Layout title={it.name} headerCenter={<span />} user={u} flash={c.req.query('canceled') ? 'Checkout canceled — nothing was charged.' : null}>
       <div class={photos.length > 1 ? 'hero gal' : 'hero'}>
@@ -288,14 +289,23 @@ browse.get('/saved', async (c) => {
   if (!u) return c.redirect('/login?next=/saved');
   const rows = await c.env.DB.prepare(`SELECT l.* FROM saved s JOIN listings l ON l.id = s.listing_id WHERE s.user_id = ? AND l.status != 'removed' ORDER BY s.created_at DESC`).bind(u.id).all<Listing>();
   const ph = await firstPhotos(c.env.DB, rows.results.map(r => r.id));
-  c.header('cache-control', 'private, max-age=60'); c.header('vary', 'cookie'); /* map pins prefetch this page; a tap within a minute opens it from cache */
+  const al = (await c.env.DB.prepare('SELECT id, query, hood, active FROM saved_searches WHERE user_id = ? ORDER BY active DESC, created_at DESC LIMIT 100').bind(u.id).all<{ id: string; query: string; hood: string | null; active: number }>().catch(() => ({ results: [] as any[] }))).results;
   return c.html(
     <Layout title="Saved" user={u}>
       <div class="itemgrid">
         {rows.results.length ? rows.results.map(it => (
           <a class="itemcard" href={'/i/' + it.id}>{ph[it.id] ? <img src={'/c/' + ph[it.id]} data-trim="1" alt="" /> : <div class="ph">no photo</div>}<div class="b"><div class="pr">{money(it.price_cents)}<span style="font-size:11px;font-weight:700">/day</span></div><div class="nm">{it.name}</div></div></a>
-        )) : <div class="hint" style="grid-column:1/-1;padding:24px">Nothing saved yet. Tap ♡ on an item.</div>}
+        )) : <div class="hint" style="grid-column:1/-1;padding:24px">Nothing saved yet. Tap ♡ on an item</div>}
       </div>
+      {/* search alerts live here too (Scott, 11/25: one "Saved" in the menu) */}
+      <div style="padding:18px 16px 4px"><div style="font-size:20px;font-weight:900">Search alerts</div><div class="hint">A text when something you searched for is listed nearby</div></div>
+      {al.length ? al.map(r => (
+        <form method="post" action={`/alerts/${r.id}/toggle`} class="inboxrow" style={r.active ? '' : 'opacity:.5'}>
+          <input type="hidden" name="back" value="/saved" />
+          <div style="min-width:0;flex:1"><div style="font-weight:800">{r.query}</div><div class="hint">{r.hood ? `near ${r.hood}` : 'near where you searched'}{r.active ? '' : ' · off'}</div></div>
+          <button class="btn" style="width:auto;height:36px;padding:0 14px;font-size:14px">{r.active ? 'Turn off' : 'Turn on'}</button>
+        </form>
+      )) : <div class="hint" style="padding:8px 16px 24px">None yet · search the <a href="/">map</a> for something</div>}
     </Layout>
   );
 });
