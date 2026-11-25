@@ -31,6 +31,7 @@ import { expireHolds , chaseHolds, depositsDue } from './lib/rentals';
 import { claimsTick } from './lib/claims';
 import { valueDue } from './lib/value';
 import { claims } from './routes/claims';
+import { flyer } from './routes/flyer';
 import { Layout } from './pages/layout';
 
 const app = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -73,6 +74,7 @@ app.route('/', browse);
 app.route('/', listings);
 app.route('/', rentals);
 app.route('/', claims);
+app.route('/', flyer);
 app.route('/', meetup);
 app.route('/', admin);
 app.route('/', pretty);   // readable URLs last: lendo.co/heif, /nyc/tribeca/ladder
