@@ -427,3 +427,6 @@ a.dn2-tray{text-decoration:none;color:var(--ink)}
 .stk1-pm{width:42px;height:42px;font-size:24px;border-radius:12px}
 .stk1-tag{padding:2px 12px;min-width:88px}.stk1-tag b{font-size:23px}.stk1-tag small{font-size:12px}
 #stkRange{margin:8px 0 0!important}
+/* posted: the cutout sizes to the item, no empty band above a wide thing (Scott, 11/25) */
+.dn2-img.cut{width:auto;height:auto;max-width:300px;max-height:240px;min-width:120px}
+.dn2-tray{margin-top:10px}

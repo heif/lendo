@@ -502,11 +502,13 @@
  }
 
   // ---- done
+  /* cut transparent margins off a cutout so it sits right under "Posted" */
+  window.trimImg = function (im) { try { if (im.dataset.tr) return; im.dataset.tr = 1; var c = document.createElement('canvas'), w = im.naturalWidth, h = im.naturalHeight; if (!w) return; c.width = w; c.height = h; var g = c.getContext('2d'); g.drawImage(im, 0, 0); var d = g.getImageData(0, 0, w, h).data, x0 = w, y0 = h, x1 = 0, y1 = 0; for (var y = 0; y < h; y += 2) for (var x = 0; x < w; x += 2) if (d[(y * w + x) * 4 + 3] > 10) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } if (x1 <= x0 || (x1 - x0 > w * .96 && y1 - y0 > h * .96)) return; var o = document.createElement('canvas'), p = 4; o.width = x1 - x0 + p * 2; o.height = y1 - y0 + p * 2; o.getContext('2d').drawImage(c, x0 - p, y0 - p, o.width, o.height, 0, 0, o.width, o.height); im.src = o.toDataURL(); } catch (e) {} };
   function renderDone(j) {
     clearInterval(clockT);
     var escH = function (x) { return String(x).replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]; }); };
     var Lc = (j && j.listed) || [];
-    $('tray').innerHTML = shots.map(function (s, k) { var cu = s.cutUrl || (Lc[k] && Lc[k].cut); return '<img src="' + (cu || s.url) + '" alt="" class="dn2-img' + (cu ? ' cut' : '') + '" onerror="if(this.src!==\'' + s.url + '\'){this.src=\'' + s.url + '\';this.className=\'dn2-img\'}"><div class="dn2-pr">$' + s.price + '<small>/day</small></div><div class="dn2-nm">' + escH(s.name.trim()) + '</div>'; }).join('');
+    $('tray').innerHTML = shots.map(function (s, k) { var cu = s.cutUrl || (Lc[k] && Lc[k].cut); return '<img src="' + (cu || s.url) + '" alt="" class="dn2-img' + (cu ? ' cut' : '') + '" onload="if(this.classList.contains(\'cut\')&&window.trimImg)trimImg(this)" onerror="if(this.src!==\'' + s.url + '\'){this.src=\'' + s.url + '\';this.className=\'dn2-img\'}"><div class="dn2-pr">$' + s.price + '<small>/day</small></div><div class="dn2-nm">' + escH(s.name.trim()) + '</div>'; }).join('');
     /* tap the picture or name → the item page */
     var L0 = Lc[0]; if (L0) { var tr = $('tray'), a = document.createElement('a'); a.href = L0.url || '/i/' + L0.id; a.className = 'dn2-tray'; a.id = 'tray'; a.innerHTML = tr.innerHTML; tr.parentNode.replaceChild(a, tr); }
     $('dnHead').textContent = shots.length === 1 ? 'Posted' : shots.length + ' posted';
