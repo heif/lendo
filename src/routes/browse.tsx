@@ -175,7 +175,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
         </> : null}
         <div class="pr"><b class="price">{money(it.price_cents)}</b><span style="font-size:15px">/day</span>
         </div>
-        {it.price_cents > 0 && it.price_cents < MIN_RENT_CENTS ? <div class="prmin">{money(MIN_RENT_CENTS)} minimum</div> : null}
+        {it.price_cents > 0 && it.price_cents < MIN_RENT_CENTS ? <div class="prmin">{money(MIN_RENT_CENTS)} min charge</div> : null}
       </div>
       {mine ? <a class="myrent" href={'/r/' + mine.id}><b>{({ held: 'You asked to rent this', confirmed: 'You’re renting this', picked_up: 'You have this now', returned: 'You rented this' } as Record<string, string>)[mine.status]}</b><span>{fmtRange(mine.start_day, mine.end_day)} · {mine.status === 'held' ? 'waiting for YES' : mine.status === 'returned' ? 'rate it' : 'open rental'}</span><i dangerouslySetInnerHTML={{ __html: '<svg width="12" height="18" viewBox="0 0 12 18"><path d="M3 2l6 7-6 7" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>' }} /></a> : null}
       <section class="sec" style="padding:12px 16px 14px">
