@@ -5,6 +5,7 @@ import { GIFT_TEXT, smsHref } from '../lib/blooio';
 import { Flag } from '../lib/flags';
 import { SEND_SVG } from '../lib/icons';
 import { logEvent } from '../lib/log';
+import { saveSearch } from '../lib/alerts';
 import { localToday } from '../lib/util';
 import { SOCIALS, SocialIcons, socialHandle } from '../lib/socials';
 import { Avatar, PhotoField, saveUserPhoto } from '../lib/userphoto';
@@ -284,6 +285,14 @@ browse.post('/i/:id/save', async (c) => {
   return c.redirect('/i/' + lid);
 });
 
+browse.post('/saved/alert', async (c) => {
+  const u = c.get('user'); if (!u) return c.redirect('/login?next=/saved');
+  const q = String((await c.req.parseBody()).q || '');
+  const here = u.lat != null && u.lng != null ? [u.lng, u.lat] : hereOf(c, u);
+  const sid = here ? await saveSearch(c.env, u, q, here[1], here[0], u.hood || null) : null;
+  if (sid) await logEvent(c.env.DB, 'alert.saved', { user: u.id, data: { q: q.slice(0, 40), via: 'saved page' } });
+  return c.redirect('/saved');
+});
 browse.get('/saved', async (c) => {
   const u = c.get('user');
   if (!u) return c.redirect('/login?next=/saved');
@@ -292,20 +301,27 @@ browse.get('/saved', async (c) => {
   const al = (await c.env.DB.prepare('SELECT id, query, hood, active FROM saved_searches WHERE user_id = ? ORDER BY active DESC, created_at DESC LIMIT 100').bind(u.id).all<{ id: string; query: string; hood: string | null; active: number }>().catch(() => ({ results: [] as any[] }))).results;
   return c.html(
     <Layout title="Saved" user={u}>
+      {/* saved searches first (Scott, 11/25): set one right here, few words */}
+      <section class="sv-top">
+        <h2 class="qh" style="margin:0 0 4px">Get a text when it’s listed</h2>
+        <form method="post" action="/saved/alert" class="sv-add">
+          <input name="q" placeholder="Snowblower, projector…" maxlength={40} required minlength={3} autocomplete="off" enterkeyhint="done" />
+          <button type="submit">Save</button>
+        </form>
+        <p class="hint" style="margin:8px 0 0">Searches on the map or grid save here too</p>
+        {al.length ? <div class="sv-list">{al.map(r => (
+          <form method="post" action={`/alerts/${r.id}/toggle`} class={'sv-row' + (r.active ? '' : ' off')}>
+            <input type="hidden" name="back" value="/saved" />
+            <span><b>{r.query}</b><small>{r.hood ? `near ${r.hood}` : 'nearby'}{r.active ? '' : ' · off'}</small></span>
+            <button>{r.active ? 'Turn off' : 'Turn on'}</button>
+          </form>))}</div> : null}
+      </section>
+      <h2 class="qh" style="margin:18px 16px 8px;font-size:20px">Saved items</h2>
       <div class="itemgrid">
         {rows.results.length ? rows.results.map(it => (
           <a class="itemcard" href={'/i/' + it.id}>{ph[it.id] ? <img src={'/c/' + ph[it.id]} data-trim="1" alt="" /> : <div class="ph">no photo</div>}<div class="b"><div class="pr">{money(it.price_cents)}<span style="font-size:11px;font-weight:700">/day</span></div><div class="nm">{it.name}</div></div></a>
-        )) : <div class="hint" style="grid-column:1/-1;padding:24px">Nothing saved yet. Tap ♡ on an item</div>}
+        )) : <div class="hint" style="grid-column:1/-1;padding:4px 16px 24px">None yet · tap ♡ on an item</div>}
       </div>
-      {/* search alerts live here too (Scott, 11/25: one "Saved" in the menu) */}
-      <div style="padding:18px 16px 4px"><div style="font-size:20px;font-weight:900">Search alerts</div><div class="hint">A text when something you searched for is listed nearby</div></div>
-      {al.length ? al.map(r => (
-        <form method="post" action={`/alerts/${r.id}/toggle`} class="inboxrow" style={r.active ? '' : 'opacity:.5'}>
-          <input type="hidden" name="back" value="/saved" />
-          <div style="min-width:0;flex:1"><div style="font-weight:800">{r.query}</div><div class="hint">{r.hood ? `near ${r.hood}` : 'near where you searched'}{r.active ? '' : ' · off'}</div></div>
-          <button class="btn" style="width:auto;height:36px;padding:0 14px;font-size:14px">{r.active ? 'Turn off' : 'Turn on'}</button>
-        </form>
-      )) : <div class="hint" style="padding:8px 16px 24px">None yet · search the <a href="/">map</a> for something</div>}
     </Layout>
   );
 });
