@@ -998,3 +998,6 @@ input.otp{width:calc(6ch + 3em);padding:10px 0 10px .5em;overflow:hidden}
 
 /* after the pickup tap (Scott, 11/25) */
 .cal-hint{margin:6px 0 0;text-align:center;font-size:15px;font-weight:900;color:var(--orange)}.cal-hint[hidden]{display:none}
+
+/* login: button lower and bigger (Scott, 11/25) */
+.lg-top{padding-top:22vh!important}.lg-top .btn.pri{height:auto;padding:22px 0!important;font-size:22px!important;border-radius:18px}.lg-top .hint{text-align:center}
