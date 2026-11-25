@@ -20,7 +20,7 @@ export async function loadPricing(env: Env, force = false) {
    Every listing, price change, text command and page config reads it here so an admin change takes everywhere (≤60s per worker cache) */
 export async function minPriceCents(env: Env): Promise<number> {
   const v = parseInt((await loadPricing(env).catch(() => null))?.settings.price_min_cents || '', 10);
-  return v > 0 ? v : parseInt(env.MIN_PRICE_CENTS || '800', 10);
+  return v > 0 ? v : parseInt(env.MIN_PRICE_CENTS || '100', 10);
 }
 export function suggestPrice(rules: PriceRule[], settings: Record<string, string>, category: string, retailUsd: number | null): { day_cents: number; week_cents: number; rule: PriceRule; basis: string } {
   const rule = rules.find(r => r.category === category) || rules.find(r => r.category === 'other') || { category: 'other', label: 'Other', day_cents: 1000, rate_pct: 3, week_pct: 70 };

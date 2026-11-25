@@ -59,10 +59,13 @@ export function firstName(name: string | null, fallback = 'Neighbor'): string {
 }
 
 // rent for n days; a week price caps each (partial) week. Mirrored in the item page JS.
+// Every rental charges at least MIN_RENT_CENTS (Scott, 11/24): items can be $1/day, but a rental is never under $5 (free items stay free).
+export const MIN_RENT_CENTS = 500;
 export function rentFor(n: number, dayCents: number, weekCents: number | null): number {
-  if (!weekCents) return n * dayCents;
-  const r = Math.floor(n / 7) * weekCents + (n % 7) * dayCents;
-  return Math.min(r, Math.ceil(n / 7) * weekCents);
+  if (dayCents <= 0) return 0;
+  let r = n * dayCents;
+  if (weekCents) r = Math.min(Math.floor(n / 7) * weekCents + (n % 7) * dayCents, Math.ceil(n / 7) * weekCents);
+  return Math.max(MIN_RENT_CENTS, r);
 }
 
 export function weekDefault(priceCents: number): number {

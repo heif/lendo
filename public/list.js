@@ -1,6 +1,6 @@
 // Snap-flow: ideas → camera (1 photo) → one question at a time (card stack; sign-up after the item questions) → done. Minimal copy. Config: window.LENDO_LIST = { minPrice, hood, shareUrl, hasGps }.
 (function () {
-  var CFG = window.LENDO_LIST || {}, MIN = CFG.minPrice || 8;
+  var CFG = window.LENDO_LIST || {}, MIN = CFG.minPrice || 1;
   /* no GPS and no saved spot → ask where the things are before posting, so they land on the map */
   function needWhere(go) {
     if (window._gps || CFG.hasLoc || !CFG.user) { go(); return; }

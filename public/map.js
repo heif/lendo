@@ -468,7 +468,7 @@
     if (pt.x < 116) dx = 116 - pt.x; else if (pt.x > W - 116) dx = W - 116 - pt.x;
     if (pt.y < 236) dy = 236 - pt.y;
     hov.options.anchor = 'bottom'; hov.options.offset = [0, 36 + dy];
-    hov.setLngLat(f.geometry.coordinates).setHTML('<a class="hv" href="/i/' + it.id + '">' + (src ? '<img src="' + src + '" alt="" data-trim="1">' : '') + '<span class="hvp">' + fmt(it.price_cents) + '<small>/day</small></span><b><span class="ownlink" data-u="' + esc(profUrl(it)) + '">' + esc(possessive(it.owner_name)) + '</span> ' + esc(nm) + '</b>' + '</a>').addTo(map);
+    hov.setLngLat(f.geometry.coordinates).setHTML('<a class="hv" href="/i/' + it.id + '">' + (src ? '<img src="' + src + '" alt="" data-trim="1">' : '') + '<span class="hvp">' + fmt(it.price_cents) + '<small>/day' + (it.price_cents > 0 && it.price_cents < 500 ? ' · $5 min' : '') + '</small></span><b><span class="ownlink" data-u="' + esc(profUrl(it)) + '">' + esc(possessive(it.owner_name)) + '</span> ' + esc(nm) + '</b>' + '</a>').addTo(map);
     var nb = hov.getElement().querySelector('.hv b'); if (nb && dx) nb.style.transform = 'translateX(' + dx + 'px)';
     var el = hov.getElement(); el.onmouseenter = function () { overPop = true; clearTimeout(hovT); }; el.onmouseleave = function () { overPop = false; if (HOVER) hideHov(); };
     el.onclick = function (ev) { var ol = ev.target.closest('.ownlink'); if (ol) { ev.preventDefault(); location.href = ol.dataset.u; } };
