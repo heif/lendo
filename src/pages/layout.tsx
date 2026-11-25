@@ -61,7 +61,7 @@ export const Layout: FC<LayoutProps> = (p) => {
                     {/* Scott, 11/25: one top row = your stuff + add more; Saved holds alerts too; legal in a small line */}
                     <div class="acct-mine"><a class="list" href={'/u/' + u.id}>Your stuff</a><a class="list acct-add" href="/list" aria-label="Rent out more stuff">＋</a></div>
                     <a href="/profile/edit">Profile</a>
-                    <a href="/rentals">Your rentals{u.unread ? <span class="badge-n" style="margin-left:6px">{u.unread}</span> : null}</a>
+                    {u.has_rentals !== false ? <a href="/rentals">Your rentals{u.unread ? <span class="badge-n" style="margin-left:6px">{u.unread}</span> : null}</a> : null}
                     <a href="/saved">Saved</a>
                     <a href="/how-it-works">How it works</a>
                     {u.admin ? <a href="/admin">Admin</a> : null}

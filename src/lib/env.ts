@@ -43,6 +43,7 @@ export type User = {
   admin_role?: string | null; // 'view' | 'full' (granted); owner = ADMIN_PHONES
   admin_level?: 'owner' | 'full' | 'view' | null;
   as_from?: string | null; // owner admin is viewing as this user (Log in as); original user's first name
+  has_rentals?: boolean; // set by loadUser: any rental as owner or customer
   unread?: number; // set by loadUser: new messages from people + requests waiting for a YES
 };
 

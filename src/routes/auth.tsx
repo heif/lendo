@@ -43,7 +43,7 @@ auth.get('/login', (c) => {
         <input type="hidden" name="next" value={next} />
         <label class="field"><span>Phone</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(646) 555-0199" required /></label>
         {/* rental texts are optional (Twilio 10DLC): unchecked by default; the login code is a one-time text the person asks for */}
-        <label class="smsopt"><input type="checkbox" name="sms_ok" value="1" /><span><b>Text me rental updates (optional)</b><small>Requests, YES/NO, pickup and return · msg frequency varies · msg &amp; data rates may apply · reply STOP to opt out, HELP for help</small></span></label>
+        <label class="smsopt"><input type="checkbox" name="sms_ok" value="1" /><span><b>Text me Lendo rental updates (optional)</b><small>Lendo texts rental requests, YES/NO, pickup and return updates · msg frequency varies · msg &amp; data rates may apply · reply STOP to opt out, HELP for help · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></small></span></label>
         <button class="btn full" type="submit">Text me a code</button>
         <p class="hint" style="margin-top:14px;line-height:1.45">Lendo texts your one-time login code. Without rental texts, updates come by email and on lendo.co · numbers never shared or sold · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
       </form>

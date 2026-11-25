@@ -23,8 +23,9 @@ export const loadUser: MiddlewareHandler<{ Bindings: Env; Variables: Vars }> = a
       const n = await c.env.DB.prepare(`SELECT
           (SELECT COUNT(*) FROM messages m JOIN rentals r ON r.id = m.rental_id LEFT JOIN thread_reads t ON t.rental_id = r.id AND t.user_id = ?1
             WHERE (r.owner_id = ?1 OR r.renter_id = ?1) AND m.sender_id IS NOT NULL AND m.sender_id != ?1 AND m.created_at > COALESCE(t.seen_at, 0))
-        + (SELECT COUNT(*) FROM rentals WHERE owner_id = ?1 AND status = 'held') n`).bind(row.id).first<{ n: number }>().catch(() => null);
-      row.unread = n?.n || 0;
+        + (SELECT COUNT(*) FROM rentals WHERE owner_id = ?1 AND status = 'held') n,
+          EXISTS(SELECT 1 FROM rentals WHERE owner_id = ?1 OR renter_id = ?1) any_r`).bind(row.id).first<{ n: number; any_r: number }>().catch(() => null);
+      row.unread = n?.n || 0; row.has_rentals = n ? !!n.any_r : true; /* menu shows "Your rentals" only once there's one (Scott, 11/25) */
       const back = getCookie(c, AS_COOKIE);
       if (back) { const o = await c.env.DB.prepare('SELECT u.name FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ? AND s.expires_at > ?').bind(back, now()).first<{ name: string | null }>().catch(() => null); row.as_from = o ? (o.name || 'admin').split(' ')[0] : null; }
       c.set('user', row);
