@@ -93,5 +93,14 @@ window.LENDO_AC = {
   'Grill': ['Weber Spirit II E-310', 'Weber Genesis E-325', 'Weber Original Kettle 22 in', 'Weber Q1200 portable grill', 'Traeger Pro 575', 'Traeger Ranger', 'Traeger Tailgater', 'Big Green Egg', 'Char-Broil Performance', 'Blackstone 36 in griddle', 'Ninja Woodfire outdoor grill', 'Solo Stove Bonfire', 'Portable charcoal grill'],
   'Car seat': ['UPPAbaby Mesa infant car seat', 'Nuna Pipa infant car seat', 'Chicco KeyFit 30', 'Graco SnugRide 35', 'Britax One4Life', 'Graco 4Ever DLX', 'Nuna Rava', 'Clek Foonf', 'Diono Radian 3QXT', 'Graco TurboBooster'],
   'Baby carrier': ['Ergobaby Omni 360', 'Ergobaby Embrace', 'BabyBjörn Harmony', 'BabyBjörn Mini', 'Solly baby wrap', 'Boba wrap', 'Tula Free-to-Grow', 'Osprey Poco Plus child carrier'],
-  'Monitor': ['LG UltraGear 27 in monitor', 'LG UltraFine 5K', 'LG 27 in 4K monitor', 'Dell UltraSharp 27 in monitor', 'Dell S2721 27 in monitor', 'Samsung Odyssey G7 monitor', 'Samsung Odyssey G9 monitor', 'Samsung Smart Monitor M8', 'Apple Studio Display', 'ASUS ProArt 27 in monitor', 'ASUS ROG Swift monitor', 'BenQ 27 in monitor', 'Acer Nitro 27 in monitor', 'HP 27 in monitor', 'Gigabyte M27Q monitor', 'Portable monitor 15.6 in', 'Monitor 24 in', 'Monitor 27 in', 'Monitor 32 in', 'Ultrawide monitor 34 in']
+  'Monitor': ['LG UltraGear 27 in monitor', 'LG UltraFine 5K', 'LG 27 in 4K monitor', 'Dell UltraSharp 27 in monitor', 'Dell S2721 27 in monitor', 'Samsung Odyssey G7 monitor', 'Samsung Odyssey G9 monitor', 'Samsung Smart Monitor M8', 'Apple Studio Display', 'ASUS ProArt 27 in monitor', 'ASUS ROG Swift monitor', 'BenQ 27 in monitor', 'Acer Nitro 27 in monitor', 'HP 27 in monitor', 'Gigabyte M27Q monitor', 'Portable monitor 15.6 in', 'Monitor 24 in', 'Monitor 27 in', 'Monitor 32 in', 'Ultrawide monitor 34 in'],
+  /* hand tools: types, not brands (Scott, 11/25) */
+  'Screwdriver': ['Phillips screwdriver', 'Flathead screwdriver', 'Screwdriver set', 'Precision screwdriver set', 'Ratcheting screwdriver', 'Multi-bit screwdriver', 'Torx screwdriver set', 'Stubby screwdriver', 'Electric screwdriver', 'Insulated screwdriver set'],
+  'Wrench': ['Adjustable wrench', 'Wrench set', 'Socket set', 'Torque wrench', 'Pipe wrench', 'Ratcheting wrench set', 'Allen key set', 'Impact wrench', 'Combination wrench set'],
+  'Hammer': ['Claw hammer', 'Rubber mallet', 'Sledgehammer', 'Ball-peen hammer', 'Framing hammer', 'Dead blow hammer', 'Drywall hammer'],
+  'Pliers': ['Needle-nose pliers', 'Slip-joint pliers', 'Locking pliers', 'Channel-lock pliers', 'Wire strippers', 'Lineman pliers', 'Pliers set'],
+  'Level': ['Torpedo level', '24 in level', '48 in level', 'Laser level', 'Line laser'],
+  'Clamp': ['Bar clamps', 'C-clamps', 'Spring clamps', 'Pipe clamps', 'Corner clamps'],
+  'Tape measure': ['25 ft tape measure', '35 ft tape measure', '100 ft tape measure', 'Laser measure'],
+  'Utility knife': ['Box cutter', 'Retractable utility knife', 'Folding utility knife', 'Snap-off blade knife']
 });

@@ -182,15 +182,20 @@
       (sn.length ? '<p class="hint" style="margin-top:10px">📷 Next: snap ' + esc(sn.map(function (x) { return x.name.toLowerCase(); }).join(', ')) + '</p>' : '') +
       /* never a dead end: nothing confirmed → ways forward; otherwise add one more */
       (!ok.length && !sn.length ? '<p class="stk-empty">Nothing to post yet</p>' : '') +
-      '<div class="stk-more"><button type="button" class="stk-mb" data-m="type">🔎 Find more</button><button type="button" class="stk-mb" data-m="snap">📷 Snap more</button>' + (!ok.length && !sn.length ? '<button type="button" class="stk-mb" data-m="ideas">← Back to ideas</button>' : '') + '</div>';
+      '<div class="stk-more"><button type="button" class="stk-mb" data-m="type">🔎 Find another item</button><button type="button" class="stk-mb" data-m="snap">📷 Snap another item</button>' + (!ok.length && !sn.length ? '<button type="button" class="stk-mb" data-m="ideas">← Back to ideas</button>' : '') + '</div>';
     $('stkGo').hidden = !ok.length && !sn.length;
     $('stkGo').disabled = false;
     $('stkGo').textContent = ok.length ? 'POST ' + ok.length + (ok.length === 1 ? ' THING' : ' THINGS') : 'SNAP ' + sn.length + (sn.length === 1 ? ' THING' : ' THINGS');
   }
   /* chip suggestions: this idea's list, or for a typed-in thing, the idea whose name shares a word ("flycaster rod" → Fishing rod) */
+  /* hand tools come in types, not brands: chips offer the types (ac.js) */
+  var TYPE_KEYS = ['Screwdriver', 'Wrench', 'Hammer', 'Pliers', 'Level', 'Clamp', 'Tape measure', 'Utility knife'];
   function chipPool(x) {
     var L = window.LENDO_AC || {};
     if (!x.custom && L[x.name]) return acList(x.name).filter(function (t) { return /[A-Z0-9]/.test(t.charAt(0)); });
+    /* a typed thing that is itself a list name ("screwdriver") → that list (types for hand tools) */
+    var nm = ' ' + (x.brand || x.name || '').trim().toLowerCase().replace(/[^a-z ]+/g, ' ') + ' ';
+    for (var ti = 0; ti < TYPE_KEYS.length; ti++) { var tk = TYPE_KEYS[ti].toLowerCase(); if (nm.indexOf(' ' + tk + ' ') > -1 || nm.indexOf(' ' + tk + 's ') > -1) { var tl = acList(TYPE_KEYS[ti]).slice(); tl.typeList = true; return tl; } }
     /* typed-in thing: terms from any list that share a real word with it ("monitor 27 in" → monitors, never the whole 'Home' grab-bag) */
     var STOP = /^(home|the|and|for|with|set|kit|in|ft|my|a|an|of|new|old|big|small|large|mini|pro|max|plus)$/i;
     var ws = (x.brand || '').toLowerCase().split(/[^a-z0-9]+/).filter(function (w) { return w.length > 2 && !STOP.test(w) && !/^\d+$/.test(w); }).map(function (w) { return w.replace(/s$/, ''); });
@@ -206,6 +211,7 @@
   /* "Not it?" chips: brands first (+ Orvis adds the brand to the search), then a few exact models / sizes */
   var GENERIC = /^(fly|spinning|baitcasting|surf|telescopic|ice|kids?|golf|tennis|inflatable|paddle|rolling|portable|electric|cordless|folding|camping|hiking|baby|car|record|tv|generator|kayak|soft|hard|mini|large|small|outdoor|indoor|wooden|metal|plastic|adult|youth|ultrawide|gaming)$/i;
   function chipList(pool, cur) {
+    if (pool.typeList) return pool.filter(function (t) { return cur.indexOf(t.toLowerCase()) < 0; }).slice(0, 8).map(function (t) { return { l: t, q: t }; });
     var br = [], seen = {}, specs = [];
     pool.forEach(function (t) { var w = t.split(' '), b = /^(st\.|g\.|ugly|abu|the|big|red|camp|solo|scotty)$/i.test(w[0]) ? w[0] + ' ' + w[1] : w[0];
       if (GENERIC.test(w[0]) || /\d/.test(b) || cur.indexOf(w[0].toLowerCase()) > -1) { if (specs.length < 3 && cur.indexOf(t.toLowerCase()) < 0) specs.push({ l: t.length > 22 ? t.slice(0, 21) + '…' : t, q: t }); return; }
