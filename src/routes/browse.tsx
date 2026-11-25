@@ -528,6 +528,9 @@ browse.get('/how-it-works', (c) => {
         <h2 style={H2}>Quo</h2>
         <p>Tavi zemi · Soba zemi · Soba plato · Nelo ranosen · Gri lessa · Pleta lessa</p>
       </section>
+      <section class="sec" id="money" style="border-bottom:0;padding-top:0">
+        <a href="/how-money.png"><img src="/how-money.png" alt="How the money works: one rental start to finish — who is charged, who is paid, and when; the item hold; what happens if there's a problem" loading="lazy" style="display:block;width:100%;max-width:600px;margin:0 auto;border-radius:16px;border:2px solid var(--ink)" /></a>
+      </section>
       <section class="sec" id="hold" style="border-bottom:0;font-size:15px;line-height:1.5;padding-top:0">
         <h2 style={H2}>If something goes wrong</h2>
         <ul style="margin:0;padding-left:20px">
