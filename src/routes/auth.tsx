@@ -28,6 +28,7 @@ auth.get('/login', (c) => {
     <Layout title="Log in" user={null}>
       {/* text-first: the person texts Lendo, so Lendo is never an unknown sender; Lendo texts back a login link. The code form stays right below */}
       {num10(c.env) ? <div class="lg-top" style="padding:22px 16px 0">
+        <h2 class="lg-msg">Log in by text</h2>
         <a class="btn pri full sms-only" href={smsHref(c.env, LOGIN_TEXT)} style="display:grid;place-items:center;text-decoration:none">💬 Text OK to Lendo</a>
         <p class="hint" style="margin:10px 0 0;font-size:12px">By continuing you agree to the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a></p>
         <div class="pc-only" style="text-align:center"><span id="lgQr" data-sms={`SMSTO:+1${num10(c.env)}:${LOGIN_TEXT}`} aria-label="Scan to text Lendo" style="display:inline-block;background:#fff;border:2.5px solid var(--ink);border-radius:14px;padding:8px;line-height:0"></span>
