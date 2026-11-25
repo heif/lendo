@@ -1,37 +1,45 @@
-/* The Lendo hand: plays one gesture at a time (src/lib/hand.ts draws it; gestures live in app.css).
-   lendoHand(el, g) → plays gesture g on the hand inside el (or appends a 48px open hand to el first).
-   Nothing moves when the device asks for reduced motion. */
+/* The Lendo hand lives only in the logo. lendoHand(x) plays there:
+   'wave' | 'shrug' | 'nod' | 'five' | 'fist'  → the gesture, 3 times, then back to the L
+   1..5                                         → holds up that many fingers for a moment
+   A page can also ask with <i hidden data-lh="nod"></i> (played after the logo's own intro).
+   One thing at a time; a new call replaces the one playing. Nothing moves under reduce motion. */
 (function () {
+  var H = document.querySelector('.logo .lh'); if (!H) { window.lendoHand = function () {}; return; }
   var RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var G = ['g31', 'g1', 'g10', 'g15', 'g19'];
-  function clear(h) { G.forEach(function (g) { h.classList.remove(g); }); }
-  function make(px) {
-    var src = document.querySelector('.logo .lh svg'); if (!src) return null;
-    var s = src.cloneNode(true), w = Math.round(px * 128 / 150);
-    s.setAttribute('width', w); s.setAttribute('height', px); s.removeAttribute('style'); s.style.overflow = 'visible';
-    ['th', 'rg', 'pk', 'md'].forEach(function (c) { var g = s.querySelector('.' + c); if (g) g.removeAttribute('transform'); }); /* open palm, not the logo's L */
-    var sp = document.createElement('span'); sp.className = 'lh'; sp.setAttribute('aria-hidden', 'true'); sp.appendChild(s); return sp;
+  var G = { l: { a: 'lhL', d: 900, n: 1 }, wave: { pose: 'open', a: 'lhWave', d: 900, n: 3 }, shrug: { pose: 'open', a: 'lhShrug', d: 2200, n: 3, x: 'o82' },
+    nod: { pose: 'open', a: 'lhNod', d: 800, n: 3 }, five: { pose: 'open', a: 'lhFive', d: 1300, n: 3 }, fist: { pose: 'fist', a: 'lhBump', d: 1100, n: 3, front: 1 } };
+  var tok = 0, busy = false;
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function reset() { H.className = 'lh'; H.style.removeProperty('--a'); }
+  function anim(g) { H.style.setProperty('--a', g.a); H.style.setProperty('--d', g.d + 'ms'); H.style.setProperty('--n', g.n); H.classList.add('an'); if (g.x) H.classList.add(g.x); return wait(g.d * g.n + 60); }
+  function play(k) {
+    if (RM) return Promise.resolve();
+    var me = ++tok; reset(); busy = true;
+    function live() { return me === tok; }
+    function done() { if (live()) busy = false; }
+    return (async function () {
+      if (typeof k === 'number') { /* fingers for a number on the page */
+        var n = Math.max(1, Math.min(5, Math.round(k)));
+        H.classList.add(n === 5 ? 'open' : 'n' + n); await wait(260); if (!live()) return;
+        await anim({ a: 'lhNum', d: 1900, n: 1 }); if (!live()) return; reset(); return done();
+      }
+      var g = G[k]; if (!g) return done();
+      if (k === 'l') { H.classList.add('snap', 'open'); void H.offsetWidth; await wait(350); if (!live()) return; H.classList.remove('snap', 'open'); await wait(300); if (!live()) return; }
+      if (g.pose) { H.classList.add(g.pose); await wait(260); if (!live()) return; }
+      if (g.front) { H.classList.add('tip'); await wait(170); if (!live()) return; H.classList.add('fr'); H.classList.remove('tip'); await wait(120); if (!live()) return; }
+      await anim(g); if (!live()) return;
+      H.classList.remove('an'); if (g.x) H.classList.remove(g.x);
+      if (g.front) { H.classList.add('tip'); await wait(170); if (!live()) return; H.classList.remove('fr', 'tip'); await wait(200); if (!live()) return; }
+      reset(); done();
+    })();
   }
-  function play(h, g, done) {
-    if (!h || !g) return;
-    if (RM) { clear(h); if (done) done(); return; }
-    [].forEach.call(document.querySelectorAll('.lh'), function (o) { if (o !== h) clear(o); }); /* only one gesture on screen */
-    clear(h); void h.offsetWidth; h.classList.add(g);
-    var hd = h.querySelector('.hd');
-    function end(e) { if (e.target !== hd) return; hd.removeEventListener('animationend', end); if (g !== 'g31') clear(h); if (done) done(); }
-    if (hd) hd.addEventListener('animationend', end);
-  }
-  window.lendoHand = function (el, g, px) {
-    if (!el) return null;
-    var h = el.classList && el.classList.contains('lh') ? el : el.querySelector('.lh');
-    if (!h) { h = make(px || 48); if (!h) return null; el.insertBefore(h, el.firstChild); }
-    play(h, g); return h;
-  };
-  /* Logo: first visit to the homepage waves once (twice, with a pause), then snaps into the L; every other load does the L once */
-  var logo = document.querySelector('.logo .lh');
-  if (logo && logo.classList.contains('g1')) play(logo, 'g1', function () { play(logo, 'g31'); });
+  window.lendoHand = function (x) { return play(x); };
+  /* intro: first visit to the homepage waves, then the L; every other page load does the L once. Then whatever the page asked for */
+  var first = false; try { if (location.pathname === '/' && !localStorage.getItem('lh_w')) { localStorage.setItem('lh_w', '1'); first = true; } } catch (e) {}
+  var ask = document.querySelector('[data-lh]'), want = ask && ask.getAttribute('data-lh');
+  (first ? play('wave').then(function () { return tok === 1 ? play('l') : null; }) : play('l')).then(function () { if (want && !busy) play(/^[1-5]$/.test(want) ? +want : want); });
   /* one-shot moments (?hi=1 after a handover, ?saved= after an edit) shouldn't replay on reload */
   try { if (/[?&](hi|saved)=/.test(location.search)) history.replaceState(null, '', location.pathname + location.search.replace(/[?&](hi|saved)=[^&]*/g, '').replace(/^&/, '?') + location.hash); } catch (e) {}
-  /* Any hand the server marked to play (data-play) */
-  [].forEach.call(document.querySelectorAll('.lh[data-play]'), function (h) { setTimeout(function () { play(h, h.getAttribute('data-play')); }, logo && logo.classList.contains('g1') ? 7000 : 1600); /* after the logo is done */ });
+  /* stars picked on a rating → that many fingers */
+  document.addEventListener('change', function (e) { var t = e.target; if (t && (t.name === 'stars' || t.name === 'item_stars') && /^[1-5]$/.test(t.value)) play(+t.value); });
 })();

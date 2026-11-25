@@ -148,7 +148,7 @@ const listPage = async (c: any) => {
       <section id="st-done" class="lf" hidden>
         {/* posted: the item big on cream, one Share button, three small ways to send, then list another */}
         <div class="lf-scroll dn2">
-          <div class="dn2-ok"><span id="dnHand"></span><span id="dnHead">Posted</span><span id="dnSub" hidden></span></div>
+          <div class="dn2-ok"><span class="dn2-tick" aria-hidden="true">✓</span><span id="dnHead">Posted</span><span id="dnSub" hidden></span></div>
           <div id="tray" class="dn2-tray"></div>
           {/* three big choices */}
           <div class="dn3">

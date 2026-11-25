@@ -1,4 +1,3 @@
-import { hand } from '../lib/hand';
 import { Hono } from 'hono';
 import { logEvent } from '../lib/log';
 import { CHAT_SVG, SEND_SVG, X_SVG } from '../lib/icons';
@@ -163,7 +162,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
           const now = stage === 0 ? 1 : promNow ? 2 : stage === 1 ? 3 : stage === 2 ? 4 : 5;
           const cancel = !isOwner && stage <= 1 ? <button type="submit" form="cancelForm">{stage === 0 ? 'Cancel request' : 'Cancel rental'}</button> : null;
           return <>
-            <ol class="rlist">{S.map(([t, d], i) => { const dd = sep(d); return <li class={i < now || (i === 2 && signed) ? 'done' : i === now ? 'now' : ''}><i></i><div><b>{t === 'Picked up' && hi ? <span class="lh-moment">{raw(hand({ px: 48, play: 'g19' }))}{t}</span> : t}</b>{dd.length ? <span>{dd}</span> : null}{i === 2 && promNow && !isOwner ? <button type="button" class="rsign" onclick="document.getElementById('promSign').showModal()">✍️ Sign</button> : null}</div></li>; })}</ol>
+            {hi ? <i hidden data-lh="five"></i> : c.req.query('paid') && r.status === 'held' ? <i hidden data-lh="fist"></i> : null}<ol class="rlist">{S.map(([t, d], i) => { const dd = sep(d); return <li class={i < now || (i === 2 && signed) ? 'done' : i === now ? 'now' : ''}><i></i><div><b>{t}</b>{dd.length ? <span>{dd}</span> : null}{i === 2 && promNow && !isOwner ? <button type="button" class="rsign" onclick="document.getElementById('promSign').showModal()">✍️ Sign</button> : null}</div></li>; })}</ol>
             {cancel ? <div class="rfoot">{paused ? <a class="rpaused sms-only" href={smsHref(c.env, 'OK')}>📵 Texts paused · <u>text OK</u></a> : <span></span>}{cancel}</div> : null}
           </>; })() : null}
         {paused && !(!isOwner && stage <= 1 && r.status !== 'inquiry' && !dead) ? <a class="hint sms-only" href={smsHref(c.env, 'OK')} style="text-align:center;color:#b3261e;font-weight:700;display:block">📵 Lendo texts paused · <u>tap to text OK</u></a> : null}

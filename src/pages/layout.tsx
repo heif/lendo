@@ -45,8 +45,7 @@ export const Layout: FC<LayoutProps> = (p) => {
                 <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M9 2L4 7L9 12" fill="none" stroke="#1E3A2B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
               </a>
             )}
-            <a class="logo" href="/" aria-label="Lendo home (map)">{raw(hand({ g: 'g31', L: true, px: 34 }))}Lendo</a>
-            {raw(`<script>try{var h=document.currentScript.previousElementSibling.querySelector('.lh');if(location.pathname==='/'&&!localStorage.getItem('lh_w')&&!matchMedia('(prefers-reduced-motion: reduce)').matches){localStorage.setItem('lh_w','1');h.classList.remove('g31');h.classList.add('g1')}}catch(e){}</script>`)}
+            <a class="logo" href="/" aria-label="Lendo home (map)">{raw(hand())}Lendo</a>
             {p.headerCenter ? <span class="sp"></span> : <span class="sep" aria-hidden="true"></span>}
             {p.headerCenter ? p.headerCenter : <h1 class="sr">{p.title}</h1>}
             <span class="sp"></span>
