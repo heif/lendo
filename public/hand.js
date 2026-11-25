@@ -13,10 +13,12 @@
     snap: { pose: 'open', a: 'lhNone', d: 800, n: 3, x: 'fx-snap' }, drum: { pose: 'open', a: 'lhNone', d: 560, n: 4, x: 'fx-drum' }, count: { pose: 'fist', a: 'lhNone', d: 2800, n: 1, x: 'fx-count' },
     thumb: { pose: 'thumb', a: 'lhPump', d: 650, n: 3 }, peace: { pose: 'peace', a: 'lhSway', d: 900, n: 3 }, ok: { pose: 'okk', a: 'lhPump', d: 650, n: 3 },
     crossed: { pose: 'crossed', a: 'lhTilt', d: 1300, n: 2 }, soso: { pose: 'open', a: 'lhSoso', d: 700, n: 3 }, five: { pose: 'open', a: 'lhFive', d: 1300, n: 3 }, fist: { pose: 'fist', a: 'lhBump', d: 1100, n: 3, front: 1 } };
+  var SLOW = 2.4; /* everything chill (Scott, 11/25) */
+  Object.keys(G).forEach(function (k) { G[k].d = Math.round(G[k].d * SLOW); if (G[k].n > 2) G[k].n = 2; });
   var tok = 0, busy = false;
-  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms * (typeof SLOW === 'number' ? SLOW : 1)); }); }
   function reset() { H.className = 'lh'; H.style.removeProperty('--a'); }
-  function anim(g) { H.style.setProperty('--a', g.a); H.style.setProperty('--d', g.d + 'ms'); H.style.setProperty('--n', g.n); H.classList.add('an'); if (g.x) H.classList.add(g.x); return wait(g.d * g.n + 60); }
+  function anim(g) { H.style.setProperty('--a', g.a); H.style.setProperty('--d', g.d + 'ms'); H.style.setProperty('--n', g.n); H.classList.add('an'); if (g.x) H.classList.add(g.x); return new Promise(function (r) { setTimeout(r, g.d * g.n + 60); }); }
   function play(k) {
     if (RM) return Promise.resolve();
     var me = ++tok; reset(); busy = true;
@@ -26,7 +28,7 @@
       if (typeof k === 'number') { /* fingers for a number on the page */
         var n = Math.max(1, Math.min(5, Math.round(k)));
         H.classList.add(n === 5 ? 'open' : 'n' + n); await wait(260); if (!live()) return;
-        await anim({ a: 'lhNum', d: 1900, n: 1 }); if (!live()) return; reset(); return done();
+        await anim({ a: 'lhNum', d: 1900 * SLOW, n: 1 }); if (!live()) return; reset(); return done();
       }
       var g = G[k]; if (!g) return done();
       if (k === 'l') { H.classList.add('snap', 'open'); void H.offsetWidth; await wait(350); if (!live()) return; H.classList.remove('snap', 'open'); await wait(300); if (!live()) return; }
@@ -53,7 +55,7 @@
       var r = Math.random(), k = r < .6 ? 'wave' : r < .8 ? null : FUN[Math.floor(Math.random() * FUN.length)];
       if (!k) return idle();
       play(k).then(idle);
-    }, 3000 + Math.random() * 3000);
+    }, 7000 + Math.random() * 7000);
   }
   /* one-shot moments (?hi=1 after a handover, ?saved= after an edit) shouldn't replay on reload */
   try { if (/[?&](hi|saved)=/.test(location.search)) history.replaceState(null, '', location.pathname + location.search.replace(/[?&](hi|saved)=[^&]*/g, '').replace(/^&/, '?') + location.hash); } catch (e) {}
