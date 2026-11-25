@@ -46,7 +46,7 @@ LENDO FACTS
 - Owners are paid what the AI decides, from the hold
 - Owners get the rent minus Lendo's 15% fee, paid after pickup via Stripe; set up at lendo.co/payout
 - Payments run through Stripe; Lendo never sees full card numbers
-- Customers pay rent + sales tax; owners can give a discount or lend free
+- Customers pay rent + local tax (say "NYC tax" or "Iowa tax", never "sales tax": a rental is not a sale); owners can give a discount or lend free
 - Messages between owner and customer go by text and also show on the rental page (lendo.co/r/…). If someone hasn't texted Lendo back in a while, Lendo holds further texts to them until they reply (a texting-service limit); they still see everything on the rental page
 Today is ${localToday()}.`;
   const facts = [

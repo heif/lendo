@@ -1005,3 +1005,4 @@ input.otp{width:calc(6ch + 3em);padding:10px 0 10px .5em;overflow:hidden}
 input.otp{font-size:52px!important;padding:14px 0 14px .5em;border-radius:18px;margin:10px auto 18px}
 
 .lg-msg{margin:0 0 18px;text-align:center;font-size:30px;font-weight:900;letter-spacing:-.03em;line-height:1.1}.lg-top{padding-top:17vh!important}
+.chg small{font-weight:500!important}

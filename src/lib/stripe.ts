@@ -5,7 +5,7 @@ import Stripe from 'stripe';
 import { logErr, logEvent } from './log';
 import type { Claim, Env, Listing, Rental, User } from './env';
 import { money } from './util';
-import { payoutOf } from './money';
+import { payoutOf, taxLabel } from './money';
 
 export function stripe(env: Env): Stripe | null {
   if (!env.STRIPE_SECRET_KEY) return null;
@@ -24,7 +24,7 @@ export async function createCheckout(env: Env, rental: Rental, listing: Listing,
     client_reference_id: rental.id,
     line_items: [
       { quantity: 1, price_data: { currency: 'usd', unit_amount: rental.rent_cents, product_data: { name: `${listing.name} · ${rental.days} day${rental.days === 1 ? '' : 's'}` } } },
-      ...((rental.tax_cents || 0) > 0 ? [{ quantity: 1, price_data: { currency: 'usd', unit_amount: rental.tax_cents, product_data: { name: `Sales tax (${+(rental.tax_rate * 100).toFixed(3)}%)` } } }] : []),
+      ...((rental.tax_cents || 0) > 0 ? [{ quantity: 1, price_data: { currency: 'usd', unit_amount: rental.tax_cents, product_data: { name: taxLabel(rental.tax_rate) } } }] : []),
     ],
     /* every rental has a deposit hold at pickup (the item's value): it needs the card again later, off-session → save it to a Stripe customer now.
        The customer sees and accepts the hold and how problems are decided before paying (also the record for a bank dispute) */

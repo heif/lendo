@@ -7,7 +7,7 @@ import type { Env, Rental } from './env';
 import { addMessage, listingById, rentalById, userById } from './db';
 import { textUser } from './blooio';
 import { stripe } from './stripe';
-import { payoutOf, quote } from './money';
+import { payoutOf, quote, taxLabel } from './money';
 import { addDays, backDay, daysBetween, firstName, fmtDay, id, money, now, rentFor } from './util';
 
 export type Ext = { id: string; rental_id: string; listing_id: string; from_day: string; new_end: string; days: number; rent_cents: number; fee_cents: number; total_cents: number; tax_cents?: number; payout_cents?: number | null; status: 'requested' | 'held' | 'confirmed' | 'declined' | 'expired' | 'canceled'; stripe_checkout_id: string | null; stripe_payment_intent: string | null; paid_out: number; expires_at: number | null; created_at: number; updated_at: number };
@@ -58,7 +58,7 @@ export async function askExtension(env: Env, r: Rental, newEnd: string): Promise
     client_reference_id: xid,
     line_items: [
       { quantity: 1, price_data: { currency: 'usd', unit_amount: p.rent, product_data: { name: `${it.name} · ${p.days} more day${p.days === 1 ? '' : 's'}` } } },
-      ...(p.tax > 0 ? [{ quantity: 1, price_data: { currency: 'usd', unit_amount: p.tax, product_data: { name: `Sales tax (${+(r.tax_rate * 100).toFixed(3)}%)` } } }] : []),
+      ...(p.tax > 0 ? [{ quantity: 1, price_data: { currency: 'usd', unit_amount: p.tax, product_data: { name: taxLabel(r.tax_rate) } } }] : []),
     ],
     payment_intent_data: { capture_method: 'manual', metadata: { ext_id: xid, rental_id_ext: r.id }, description: `Lendo extension ${xid} of ${r.id}` },
     metadata: { ext_id: xid },
