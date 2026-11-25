@@ -7,7 +7,7 @@ import { Hono } from 'hono';
 import { cutoutUrl } from '../lib/cutout';
 import { smsHref } from '../lib/blooio';
 import { logErr, logEvent } from '../lib/log';
-import { setUserWhere } from '../lib/where';
+import { setUserWhere, tidyCross } from '../lib/where';
 import { localToday } from '../lib/util';
 import { checkListingPhoto } from '../lib/photo-check';
 import { Grade, GRADES, GRADE_WORD, isGrade, shownGrade } from '../lib/grade';
@@ -283,9 +283,15 @@ listings.get('/api/stock', async (c) => {
 /* where your things are (asked before posting when there's no GPS and no saved spot) */
 listings.post('/api/me/where', async (c) => {
   const u = c.get('user'); if (!u) return c.json({ error: 'login' }, 401);
-  const b = await c.req.json<{ place?: string }>().catch(() => ({} as any));
-  const r = await setUserWhere(c.env, u, String(b.place || ''), u.id);
-  return r ? c.json({ ok: true, hood: r.hood, lat: r.lat, lng: r.lng }) : c.json({ error: 'notfound' }, 404);
+  const b = await c.req.json<{ place?: string; lat?: number; lng?: number; cross?: string }>().catch(() => ({} as any));
+  if (typeof b.cross === 'string') { /* the person fixes the public cross streets by hand: same uniform style, never a street address */
+    const x = tidyCross(b.cross); if (!x) return c.json({ error: 'cross' }, 400);
+    await c.env.DB.prepare('UPDATE users SET cross_streets = ? WHERE id = ?').bind(x, u.id).run(); await logEvent(c.env.DB, 'profile.cross', { user: u.id, data: { cross: x } });
+    return c.json({ ok: true, cross: x, hood: u.hood || null });
+  }
+  const pt = typeof b.lat === 'number' && typeof b.lng === 'number' && Math.abs(b.lat) <= 90 && Math.abs(b.lng) <= 180 ? { lat: b.lat, lng: b.lng } : undefined;
+  const r = await setUserWhere(c.env, u, String(b.place || ''), pt ? 'gps' : u.id, pt);
+  return r ? c.json({ ok: true, hood: r.hood, cross: r.cross, lat: r.lat, lng: r.lng }) : c.json({ error: 'notfound' }, 404);
 });
 /* learned brand/model suggestions for one idea (merged client-side with public/ac.js) */
 listings.get('/api/ac', async (c) => {

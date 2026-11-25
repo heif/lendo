@@ -1012,3 +1012,18 @@ input.otp{font-size:52px!important;padding:14px 0 14px .5em;border-radius:18px;m
 /* account menu (Scott, 11/25) */
 .acct-mine{display:flex;gap:6px;margin-bottom:4px}.acct-mine .list{flex:1}.acct-mine .acct-add{flex:none;width:46px;justify-content:center;font-size:22px;font-weight:900}
 .acct-legal{padding:6px 12px 4px;font-size:12px;font-weight:600;color:#8A857B}.acct nav .acct-legal a{display:inline;height:auto;padding:0;font-size:12px;font-weight:600;color:#8A857B}
+
+/* Where's home? one box (home.js) */
+.homebox{display:flex;flex-direction:column;gap:10px}
+.hm-res{display:flex;align-items:center;gap:10px;background:#fff;border:2.5px solid var(--ink);border-radius:14px;padding:10px 12px}.hm-res[hidden],.hm-fix[hidden],.hm-sug[hidden]{display:none}
+.hm-res b{display:block;font-size:17px;font-weight:900;line-height:1.2}.hm-res small{font-size:12px;font-weight:700;color:var(--mute)}.hm-res>span:nth-child(2){flex:1;min-width:0}
+.hm-ok{width:26px;height:26px;border-radius:50%;background:#2E7D4F;color:#fff;font-weight:900;display:grid;place-items:center;flex:none}
+.hm-err{font-weight:800;color:#b3261e;font-size:14px}
+.hm-chg{font:inherit;font-size:13px;font-weight:800;color:var(--ink);background:none;border:0;padding:6px 0;text-decoration:underline;cursor:pointer;flex:none}
+.hm-in{position:relative}.hm-q,.hm-x{width:100%;box-sizing:border-box;font:inherit;font-size:17px;font-weight:700;color:var(--ink);background:#fff;border:2.5px solid var(--ink);border-radius:14px;padding:14px}
+.hm-q.busy,.hm-x.busy,.hm-gps.busy{opacity:.5;pointer-events:none}
+.hm-sug{position:absolute;left:0;right:0;top:100%;z-index:50;margin-top:4px;background:#fff;border:2px solid var(--ink);border-radius:14px;padding:4px;display:flex;flex-direction:column}
+.hm-sug button{font:inherit;font-size:14px;font-weight:700;text-align:left;background:none;border:0;border-radius:10px;padding:10px;color:var(--ink);cursor:pointer}.hm-sug button:hover{background:var(--cream)}
+.hm-gps{font:inherit;font-size:16px;font-weight:900;color:var(--ink);background:#fff;border:2.5px solid var(--ink);border-bottom-width:5px;border-radius:14px;padding:13px;cursor:pointer}
+.hm-note{margin:0;font-size:12.5px;font-weight:600;color:var(--mute)}
+.hm-fix{display:flex;gap:8px}.hm-fix .hm-x{flex:1;padding:11px 12px;font-size:16px}.hm-xgo{font:inherit;font-weight:900;color:#fff;background:var(--ink);border:0;border-radius:12px;padding:0 16px;cursor:pointer}

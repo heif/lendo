@@ -112,8 +112,8 @@ auth.get('/welcome', async (c) => {
           <label class="field"><span>Email</span><input name="email" type="email" inputmode="email" autocomplete="email" placeholder="you@email.com" required maxlength={120} value={u.email || ''} /></label>
           <p class="hint" style="margin:-6px 0 12px">Only for receipts and anything a text misses</p></div>
         <div class="q" data-skip="1" hidden><h2 class="qh">Where’s home?</h2>
-          <label class="field"><span>Cross streets or ZIP</span><input name="home" placeholder="W 22nd & 9th Ave" maxlength={120} autocomplete="off" value={u.cross_streets || ''} /></label>
-          <p class="hint" style="margin:-6px 0 12px">Shows what’s near you, and puts your things on the map near home · only the area shows</p></div>
+          <div class="homebox" data-token={c.env.MAPBOX_PUBLIC_TOKEN || ''} data-cross={u.cross_streets || ''} data-hood={u.hood || ''} data-has={u.lat != null ? '1' : ''} data-addr={u.address || ''} />
+          <script src="/home.js"></script></div>
         <div class="q" data-skip="1" hidden><h2 class="qh">Add a photo</h2>
           <PhotoField name={null} label="People say yes more often to a face" /></div>
         <div class="qnav"><button class="btn pri full qnext" type="button">Next</button><button type="button" class="lg-alt qskip" hidden>Skip</button></div>

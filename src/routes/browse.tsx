@@ -422,19 +422,9 @@ browse.get('/profile/edit', async (c) => {
         <div class="q" data-q="name" hidden><h2 class="qh">Your name</h2><p class="hint" style="margin:-4px 0 10px">First and last · others see first name and last initial</p>
         <label class="field"><span>Name</span><input name="name" value={u.name || ''} placeholder="Fiona Smith" required maxlength={40} /></label>
         </div>
-        <div class="q" data-q="home" hidden><h2 class="qh">Where’s home?</h2><p class="hint" style="margin:-4px 0 10px">Your things show on the map near here · others only see cross streets and neighborhood</p>
-        <label class="field" style="position:relative"><span>Address (private)</span><input name="address" id="addr" value={u.address || ''} placeholder="Street address" maxlength={160} autocomplete="off" /><div id="addrSug" class="card" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:50;padding:4px;margin-top:4px"></div></label>
-        <label class="field"><span>Cross streets (public)</span><input name="cross_streets" value={u.cross_streets || ''} placeholder="W 22nd & 9th Ave" maxlength={80} /></label>
-        <div class="field"><span>Neighborhood</span><div class="sp-search"><input name="hood" id="hoodIn" value={u.hood || ''} placeholder="Start typing… Chelsea" maxlength={60} autocomplete="off" /><div class="sp-sug" id="hoodSug" hidden /></div></div>
-        {raw(`<script>(function(){var H=${JSON.stringify(CITIES.flatMap(ct => ct.hoods.map(h => [h.name, ct.name]))).replace(/</g, '\\u003c')},inp=document.getElementById('hoodIn'),box=document.getElementById('hoodSug');
-function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
-inp.addEventListener('input',function(){var q=inp.value.trim().toLowerCase();if(!q){box.hidden=true;return}
-var m=H.filter(function(h){return h[0].toLowerCase().indexOf(q)===0}).concat(H.filter(function(h){var n=h[0].toLowerCase();return n.indexOf(q)>0})).slice(0,6);
-if(!m.length){box.hidden=true;return}box.innerHTML=m.map(function(h){return '<button type="button" data-v="'+esc(h[0])+'">'+esc(h[0])+' <small>'+esc(h[1])+'</small></button>'}).join('');box.hidden=false});
-box.addEventListener('click',function(e){var b=e.target.closest('button');if(b){inp.value=b.dataset.v;box.hidden=true}});
-document.addEventListener('click',function(e){if(!box.contains(e.target)&&e.target!==inp)box.hidden=true})})()</script>`)}
-        <input type="hidden" name="lat" id="lat" value={u.lat ?? ''} /><input type="hidden" name="lng" id="lng" value={u.lng ?? ''} />
-        <button type="button" class="btn sm" onclick="navigator.geolocation.getCurrentPosition(function(p){lat.value=p.coords.latitude;lng.value=p.coords.longitude;toast('Location set')})">📍 Use my location as home base</button>
+        <div class="q" data-q="home" hidden><h2 class="qh">Where’s home?</h2>
+          <div class="homebox" data-token={c.env.MAPBOX_PUBLIC_TOKEN || ''} data-cross={u.cross_streets || ''} data-hood={u.hood || ''} data-has={u.lat != null ? '1' : ''} data-addr={u.address || ''} />
+          <script src="/home.js"></script>
         </div>
         <div class="q" data-q="spot" hidden><h2 class="qh">Meetup spot</h2>
         <div class="field"><span>Meetup spot (customers see it)</span>
@@ -456,14 +446,6 @@ document.addEventListener('click',function(e){if(!box.contains(e.target)&&e.targ
         <script src="/steps.js"></script>
         
       </form>
-      {c.env.MAPBOX_PUBLIC_TOKEN ? raw(`<script>
-(function(){var tok=${JSON.stringify(c.env.MAPBOX_PUBLIC_TOKEN)},sess=(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)),inp=document.getElementById('addr'),box=document.getElementById('addrSug'),t;
-inp.addEventListener('input',function(){clearTimeout(t);var q=inp.value.trim();if(q.length<3){box.style.display='none';return}t=setTimeout(function(){
-var u='https://api.mapbox.com/search/searchbox/v1/suggest?q='+encodeURIComponent(q)+'&access_token='+tok+'&session_token='+sess+'&country=US&types=address,street,poi&limit=5'+(navigator.geolocation?'':'');
-fetch(u).then(function(r){return r.json()}).then(function(j){var s=j.suggestions||[];if(!s.length){box.style.display='none';return}box.innerHTML=s.map(function(x){return '<button type="button" class="btn sm full" style="justify-content:flex-start;border:0;height:auto;padding:8px;text-align:left;font-weight:600" data-a="'+(x.full_address||x.name).replace(/"/g,'&quot;')+'">'+(x.name||'')+'<span class="hint" style="margin-left:6px">'+(x.place_formatted||'')+'</span></button>'}).join('');box.style.display='block'})},250)});
-box.addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;inp.value=b.dataset.a;box.style.display='none'});
-document.addEventListener('click',function(e){if(!box.contains(e.target)&&e.target!==inp)box.style.display='none'});})();
-</script>`) : null}
     </Layout>
   );
 });
@@ -487,21 +469,8 @@ browse.post('/profile/edit', async (c) => {
   }
   let spots: string[] = [];
   try { const j = JSON.parse(String(f.pickup_spots_json || '[]')); if (Array.isArray(j)) spots = j.map(s => String(s).trim().slice(0, 80)).filter(Boolean).slice(0, 1); /* one meetup spot per owner */ } catch { /* keep empty */ }
-  let lat = parseFloat(String(f.lat || '')), lng = parseFloat(String(f.lng || ''));
-  const xs = String(f.cross_streets || '').trim(), hd = String(f.hood || '').trim(), addr = String(f.address || '').trim().slice(0, 160);
-  let mapboxId: string | null = u.mapbox_id, geocodedAt: number | null = u.geocoded_at, hoodOut = hd || null;
-  if (addr && (addr !== (u.address || '') || u.lat == null)) {
-    // address set/changed → permanent geocode (server-side, secret token); the address wins over GPS
-    const g = await geocodePlace(c.env, addr);
-    if (g) { lat = g.lat; lng = g.lng; mapboxId = g.mapbox_id; geocodedAt = Date.now(); if (!hoodOut && g.hood_hint) hoodOut = g.hood_hint; }
-  } else if (isNaN(lat) && (xs !== (u.cross_streets || '') || u.lat == null) && (xs || hd)) {
-    // no address, no GPS: place the home base from cross streets (+ hood), else the hood alone
-    const g = (xs ? await geocodePlace(c.env, xs + (hd ? ', ' + hd : '')) : null) || (hd ? await geocodePlace(c.env, hd) : null);
-    if (g) { lat = g.lat; lng = g.lng; mapboxId = g.mapbox_id; geocodedAt = g.mapbox_id ? Date.now() : null; }
-  }
-  await c.env.DB.prepare('UPDATE users SET name = ?, cross_streets = ?, pickup_spots = ?, hood = ?, lat = COALESCE(?, lat), lng = COALESCE(?, lng), address = ?, mapbox_id = ?, geocoded_at = ? WHERE id = ?')
-    .bind(String(f.name || '').trim().slice(0, 40) || null, String(f.cross_streets || '').trim().slice(0, 80) || null, spots.length ? JSON.stringify(spots) : null,
-      hoodOut ? hoodOut.slice(0, 60) : null, isNaN(lat) ? null : lat, isNaN(lng) ? null : lng, addr || null, mapboxId, geocodedAt, u.id).run();
+  /* home (map spot, cross streets, neighborhood, address) is saved by the Home step itself (/api/me/where); this form never touches it */
+  await c.env.DB.prepare('UPDATE users SET name = ?, pickup_spots = ? WHERE id = ?').bind(String(f.name || '').trim().slice(0, 40) || u.name || null, spots.length ? JSON.stringify(spots) : null, u.id).run();
   const me = (await userById(c.env.DB, u.id))!;
   { /* what changed (name, hood, spot, address, socials) */
     const was: Record<string, unknown> = {}, now: Record<string, unknown> = {};
