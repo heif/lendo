@@ -182,7 +182,7 @@
       (sn.length ? '<p class="hint" style="margin-top:10px">📷 Next: snap ' + esc(sn.map(function (x) { return x.name.toLowerCase(); }).join(', ')) + '</p>' : '') +
       /* never a dead end: nothing confirmed → ways forward; otherwise add one more */
       (!ok.length && !sn.length ? '<p class="stk-empty">Nothing to post yet</p>' : '') +
-      '<div class="stk-more"><button type="button" class="stk-mb" data-m="type">🔎 Find another thing</button><button type="button" class="stk-mb" data-m="snap">📷 Snap something</button>' + (!ok.length && !sn.length ? '<button type="button" class="stk-mb" data-m="ideas">← Back to ideas</button>' : '') + '</div>';
+      '<div class="stk-more"><button type="button" class="stk-mb" data-m="type">🔎 Find more</button><button type="button" class="stk-mb" data-m="snap">📷 Snap more</button>' + (!ok.length && !sn.length ? '<button type="button" class="stk-mb" data-m="ideas">← Back to ideas</button>' : '') + '</div>';
     $('stkGo').hidden = !ok.length && !sn.length;
     $('stkGo').disabled = false;
     $('stkGo').textContent = ok.length ? 'POST ' + ok.length + (ok.length === 1 ? ' THING' : ' THINGS') : 'SNAP ' + sn.length + (sn.length === 1 ? ' THING' : ' THINGS');

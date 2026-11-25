@@ -1001,3 +1001,5 @@ input.otp{width:calc(6ch + 3em);padding:10px 0 10px .5em;overflow:hidden}
 
 /* login: button lower and bigger (Scott, 11/25) */
 .lg-top{padding-top:22vh!important}.lg-top .btn.pri{height:auto;padding:22px 0!important;font-size:22px!important;border-radius:18px}.lg-top .hint{text-align:center}
+/* login code: huge (Scott, 11/25) */
+input.otp{font-size:52px!important;padding:14px 0 14px .5em;border-radius:18px;margin:10px auto 18px}
