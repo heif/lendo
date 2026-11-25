@@ -148,7 +148,7 @@ const listPage = async (c: any) => {
       <section id="st-done" class="lf" hidden>
         {/* posted: the item big on cream, one Share button, three small ways to send, then list another */}
         <div class="lf-scroll dn2">
-          <div class="dn2-ok"><span class="dn2-tick" aria-hidden="true">✓</span><span id="dnHead">Posted</span><span id="dnSub" hidden></span></div>
+          <div class="dn2-ok"><span id="dnHand"></span><span id="dnHead">Posted</span><span id="dnSub" hidden></span></div>
           <div id="tray" class="dn2-tray"></div>
           {/* three big choices */}
           <div class="dn3">
@@ -357,9 +357,9 @@ listings.post('/api/list', async (c) => {
 });
 listings.get('/listings', requireUser, async (c) => {
   // listings live on your profile now (one page to manage your stuff)
-  const u = c.get('user')!; const just = c.req.query('just');
+  const u = c.get('user')!; const just = c.req.query('just'), saved = c.req.query('saved');
   const h = (u as any).handle;
-  return c.redirect((h ? '/' + h : '/u/' + u.id) + (just ? '?just=' + encodeURIComponent(just) : ''));
+  return c.redirect((h ? '/' + h : '/u/' + u.id) + (just ? '?just=' + encodeURIComponent(just) : saved ? '?saved=' + encodeURIComponent(saved) : ''));
 });
 
 listings.post('/listings/:id/price', requireUser, async (c) => {
@@ -372,7 +372,7 @@ listings.post('/listings/:id/price', requireUser, async (c) => {
   const week = weekDefault(np); /* weekly is always automatic */
   await c.env.DB.prepare('UPDATE listings SET price_cents = ?, week_cents = ? WHERE id = ?').bind(np, week, it.id).run();
   await logEvent(c.env.DB, 'listing.price', { user: u.id, listing: it.id, cents: np, data: { was: it.price_cents } });
-  return c.redirect('/listings');
+  return c.redirect('/listings?saved=' + it.id);
 });
 
 listings.post('/listings/:id/toggle', requireUser, async (c) => {
@@ -569,7 +569,7 @@ listings.post('/listings/:id/edit', requireUser, async (c) => {
   await c.env.DB.prepare('DELETE FROM blocked_days WHERE listing_id = ? AND day >= ?').bind(it.id, today).run();
   const blocks = ([] as unknown[]).concat(f.block || []).map(String).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d));
   for (const d of blocks) await c.env.DB.prepare('INSERT OR IGNORE INTO blocked_days (listing_id, day) VALUES (?,?)').bind(it.id, d).run();
-  return c.redirect('/listings');
+  return c.redirect('/listings?saved=' + it.id);
 });
 
 // ---------- Avatar lab (owner only): build both styles from the first photo and compare ----------

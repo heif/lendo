@@ -9,14 +9,13 @@ button{font-family:inherit;cursor:pointer}
 button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
 .m{font-family:ui-monospace,'SF Mono',Menlo,monospace;text-transform:uppercase;letter-spacing:.06em}
 .wrap{max-width:560px;margin:0 auto;min-height:100vh;position:relative;background:var(--cream)}
-@keyframes lwave{0%,100%{transform:rotate(22deg)}50%{transform:rotate(34deg)}}
 @keyframes rise{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:none}}
 
 /* header */
 .hdr{position:sticky;top:0;z-index:1000;display:flex;align-items:center;gap:8px;padding:6px 12px 4px 8px;background:var(--cream);border-bottom:1px solid var(--line2)}
 .hdr .back{flex-shrink:0;width:36px;height:36px;margin-left:2px;border-radius:18px;border:1px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:center;text-decoration:none}
 .logo{display:flex;align-items:center;flex-shrink:0;font-size:31px;font-weight:800;letter-spacing:-1.5px;line-height:1;text-decoration:none;color:var(--ink)}
-.logo .wave{display:block;font-size:21.6px;line-height:1;margin:0 2px 0 -2px;transform:rotate(28deg);animation:lwave 1.2s ease-in-out infinite;transform-origin:70% 85%;font-weight:400;letter-spacing:0}
+.logo .lh{display:block;margin:0 2px 0 -2px;align-self:flex-end;padding-bottom:.02em}.logo .lh svg{display:block;height:.96em;width:auto}
 .hdr .sep{flex-shrink:0;width:1px;height:20px;background:#CFC9BC}
 .hdr h1{margin:0;min-width:0;flex:0 1 auto;font-size:16px;font-weight:900;letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hdr .sp{flex:1 1 0}
@@ -45,7 +44,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .scope-city{background:#fff;color:#6F6A60;border:1.5px solid #E6E2DA!important;align-items:center!important;flex:0 0 auto;max-width:none}
 .scope-globe{background:#fff;color:#6F6A60;border:1.5px solid #E6E2DA!important;width:34px;padding:0!important;align-items:center!important}
 .hdr .logo{font-size:46px;font-weight:900;letter-spacing:-2.3px}
-.hdr .logo .wave{font-size:31px;margin-right:6px}
+.hdr .logo .lh{margin-right:6px}
 /* bits */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:48px;padding:0 18px;border-radius:12px;border:2px solid var(--ink);background:#fff;color:var(--ink);font-size:15px;font-weight:800;text-decoration:none}
 .btn.pri{background:var(--orange);color:#fff;box-shadow:3px 3px 0 var(--ink)}
@@ -1036,3 +1035,30 @@ input.otp{font-size:52px!important;padding:14px 0 14px .5em;border-radius:18px;m
 .sv-row{display:flex;align-items:center;gap:10px;background:#fff;border:2px solid var(--ink);border-radius:14px;padding:10px 12px}.sv-row.off{opacity:.5}
 .sv-row span{flex:1;min-width:0}.sv-row b{display:block;font-size:16px;font-weight:900}.sv-row small{font-size:12.5px;font-weight:700;color:var(--mute)}
 .sv-row button{font:inherit;font-size:13px;font-weight:800;color:var(--ink);background:none;border:0;text-decoration:underline;cursor:pointer}
+
+/* The Lendo hand (src/lib/hand.ts, public/hand.js). Each gesture plays twice with its built-in pause, then stops; the logo's L plays once. No loops. */
+.lh{display:inline-block;line-height:0;vertical-align:middle}
+/* origins only while a gesture class is on: a still hand uses the SVG's own transform attributes (the L), which an origin would shift */
+.lh:is(.g31,.g1,.g10,.g15,.g19) :is(.hd,.ix,.md,.rg,.pk,.th){transform-box:view-box}
+.lh:is(.g31,.g1,.g10,.g15,.g19) .hd{transform-origin:65px 140px}.lh:is(.g31,.g1,.g10,.g15,.g19) .ix{transform-origin:44.75px 66px}.lh:is(.g31,.g1,.g10,.g15,.g19) .md{transform-origin:58.75px 64px}.lh:is(.g31,.g1,.g10,.g15,.g19) .rg{transform-origin:72.5px 64px}.lh:is(.g31,.g1,.g10,.g15,.g19) .pk{transform-origin:84.5px 66px}.lh:is(.g31,.g1,.g10,.g15,.g19) .th{transform-origin:44px 94px}
+.lh.g10 .hd{transform-origin:65px 82px}
+@keyframes lh31f{0%{transform:none}40%,100%{transform:scaleY(.3)}}
+@keyframes lh31t{0%{transform:none}40%,100%{transform:rotate(-38deg)}}
+@keyframes lh31h{0%,45%{transform:none}62%{transform:rotate(5deg)}80%,100%{transform:none}}
+.lh.g31 .md,.lh.g31 .rg,.lh.g31 .pk{animation:lh31f 1.5s cubic-bezier(.15,.9,.3,1) both}
+.lh.g31 .th{animation:lh31t 1.5s cubic-bezier(.15,.9,.3,1) both}
+.lh.g31 .hd{animation:lh31h 1.5s cubic-bezier(.15,.9,.3,1)}
+@keyframes lh1{0%{transform:rotate(0)}8%{transform:rotate(-16deg)}22%{transform:rotate(9deg)}40%,100%{transform:rotate(0)}}
+.lh.g1 .md,.lh.g1 .rg,.lh.g1 .pk,.lh.g1 .th{transform:none}
+.lh.g1 .hd{animation:lh1 3.2s cubic-bezier(.15,.9,.3,1) 2}
+@keyframes lh10{0%{transform:rotate(0)}12%{transform:translateY(-10px) rotate(-72deg)}30%{transform:translateY(-10px) rotate(-72deg)}38%{transform:translateY(4px) rotate(-80deg)}70%{transform:translateY(4px) rotate(-80deg)}85%,100%{transform:rotate(0)}}
+.lh.g10 .hd{animation:lh10 3.6s cubic-bezier(.15,.9,.3,1) 2}
+@keyframes lh15{0%{transform:none}8%{transform:translateY(8px) scaleY(.92)}22%,100%{transform:none}}
+.lh.g15 .hd{animation:lh15 2.8s cubic-bezier(.15,.9,.3,1) 2}
+@keyframes lh19{0%{transform:none}8%{transform:scale(1.18)}45%{transform:scale(1.18)}70%{transform:translateY(18px) rotate(10deg)}90%{transform:translateY(18px) rotate(10deg)}100%{transform:none}}
+.lh.g19 .hd{animation:lh19 4.4s cubic-bezier(.15,.9,.3,1) 2}
+@media (prefers-reduced-motion:reduce){.lh *{animation:none!important}}
+.lh-moment{display:flex;align-items:center;gap:10px;font-weight:800}
+.lh-empty{display:flex;align-items:center;gap:12px;padding:24px 16px}
+.lh-empty b{display:block;font-size:17px}
+.pitem{position:relative}.psaved{position:absolute;top:4px;right:4px;z-index:2}

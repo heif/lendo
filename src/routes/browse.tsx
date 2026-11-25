@@ -1,3 +1,4 @@
+import { hand } from '../lib/hand';
 import { holdFor } from '../lib/value';
 import { guaranteeCap } from '../lib/claims';
 import { Hono, type Context } from 'hono';
@@ -336,6 +337,7 @@ export const personPage = async (c: Ctx, uid: string) => {
   const items = await c.env.DB.prepare(`SELECT * FROM listings WHERE owner_id = ? AND ${me ? "status != 'removed'" : "status = 'live'"} ORDER BY created_at DESC`).bind(who.id).all<Listing>();
   const earned = me ? await c.env.DB.prepare(`SELECT COALESCE(SUM(COALESCE(payout_cents, rent_cents)),0) + COALESCE((SELECT SUM(COALESCE(x.payout_cents, x.rent_cents)) FROM rental_extensions x JOIN rentals r2 ON r2.id = x.rental_id WHERE r2.owner_id = ?1 AND x.status = 'confirmed'),0) s, COUNT(*) n FROM rentals WHERE owner_id = ?1 AND status IN ('confirmed','picked_up','returned','closed')`).bind(who.id).first<{ s: number; n: number }>().catch(() => null) : null;
   const just = me ? c.req.query('just') : null;
+  const saved = me ? c.req.query('saved') : null;
   const ph = await firstPhotos(c.env.DB, items.results.map(r => r.id));
   const reviews = await c.env.DB.prepare(`SELECT r.renter_rating st, r.renter_review rv, r.updated_at at, u.name nm, l.name item, 'as owner' tag FROM rentals r JOIN users u ON u.id = r.renter_id JOIN listings l ON l.id = r.listing_id WHERE r.owner_id = ? AND r.renter_rating IS NOT NULL
     UNION ALL SELECT r.owner_rating, r.owner_review, r.updated_at, u.name, l.name, 'as renter' FROM rentals r JOIN users u ON u.id = r.owner_id JOIN listings l ON l.id = r.listing_id WHERE r.renter_id = ? AND r.owner_rating IS NOT NULL ORDER BY at DESC LIMIT 50`).bind(who.id, who.id).all<{ st: number; rv: string | null; at: number; nm: string | null; item: string; tag: string }>();
@@ -383,6 +385,7 @@ export const personPage = async (c: Ctx, uid: string) => {
                 <div class="pic">
                   {it.avatar_key ? <img src={'/p/' + it.avatar_key} alt="" data-trim="1" /> : ph[it.id] ? <img src={'/c/' + ph[it.id] + '?s=300'} alt="" data-trim="1" loading="lazy" /> : <span style="font-size:44px">{it.emoji || '📦'}</span>}
                 </div>
+                {it.id === saved ? <span class="psaved">{raw(hand({ px: 48, play: 'g15' }))}</span> : null}
                 <span class="ptag">{money(it.price_cents)}<small>/day</small></span>
                 <div class="pnm">{it.name}</div>
                 {me && it.status !== 'live' ? <div class="pstat">{it.status === 'review' ? 'Checking the photo' : 'Paused'}</div> : null}

@@ -1,5 +1,6 @@
+import { hand } from '../lib/hand';
 // Printable flyers and tape strips (Scott, 11/24): the map with every pin "hovered open" — dense, scattered (no grid), a wild mix
-// of items/owners/prices, no headline and no standalone logo (the 👋 Lendo mark rides on every item), one QR that opens Messages.
+// of items/owners/prices, no headline and no standalone logo (the hand + Lendo mark rides on every item), one QR that opens Messages.
 // Built from live listings so it always shows real stuff. Variations by query string; /flyers lists them. Print from the browser.
 //   n=items  s=item size px  mix=1 mixed sizes  qr=each (QR per item → item page)  c=full|green|news|ink|orange
 //   walk=1 a few walkers  tape=simple|promo|band  city=iac|nyc  msg=...
@@ -56,7 +57,7 @@ flyer.get('/flyer', async (c) => {
 .it .pr{background:var(--tag);color:var(--tagc);font-weight:900;border:1.5px solid var(--ink);border-radius:5px;padding:0 3px;line-height:1.25;margin-top:-.5em;position:relative;white-space:nowrap}
 .it .pr small{font-weight:800;font-size:.72em}
 .it .nm{color:var(--ink);font-weight:700;line-height:1.08;text-align:center;margin-top:1px;background:var(--lbl);border-radius:3px;padding:0 2px}
-.it .nm i{font-style:normal;font-weight:900}
+.it .nm i{font-style:normal;font-weight:900;white-space:nowrap}.it .nm i .lh{display:inline-block;line-height:0;vertical-align:-.12em;margin-right:.08em}.it .nm i .lh svg{height:.95em;width:auto}
 .it canvas{margin-top:2px}
 .qr{position:absolute;background:#fff;border:3px solid var(--ink);border-radius:14px;padding:8px;display:flex;flex-direction:column;align-items:center;gap:4px;z-index:5}
 .qr small{font-weight:900;font-size:10px;letter-spacing:.5px;color:#1E3A2B;text-align:center;line-height:1.2}
@@ -76,6 +77,7 @@ flyer.get('/flyer', async (c) => {
         <div class="bar"><a href="/flyers">All versions</a> · <a href="#" onclick="print();return false">Print</a></div>
         <div class="sheet" id="sheet"><div class="in" id="in" /></div>
         <script src="/qrgen.js"></script>
+        {raw(`<template id="lhT">${hand({ L: true, px: 20 })}</template>`)}
         {raw(`<script>window.F=${JSON.stringify(cfg).replace(/</g, '\\u003c')}</script><script src="/flyer.js"></script>`)}
       </body></html>);
 });

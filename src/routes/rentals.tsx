@@ -1,3 +1,4 @@
+import { hand } from '../lib/hand';
 import { Hono } from 'hono';
 import { logEvent } from '../lib/log';
 import { CHAT_SVG, SEND_SVG, X_SVG } from '../lib/icons';
@@ -122,6 +123,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
   const spots = owner.pickup_spots ? (JSON.parse(owner.pickup_spots) as string[]) : [];
   const fmtT = (t: number) => new Date(t).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
   const live = r.status === 'picked_up';
+  const hi = live && !!c.req.query('hi'); /* just handed over: high five once */
   const xs = await c.env.DB.prepare(`SELECT COALESCE(SUM(COALESCE(payout_cents, rent_cents)),0) rent, COALESCE(SUM(total_cents),0) total FROM rental_extensions WHERE rental_id = ? AND status = 'confirmed'`).bind(r.id).first<{ rent: number; total: number }>().catch(() => null);
   const xRent = xs?.rent || 0, xTotal = xs?.total || 0;
   const ox = live ? await openExt(c.env, r.id) : null;
@@ -161,7 +163,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
           const now = stage === 0 ? 1 : promNow ? 2 : stage === 1 ? 3 : stage === 2 ? 4 : 5;
           const cancel = !isOwner && stage <= 1 ? <button type="submit" form="cancelForm">{stage === 0 ? 'Cancel request' : 'Cancel rental'}</button> : null;
           return <>
-            <ol class="rlist">{S.map(([t, d], i) => { const dd = sep(d); return <li class={i < now || (i === 2 && signed) ? 'done' : i === now ? 'now' : ''}><i></i><div><b>{t}</b>{dd.length ? <span>{dd}</span> : null}{i === 2 && promNow && !isOwner ? <button type="button" class="rsign" onclick="document.getElementById('promSign').showModal()">✍️ Sign</button> : null}</div></li>; })}</ol>
+            <ol class="rlist">{S.map(([t, d], i) => { const dd = sep(d); return <li class={i < now || (i === 2 && signed) ? 'done' : i === now ? 'now' : ''}><i></i><div><b>{t === 'Picked up' && hi ? <span class="lh-moment">{raw(hand({ px: 48, play: 'g19' }))}{t}</span> : t}</b>{dd.length ? <span>{dd}</span> : null}{i === 2 && promNow && !isOwner ? <button type="button" class="rsign" onclick="document.getElementById('promSign').showModal()">✍️ Sign</button> : null}</div></li>; })}</ol>
             {cancel ? <div class="rfoot">{paused ? <a class="rpaused sms-only" href={smsHref(c.env, 'OK')}>📵 Texts paused · <u>text OK</u></a> : <span></span>}{cancel}</div> : null}
           </>; })() : null}
         {paused && !(!isOwner && stage <= 1 && r.status !== 'inquiry' && !dead) ? <a class="hint sms-only" href={smsHref(c.env, 'OK')} style="text-align:center;color:#b3261e;font-weight:700;display:block">📵 Lendo texts paused · <u>tap to text OK</u></a> : null}
@@ -470,7 +472,7 @@ rentals.post('/r/:id/pickup', requireUser, async (c) => {
   /* a hold over $500 needs the handover photo: it's the proof of what was handed over, and in what shape */
   if (!photo && (r.deposit_cents || 0) > HIGH_CENTS && r.status === 'confirmed') return c.redirect('/r/' + r.id + '?needphoto=1');
   await pickedUp(c.env, r, photo);
-  return c.redirect('/r/' + r.id);
+  return c.redirect('/r/' + r.id + '?hi=1');
 });
 rentals.post('/r/:id/return', requireUser, async (c) => {
   const u = c.get('user')!; const r = await rentalById(c.env.DB, c.req.param('id'));
