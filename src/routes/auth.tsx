@@ -15,6 +15,8 @@ import { setCookie, getCookie } from 'hono/cookie';
 
 export const auth = new Hono<{ Bindings: Env; Variables: Vars }>();
 
+/* what the login button puts in Messages: a member's plain "OK" means "got it", so the login one says what it's for */
+export const LOGIN_TEXT = 'OK, log me in';
 const num10 = (env: Env) => (env.LENDO_NUMBER || '').replace(/\D/g, '').slice(-10);
 const safeNext = (n: string | undefined) => (n && n.startsWith('/') && !n.startsWith('//') ? n : '/');
 
@@ -26,9 +28,9 @@ auth.get('/login', (c) => {
     <Layout title="Log in" user={null}>
       {/* text-first: the person texts Lendo, so Lendo is never an unknown sender; Lendo texts back a login link. The code form stays right below */}
       {num10(c.env) ? <div class="lg-top" style="padding:22px 16px 0">
-        <a class="btn pri full sms-only" href={smsHref(c.env, 'OK')} style="display:grid;place-items:center;text-decoration:none">💬 Text OK to Lendo</a>
+        <a class="btn pri full sms-only" href={smsHref(c.env, LOGIN_TEXT)} style="display:grid;place-items:center;text-decoration:none">💬 Text OK to Lendo</a>
         <p class="hint" style="margin:10px 0 0;font-size:12px">By continuing you agree to the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a></p>
-        <div class="pc-only" style="text-align:center"><span id="lgQr" data-sms={`SMSTO:+1${num10(c.env)}:OK`} aria-label="Scan to text Lendo" style="display:inline-block;background:#fff;border:2.5px solid var(--ink);border-radius:14px;padding:8px;line-height:0"></span>
+        <div class="pc-only" style="text-align:center"><span id="lgQr" data-sms={`SMSTO:+1${num10(c.env)}:${LOGIN_TEXT}`} aria-label="Scan to text Lendo" style="display:inline-block;background:#fff;border:2.5px solid var(--ink);border-radius:14px;padding:8px;line-height:0"></span>
           <p class="hint" style="margin:10px 0 0">Scan with your phone’s camera to text Lendo</p></div>
         <script src="/qrgen.js"></script>
         <script dangerouslySetInnerHTML={{ __html: `(function(){var q=document.getElementById('lgQr');if(!q||!window.qrcode||!matchMedia('(pointer:fine)').matches)return;var qr=qrcode(0,'M');qr.addData(q.dataset.sms);qr.make();var m=qr.getModuleCount(),s=5,pad=2,c=document.createElement('canvas');c.width=c.height=(m+pad*2)*s;var g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.fillStyle='#1E3A2B';for(var r=0;r<m;r++)for(var k=0;k<m;k++)if(qr.isDark(r,k))g.fillRect((k+pad)*s,(r+pad)*s,s,s);q.appendChild(c)})()` }} />

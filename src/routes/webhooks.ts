@@ -160,6 +160,11 @@ async function inboundText(c: Context<{ Bindings: Env; Variables: Vars }>, phone
     if (gift) return c.json({ ok: true, welcomed: true });
     return handleText(c, nu, text, 'text'); /* "Hi! I need a ladder" → matches */
   }
+  /* the login page's button ("OK, log me in") or someone just asking to get in → a login link, every time */
+  if (/^(OK )?(LOG ME IN|LOG IN|LOGIN|SIGN IN|SIGN ME IN)$/.test(kw)) {
+    await textUser(c.env, user, `You're in: ${await loginLink(c.env, phone)}`, 'login'); await logEvent(c.env.DB, 'login.text', { user: user.id, data: { via: sms ? 'sms' : 'text' } });
+    return c.json({ ok: true, login: true });
+  }
   { const rq = await rentAsk(c.env, text); /* a member who was logged out tapped Rent on an item page */
     if (rq) { await textUser(c.env, user, `Finish renting the ${rq.name} here: ${await loginLink(c.env, phone, rq.next)}`, 'login'); return c.json({ ok: true, rent: rq.id }); } }
   if (/\$5|gift card/i.test(text) && text.length < 40) { /* already a member, tapped the gift button again */
