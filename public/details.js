@@ -11,6 +11,8 @@
     t = t || ''; var n = 0, rows = C.map(function (c) { var ok = c[1].test(t); if (ok) n++; return '<div class="dk' + (ok ? ' ok' : '') + '">' + (ok ? '✓' : '○') + ' ' + c[0] + '</div>'; }).join('');
     return '<b>Details customers look for · ' + n + ' of 4</b><div class="dbar"><i style="width:' + n * 25 + '%"></i></div>' + rows;
   }
-  window.lendoDetails = html;
-  window.lendoDetailsBind = function (ta, box) { var up = function () { box.innerHTML = html(ta.value); }; ta.addEventListener('input', up); up(); };
+  /* off for now (Scott, 11/25): roadmap has a better way to help owners refine descriptions. Flip ON to bring the checklist back */
+  var ON = false;
+  window.lendoDetails = function (t) { return ON ? html(t) : ''; };
+  window.lendoDetailsBind = function (ta, box) { if (!ON) { box.hidden = true; box.style.display = 'none'; return; } var up = function () { box.innerHTML = html(ta.value); }; ta.addEventListener('input', up); up(); };
 })();
