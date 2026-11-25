@@ -995,3 +995,6 @@ input.otp::placeholder{color:#CFC9BC}
 input.otp{width:calc(6ch + 3em);padding:10px 0 10px .5em;overflow:hidden}
 /* condition grade bigger on the item page (Scott, 11/25) */
 .ititle .grdd.inrow,.ititle .grd.inrow,.ititle-g .grdd.inrow,.ititle-g .grd.inrow{zoom:.95!important;margin:-2px 0!important}
+
+/* after the pickup tap (Scott, 11/25) */
+.cal-hint{margin:6px 0 0;text-align:center;font-size:15px;font-weight:900;color:var(--orange)}.cal-hint[hidden]{display:none}
