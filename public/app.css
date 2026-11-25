@@ -985,3 +985,6 @@ header h1.sr,.sr{position:absolute!important;width:1px;height:1px;overflow:hidde
 .same-offer{display:block;margin:6px auto 0;padding:5px 12px;font:inherit;font-size:13px;font-weight:800;color:var(--ink);background:#fff;border:2px solid var(--ink);border-radius:10px;cursor:pointer}.same-offer[hidden]{display:none}
 .charges{padding-top:8px!important;padding-bottom:8px!important}.chg{padding:3px 0}.chg small{font-size:12.5px;font-weight:700;color:var(--mute);margin-left:6px}
 .chg-note{line-height:1.45}.chg-note a{color:inherit}
+
+/* no description: condition badge beside the title, no empty row (Scott, 11/25) */
+.ititle-g{flex-shrink:0;align-self:center}.ititle-g .grdd.inrow,.ititle-g .grd.inrow{zoom:.6;margin:0}

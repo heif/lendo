@@ -181,10 +181,11 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
       <section class="sec" style="padding:12px 16px 14px">
         <div class="row" style="justify-content:space-between;align-items:flex-start">
           <h2 style="margin:0;font-size:20px;font-weight:800;line-height:1.25">{(() => { const f = (owner.name || 'Neighbor').split(' ')[0]; const nm = it.name.charAt(0).toUpperCase() + it.name.slice(1); return <><a class="ownlink" href={(owner as any).handle ? '/' + (owner as any).handle : '/u/' + owner.id} style="font-weight:500;display:block;font-size:.72em">{f + (/s$/i.test(f) ? '’' : '’s')}</a>{nm}</>; })()}</h2>
+          {!(it.description || it.issues) ? <span class="ititle-g"><GradeInfo g={gr.letter} customers={gr.customers} owner={(owner.name || 'Owner').split(' ')[0]} cls="inrow" /></span> : null}
           {it.status === 'paused' && it.paused_why === 'notext' && isOwner ? <a class="pill" style="background:var(--orange);color:#fff;text-decoration:none;white-space:nowrap" href={smsHref(c.env, 'OK')}>Paused · text OK to Lendo</a> : it.status === 'paused' ? <span class="pill">paused</span> : it.status === 'review' ? <span class="pill">Posted · checking the photo</span> : null}
         </div>
         {ir?.n ? <div class="hint" style="margin-top:2px">👍 {ir.up || 0} of {ir.n}</div> : null}
-        <div class="ititle"><p style="flex:1;min-width:0;margin:0;font-size:14px;line-height:1.35;color:var(--ink2);white-space:pre-wrap">{it.description || ''}{it.issues ? (it.description ? '\n' : '') + 'Known issues: ' + it.issues : ''}</p><GradeInfo g={gr.letter} customers={gr.customers} owner={(owner.name || 'Owner').split(' ')[0]} cls="inrow" /></div>
+        {it.description || it.issues ? <div class="ititle"><p style="flex:1;min-width:0;margin:0;font-size:14px;line-height:1.35;color:var(--ink2);white-space:pre-wrap">{it.description || ''}{it.issues ? (it.description ? '\n' : '') + 'Known issues: ' + it.issues : ''}</p><GradeInfo g={gr.letter} customers={gr.customers} owner={(owner.name || 'Owner').split(' ')[0]} cls="inrow" /></div> : null}
         <div class={'askrow' + (isOwner ? ' own-off' : '')}>{isOwner ? <span class="askbtn">Ask</span> : it.status === 'live' ? (it.demo || !u
           ? <a class="askbtn" href={it.demo ? '#' : '/i/' + it.id + '/ask'} onclick={it.demo ? "event.preventDefault();toast('Demo item — messaging is off')" : undefined}>Ask</a>
           : <details class="askd" ontoggle="if(this.open)this.querySelector('textarea').focus()"><summary class="askbtn">Ask</summary>
@@ -223,7 +224,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
             <div class="meet-top"><span class="meet-lbl">{first.toUpperCase()}’S MEETUP SPOT</span><span class="meet-note"><svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="#8A857B" stroke-width="2" /><path d="M12 10.5V17" stroke="#8A857B" stroke-width="2.4" stroke-linecap="round" /><circle cx="12" cy="7.2" r="1.4" fill="#8A857B" /></svg><span>Confirm plans by text</span></span></div>
             <div class="meet-name"><svg width="14" height="16" viewBox="0 0 24 26" aria-hidden="true"><path d="M12 25C12 25 3 16 3 10A9 9 0 0 1 21 10C21 16 12 25 12 25Z" fill="#1E3A2B" /><circle cx="12" cy="10" r="3.4" fill="#fff" /></svg><span id="meetName">{spot}</span></div>
             <div class="meet-line" id="meetLine">{line}</div>
-            {!isOwner ? <button type="button" class="meet-link" id="meetMid">Meet midway</button> : null}
+            {!isOwner ? <button type="button" class="meet-link" id="meetMid">Request meet midway</button> : null}
             {!isOwner ? <div class="meet-ask" id="meetAsk" hidden><label for="meetFrom">WHERE ARE YOU COMING FROM?</label><div style="display:flex;gap:6px;margin-top:6px"><input id="meetFrom" placeholder="e.g. Bedford & N 7th" /><button type="button" id="meetGo">Midway</button></div></div> : null}
             {!isOwner ? <div class="meet-after" id="meetAfter" hidden><button type="button" id="meetChange">✎ Change</button><button type="button" id="meetBack">↺ {first}’s spot</button></div> : null}
           </div>); })()}
