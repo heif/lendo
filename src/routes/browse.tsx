@@ -161,7 +161,7 @@ export const itemPage = async (c: Ctx, lid: string, pretty = false) => {
   const ir = await c.env.DB.prepare('SELECT COUNT(*) n, SUM(item_rating >= 3) up FROM rentals WHERE listing_id = ? AND item_rating IS NOT NULL').bind(it.id).first<{ n: number; up: number }>().catch(() => null);
   c.header('cache-control', 'private, max-age=60'); c.header('vary', 'cookie'); /* map pins prefetch this page; a tap within a minute opens it from cache */
   return c.html(
-    <Layout title={it.name} headerCenter={<span />} user={u} flash={c.req.query('canceled') ? 'Checkout canceled — nothing was charged.' : null}>
+    <Layout title={it.name} og={{ title: `${it.name} · ${money(it.price_cents)}/day on Lendo`, desc: `From ${shortName(owner.name || '') || 'a neighbor'}${it.hood ? ' in ' + it.hood : ''} · rent it on Lendo`, image: photos[0] ? `https://lendo.co/p/${photos[0].r2_key}` : undefined }} headerCenter={<span />} user={u} flash={c.req.query('canceled') ? 'Checkout canceled — nothing was charged.' : null}>
       <div class={photos.length > 1 ? 'hero gal' : 'hero'}>
         {it.stock_photo ? <span class="stocktag">Stock photo</span> : null}
         {photos[0] ? <img id="heroImg" data-trim="1" src={cutoutUrl(c.env, photos[0].r2_key)} alt={it.name}  /> : it.avatar_key ? <img id="heroImg" class="trimme" crossorigin="anonymous" src={'/p/' + it.avatar_key} alt={it.name} /> : <div class="hint">no photo yet</div>}

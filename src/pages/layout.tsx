@@ -5,6 +5,7 @@ import type { User } from '../lib/env';
 import { GIFT_TEXT, site } from '../lib/blooio';
 
 export type LayoutProps = {
+  og?: { title: string; desc?: string; image?: string }; // link preview when the page is texted/shared (default: Lendo + og.png)
   title: string;              // header title ("Item", "Your listings")
   user: User | null;
   back?: string | null;       // back link; null hides the back button
@@ -31,6 +32,12 @@ export const Layout: FC<LayoutProps> = (p) => {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
         <title>Lendo — {p.title}</title>
         <meta name="theme-color" content="#F5F3EE" />
+        <meta property="og:site_name" content="Lendo" />
+        <meta property="og:title" content={p.og?.title || 'Lendo · rent things from neighbors'} />
+        <meta property="og:description" content={p.og?.desc || 'Rent what you need from people nearby. List your stuff and get paid'} />
+        <meta property="og:image" content={p.og?.image || 'https://lendo.co/og.png'} />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:card" content="summary_large_image" />
         <link rel="stylesheet" href="/app.css" />
         <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E👋%3C/text%3E%3C/svg%3E" />
         {p.head}
