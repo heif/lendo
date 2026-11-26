@@ -248,7 +248,7 @@ export async function handleText(c: Context<{ Bindings: Env; Variables: Vars }>,
         }
         await logEvent(c.env.DB, 'rental.answer_all', { user: user.id, rental: held.id, data: { yes, n: sibs.length + 1, failed: failed.length, one } });
         const own = (user.name || 'The owner').split(' ')[0];
-        if (cust && done.length) await textUser(c.env, cust, yes ? `${own} also said yes: ${done.join(', ')} · ${paid > 0 ? '$' + (paid / 100).toFixed(2) + ' paid' : 'free'} ${one ? ' · one charge for all ' + (done.length + 1) : ''} · same pickup ${c.env.APP_URL}/rentals` : `${own} also can't do: ${done.join(', ')}. Nothing was charged`, yes ? 'money' : 'rental', sibs[0].id);
+        if (cust && done.length) await textUser(c.env, cust, yes ? `${own} also said yes: ${done.join(', ')} · ${paid > 0 ? '$' + (paid / 100).toFixed(2) + ' paid' : 'free'} ${one ? ' · one charge for all ' + (done.length + 1) + ' · the earlier holds drop off your card in a few days' : ''} · same pickup ${c.env.APP_URL}/rentals` : `${own} also can't do: ${done.join(', ')}. Nothing was charged`, yes ? 'money' : 'rental', sibs[0].id);
         if (failed.length) await textUser(c.env, user, `Couldn't ${yes ? 'confirm' : 'pass on'} ${failed.join(', ')} — open ${c.env.APP_URL}/rentals`, 'rental', held.id);
       }
       return c.json({ ok: true });
