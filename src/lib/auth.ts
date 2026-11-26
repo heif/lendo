@@ -178,3 +178,33 @@ export async function useLoginLink(c: Context<{ Bindings: Env; Variables: Vars }
   setCookie(c, COOKIE, sid, { path: '/', httpOnly: true, sameSite: 'Lax', secure: c.env.APP_URL.startsWith('https'), maxAge: SESSION_DAYS * 86400 });
   return user;
 }
+
+// ---------- QR login on a computer: the QR text carries a pair code; when that text arrives the computer's page logs in by itself (no link to tap) ----------
+// otp_codes row: phone='pair:<CODE>', code='' while waiting, code=<phone> once the text arrives; 10 minutes; the computer holds the code in an httpOnly cookie
+const PAIR = 'lendo_pair', PAIR_ABC = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+export async function newPair(c: Context<{ Bindings: Env; Variables: Vars }>, next: string): Promise<string> {
+  const b = crypto.getRandomValues(new Uint8Array(6)); const code = Array.from(b, x => PAIR_ABC[x % PAIR_ABC.length]).join('');
+  await c.env.DB.prepare('INSERT OR REPLACE INTO otp_codes (phone, code, expires_at, attempts) VALUES (?,?,?,0)').bind('pair:' + code, '', now() + 10 * 60000).run();
+  setCookie(c, PAIR, code + '|' + next, { path: '/', httpOnly: true, sameSite: 'Lax', secure: c.env.APP_URL.startsWith('https'), maxAge: 600 });
+  return code;
+}
+/** a text "… log me in · CODE" arrived from this phone: mark the computer's code as approved. true if a waiting code matched */
+export async function approvePair(env: Env, code: string, phone: string): Promise<boolean> {
+  const r = await env.DB.prepare("UPDATE otp_codes SET code = ? WHERE phone = ? AND code = '' AND expires_at > ?").bind(phone, 'pair:' + code.toUpperCase(), now()).run();
+  return !!r.meta?.changes;
+}
+/** the computer asks: has my code been texted in? if so, log it in */
+export async function claimPair(c: Context<{ Bindings: Env; Variables: Vars }>): Promise<{ user: User; next: string } | null> {
+  const ck = getCookie(c, PAIR) || ''; const [code, next] = ck.split('|');
+  if (!/^[A-Z0-9]{6}$/.test(code || '')) return null;
+  const row = await c.env.DB.prepare('SELECT code, expires_at FROM otp_codes WHERE phone = ?').bind('pair:' + code).first<{ code: string; expires_at: number }>();
+  if (!row || row.expires_at < now() || !row.code) return null;
+  await c.env.DB.prepare('DELETE FROM otp_codes WHERE phone = ?').bind('pair:' + code).run(); /* one use */
+  deleteCookie(c, PAIR, { path: '/' });
+  const user = await ensureUser(c.env.DB, row.code);
+  const sid = id('s');
+  await c.env.DB.prepare('INSERT INTO sessions (id, user_id, expires_at) VALUES (?,?,?)').bind(sid, user.id, now() + SESSION_DAYS * 86400000).run();
+  await logEvent(c.env.DB, 'login', { user: user.id, data: { via: 'qr pair', ua: (c.req.header('user-agent') || '').slice(0, 160) } });
+  setCookie(c, COOKIE, sid, { path: '/', httpOnly: true, sameSite: 'Lax', secure: c.env.APP_URL.startsWith('https'), maxAge: SESSION_DAYS * 86400 });
+  return { user, next: next && next.startsWith('/') && !next.startsWith('//') ? next : '/' };
+}

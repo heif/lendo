@@ -11,7 +11,7 @@ import { cardFromSetup, rememberCard, stripe } from '../lib/stripe';
 import { parseInbound, textUser } from '../lib/blooio';
 import { linqParse, linqVerify } from '../lib/linq';
 import { ensureUser, rentalById, unpauseTexted, userByPhone } from '../lib/db';
-import { loginLink } from '../lib/auth';
+import { loginLink, approvePair } from '../lib/auth';
 import { accept, activeRentalFor, decline, holdDeposit, markHeld, relay } from '../lib/rentals';
 import { onDispute } from '../lib/claims';
 import { hmacHex, normPhone, timingSafeEq, firstName } from '../lib/util';
@@ -139,6 +139,9 @@ async function inboundText(c: Context<{ Bindings: Env; Variables: Vars }>, phone
   const text = m.text.trim();
   if (user && TAP_RE.test(text)) { await recordTap(c.env, user.id, text); await logEvent(c.env.DB, 'text.tap', { user: user.id }); return c.json({ ok: true, tap: true }); } /* 'Liked "…"' = a tapback, not a message */
   const kw = text.toUpperCase().replace(/[^A-Z ]/g, '').trim();
+  const pairM = text.match(/log me in\W*([A-Za-z0-9]{6})\s*$/i); /* the computer's QR: "OK, log me in · K7Q2XM" */
+  const paired = pairM && /^\+1\d{10}$/.test(phone) ? await approvePair(c.env, pairM[1], phone) : false;
+  if (paired) await logEvent(c.env.DB, 'login.pair', { user: user?.id ?? null, data: { via: sms ? 'sms' : 'text' } });
   if (!user) {
     await logEvent(c.env.DB, 'text.in_unknown', { data: { from: phone, body: text.slice(0, 500) } });
     if (!/^\+1\d{10}$/.test(phone) || kw === 'STOP' || kw === 'HELP') return c.json({ ok: true, unknown: true });
@@ -161,7 +164,8 @@ async function inboundText(c: Context<{ Bindings: Env; Variables: Vars }>, phone
     return handleText(c, nu, text, 'text'); /* "Hi! I need a ladder" → matches */
   }
   /* the login page's button ("OK, log me in") or someone just asking to get in → a login link, every time */
-  if (/^(OK )?(LOG ME IN|LOG IN|LOGIN|SIGN IN|SIGN ME IN)$/.test(kw)) {
+  if (paired) return c.json({ ok: true, paired: true }); /* the computer logs itself in; no link, no reply (Scott, 11/25) */
+  if (/^(OK )?(LOG ME IN|LOG IN|LOGIN|SIGN IN|SIGN ME IN)[A-Z ]*$/.test(kw)) {
     await textUser(c.env, user, `You're in: ${await loginLink(c.env, phone)}`, 'login'); await logEvent(c.env.DB, 'login.text', { user: user.id, data: { via: sms ? 'sms' : 'text' } });
     return c.json({ ok: true, login: true });
   }

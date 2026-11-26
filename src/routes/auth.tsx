@@ -6,7 +6,7 @@ import { logEvent, logErr } from '../lib/log';
 import { PhotoField, saveUserPhoto } from '../lib/userphoto';
 import type { Env, Vars } from '../lib/env';
 import { Layout } from '../pages/layout';
-import { startLogin, finishLogin, logout, smsFallback, useLoginLink } from '../lib/auth';
+import { startLogin, finishLogin, logout, smsFallback, useLoginLink, newPair, claimPair } from '../lib/auth';
 import { normPhone, prettyPhone, now } from '../lib/util';
 import { ensureUser } from '../lib/db';
 import { validEmail } from '../lib/email';
@@ -20,10 +20,11 @@ export const LOGIN_TEXT = 'OK, log me in';
 const num10 = (env: Env) => (env.LENDO_NUMBER || '').replace(/\D/g, '').slice(-10);
 const safeNext = (n: string | undefined) => (n && n.startsWith('/') && !n.startsWith('//') ? n : '/');
 
-auth.get('/login', (c) => {
+auth.get('/login', async (c) => {
   const u = c.get('user');
   const next = safeNext(c.req.query('next'));
   if (u) return c.redirect(next);
+  const pair = num10(c.env) ? await newPair(c, next) : '';
   return c.html(
     <Layout title="Log in" user={null}>
       {/* text-first: the person texts Lendo, so Lendo is never an unknown sender; Lendo texts back a login link. The code form stays right below */}
@@ -31,10 +32,10 @@ auth.get('/login', (c) => {
         <h2 class="lg-msg">Log in by text</h2>
         <a class="btn pri full sms-only" href={smsHref(c.env, LOGIN_TEXT)} style="display:grid;place-items:center;text-decoration:none">💬 Text OK to Lendo</a>
         <p class="hint" style="margin:10px 0 0;font-size:12px">By continuing you agree to the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a></p>
-        <div class="pc-only" style="text-align:center"><span id="lgQr" data-sms={`SMSTO:+1${num10(c.env)}:${LOGIN_TEXT}`} aria-label="Scan to text Lendo" style="display:inline-block;background:#fff;border:2.5px solid var(--ink);border-radius:14px;padding:8px;line-height:0"></span>
+        <div class="pc-only" style="text-align:center"><span id="lgQr" data-sms={`SMSTO:+1${num10(c.env)}:${LOGIN_TEXT} · ${pair}`} aria-label="Scan to text Lendo" style="display:inline-block;background:#fff;border:2.5px solid var(--ink);border-radius:14px;padding:8px;line-height:0"></span>
           <p class="hint" style="margin:10px 0 0">Scan with your phone’s camera to text Lendo</p></div>
         <script src="/qrgen.js"></script>
-        <script dangerouslySetInnerHTML={{ __html: `(function(){var q=document.getElementById('lgQr');if(!q||!window.qrcode||!matchMedia('(pointer:fine)').matches)return;var qr=qrcode(0,'M');qr.addData(q.dataset.sms);qr.make();var m=qr.getModuleCount(),s=5,pad=2,c=document.createElement('canvas');c.width=c.height=(m+pad*2)*s;var g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.fillStyle='#1E3A2B';for(var r=0;r<m;r++)for(var k=0;k<m;k++)if(qr.isDark(r,k))g.fillRect((k+pad)*s,(r+pad)*s,s,s);q.appendChild(c)})()` }} />
+        <script dangerouslySetInnerHTML={{ __html: `(function(){var q=document.getElementById('lgQr');if(!q||!window.qrcode||!matchMedia('(pointer:fine)').matches)return;var qr=qrcode(0,'M');qr.addData(q.dataset.sms);qr.make();var m=qr.getModuleCount(),s=5,pad=2,c=document.createElement('canvas');c.width=c.height=(m+pad*2)*s;var g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.fillStyle='#1E3A2B';for(var r=0;r<m;r++)for(var k=0;k<m;k++)if(qr.isDark(r,k))g.fillRect((k+pad)*s,(r+pad)*s,s,s);q.appendChild(c);var t0=Date.now();(function poll(){if(Date.now()-t0>6e5)return;fetch('/api/auth/pair',{headers:{accept:'application/json'}}).then(function(r){return r.json()}).then(function(j){if(j.go){location.href=j.go}else setTimeout(poll,2000)}).catch(function(){setTimeout(poll,4000)})})()})()` }} />
         <button type="button" class="lg-alt" onclick="var f=document.getElementById('lgCode');f.hidden=false;this.hidden=true;f.querySelector('input[name=phone]').focus()">Another way</button>
       </div> : null}
       {/* text-first: the code form opens from "Another way" (open by default with ?code=1, and whenever there is no Lendo number) */}
@@ -209,6 +210,13 @@ auth.post('/promo', async (c) => {
 });
 
 // texted one-time login link (gift card / Text Lendo replies)
+/* the computer's login page polls this while its QR is up */
+auth.get('/api/auth/pair', async (c) => {
+  const r = await claimPair(c);
+  if (!r) return c.json({ ok: false });
+  const nx = r.next === '/' ? '/?hi=1' : r.next;
+  return c.json({ ok: true, go: !r.user.name || !r.user.email ? '/welcome?next=' + encodeURIComponent(nx) : nx });
+});
 auth.get('/in/:t', async (c) => {
   const u = await useLoginLink(c, c.req.param('t'));
   if (!u) return c.redirect('/login');
