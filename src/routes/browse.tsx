@@ -669,7 +669,7 @@ browse.get('/sms', (c) => {
           <li>Checking it is not required. People who leave it unchecked can still log in, list, rent and use every feature; their updates come by email and on lendo.co, and Lendo texts them only the login codes they request</li>
           <li>Each opt-in is recorded with the time, method and device</li>
         </ul>
-        <img src="/optin-login.png" alt="lendo.co/login: phone number field, an unchecked optional checkbox for rental update texts with the texting terms, and the Text me a code button" style="display:block;width:100%;max-width:320px;margin:12px 0;border:3px solid #1E3A2B;border-radius:18px" />
+        <img src="/optin-login.png" alt="lendo.co/login: texting terms above the Text Lendo QR code, then the phone number field with an unchecked optional checkbox for rental update texts and the Text me a code button" style="display:block;width:100%;max-width:320px;margin:12px 0;border:3px solid #1E3A2B;border-radius:18px" />
         <h3 style={H2}>2. By texting Lendo first</h3>
         <ul style={UL}>
           <li>A person texts Lendo first: by SMS at (859) 695-3636 (Lendo’s SMS line), or by iMessage at {nice} — for example from a sign, a friend’s link, or the “Text OK to Lendo” button on lendo.co/login</li>
