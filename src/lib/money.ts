@@ -12,6 +12,9 @@ export function taxRateFor(lat: number | null | undefined, lng: number | null | 
   return 0;
 }
 
+/* the promo credit ($5 gift, $10 list-10) only comes off an item priced $15/day or more (Scott, 11/25); on a cheaper item it stays saved for later */
+export const CREDIT_MIN_DAY_CENTS = 1500;
+export const creditOk = (priceCents: number) => priceCents >= CREDIT_MIN_DAY_CENTS;
 export const feePct = (env: Env) => parseFloat(env.FEE_PCT || '15');
 
 export function quote(env: Env, rent: number, credit: number, rate: number) {

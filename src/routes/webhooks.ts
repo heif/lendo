@@ -158,7 +158,7 @@ async function inboundText(c: Context<{ Bindings: Env; Variables: Vars }>, phone
     await logEvent(c.env.DB, 'terms.shown', { user: nu.id, data: { via: 'welcome text' } });
     if (rq) { await textUser(c.env, nu, `Welcome to Lendo! Finish renting the ${rq.name} here: ${link} · Lendo texts cover logins, rentals and alerts you turn on · msg frequency varies · msg & data rates may apply · reply HELP for help, STOP to opt out${TERMS}`, 'login'); return c.json({ ok: true, rent: rq.id }); }
     await textUser(c.env, nu, gift
-      ? `Welcome to Lendo! ${giftVar === 'a' ? '$5 off' : 'Your $5 gift card is on'} your first rental${giftVar === 'a' ? ' is on' : ''}. You're in: ${link} · Lendo texts cover logins, rentals and alerts you turn on · msg frequency varies · msg & data rates may apply · reply HELP for help, STOP to opt out${TERMS}`
+      ? `Welcome to Lendo! ${giftVar === 'a' ? '$5 off' : 'Your $5 gift card is on'} your first rental of an item $15/day+${giftVar === 'a' ? ' is on' : ''}. You're in: ${link} · Lendo texts cover logins, rentals and alerts you turn on · msg frequency varies · msg & data rates may apply · reply HELP for help, STOP to opt out${TERMS}`
       : `Welcome to Lendo! You're in: ${link} · Lendo texts cover logins, rentals and alerts you turn on · msg frequency varies · msg & data rates may apply · reply HELP for help, STOP to opt out${TERMS}`, 'login');
     if (gift) return c.json({ ok: true, welcomed: true });
     return handleText(c, nu, text, 'text'); /* "Hi! I need a ladder" → matches */
@@ -173,7 +173,7 @@ async function inboundText(c: Context<{ Bindings: Env; Variables: Vars }>, phone
     if (rq) { await textUser(c.env, user, `Finish renting the ${rq.name} here: ${await loginLink(c.env, phone, rq.next)}`, 'login'); return c.json({ ok: true, rent: rq.id }); } }
   if (/\$5|gift card/i.test(text) && text.length < 40) { /* already a member, tapped the gift button again */
     if (!user.promo_claimed_at) await c.env.DB.prepare('UPDATE users SET promo_cents = 500, promo_claimed_at = ? WHERE id = ?').bind(Date.now(), user.id).run();
-    await textUser(c.env, user, `${user.promo_claimed_at ? 'Your $5 gift card is already on this number' : 'Your $5 gift card is on your first rental'}: ${await loginLink(c.env, phone)} · Reply OK to confirm`, 'login');
+    await textUser(c.env, user, `${user.promo_claimed_at ? 'Your $5 gift card is already on this number' : 'Your $5 gift card is on your first rental of an item $15/day+'}: ${await loginLink(c.env, phone)} · Reply OK to confirm`, 'login');
     return c.json({ ok: true });
   }
   return handleText(c, user, text, 'text');

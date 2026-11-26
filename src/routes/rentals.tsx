@@ -18,7 +18,7 @@ import { id, money, now, daysBetween, dayStr, addDays, fmtRange, rentFor, firstN
 import { cardSetupUrl, createCheckout, connectOnboardingUrl, flushPendingPayouts, stripe } from '../lib/stripe';
 import { HIGH_CENTS, holdFor } from '../lib/value';
 import { canOpen, claimFor, isOpen } from '../lib/claims';
-import { payoutOf, quote, taxRateFor } from '../lib/money';
+import { payoutOf, quote, taxRateFor, creditOk } from '../lib/money';
 import { selfMigrate } from '../lib/migrate';
 import { accept, allGood, decline, customerCancel, holdDeposit, markHeld, pickedUp, rate, relay, returned } from '../lib/rentals';
 import { smsHref, textsPaused, textUser } from '../lib/blooio';
@@ -47,7 +47,7 @@ rentals.post('/i/:id/rent', async (c) => {
   // promo credit ($5 phone bar, or $10 from the list-10 promo): used once, off the rent only. Tax is on the rent after credit; Lendo's fee comes out of the owner's payout
   const prior = await c.env.DB.prepare(`SELECT COUNT(*) n FROM rentals WHERE renter_id = ? AND credit_cents > 0 AND status IN ('held','confirmed','picked_up','returned','closed')`).bind(u.id).first<{ n: number }>();
   const rate = taxRateFor(it.lat, it.lng);
-  const q = quote(c.env, rent, (u.promo_cents || 0) > 0 && !(prior?.n) ? u.promo_cents : 0, rate);
+  const q = quote(c.env, rent, (u.promo_cents || 0) > 0 && !(prior?.n) && creditOk(it.price_cents) ? u.promo_cents : 0, rate);
   const ins = () => c.env.DB.prepare(`INSERT INTO rentals (id, listing_id, owner_id, renter_id, start_day, end_day, days, rent_cents, fee_cents, total_cents, credit_cents, tax_cents, tax_rate, payout_cents, status, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .bind(rid, it.id, it.owner_id, u.id, start, end, days, q.rent, q.fee, q.total, q.credit, q.tax, rate, q.payout, 'requested', t, t).run();
   /* right after a deploy the tax columns may not exist yet (cron migrates every 5 min) → migrate now and retry */

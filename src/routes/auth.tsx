@@ -205,7 +205,7 @@ auth.post('/promo', async (c) => {
   if (fresh) await logEvent(c.env.DB, 'ab.gift5', { user: user.id, data: { ev: 'claim', var: f.var === 'a' ? 'a' : 'b', via: 'phone' } });
   if (fresh) await c.env.DB.prepare('UPDATE users SET promo_cents = 500, promo_claimed_at = ? WHERE id = ?').bind(Date.now(), user.id).run();
   c.executionCtx.waitUntil(sendRaw(c.env, phone, fresh
-    ? `$5 off your first rental is saved to this number. Save contact + reply OK so rental texts reach you ${c.env.APP_URL}/lendo.vcf`
+    ? `$5 off your first rental of an item $15/day+ is saved to this number. Save contact + reply OK so rental texts reach you ${c.env.APP_URL}/lendo.vcf`
     : `$5 off is already saved to this number ${c.env.APP_URL}`).then(() => {}));
   setCookie(c, 'lendo_p', '1', { path: '/', sameSite: 'Lax', secure: c.env.APP_URL.startsWith('https'), maxAge: 365 * 86400 });
   return c.json({ ok: true, fresh });
