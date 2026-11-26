@@ -180,58 +180,92 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
         {it.price_cents > 0 && it.price_cents < MIN_RENT_CENTS ? <div class="prmin">{money(MIN_RENT_CENTS)} min charge</div> : null}
       </div>
       {mine ? <a class="myrent" href={'/r/' + mine.id}><b>{({ held: 'You asked to rent this', confirmed: 'You’re renting this', picked_up: 'You have this now', returned: 'You rented this' } as Record<string, string>)[mine.status]}</b><span>{fmtRange(mine.start_day, mine.end_day)} · {mine.status === 'held' ? 'waiting for YES' : mine.status === 'returned' ? 'rate it' : 'open rental'}</span><i dangerouslySetInnerHTML={{ __html: '<svg width="12" height="18" viewBox="0 0 12 18"><path d="M3 2l6 7-6 7" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>' }} /></a> : null}
-      <section class="sec" style="padding:12px 16px 14px">
-        <div class="row" style="justify-content:space-between;align-items:flex-start">
-          <h2 class="iname" style="margin:0;font-size:28px;font-weight:800;line-height:1.1;letter-spacing:-.01em">{(() => { const f = (owner.name || 'Neighbor').split(' ')[0]; const nm = it.name.charAt(0).toUpperCase() + it.name.slice(1); return <><a class="ownlink" href={(owner as any).handle ? '/' + (owner as any).handle : '/u/' + owner.id} style="font-weight:500;display:block;font-size:14.5px;letter-spacing:0;margin-bottom:2px">{f + (/s$/i.test(f) ? '’' : '’s')}</a>{nm}</>; })()}</h2>
-          {!(it.description || it.issues) ? <span class="ititle-g"><GradeInfo g={gr.letter} customers={gr.customers} owner={(owner.name || 'Owner').split(' ')[0]} cls="inrow" /></span> : null}
-          {it.status === 'paused' && it.paused_why === 'notext' && isOwner ? <a class="pill" style="background:var(--orange);color:#fff;text-decoration:none;white-space:nowrap" href={smsHref(c.env, 'OK')}>Paused · text OK to Lendo</a> : it.status === 'paused' ? <span class="pill">paused</span> : it.status === 'review' ? <span class="pill">Posted · checking the photo</span> : null}
-        </div>
-        {ir?.n ? <div class="hint" style="margin-top:2px">👍 {ir.up || 0} of {ir.n}</div> : null}
-        {it.description || it.issues ? <div class="ititle"><p style="flex:1;min-width:0;margin:0;font-size:14px;line-height:1.35;color:var(--ink2);white-space:pre-wrap">{it.description || ''}{it.issues ? (it.description ? '\n' : '') + 'Known issues: ' + it.issues : ''}</p><GradeInfo g={gr.letter} customers={gr.customers} owner={(owner.name || 'Owner').split(' ')[0]} cls="inrow" /></div> : null}
-        <div class={'askrow' + (isOwner ? ' own-off' : '')}>{isOwner ? <span class="askbtn">Ask</span> : it.status === 'live' ? (it.demo || !u
-          ? <a class="askbtn" href={it.demo ? '#' : '/i/' + it.id + '/ask'} onclick={it.demo ? "event.preventDefault();toast('Demo item — messaging is off')" : undefined}>Ask</a>
-          : <details class="askd" ontoggle="if(this.open)this.querySelector('textarea').focus()"><summary class="askbtn">Ask</summary>
-              <form class="askf" method="post" action={'/i/' + it.id + '/ask'} onsubmit={`event.preventDefault();var f=this,b=f.querySelector('button');if(!f.body.value.trim())return;b.disabled=true;fetch(f.action,{method:'POST',body:new FormData(f),headers:{accept:'application/json'}}).then(function(r){return r.json()}).then(function(j){if(!j.rid)throw 0;var d=document.createElement('div');d.className='askok';d.innerHTML='✓ Sent to ${(owner.name || 'the owner').split(' ')[0].replace(/[^\p{L}\p{N} .-]/gu, '')} · <a href="/r/'+j.rid+'">Open chat</a>';f.parentNode.replaceWith(d)}).catch(function(){b.disabled=false;f.submit()})`}>
-                <textarea name="body" rows={1} maxlength={500} placeholder="What comes with it?" required oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
-                <button type="submit" aria-label="Send" dangerouslySetInnerHTML={{ __html: SEND_SVG }} />
-              </form></details>) : <span />}{!isOwner && !it.demo ? <Flag kind="item" target={it.id} back={'/i/' + it.id} user={u} cls="iflag" /> : null}</div>
-        <div class="row" style="gap:8px;align-items:center"><a href={'/u/' + owner.id} class="owner-row owner-tight owner-orb" style="flex:1;min-width:0">
-          <OwnerOrbit name={owner.name} photo={owner.photo_key} items={others.map(o => ({ src: o.avatar_key ? '/p/' + o.avatar_key : '/c/' + oph[o.id] + '?s=200', cut: true })).filter(x => !x.src.endsWith('undefined'))} />
-          <span class="owner-txt"><b>{shortName(owner.name)}</b><small>{rep.as_owner_avg ? `${starStr(rep.as_owner_avg)} · ${rep.rentals} rentals` : 'new to Lendo'} · {rep.listed} listed{owner.hood ? ' · ' + owner.hood : ''}</small></span>
-          <svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2L8 8L2 14" fill="none" stroke="#1E3A2B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
-        </a></div>
+      {(() => {
+        /* the item page as five rows (Scott, 11/25): What · Who · When · Where · How much. Each row opens; When is open by default */
+        const first = (owner.name || 'Neighbor').split(' ')[0];
+        const nm = it.name.charAt(0).toUpperCase() + it.name.slice(1);
+        const spots: string[] = (() => { try { return owner.pickup_spots ? JSON.parse(owner.pickup_spots) : []; } catch { return []; } })();
+        const away = owner.lat != null && owner.lng != null && it.lat != null && it.lng != null && Math.hypot(owner.lat - it.lat, (owner.lng - it.lng) * 0.76) > 0.03;
+        const spot = away ? `Near ${it.hood || 'the item'}` : spots[0] || owner.cross_streets || `${first}’s block`;
+        const line = away ? 'exact spot by text' : [spots[0] && owner.cross_streets ? owner.cross_streets : '', it.hood || owner.hood].filter(Boolean).join(' · ') || 'near you';
+        const dow = new Date(today + 'T12:00:00Z').getUTCDay();
+        const shown = dow >= 5 ? 13 - dow : 6 - dow; /* this week; Fri/Sat show next week too */
+        const rate = rep.as_owner_avg ? '★ ' + Number(rep.as_owner_avg).toFixed(1) : 'new to Lendo';
+        const chev = <i class="ir-chev" aria-hidden="true" />;
+        const wk = !!(it.week_cents && it.week_cents < it.price_cents * 7);
+        return (
+      <section class="sec irows" style="padding:8px 14px 10px">
+        {it.status === 'paused' && it.paused_why === 'notext' && isOwner ? <a class="pill" style="background:var(--orange);color:#fff;text-decoration:none;white-space:nowrap;margin:0 0 8px;display:inline-block" href={smsHref(c.env, 'OK')}>Paused · text OK to Lendo</a> : it.status === 'paused' ? <span class="pill" style="margin:0 0 8px;display:inline-block">paused</span> : it.status === 'review' ? <span class="pill" style="margin:0 0 8px;display:inline-block">Posted · checking the photo</span> : null}
+        <details class="ir">
+          <summary><small>What</small><b class="ir-v">{nm} <span class={'ir-gl g' + gr.letter}>{gr.letter}</span></b>{chev}</summary>
+          <div class="ir-x">
+            {it.description || it.issues ? <p class="ir-p">{it.description || ''}{it.issues ? (it.description ? '\n' : '') + 'Known issues: ' + it.issues : ''}</p> : null}
+            <div class="ir-line"><GradeInfo g={gr.letter} customers={gr.customers} owner={first} cls="inrow" /><span>Condition {gr.letter} · {GRADE_WORD[gr.letter] || ''}{ir?.n ? ` · 👍 ${ir.up || 0} of ${ir.n}` : ''}</span></div>
+            <div class={'askrow' + (isOwner ? ' own-off' : '')}>{isOwner ? <span class="askbtn">Ask</span> : it.status === 'live' ? (it.demo || !u
+              ? <a class="askbtn" href={it.demo ? '#' : '/i/' + it.id + '/ask'} onclick={it.demo ? "event.preventDefault();toast('Demo item — messaging is off')" : undefined}>Ask</a>
+              : <details class="askd" ontoggle="if(this.open)this.querySelector('textarea').focus()"><summary class="askbtn">Ask</summary>
+                  <form class="askf" method="post" action={'/i/' + it.id + '/ask'} onsubmit={`event.preventDefault();var f=this,b=f.querySelector('button');if(!f.body.value.trim())return;b.disabled=true;fetch(f.action,{method:'POST',body:new FormData(f),headers:{accept:'application/json'}}).then(function(r){return r.json()}).then(function(j){if(!j.rid)throw 0;var d=document.createElement('div');d.className='askok';d.innerHTML='✓ Sent to ${first.replace(/[^\p{L}\p{N} .-]/gu, '')} · <a href="/r/'+j.rid+'">Open chat</a>';f.parentNode.replaceWith(d)}).catch(function(){b.disabled=false;f.submit()})`}>
+                    <textarea name="body" rows={1} maxlength={500} placeholder="What comes with it?" required oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+                    <button type="submit" aria-label="Send" dangerouslySetInnerHTML={{ __html: SEND_SVG }} />
+                  </form></details>) : <span />}{!isOwner && !it.demo ? <Flag kind="item" target={it.id} back={'/i/' + it.id} user={u} cls="iflag" /> : null}</div>
+          </div>
+        </details>
+        <details class="ir">
+          <summary><small>Who</small><b class="ir-v"><span class="ir-av">{owner.photo_key ? <img src={'/p/' + owner.photo_key} alt="" /> : (owner.name || '?').charAt(0).toUpperCase()}</span>{shortName(owner.name)} <span class="ir-m">{rate}</span></b>{chev}</summary>
+          <div class="ir-x">
+            <a href={'/u/' + owner.id} class="owner-row owner-tight owner-orb">
+              <OwnerOrbit name={owner.name} photo={owner.photo_key} items={others.map(o => ({ src: o.avatar_key ? '/p/' + o.avatar_key : '/c/' + oph[o.id] + '?s=200', cut: true })).filter(x => !x.src.endsWith('undefined'))} />
+              <span class="owner-txt"><b>{shortName(owner.name)}</b><small>{rep.as_owner_avg ? `${starStr(rep.as_owner_avg)} · ${rep.rentals} rentals` : 'new to Lendo'} · {rep.listed} listed</small></span>
+              <svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2L8 8L2 14" fill="none" stroke="#1E3A2B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </a>
+            {review ? <p class="ir-p">“{review.rv}” · {shortName(review.nm)}</p> : null}
+          </div>
+        </details>
         {it.status === 'live' || isOwner ? (
+        <details class="ir" open>
+          <summary><small>When</small><b class="ir-v" id="whenSum">Pick days</b>{chev}</summary>
+          <div class="ir-x">
           <form method="post" action={isOwner ? undefined : '/i/' + it.id + '/rent'} id="rentForm" class={isOwner ? 'own-off' : undefined} onsubmit={isOwner ? 'return false' : undefined} aria-hidden={isOwner ? 'true' : undefined}>
-            <div class="quick" id="quick" style="display:flex;gap:8px">
-              <button type="button" class="btn" data-q="1" style="flex:1;line-height:1.1"><b style="font-size:15px">1 day</b><small style="font-size:13px;font-weight:700">{money(rentFor(1, it.price_cents, it.week_cents))}</small></button>
-              {it.week_cents && it.week_cents < it.price_cents * 7 ? <button type="button" class="btn" data-q="7" style="flex:1.3;line-height:1.1;position:relative"><b style="font-size:15px">1 week</b><small style="font-size:13px;font-weight:700">{money(it.week_cents)} <s style="color:var(--mute);font-weight:600">{money(it.price_cents * 7)}</s></small><span style="position:absolute;right:-6px;top:-9px;background:var(--orange);color:#fff;border:1.5px solid var(--ink);border-radius:8px;font-size:10px;font-weight:900;padding:2px 6px">{Math.round(100 - it.week_cents / (it.price_cents * 7) * 100)}% OFF</span></button> : null}
-            </div>
-            <div class="days-hd">{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((w, i) => <span>{w}</span>)}</div>
-            <div class="days" id="days" style={`--lead:${new Date(days[0] + 'T12:00:00Z').getUTCDay()}`}>
+            <div class="days-hd wk" id="daysHd">{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((w) => <span>{w}</span>)}<span /></div>
+            <div class="days wk" id="days">
               {days.map((d, i) => {
                 const b = busy.has(d);
                 const dt = new Date(d + 'T12:00:00Z');
-                const first = i === 0 || dt.getUTCDate() === 1;
-                return <button type="button" class={(b ? 'busy' : '') + (i === 0 ? ' today' : '')} data-day={d} disabled={b} aria-label={fmtDay(d) + (b ? ' booked' : '')} style={i === 0 ? `grid-column-start:${dt.getUTCDay() + 1}` : ''}>
-                  {i === 0 ? <small>TODAY</small> : first ? <small>{dt.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })}</small> : null}<b>{dt.getUTCDate()}</b>
-                </button>;
+                const firstM = i === 0 || dt.getUTCDate() === 1;
+                return <>
+                  <button type="button" class={(b ? 'busy' : '') + (i === 0 ? ' today' : '') + (i > shown ? ' later' : '')} data-day={d} disabled={b} aria-label={fmtDay(d) + (b ? ' booked' : '')} style={`grid-column-start:${dt.getUTCDay() + 1}`}>
+                    {i === 0 ? <small>TODAY</small> : firstM ? <small>{dt.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })}</small> : null}<b>{dt.getUTCDate()}</b>
+                  </button>
+                  {i === shown ? <button type="button" class="dplus" id="daysMore" aria-label="More dates" style="grid-column-start:8">+</button> : null}
+                </>;
               })}
             </div>
+            {wk ? <div class="quick" id="quick">
+              <button type="button" class="btn" data-q="1">1 day {money(rentFor(1, it.price_cents, it.week_cents))}</button>
+              <button type="button" class="btn" data-q="7">1 week {money(it.week_cents!)} <s>{money(it.price_cents * 7)}</s><span class="qoff">{Math.round(100 - it.week_cents! / (it.price_cents * 7) * 100)}% OFF</span></button>
+            </div> : null}
             <div class="cal-hint" id="calHint" hidden>Tap return date</div><button type="button" class="same-offer" id="sameOffer" hidden />
             <input type="hidden" name="start" id="start" /><input type="hidden" name="end" id="end" /><input type="hidden" name="from" id="meetFromVal" />
           </form>
-        ) : null}
-        {(() => { const first = (owner.name || 'Neighbor').split(' ')[0]; const spots: string[] = owner.pickup_spots ? JSON.parse(owner.pickup_spots) : []; const away = owner.lat != null && owner.lng != null && it.lat != null && it.lng != null && Math.hypot(owner.lat - it.lat, (owner.lng - it.lng) * 0.76) > 0.03; const spot = away ? `Near ${it.hood || 'the item'}` : spots[0] || `${first}’s block`; const line = away ? 'exact spot by text' : [owner.cross_streets, it.hood].filter(Boolean).join(' · ') || 'near you'; return (
-          <div class="meet" id="meet">
-            <div class="meet-top"><span class="meet-lbl">{first.toUpperCase()}’S MEETUP SPOT</span><span class="meet-note"><svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="#8A857B" stroke-width="2" /><path d="M12 10.5V17" stroke="#8A857B" stroke-width="2.4" stroke-linecap="round" /><circle cx="12" cy="7.2" r="1.4" fill="#8A857B" /></svg><span>Confirm plans by text</span></span></div>
-            <div class="meet-name"><svg width="14" height="16" viewBox="0 0 24 26" aria-hidden="true"><path d="M12 25C12 25 3 16 3 10A9 9 0 0 1 21 10C21 16 12 25 12 25Z" fill="#1E3A2B" /><circle cx="12" cy="10" r="3.4" fill="#fff" /></svg><span id="meetName">{spot}</span></div>
+          </div>
+        </details>) : null}
+        <details class="ir">
+          <summary><small>Where</small><b class="ir-v" id="meetName">{spot}</b>{chev}</summary>
+          <div class="ir-x meet" id="meet">
+            <span class="meet-lbl" hidden>{first.toUpperCase()}’S MEETUP SPOT</span>
             <div class="meet-line" id="meetLine">{line}</div>
+            <div class="ir-p" style="margin-top:2px">{first}’s meetup spot · confirm plans by text</div>
             {!isOwner ? <button type="button" class="meet-link" id="meetMid">Request meet midway</button> : null}
             {!isOwner ? <div class="meet-ask" id="meetAsk" hidden><label for="meetFrom">WHERE ARE YOU COMING FROM?</label><div style="display:flex;gap:6px;margin-top:6px"><input id="meetFrom" placeholder="e.g. Bedford & N 7th" /><button type="button" id="meetGo">Midway</button></div></div> : null}
             {!isOwner ? <div class="meet-after" id="meetAfter" hidden><button type="button" id="meetChange">✎ Change</button><button type="button" id="meetBack">↺ {first}’s spot</button></div> : null}
-          </div>); })()}
-      </section>
-      {(it.status === 'live' && !it.demo) || isOwner ? <section class={'sec charges' + (isOwner ? ' own-off' : '')} id="charges" hidden /> : null}
+          </div>
+        </details>
+        {(it.status === 'live' && !it.demo) || isOwner ? (
+        <details class={'ir' + (isOwner ? ' own-off' : '')}>
+          <summary><small>How much</small><b class="ir-v ir-$" id="howSum">{money(it.price_cents)}/day</b>{chev}</summary>
+          <div class="ir-x"><div class="charges" id="charges" hidden /></div>
+        </details>) : null}
+      </section>); })()}
       {!u ? <div style="height:84px"></div> : null /* room for the floating phone/$5 OFF bar; logged in there is no bar, so no gap */}
       {it.demo ? <div class="flash" id="demoNote" hidden style="margin:0 16px 90px">This one’s a demo — Iowa City is a preview of what a Lendo neighborhood looks like full. Nothing gets charged. <a href="/list">List your real stuff →</a></div> : null}
       {!isOwner && it.status === 'live' ? (
@@ -241,19 +275,22 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
         </div>
       ) : isOwner ? <div class="rentbar"><button class="btn pri own-off" style="flex:1" id="rentBtn" type="button" disabled>PICK DAYS TO RENT</button><a class="btn" href={'/listings/' + it.id + '/edit'} style="flex:none;padding:0 20px">Edit</a></div> : null}
       {raw(`<script>
-(function(){var P=${it.price_cents},W=${it.week_cents || 0},TX=${taxRateFor(it.lat, it.lng)},CR=${credit};var bs=[].slice.call(document.querySelectorAll('#days button'));var s=null,e=null,TODAY=(bs[0]&&bs[0].classList.contains('today'))?bs[0].dataset.day:null;
+(function(){var P=${it.price_cents},W=${it.week_cents || 0},TX=${taxRateFor(it.lat, it.lng)},CR=${credit};var bs=[].slice.call(document.querySelectorAll('#days button[data-day]'));var s=null,e=null,TODAY=(bs[0]&&bs[0].classList.contains('today'))?bs[0].dataset.day:null;
 var MIN=${MIN_RENT_CENTS};function price(n){if(P<=0)return 0;var r=n*P;if(W)r=Math.min(Math.floor(n/7)*W+(n%7)*P,Math.ceil(n/7)*W);return Math.max(MIN,r)}
 function fmt(c){var d=c/100;return '$'+(Number.isInteger(d)?d:d.toFixed(2))}
 function nx(d,k){return new Date(Date.parse(d)+k*864e5).toISOString().slice(0,10)}
 /* a rental day = 24h: pick up on s, return on e (the day after the last rented day) · n = e − s */
-function paint(){offer();var hn=s&&e?Math.max(1,Math.round((Date.parse(e)-Date.parse(s))/864e5)):0;if(paint._r&&hn&&hn<=5&&hn!==paint._n&&window.lendoHand)lendoHand(hn);paint._n=hn;paint._r=1;var ch=document.getElementById('calHint');if(ch)ch.hidden=!pend;bs.forEach(function(b){var d=b.dataset.day;b.classList.toggle('on',!!s&&!!e&&d>=s&&d<=e);b.dataset.tag=!s?'':d===s?'pickup':d===e?'return':'';});var btn=document.getElementById('rentBtn');if(s&&e){var n=Math.max(1,Math.round((Date.parse(e)-Date.parse(s))/864e5));var r=price(n);btn.disabled=false;var wk=W&&r<n*P;btn.textContent='RENT '+(n===1&&s===TODAY?'TODAY':n===7&&wk?'1 WEEK':n+(n===1?' DAY':' DAYS'))+' · '+fmt(Math.max(0,r-CR)+Math.round(Math.max(0,r-CR)*TX))+(CR?' · $'+(Math.min(CR,r)/100)+' OFF':wk?' · WEEK RATE':'');document.querySelectorAll('#quick button').forEach(function(x){x.classList.toggle('pri',(x.dataset.q==='7'&&n===7)||(x.dataset.q==='1'&&n===1))});document.getElementById('start').value=s;document.getElementById('end').value=nx(e,-1);charges(n,r)}else{btn.disabled=true;btn.textContent='PICK DAYS TO RENT';charges(0,0)}}
-function charges(n,r){var el=document.getElementById('charges');if(!el)return;if(!n){el.hidden=true;return}var cr=CR?Math.min(CR,r):0,tax=Math.round((r-cr)*TX),full=n*P;var rows=[[(W&&r<full?(n===7?'1 week':n+' days')+' <s>'+fmt(full)+'</s>':fmt(P)+' × '+n+(n===1?' day':' days')),fmt(r)]];var lift=P>0&&n*P<MIN&&r===MIN;if(lift)rows[0]=[n+(n===1?' day':' days')+' <small>'+fmt(MIN)+' min charge</small>',fmt(MIN)];if(cr)rows.push(['Credit','−'+fmt(cr)]);if(tax)rows.push([TXL,fmt(tax)]);var tot=r-cr+tax;el.innerHTML=rows.map(function(x){return '<div class="chg"><span>'+x[0]+'</span><span>'+x[1]+'</span></div>'}).join('')+'<div class="chg tot"><span>Total</span><span>'+fmt(tot)+'</span></div>'+'<div class="chg-note">Card held now · charged only if the owner says yes'+(HOLD?'<br>'+HOLD+' hold at pickup, not a charge · <a href="/how-it-works#hold">how it works</a>':'')+'</div>';el.hidden=false}
+function paint(){offer();var ws=document.getElementById('whenSum');if(ws)ws.innerHTML=s&&e?wd(s)+' → '+wd(e)+' <span class="ir-m">'+Math.max(1,Math.round((Date.parse(e)-Date.parse(s))/864e5))+(Math.round((Date.parse(e)-Date.parse(s))/864e5)>1?' days':' day')+'</span>':pend?'Tap return date':'Pick days';if(s&&e&&bs.some(function(x){return x.classList.contains('later')&&x.dataset.day<=e}))more();var hn=s&&e?Math.max(1,Math.round((Date.parse(e)-Date.parse(s))/864e5)):0;if(paint._r&&hn&&hn<=5&&hn!==paint._n&&window.lendoHand)lendoHand(hn);paint._n=hn;paint._r=1;var ch=document.getElementById('calHint');if(ch)ch.hidden=!pend;bs.forEach(function(b){var d=b.dataset.day;b.classList.toggle('on',!!s&&!!e&&d>=s&&d<=e);b.dataset.tag=!s?'':d===s?'pickup':d===e?'return':'';});var btn=document.getElementById('rentBtn');if(s&&e){var n=Math.max(1,Math.round((Date.parse(e)-Date.parse(s))/864e5));var r=price(n);btn.disabled=false;var wk=W&&r<n*P;btn.textContent='RENT '+(n===1&&s===TODAY?'TODAY':n===7&&wk?'1 WEEK':n+(n===1?' DAY':' DAYS'))+' · '+fmt(Math.max(0,r-CR)+Math.round(Math.max(0,r-CR)*TX))+(CR?' · $'+(Math.min(CR,r)/100)+' OFF':wk?' · WEEK RATE':'');document.querySelectorAll('#quick button').forEach(function(x){x.classList.toggle('pri',(x.dataset.q==='7'&&n===7)||(x.dataset.q==='1'&&n===1))});document.getElementById('start').value=s;document.getElementById('end').value=nx(e,-1);charges(n,r)}else{btn.disabled=true;btn.textContent='PICK DAYS TO RENT';charges(0,0)}}
+function charges(n,r){var el=document.getElementById('charges');if(!el)return;if(!n){el.hidden=true;var hs=document.getElementById('howSum');if(hs)hs.textContent=fmt(P)+'/day';return}var cr=CR?Math.min(CR,r):0,tax=Math.round((r-cr)*TX),full=n*P;var rows=[[(W&&r<full?(n===7?'1 week':n+' days')+' <s>'+fmt(full)+'</s>':fmt(P)+' × '+n+(n===1?' day':' days')),fmt(r)]];var lift=P>0&&n*P<MIN&&r===MIN;if(lift)rows[0]=[n+(n===1?' day':' days')+' <small>'+fmt(MIN)+' min charge</small>',fmt(MIN)];if(cr)rows.push(['Credit','−'+fmt(cr)]);if(tax)rows.push([TXL,fmt(tax)]);var tot=r-cr+tax;var hs=document.getElementById('howSum');if(hs)hs.textContent=fmt(tot);el.innerHTML=rows.map(function(x){return '<div class="chg"><span>'+x[0]+'</span><span>'+x[1]+'</span></div>'}).join('')+'<div class="chg tot"><span>Total</span><span>'+fmt(tot)+'</span></div>'+'<div class="chg-note">Card held now · charged only if the owner says yes'+(HOLD?'<br>'+HOLD+' hold at pickup, not a charge · <a href="/how-it-works#hold">how it works</a>':'')+'</div>';el.hidden=false}
 var TXL=${JSON.stringify(taxLabel(taxRateFor(it.lat, it.lng)))},pend=false,HOLD=${JSON.stringify(hold.cents > 0 ? money(hold.cents) : '')};
 /* under the $5 minimum: offer the extra days that cost nothing more, only when those days are open (the owner still says yes or no) */
 function offer(){var o=document.getElementById('sameOffer');if(!o)return;o.hidden=true;if(!s||!e||P<=0||W)return;var n=Math.round((Date.parse(e)-Date.parse(s))/864e5),same=Math.floor(MIN/P);if(same<=n)return;var to=nx(s,same);for(var k=0;k<same;k++){var d=nx(s,k),m=bs.filter(function(x){return x.dataset.day===d})[0];if(!m||m.disabled)return}if(!bs.some(function(x){return x.dataset.day===to}))return;o.textContent='Same '+fmt(MIN)+' for '+same+' days';o.dataset.to=to;o.hidden=false}
 (function(){var o=document.getElementById('sameOffer');if(o)o.addEventListener('click',function(){e=o.dataset.to;pend=false;paint()})})();
 var SMS=${JSON.stringify(!u && !it.demo && (c.env.LENDO_NUMBER || '') ? 'sms:+1' + (c.env.LENDO_NUMBER || '').replace(/\D/g, '').slice(-10) + '?&body=' : '')},NM=${JSON.stringify(it.name).replace(/</g, '\\u003c')},REF=${JSON.stringify(it.id.replace(/^l_/, ''))};
 function md(d){return (+d.slice(5,7))+'/'+(+d.slice(8,10))}
+function wd(d){return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(d+'T12:00:00Z').getUTCDay()]+' '+md(d)}
+function more(){var g=document.getElementById('days'),h=document.getElementById('daysHd'),m=document.getElementById('daysMore');if(!g||!g.classList.contains('wk'))return;g.classList.remove('wk');if(h)h.classList.remove('wk');if(m)m.hidden=true}
+(function(){var m=document.getElementById('daysMore');if(m)m.addEventListener('click',more)})();
 var rf=document.getElementById('rentForm');if(rf&&SMS)rf.addEventListener('submit',function(ev){if(!s||!e)return;if(matchMedia('(pointer:coarse)').matches){ev.preventDefault();location.href=SMS+encodeURIComponent('Rent '+NM+' '+md(s)+'-'+md(e)+' · ref '+REF);var b=document.getElementById('rentBtn');b.textContent='SEND THE TEXT · LENDO TEXTS BACK A LINK'}});
 document.querySelectorAll('#quick button').forEach(function(q){q.addEventListener('click',function(){var n=+q.dataset.q,free=bs.filter(function(x){return !x.disabled});for(var i=0;i<free.length;i++){var ok=true,a=free[i].dataset.day,z=null;for(var k=0;k<n;k++){var dd=new Date(Date.parse(a)+k*864e5).toISOString().slice(0,10);var m=bs.filter(function(x){return x.dataset.day===dd})[0];if(!m||m.disabled){ok=false;break}z=dd}if(ok){s=a;e=nx(z,1);pend=false;break}}document.querySelectorAll('#quick button').forEach(function(x){x.classList.toggle('pri',x===q)});paint()})});
 bs.forEach(function(b){b.addEventListener('click',function(){var d=b.dataset.day;document.querySelectorAll('#quick button').forEach(function(x){x.classList.remove('pri')});if(b.disabled)return;if(!pend||d<=s){s=d;e=nx(d,1);pend=true}else{var ok=true;bs.forEach(function(x){if(x.disabled&&x.dataset.day>=s&&x.dataset.day<d)ok=false});if(!ok){s=d;e=nx(d,1);pend=true}else{e=d;pend=false}}paint()})});

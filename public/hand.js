@@ -45,14 +45,14 @@
   var FUN = ['horns', 'shaka', 'jazz', 'snap', 'drum', 'count', 'thumb', 'peace', 'ok', 'crossed', 'soso', 'nod'];
   var first = false; try { if (location.pathname === '/' && !localStorage.getItem('lh_w')) { localStorage.setItem('lh_w', '1'); first = true; } } catch (e) {}
   var ask = document.querySelector('[data-lh]'), want = ask && ask.getAttribute('data-lh');
-  var roll = Math.random(), intro = first || roll < .6 ? 'wave' : roll < .8 ? 'l' : FUN[Math.floor(Math.random() * FUN.length)];
+  var roll = Math.random(), intro = first || roll < .7 ? 'wave' : roll < .9 ? 'l' : FUN[Math.floor(Math.random() * FUN.length)];
   (intro === 'l' ? play('l') : play(intro).then(function () { return tok === 1 ? play('l') : null; })).then(function () { if (want && !busy) return play(/^[1-5]$/.test(want) ? +want : want); }).then(idle);
-  /* keeps going while the page is open: every few seconds 60% a wave, 20% stay on the (slightly waving) L, 20% a fun or small gesture */
+  /* keeps going while the page is open: every few seconds 70% a wave, 20% stay on the (slightly waving) L, 10% a fun or small gesture */
   function idle() {
     if (RM) return;
     setTimeout(function () {
       if (busy || document.hidden) return idle();
-      var r = Math.random(), k = r < .6 ? 'wave' : r < .8 ? null : FUN[Math.floor(Math.random() * FUN.length)];
+      var r = Math.random(), k = r < .7 ? 'wave' : r < .9 ? null : FUN[Math.floor(Math.random() * FUN.length)];
       if (!k) return idle();
       play(k).then(idle);
     }, 7000 + Math.random() * 7000);
