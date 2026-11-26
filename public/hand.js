@@ -7,7 +7,7 @@
 (function () {
   var H = document.querySelector('.logo .lh'); if (!H) { window.lendoHand = function () {}; return; }
   var RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var G = { l: { a: 'lhL', d: 900, n: 1 }, wave: { pose: 'open', a: 'lhWave', d: 900, n: 3 }, shrug: { pose: 'open', a: 'lhShrug', d: 2200, n: 3, x: 'o82' },
+  var G = { l: { a: 'lhL', d: 900, n: 1 }, wave: { pose: 'open', a: 'lhWave', d: 1400, n: 3 }, shrug: { pose: 'open', a: 'lhShrug', d: 2200, n: 3, x: 'o82' },
     nod: { pose: 'open', a: 'lhNod', d: 800, n: 3 },
     horns: { pose: 'horns', a: 'lhRock', d: 440, n: 7 }, shaka: { pose: 'shaka', a: 'lhWiggle', d: 480, n: 5 }, jazz: { pose: 'jazz', a: 'lhJazz', d: 200, n: 12 },
     snap: { pose: 'open', a: 'lhNone', d: 800, n: 3, x: 'fx-snap' }, drum: { pose: 'open', a: 'lhNone', d: 560, n: 4, x: 'fx-drum' }, count: { pose: 'fist', a: 'lhNone', d: 2800, n: 1, x: 'fx-count' },
@@ -41,18 +41,18 @@
     })();
   }
   window.lendoHand = function (x) { return play(x); };
-  /* intro on every page load (first homepage visit always waves): 60% wave, 20% the L, 20% one fun or small gesture. Always ends in the L. Then whatever the page asked for */
+  /* intro on every page load (first homepage visit always waves): 80% wave, 10% the L, 10% one fun or small gesture. Always ends in the L. Then whatever the page asked for */
   var FUN = ['horns', 'shaka', 'jazz', 'snap', 'drum', 'count', 'thumb', 'peace', 'ok', 'crossed', 'soso', 'nod'];
   var first = false; try { if (location.pathname === '/' && !localStorage.getItem('lh_w')) { localStorage.setItem('lh_w', '1'); first = true; } } catch (e) {}
   var ask = document.querySelector('[data-lh]'), want = ask && ask.getAttribute('data-lh');
-  var roll = Math.random(), intro = first || roll < .7 ? 'wave' : roll < .9 ? 'l' : FUN[Math.floor(Math.random() * FUN.length)];
+  var roll = Math.random(), intro = first || roll < .8 ? 'wave' : roll < .9 ? 'l' : FUN[Math.floor(Math.random() * FUN.length)];
   (intro === 'l' ? play('l') : play(intro).then(function () { return tok === 1 ? play('l') : null; })).then(function () { if (want && !busy) return play(/^[1-5]$/.test(want) ? +want : want); }).then(idle);
-  /* keeps going while the page is open: every few seconds 70% a wave, 20% stay on the (slightly waving) L, 10% a fun or small gesture */
+  /* keeps going while the page is open: every few seconds 80% a slow wave, 10% stay on the (slightly waving) L, 10% a fun or small gesture */
   function idle() {
     if (RM) return;
     setTimeout(function () {
       if (busy || document.hidden) return idle();
-      var r = Math.random(), k = r < .7 ? 'wave' : r < .9 ? null : FUN[Math.floor(Math.random() * FUN.length)];
+      var r = Math.random(), k = r < .8 ? 'wave' : r < .9 ? null : FUN[Math.floor(Math.random() * FUN.length)];
       if (!k) return idle();
       play(k).then(idle);
     }, 7000 + Math.random() * 7000);
