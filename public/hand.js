@@ -74,3 +74,9 @@
   }
   (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(function () { fit(); setTimeout(fit, 300); });
 })();
+/* every "log in" link remembers this page, so a login (code, texted link or QR) lands back here (Scott, 11/26) */
+(function () {
+  if (/^\/(login|in\/)/.test(location.pathname)) return;
+  var here = location.pathname + location.search;
+  document.querySelectorAll('a[href="/login"]').forEach(function (a) { a.href = '/login?next=' + encodeURIComponent(here); });
+})();

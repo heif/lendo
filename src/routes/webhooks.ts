@@ -11,7 +11,7 @@ import { cardFromSetup, rememberCard, stripe, chargeTogether } from '../lib/stri
 import { parseInbound, textUser } from '../lib/blooio';
 import { linqParse, linqVerify } from '../lib/linq';
 import { ensureUser, rentalById, unpauseTexted, userByPhone, userById } from '../lib/db';
-import { loginLink, approvePair } from '../lib/auth';
+import { loginLink, approvePair, pairNext } from '../lib/auth';
 import { accept, activeRentalFor, decline, holdDeposit, markHeld, relay, heldTogether } from '../lib/rentals';
 import { onDispute } from '../lib/claims';
 import { hmacHex, normPhone, timingSafeEq, firstName, money, fmtDay } from '../lib/util';
@@ -141,6 +141,7 @@ async function inboundText(c: Context<{ Bindings: Env; Variables: Vars }>, phone
   const kw = text.toUpperCase().replace(/[^A-Z ]/g, '').trim();
   const pairM = text.match(/log me in\W*([A-Za-z0-9]{6})\s*$/i); /* the computer's QR: "OK, log me in · K7Q2XM" */
   const paired = pairM && /^\+1\d{10}$/.test(phone) ? await approvePair(c.env, pairM[1], phone) : false;
+  const pNext = pairM ? await pairNext(c.env, pairM[1]) : undefined; /* where they were when they tapped Text to log in */
   if (paired) await logEvent(c.env.DB, 'login.pair', { user: user?.id ?? null, data: { via: sms ? 'sms' : 'text' } });
   if (!user) {
     await logEvent(c.env.DB, 'text.in_unknown', { data: { from: phone, body: text.slice(0, 500) } });
@@ -153,7 +154,7 @@ async function inboundText(c: Context<{ Bindings: Env; Variables: Vars }>, phone
     if (gift) await logEvent(c.env.DB, 'ab.gift5', { user: nu.id, data: { ev: 'claim', var: giftVar, via: 'text' } });
     if (gift) await c.env.DB.prepare('UPDATE users SET promo_cents = 500, promo_claimed_at = ? WHERE id = ? AND promo_claimed_at IS NULL').bind(Date.now(), nu.id).run();
     const rq = await rentAsk(c.env, text);
-    const link = await loginLink(c.env, phone, rq?.next);
+    const link = await loginLink(c.env, phone, rq?.next || pNext);
     const TERMS = ` · by continuing you agree to the Terms ${c.env.APP_URL.replace(/^https?:\/\//, '')}/terms`;
     await logEvent(c.env.DB, 'terms.shown', { user: nu.id, data: { via: 'welcome text' } });
     if (rq) { await textUser(c.env, nu, `Welcome to Lendo! Finish renting the ${rq.name} here: ${link} · Lendo texts cover logins, rentals and alerts you turn on · msg frequency varies · msg & data rates may apply · reply HELP for help, STOP to opt out${TERMS}`, 'login'); return c.json({ ok: true, rent: rq.id }); }
@@ -166,7 +167,7 @@ async function inboundText(c: Context<{ Bindings: Env; Variables: Vars }>, phone
   /* the login page's button ("OK, log me in") or someone just asking to get in → a login link, every time */
   if (paired) return c.json({ ok: true, paired: true }); /* the computer logs itself in; no link, no reply (Scott, 11/25) */
   if (/^(OK )?(LOG ME IN|LOG IN|LOGIN|SIGN IN|SIGN ME IN)[A-Z ]*$/.test(kw)) {
-    await textUser(c.env, user, `You're in: ${await loginLink(c.env, phone)}`, 'login'); await logEvent(c.env.DB, 'login.text', { user: user.id, data: { via: sms ? 'sms' : 'text' } });
+    await textUser(c.env, user, `You're in: ${await loginLink(c.env, phone, pNext)}`, 'login'); await logEvent(c.env.DB, 'login.text', { user: user.id, data: { via: sms ? 'sms' : 'text' } });
     return c.json({ ok: true, login: true });
   }
   { const rq = await rentAsk(c.env, text); /* a member who was logged out tapped Rent on an item page */

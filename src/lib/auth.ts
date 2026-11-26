@@ -184,24 +184,33 @@ export async function useLoginLink(c: Context<{ Bindings: Env; Variables: Vars }
 const PAIR = 'lendo_pair', PAIR_ABC = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 export async function newPair(c: Context<{ Bindings: Env; Variables: Vars }>, next: string): Promise<string> {
   const b = crypto.getRandomValues(new Uint8Array(6)); const code = Array.from(b, x => PAIR_ABC[x % PAIR_ABC.length]).join('');
-  await c.env.DB.prepare('INSERT OR REPLACE INTO otp_codes (phone, code, expires_at, attempts) VALUES (?,?,?,0)').bind('pair:' + code, '', now() + 10 * 60000).run();
+  await c.env.DB.prepare('INSERT OR REPLACE INTO otp_codes (phone, code, expires_at, attempts) VALUES (?,?,?,0)').bind('pair:' + code, '?' + (next && next.startsWith('/') && !next.startsWith('//') ? next : '/'), now() + 10 * 60000).run(); /* '?' + where they were, until a text approves it */
   setCookie(c, PAIR, code + '|' + next, { path: '/', httpOnly: true, sameSite: 'Lax', secure: c.env.APP_URL.startsWith('https'), maxAge: 600 });
   return code;
 }
 /** a text "… log me in · CODE" arrived from this phone: mark the computer's code as approved. true if a waiting code matched */
 export async function approvePair(env: Env, code: string, phone: string): Promise<boolean> {
-  const r = await env.DB.prepare("UPDATE otp_codes SET code = ? WHERE phone = ? AND code = '' AND expires_at > ?").bind(phone, 'pair:' + code.toUpperCase(), now()).run();
+  const k = 'pair:' + code.toUpperCase();
+  const row = await env.DB.prepare('SELECT code FROM otp_codes WHERE phone = ? AND expires_at > ?').bind(k, now()).first<{ code: string }>();
+  if (!row || !(row.code === '' || row.code.startsWith('?'))) return false;
+  const r = await env.DB.prepare('UPDATE otp_codes SET code = ? WHERE phone = ? AND code = ?').bind(phone + '|' + (row.code.slice(1) || '/'), k, row.code).run();
   return !!r.meta?.changes;
+}
+/** where the person was when they tapped Text to log in (even if the code ran out), so the texted link lands there */
+export async function pairNext(env: Env, code: string): Promise<string | undefined> {
+  const row = await env.DB.prepare('SELECT code FROM otp_codes WHERE phone = ?').bind('pair:' + code.toUpperCase()).first<{ code: string }>();
+  const nx = row?.code.startsWith('?') ? row.code.slice(1) : row?.code.split('|')[1];
+  return nx && nx.startsWith('/') && !nx.startsWith('//') && nx !== '/' ? nx : undefined;
 }
 /** the computer asks: has my code been texted in? if so, log it in */
 export async function claimPair(c: Context<{ Bindings: Env; Variables: Vars }>): Promise<{ user: User; next: string } | null> {
   const ck = getCookie(c, PAIR) || ''; const [code, next] = ck.split('|');
   if (!/^[A-Z0-9]{6}$/.test(code || '')) return null;
   const row = await c.env.DB.prepare('SELECT code, expires_at FROM otp_codes WHERE phone = ?').bind('pair:' + code).first<{ code: string; expires_at: number }>();
-  if (!row || row.expires_at < now() || !row.code) return null;
+  if (!row || row.expires_at < now() || !row.code || row.code.startsWith('?')) return null;
   await c.env.DB.prepare('DELETE FROM otp_codes WHERE phone = ?').bind('pair:' + code).run(); /* one use */
   deleteCookie(c, PAIR, { path: '/' });
-  const user = await ensureUser(c.env.DB, row.code);
+  const user = await ensureUser(c.env.DB, row.code.split('|')[0]);
   const sid = id('s');
   await c.env.DB.prepare('INSERT INTO sessions (id, user_id, expires_at) VALUES (?,?,?)').bind(sid, user.id, now() + SESSION_DAYS * 86400000).run();
   await logEvent(c.env.DB, 'login', { user: user.id, data: { via: 'qr pair', ua: (c.req.header('user-agent') || '').slice(0, 160) } });
