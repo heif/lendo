@@ -44,7 +44,7 @@ export async function markHeld(env: Env, r: Rental, paymentIntent: string | null
     return; /* the customer just added it on the site: no second "requested" text */
   }
   await textUser(env, owner, `${firstName(renter.name)} wants your ${listing.name} ${fmtRange(r.start_day, r.end_day)}. You'd earn ${money(payoutOf(r))}. Reply YES to accept or NO to pass. ${url}`, 'rental', r.id, { emailed: em.ok });
-  await textUser(env, renter, `Requested ${listing.name} from ${firstName(owner.name)} for ${fmtRange(r.start_day, r.end_day)}. Your card is held, not charged, until they say yes. We'll text you. ${url}`, 'rental', r.id);
+  await textUser(env, renter, `Requested ${listing.name} from ${firstName(owner.name)} for ${fmtRange(r.start_day, r.end_day)} · card held, not charged, until they say yes · a text comes when they answer ${url}`, 'rental', r.id);
 }
 
 /** other requests still waiting from the same customer to the same owner for the same days ("add another from Scott", 11/25) */
@@ -55,7 +55,8 @@ export async function heldTogether(env: Env, r: Rental): Promise<Rental[]> {
 
 // rentCents: owner's "Give a discount" — any amount from the requested rent down to 0, never higher.
 // quiet: an add-on answered together with another request: same money steps, no texts (the caller sends one summary)
-export async function accept(env: Env, r0: Rental, rentCents?: number, quiet?: boolean): Promise<boolean> {
+/* quiet: true = no texts at all; 'customer' = owner texts only (the caller sends the customer one combined text) */
+export async function accept(env: Env, r0: Rental, rentCents?: number, quiet?: boolean | 'customer'): Promise<boolean> {
   if (r0.status !== 'held') return false;
   let r = r0;
   if (rentCents != null && rentCents >= 0 && rentCents < r0.rent_cents) {
@@ -72,12 +73,13 @@ export async function accept(env: Env, r0: Rental, rentCents?: number, quiet?: b
   const paidLine = r.total_cents <= 0 || how === 'released' ? 'free — nothing charged' : `${money(r.total_cents)} paid`;
   await addMessage(env, r.id, null, `${firstName(owner.name)} said yes · ${paidLine} · set a pickup time`, 'system');
   const spot = owner.pickup_spots ? ` Meet: ${(JSON.parse(owner.pickup_spots) as string[]).join(' or ')}` : '';
-  if (quiet) return true;
+  if (quiet === true) return true;
   const gift = r.rent_cents === 0 ? ` ${firstName(owner.name)} is lending it to you free!` : r0.rent_cents > r.rent_cents ? ` ${firstName(owner.name)} gave you a discount` : '';
   // owner is asked for a pickup time right after YES (no pickup hours); their reply relays to the customer, SKIP leaves it to the customer
-  await textUser(env, renter, `${firstName(owner.name)} said yes!${gift} ${paidLine[0].toUpperCase() + paidLine.slice(1)}.${spot} Next: sign your promise to ${firstName(owner.name)} (3 quick checks) ${url}#promise`, 'money', r.id);
+  /* one text: yes + paid + pickup day + spot + hold; the time follows when the owner replies one */
+  const holdNote = (r.deposit_cents || 0) > 0 ? ` · ${money(r.deposit_cents!)} hold (not a charge) goes on your card at pickup, off after return` : '';
+  if (!quiet) await textUser(env, renter, `${firstName(owner.name)} said yes!${gift} · ${paidLine} · pickup ${fmtDay(r.start_day)}${spot ? ' ·' + spot.replace(' Meet:', ' at') : ''} (time coming from ${firstName(owner.name)})${holdNote} · next: sign your promise (3 quick checks) ${url}#promise`, 'money', r.id);
   await textUser(env, owner, `${r.rent_cents === 0 ? 'Done — lending it free' : `Done. ${firstName(renter.name)} paid`}. When can ${firstName(renter.name)} pick it up? Reply a time (like "after 6"), or SKIP`, 'rental', r.id);
-  if ((r.deposit_cents || 0) > 0) await textUser(env, renter, `Heads up: at pickup there's a ${money(r.deposit_cents!)} hold (not a charge) on your card, released when you return the ${listing.name}. Questions? Just reply`, 'rental', r.id);
   if (!owner.stripe_account_id && r.rent_cents > 0) {
     await textUser(env, owner, `Where should your ${money(payoutOf(r))} go? Add a debit card or bank, takes 30 sec: ${env.APP_URL}/payout`, 'money', r.id);
   }

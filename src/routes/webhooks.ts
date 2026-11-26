@@ -14,7 +14,7 @@ import { ensureUser, rentalById, unpauseTexted, userByPhone, userById } from '..
 import { loginLink, approvePair } from '../lib/auth';
 import { accept, activeRentalFor, decline, holdDeposit, markHeld, relay, heldTogether } from '../lib/rentals';
 import { onDispute } from '../lib/claims';
-import { hmacHex, normPhone, timingSafeEq, firstName } from '../lib/util';
+import { hmacHex, normPhone, timingSafeEq, firstName, money, fmtDay } from '../lib/util';
 
 export const webhooks = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -237,18 +237,26 @@ export async function handleText(c: Context<{ Bindings: Env; Variables: Vars }>,
       let sibs = coded ? [] : await heldTogether(c.env, held);
       let one = false; /* answered together → one charge for the total, when the card allows (stripe.ts); else each hold is charged as before */
       if (yes && sibs.length && await chargeTogether(c.env, [held, ...sibs])) { one = true; held = (await rentalById(c.env.DB, held.id)) || held; sibs = (await Promise.all(sibs.map(x => rentalById(c.env.DB, x.id)))).filter((x): x is Rental => !!x); }
-      if (yes) { const ok = await accept(c.env, held); if (!ok) await textUser(c.env, user, `Couldn't confirm that one — open it here: ${c.env.APP_URL}/r/${held.id}`, 'rental', held.id); }
-      else await decline(c.env, held, 'declined');
+      if (yes) { const ok = await accept(c.env, held, undefined, sibs.length ? 'customer' : undefined); if (!ok) await textUser(c.env, user, `Couldn't confirm that one — open it here: ${c.env.APP_URL}/r/${held.id}`, 'rental', held.id); }
+      else await decline(c.env, held, 'declined', sibs.length > 0);
       if (sibs.length) {
-        const cust = await userById(c.env.DB, held.renter_id), done: string[] = [], failed: string[] = []; let paid = 0;
+        const cust = await userById(c.env.DB, held.renter_id), done: string[] = [], failed: string[] = []; let paid = 0, sibHolds = 0;
         for (const x of sibs) {
           const nm = (await c.env.DB.prepare('SELECT name FROM listings WHERE id = ?').bind(x.listing_id).first<{ name: string }>())?.name || 'item';
           const ok = yes ? await accept(c.env, x, undefined, true) : await decline(c.env, x, 'declined', true);
-          if (ok) { done.push(nm); paid += x.total_cents; } else failed.push(nm);
+          if (ok) { done.push(nm); paid += x.total_cents; sibHolds += x.deposit_cents || 0; } else failed.push(nm);
         }
         await logEvent(c.env.DB, 'rental.answer_all', { user: user.id, rental: held.id, data: { yes, n: sibs.length + 1, failed: failed.length, one } });
         const own = (user.name || 'The owner').split(' ')[0];
-        if (cust && done.length) await textUser(c.env, cust, yes ? `${own} also said yes: ${done.join(', ')} · ${paid > 0 ? '$' + (paid / 100).toFixed(2) + ' paid' : 'free'} ${one ? ' · one charge for all ' + (done.length + 1) + ' · the earlier holds drop off your card in a few days' : ''} · same pickup ${c.env.APP_URL}/rentals` : `${own} also can't do: ${done.join(', ')}. Nothing was charged`, yes ? 'money' : 'rental', sibs[0].id);
+        if (cust) {
+          const h1 = (await rentalById(c.env.DB, held.id)) || held, mainOk = h1.status === 'confirmed';
+          const mainNm = (await c.env.DB.prepare('SELECT name FROM listings WHERE id = ?').bind(held.listing_id).first<{ name: string }>())?.name || 'item';
+          const names = [...(mainOk || !yes ? [mainNm] : []), ...done], tot = (mainOk ? h1.total_cents : 0) + paid;
+          const holds = (mainOk ? h1.deposit_cents || 0 : 0) + sibHolds;
+          const ownU = await userById(c.env.DB, user.id), spot = ownU?.pickup_spots ? (JSON.parse(ownU.pickup_spots) as string[]).join(' or ') : '';
+          if (yes && names.length) await textUser(c.env, cust, `${own} said yes to all ${names.length}: ${names.join(', ')} · ${tot > 0 ? money(tot) + ' paid' + (one ? ', one charge' : '') : 'free'} · pickup ${fmtDay(held.start_day)}${spot ? ' at ' + spot : ''} (time coming from ${own})${holds > 0 ? ` · ${money(holds)} in holds (not charges) at pickup, off after return` : ''}${one ? ' · the earlier holds drop off your card in a few days' : ''} ${c.env.APP_URL}/rentals`, 'money', held.id);
+          else if (!yes && done.length) await textUser(c.env, cust, `${own} can't do: ${[mainNm, ...done].join(', ')} · nothing charged`, 'rental', held.id);
+        }
         if (failed.length) await textUser(c.env, user, `Couldn't ${yes ? 'confirm' : 'pass on'} ${failed.join(', ')} — open ${c.env.APP_URL}/rentals`, 'rental', held.id);
       }
       return c.json({ ok: true });
