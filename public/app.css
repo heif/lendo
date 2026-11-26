@@ -1098,7 +1098,7 @@ input.otp{font-size:52px!important;padding:14px 0 14px .5em;border-radius:18px;m
 @media (prefers-reduced-motion:reduce){.lh *{animation:none!important;transition:none!important}}
 .lh-none{padding:24px 16px}.lh-none b{display:block;font-size:17px}
 /* the hand's wrist stands on the header's bottom line */
-.hdr .logo{align-self:stretch;align-items:flex-end}.hdr .logo .lh{margin-bottom:calc(-5px - .03em);padding-bottom:0;position:relative;z-index:1}.hdr .logo .lh svg{height:1.06em}
+.hdr .logo{align-self:stretch;align-items:flex-end}.hdr .logo .lh{margin-bottom:calc(-5px - .03em);padding-bottom:0;position:relative;z-index:1}.hdr .logo .lh svg{height:1.2em}
 /* item page rows: What · Who · When · Where · How much (each opens) */
 .irows details.ir{background:#fff;border-radius:14px;margin:0 0 8px;border:2px solid transparent}
 .irows details.ir[open]{border-color:var(--ink)}
