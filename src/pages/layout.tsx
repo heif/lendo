@@ -94,7 +94,7 @@ export const Layout: FC<LayoutProps> = (p) => {
                 <button type="submit" disabled aria-label="Get $5 off">→</button></span>
               </div>
               {/* phones: one tap opens Messages to Lendo; the reply makes the account + texts a login link */}
-              {site.number ? <a class="giftbtn" href={`sms:+1${site.number.replace(/\D/g, '').slice(-10)}?&body=${encodeURIComponent(GIFT_TEXT)}`}><span class="gb-ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="12" rx="2" fill="none" stroke="#fff" stroke-width="2.2" /><path d="M2 9h20M12 9v12M12 9c-2-4-6-5-6-2s4 2 6 2c2 0 6 1 6-2s-4-2-6 2" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round" /></svg></span><span class="gb-tx"><b>$5 OFF</b><small>&gt;$15/day item</small></span></a> : null}
+              {site.number ? <a class="giftbtn" href={`sms:+1${site.number.replace(/\D/g, '').slice(-10)}?&body=${encodeURIComponent(GIFT_TEXT)}`}><span class="gb-ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="12" rx="2" fill="none" stroke="#fff" stroke-width="2.2" /><path d="M2 9h20M12 9v12M12 9c-2-4-6-5-6-2s4 2 6 2c2 0 6 1 6-2s-4-2-6 2" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round" /></svg></span><span class="gb-tx"><b>$5 OFF</b><small>$15+/day item</small></span></a> : null}
             </form>
             <div class="optin" id="optin" hidden role="dialog" aria-label="Text message opt-in">
               <div class="optin-box">

@@ -9,7 +9,7 @@
   if (!V) { V = Math.random() < 0.5 ? 'a' : 'b'; document.cookie = 'lendo_ab_gift=' + V + ';path=/;max-age=34560000;samesite=lax'; }
   var BODY = V === 'a' ? 'Free $5 off rental please' : 'Free $5 gift card please', PHONE = matchMedia('(pointer:coarse)').matches;
   document.querySelectorAll('.giftbtn').forEach(function (g) {
-    var t = g.querySelector('.gb-tx'); if (t) t.innerHTML = '<b>$5 OFF</b><small>&gt;$15/day item</small>'; /* one label now (Scott, 11/25); the texted words still differ by variant */
+    var t = g.querySelector('.gb-tx'); if (t) t.innerHTML = '<b>$5 OFF</b><small>$15+/day item</small>'; /* one label now (Scott, 11/25); the texted words still differ by variant */
     g.href = g.href.replace(/body=[^&]*/, 'body=' + encodeURIComponent(BODY));
     g.addEventListener('click', function () { ab('click'); });
   });
