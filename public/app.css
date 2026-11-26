@@ -1144,3 +1144,17 @@ input.otp{font-size:52px!important;padding:14px 0 14px .5em;border-radius:18px;m
 .hold-box span{display:block;font-size:13.5px;line-height:1.4;color:var(--ink2);margin-top:3px}
 .hold-box a{display:inline-block;margin-top:6px;font-size:13.5px;font-weight:800;color:var(--ink);text-decoration:underline;text-underline-offset:3px}
 .hero .stocktag{top:auto!important;left:auto!important;bottom:8px!important;right:12px!important}
+
+/* rental page borrows the request email (Scott, 11/25 "4"): no box, status headline, small dots on a line, details on their own line */
+.rcard{background:var(--cream)!important;border:0!important;border-bottom:1px solid var(--line2,#E6E2D9)!important;border-radius:0!important;box-shadow:none!important;padding:12px 4px 14px!important}
+.rhd2{display:flex;gap:12px;align-items:center;text-decoration:none;color:var(--ink)}
+.rhd2 img,.rhd2 .rhd-ph{width:54px;height:54px;border-radius:12px;background:#fff;object-fit:contain;flex:none}
+.rhd2 b{display:block;font-size:19px;font-weight:900;line-height:1.2}
+.rhd2 span{display:block;font-size:14px;font-weight:700;color:#5A6A60;margin-top:2px}.rhd2 u{color:var(--ink);text-underline-offset:2px}
+.rcard .rlist{margin:14px 0 0 5px;padding:2px 0;border-left:3px solid #E6E1D6;gap:4px}
+.rcard .rlist li{margin-left:-7px;gap:10px;padding:3px 0}
+.rcard .rlist i{width:11px;height:11px;border:0;border-radius:6px;background:#E6E1D6;margin-top:4px}
+.rcard .rlist li.done i{background:var(--ink)}.rcard .rlist li.now i{background:var(--orange)}
+.rcard .rlist span{display:block}.rcard .rlist span::before{content:none}
+.rcard .rfoot{margin-top:10px}
+.rcard{position:static!important;max-height:none!important;overflow:visible!important}

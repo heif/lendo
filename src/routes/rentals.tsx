@@ -131,16 +131,16 @@ rentals.get('/r/:id', requireUser, async (c) => {
   const chats = await chatList(c.env.DB, u.id);
   const extCells = live && !isOwner && !ox ? Array.from({ length: Math.min(EXT_MAX_DAYS, Math.max(7, extOk.length + 1)) }, (_, i) => addDays(r.end_day, i + 1)) : [];
   return c.html(
-    <Layout title={isOwner ? 'Rental of your ' + it.name : 'Your rental'} user={u} back="/inbox" headerCenter={<span class="sp"></span>} flash={c.req.query('paid') ? (r.status === 'held' ? `Card held. Waiting for ${firstName(owner.name)}.` : null) : null} flashErr={c.req.query('needphoto') ? 'Take the handover photo first · it shows what was handed over' : undefined}>
+    <Layout title={isOwner ? 'Rental of your ' + it.name : 'Your rental'} user={u} back="/inbox" headerCenter={<span class="sp"></span>} flash={undefined} flashErr={c.req.query('needphoto') ? 'Take the handover photo first · it shows what was handed over' : undefined}>
       <ChatPick rows={chats} me={u.id} cur={'/r/' + r.id} />
       <div class="rpage">
       <div class="rcard">
         {/* 3A: compact header (who · item · dates · $) + pinned where/when strip */}
-        <a class="rhd" href={'/i/' + it.id}>
+        {r.status === 'inquiry' || dead ? <a class="rhd" href={'/i/' + it.id}>
           {it.avatar_key ? <img class="cut" data-trim="1" src={'/p/' + it.avatar_key} alt="" /> : photos[0] ? <img class="cut" data-trim="1" src={'/c/' + photos[0].r2_key + '?s=200'} alt="" /> : <span class="rhd-ph"></span>}
           <div style="min-width:0"><b class="rhd-t">{it.name}</b>
             <div>{isOwner ? '' : 'from '}<span class="ownlink" onclick={`event.preventDefault();location.href='${(other as any).handle ? '/' + (other as any).handle : '/u/' + other.id}'`}>{shortName(other.name)}</span> · {r.status === 'inquiry' ? (isOwner ? 'question about your item' : 'questions before renting') : <>{fmtRange(r.start_day, r.end_day)}{dead ? <> · {isOwner ? `you earn ${money(payoutOf(r) + xRent)}` : money(r.total_cents + xTotal)}</> : null}</>}</div></div>
-        </a>
+        </a> : null}
         {r.status !== 'inquiry' && !dead ? (() => { const nm = firstName(other.name), spot = r.meet_spot || (spots.length === 1 ? spots[0] : '');
           const chg = spots.length > 1 ? <u onclick="var d=document.querySelector('.rstrip');d.open=!d.open">Change</u> : null;
           const tot = money(r.total_cents + xTotal), earn = money(payoutOf(r) + xRent);
@@ -153,15 +153,19 @@ rentals.get('/r/:id', requireUser, async (c) => {
           const sep = (xs: any[]) => xs.filter(Boolean).flatMap((x, k) => k ? [' · ', x] : [x]);
           const S: [string, any[]][] = [
             [isOwner ? `${nm} asked` : 'You asked', stage === 0 ? [isOwner ? `you’d earn ${earn} after ${c.env.FEE_PCT}% fee` : `${tot} held (not a charge)`] : []],
-            [stage === 0 ? (isOwner ? 'Say YES or NO' : `Waiting for ${nm}’s YES`) : (isOwner ? 'You said YES' : `${nm} said YES`), stage >= 1 ? [isOwner ? `you earn ${earn}` : `${tot} paid`] : []],
+            [stage === 0 ? (isOwner ? 'Say YES or NO' : `Waiting for ${nm}’s YES`) : (isOwner ? 'You said YES' : `${nm} said YES`), stage >= 1 ? [isOwner ? `you earn ${earn}` : `${tot} paid`] : isOwner ? [] : ['charged only if YES']],
             [signed ? (isOwner ? `${nm} signed Promise` : 'You signed Promise') : isOwner ? `${nm}’s Promise` : `Sign Promise to ${nm}`,
               signed ? [<u onclick="document.getElementById('promView').showModal()">View</u>] : promNow ? (isOwner ? ['not signed yet · reminder texted'] : []) : stage === 0 ? ['before pickup'] : []],
-            [stage > 2 || r.status === 'picked_up' ? 'Picked up' : 'Pickup ' + dayWord(r.start_day, it.lng) + timeWord(r.pickup_time), stage === 1 && !promNow ? [spot, chg, how, pickNote] : stage >= 2 ? [pickNote] : []],
-            [stage === 3 ? 'Returned' : 'Return ' + dayWord(backDay(r.end_day), it.lng) + timeWord(r.return_time || r.pickup_time), stage === 2 ? [spot, chg, how, retNote] : stage === 3 ? [retNote] : []],
+            [stage > 2 || r.status === 'picked_up' ? 'Picked up' : 'Pickup ' + dayWord(r.start_day, it.lng) + timeWord(r.pickup_time), stage === 1 && !promNow ? [spot, chg, how, pickNote] : stage >= 2 || stage === 0 || promNow ? [pickNote] : []],
+            [stage === 3 ? 'Returned' : 'Return ' + dayWord(backDay(r.end_day), it.lng) + timeWord(r.return_time || r.pickup_time), stage === 2 ? [spot, chg, how, retNote] : [retNote]],
           ];
           const now = stage === 0 ? 1 : promNow ? 2 : stage === 1 ? 3 : stage === 2 ? 4 : 5;
           const cancel = !isOwner && stage <= 1 ? <button type="submit" form="cancelForm">{stage === 0 ? 'Cancel request' : 'Cancel rental'}</button> : null;
+          const head = now <= 4 ? S[now][0] : S[4][0];
+          const pic = it.avatar_key ? '/p/' + it.avatar_key : photos[0] ? '/c/' + photos[0].r2_key + '?s=200' : '';
           return <>
+            <a class="rhd2" href={'/i/' + it.id}>{pic ? <img class="cut" data-trim="1" src={pic} alt="" /> : <span class="rhd-ph"></span>}
+              <div style="min-width:0"><b>{head}</b><span>{it.name} · {isOwner ? '' : 'from '}<u onclick={`event.preventDefault();location.href='${(other as any).handle ? '/' + (other as any).handle : '/u/' + other.id}'`}>{shortName(other.name)}</u> · {fmtRange(r.start_day, r.end_day)}</span></div></a>
             {hi ? <i hidden data-lh="five"></i> : c.req.query('paid') && r.status === 'held' ? <i hidden data-lh="fist"></i> : null}<ol class="rlist">{S.map(([t, d], i) => { const dd = sep(d); return <li class={i < now || (i === 2 && signed) ? 'done' : i === now ? 'now' : ''}><i></i><div><b>{t}</b>{dd.length ? <span>{dd}</span> : null}{i === 2 && promNow && !isOwner ? <button type="button" class="rsign" onclick="document.getElementById('promSign').showModal()">✍️ Sign</button> : null}</div></li>; })}</ol>
             {cancel ? <div class="rfoot">{paused ? <a class="rpaused sms-only" href={smsHref(c.env, 'OK')}>📵 Texts paused · <u>text OK</u></a> : <span></span>}{cancel}</div> : null}
           </>; })() : null}
