@@ -2,11 +2,13 @@ import { minPriceCents } from './identify';
 // One place that turns (name, price, photos, maybe GPS) into a live listing: location fallback chain, hood, emoji, icon job.
 import type { Env, User } from './env';
 import { logEvent } from './log';
+import { userByPhone } from './db';
+import { textUser } from './blooio';
 import { nearestHood } from './weekly';
 import { isGrade } from './grade';
 import { checkListingPhoto } from './photo-check';
 import { assignSlug, assignHandle, assignCode } from './urls';
-import { id, now, fuzz, weekDefault } from './util';
+import { id, now, fuzz, weekDefault, shortName } from './util';
 import { hoodFor, geocodePlace } from './geo';
 import { emojiFor } from './emoji';
 import { assignHood } from './hoods';
@@ -42,6 +44,17 @@ export async function createListing(env: Env, ctx: { waitUntil(p: Promise<unknow
   await env.DB.prepare('INSERT INTO listings (id, owner_id, name, description, price_cents, week_cents, status, hood, lat, lng, emoji, mapbox_id, geocoded_at, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
     .bind(lid, u.id, name, desc, price, week, 'live', hood, flat, flng, emojiFor(name, desc), mbId, geoAt, now()).run();
   await logEvent(env.DB, 'listing.created', { user: u.id, listing: lid, cents: price, data: { name, hood } });
+  /* text the admin(s) about every new item (Scott, 11/25); one text per owner per 10 min so a batch of items is one text */
+  try {
+    const admins = (env.ADMIN_PHONES || '').split(',').map(x => x.trim()).filter(Boolean);
+    if (admins.length && !admins.includes(u.phone)) {
+      const recent = await env.DB.prepare(`SELECT 1 FROM events WHERE kind = 'admin.new_item' AND user_id = ? AND at > ? LIMIT 1`).bind(u.id, now() - 600000).first();
+      if (!recent) {
+        await logEvent(env.DB, 'admin.new_item', { user: u.id, listing: lid });
+        for (const ph of admins) { const a = await userByPhone(env.DB, ph); if (a) await textUser(env, a, `New on Lendo: ${name} · ${price ? '$' + (price / 100).toFixed(price % 100 ? 2 : 0) + '/day' : 'free'} · ${shortName(u.name) || 'new member'}${hood ? ' · ' + hood : ''} ${env.APP_URL}/i/${lid}`, 'alert'); }
+      }
+    }
+  } catch (e) { console.warn('admin new-item text', e); }
   if (isGrade(n.grade) && n.grade !== 'A') await env.DB.prepare('UPDATE listings SET grade = ? WHERE id = ?').bind(n.grade, lid).run().catch(() => {});
   if (flat != null) { try { await assignHood(env, 'listings', lid, lat, lng); if (!u.hood_id) await assignHood(env, 'users', u.id, lat, lng); } catch (e) { console.warn('hood assign', e); } }
   let pos = 0, firstKey: string | null = null;
