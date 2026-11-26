@@ -1,4 +1,4 @@
-import { holdFor } from '../lib/value';
+import { holdFor, valueNow } from '../lib/value';
 import { guaranteeCap } from '../lib/claims';
 import { Hono, type Context } from 'hono';
 import { GIFT_TEXT, smsHref } from '../lib/blooio';
@@ -204,6 +204,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
           <div class="ir-x">
             {it.description || it.issues ? <p class="ir-p">{it.description || ''}{it.issues ? (it.description ? '\n' : '') + 'Known issues: ' + it.issues : ''}</p> : null}
             <div class="ir-line"><GradeInfo g={gr.letter} customers={gr.customers} owner={first} cls="inrow" /><span>Condition {gr.letter} · {GRADE_WORD[gr.letter] || ''}{ir?.n ? ` · 👍 ${ir.up || 0} of ${ir.n}` : ''}</span></div>
+            {hold.cents > 0 ? <div class="ir-val"><b>Lendo value {money(valueNow(it).cents)}</b><span>{hold.capped ? `${money(hold.cents)} held` : 'Held'} on your card at pickup, not charged · <a href="/how-it-works#hold">holds</a></span></div> : null}
             <div class={'askrow' + (isOwner ? ' own-off' : '')}>{isOwner ? <span class="askbtn">Ask</span> : it.status === 'live' ? (it.demo || !u
               ? <a class="askbtn" href={it.demo ? '#' : '/i/' + it.id + '/ask'} onclick={it.demo ? "event.preventDefault();toast('Demo item — messaging is off')" : undefined}>Ask</a>
               : <details class="askd" ontoggle="if(this.open)this.querySelector('textarea').focus()"><summary class="askbtn">Ask</summary>
