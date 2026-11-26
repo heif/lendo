@@ -1124,10 +1124,11 @@ input.otp{font-size:52px!important;padding:14px 0 14px .5em;border-radius:18px;m
 .days.wk button.later{display:none}
 .days .dplus{border:0!important;background:none!important;font-size:26px!important;font-weight:900;color:var(--ink);height:48px;padding:0}
 .days:not(.wk) .dplus{display:none}
-.irows .quick{display:flex;gap:8px;margin-top:12px!important}
-.irows .quick .btn{flex:1;position:relative;height:42px;font-size:15px;font-weight:800;border-radius:12px;padding:0 8px;white-space:nowrap}
-.irows .quick .btn s{color:var(--mute);font-weight:600}.irows .quick .btn.pri s{color:rgba(255,255,255,.75)}
-.irows .quick .qoff{position:absolute;right:-6px;top:-9px;background:var(--orange);color:#fff;border:1.5px solid var(--ink);border-radius:8px;font-size:10px;font-weight:900;padding:2px 6px;line-height:1.2}
+/* day/week: segmented toggle, grey track + white thumb (Scott, 11/25 "A") */
+.irows .quick{position:relative;display:flex;gap:0;margin-top:12px!important;background:#E6E2D9;border-radius:12px;padding:4px}
+.irows .quick .btn{flex:1;height:40px;border:0;background:none;box-shadow:none;border-radius:9px;font-size:15px;font-weight:700;color:#5A6A60;padding:0 8px;white-space:nowrap}
+.irows .quick .btn.pri{background:#fff;color:var(--ink);font-weight:800;box-shadow:0 2px 4px rgba(0,0,0,.18)}
+.irows .quick .qoff{position:absolute;right:-6px;top:-10px;background:var(--orange);color:#fff;border:1.5px solid var(--ink);border-radius:8px;font-size:10px;font-weight:900;padding:2px 6px;line-height:1.2;pointer-events:none}
 .irows .ir-gl{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:6px;border:2.5px solid currentColor;font-size:14px;font-weight:900;vertical-align:-3px;margin-left:4px;line-height:1}
 .irows .ir-gl.gA,.irows .ir-gl.gB{color:#1F8A4C}.irows .ir-gl.gC{color:#C27C00}.irows .ir-gl.gD,.irows .ir-gl.gE{color:#C0392B}
 .irows{padding-bottom:16px!important}
