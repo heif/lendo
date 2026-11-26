@@ -1133,3 +1133,14 @@ input.otp{font-size:52px!important;padding:14px 0 14px .5em;border-radius:18px;m
 .irows .ir-gl.gA,.irows .ir-gl.gB{color:#1F8A4C}.irows .ir-gl.gC{color:#C27C00}.irows .ir-gl.gD,.irows .ir-gl.gE{color:#C0392B}
 .irows{padding-bottom:16px!important}
 .hero{padding-top:10px!important}/* a little air under the header line (Scott, 11/25) */
+
+/* PICKUP / RETURN readable on the date tiles (Scott, 11/25) */
+#days button[data-tag="pickup"]::after,#days button[data-tag="return"]::after{top:5px!important;font-size:9.5px!important;letter-spacing:-.03em!important}
+#days button[data-tag="pickup"] b,#days button[data-tag="return"] b{margin-top:14px!important}
+.irows .days button{height:54px}
+/* the deposit hold, explained, in How much */
+.hold-box{margin-top:10px;background:#FFF1EA;border:2px solid var(--orange);border-radius:12px;padding:10px 12px}
+.hold-box b{display:block;font-size:16px;font-weight:900;color:var(--ink)}
+.hold-box span{display:block;font-size:13.5px;line-height:1.4;color:var(--ink2);margin-top:3px}
+.hold-box a{display:inline-block;margin-top:6px;font-size:13.5px;font-weight:800;color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.hero .stocktag{top:auto!important;left:auto!important;bottom:8px!important;right:12px!important}
