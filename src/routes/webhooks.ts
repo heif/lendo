@@ -7,7 +7,7 @@ import { turnOff } from '../lib/alerts';
 import { Hono, type Context } from 'hono';
 import type Stripe from 'stripe';
 import type { Env, Rental, User, Vars } from '../lib/env';
-import { cardFromSetup, rememberCard, stripe } from '../lib/stripe';
+import { cardFromSetup, rememberCard, stripe, chargeTogether } from '../lib/stripe';
 import { parseInbound, textUser } from '../lib/blooio';
 import { linqParse, linqVerify } from '../lib/linq';
 import { ensureUser, rentalById, unpauseTexted, userByPhone, userById } from '../lib/db';
@@ -228,13 +228,15 @@ export async function handleText(c: Context<{ Bindings: Env; Variables: Vars }>,
   const coded = text.trim().match(/^(yes|y|no|n)\s+#?([a-z0-9]{4})$/i);
   if (coded || kw === 'YES' || kw === 'Y' || kw === 'ACCEPT' || kw === 'NO' || kw === 'N' || kw === 'PASS' || kw === 'DECLINE') {
     const kw2 = coded ? coded[1].toUpperCase() : kw; /* eslint-disable-line */
-    const held = coded
+    let held = coded
       ? (await c.env.DB.prepare(`SELECT * FROM rentals WHERE owner_id = ? AND status = 'held' ORDER BY created_at DESC`).bind(user.id).all<Rental>()).results.find(x => x.id.slice(-4).toLowerCase() === coded[2].toLowerCase()) ?? null
       : await c.env.DB.prepare(`SELECT * FROM rentals WHERE owner_id = ? AND status = 'held' ORDER BY created_at DESC LIMIT 1`).bind(user.id).first<Rental>();
     if (held) {
       const yes = kw2.startsWith('Y') || kw2 === 'ACCEPT';
       /* add-ons: a plain YES/NO (no code) answers every request from this customer for the same days; "YES 1a2b" answers just that one */
-      const sibs = coded ? [] : await heldTogether(c.env, held);
+      let sibs = coded ? [] : await heldTogether(c.env, held);
+      let one = false; /* answered together → one charge for the total, when the card allows (stripe.ts); else each hold is charged as before */
+      if (yes && sibs.length && await chargeTogether(c.env, [held, ...sibs])) { one = true; held = (await rentalById(c.env.DB, held.id)) || held; sibs = (await Promise.all(sibs.map(x => rentalById(c.env.DB, x.id)))).filter((x): x is Rental => !!x); }
       if (yes) { const ok = await accept(c.env, held); if (!ok) await textUser(c.env, user, `Couldn't confirm that one — open it here: ${c.env.APP_URL}/r/${held.id}`, 'rental', held.id); }
       else await decline(c.env, held, 'declined');
       if (sibs.length) {
@@ -244,9 +246,9 @@ export async function handleText(c: Context<{ Bindings: Env; Variables: Vars }>,
           const ok = yes ? await accept(c.env, x, undefined, true) : await decline(c.env, x, 'declined', true);
           if (ok) { done.push(nm); paid += x.total_cents; } else failed.push(nm);
         }
-        await logEvent(c.env.DB, 'rental.answer_all', { user: user.id, rental: held.id, data: { yes, n: sibs.length + 1, failed: failed.length } });
+        await logEvent(c.env.DB, 'rental.answer_all', { user: user.id, rental: held.id, data: { yes, n: sibs.length + 1, failed: failed.length, one } });
         const own = (user.name || 'The owner').split(' ')[0];
-        if (cust && done.length) await textUser(c.env, cust, yes ? `${own} also said yes: ${done.join(', ')} · ${paid > 0 ? '$' + (paid / 100).toFixed(2) + ' paid' : 'free'} · same pickup ${c.env.APP_URL}/rentals` : `${own} also can't do: ${done.join(', ')}. Nothing was charged`, yes ? 'money' : 'rental', sibs[0].id);
+        if (cust && done.length) await textUser(c.env, cust, yes ? `${own} also said yes: ${done.join(', ')} · ${paid > 0 ? '$' + (paid / 100).toFixed(2) + ' paid' : 'free'} ${one ? ' · one charge for all ' + (done.length + 1) : ''} · same pickup ${c.env.APP_URL}/rentals` : `${own} also can't do: ${done.join(', ')}. Nothing was charged`, yes ? 'money' : 'rental', sibs[0].id);
         if (failed.length) await textUser(c.env, user, `Couldn't ${yes ? 'confirm' : 'pass on'} ${failed.join(', ')} — open ${c.env.APP_URL}/rentals`, 'rental', held.id);
       }
       return c.json({ ok: true });

@@ -6,6 +6,7 @@ import { logErr, logEvent } from './log';
 import type { Claim, Env, Listing, Rental, User } from './env';
 import { money } from './util';
 import { payoutOf, taxLabel } from './money';
+import { selfMigrate } from './migrate';
 
 export function stripe(env: Env): Stripe | null {
   if (!env.STRIPE_SECRET_KEY) return null;
@@ -50,6 +51,8 @@ export async function createCheckout(env: Env, rental: Rental, listing: Listing,
 export async function captureRental(env: Env, rental: Rental): Promise<'captured' | 'released' | 'none'> {
   const s = stripe(env);
   if (!s || !rental.stripe_payment_intent) return 'none';
+  /* already paid as part of one charge for several items (chargeTogether): nothing to capture, and never cancel that shared charge */
+  if (rental.combo_pi && rental.combo_pi === rental.stripe_payment_intent) { await logEvent(env.DB, 'money.capture', { rental: rental.id, cents: rental.total_cents, data: { pi: rental.combo_pi, combo: true, tax: rental.tax_cents, fee: rental.fee_cents } }); return 'captured'; }
   if (rental.total_cents < 50) { await s.paymentIntents.cancel(rental.stripe_payment_intent); await logEvent(env.DB, 'money.release', { rental: rental.id, cents: 0, data: { pi: rental.stripe_payment_intent, why: 'under 50c' } }); return 'released'; }
   // look first: already captured (e.g. a retried YES) counts as captured; never ask for more than the hold
   const pi = await s.paymentIntents.retrieve(rental.stripe_payment_intent);
@@ -83,6 +86,10 @@ export async function refundPart(env: Env, rental: Rental, amountCents: number):
 export async function releaseHold(env: Env, rental: Rental): Promise<void> {
   const s = stripe(env);
   if (!s || !rental.stripe_payment_intent) return;
+  if (rental.combo_pi && rental.combo_pi === rental.stripe_payment_intent) { /* paid inside a shared charge but never confirmed: give this item's part back */
+    try { await s.refunds.create({ payment_intent: rental.combo_pi, amount: rental.total_cents, metadata: { rental_id: rental.id, reason: 'combo_release' } }, { idempotencyKey: `comborel_${rental.id}` }); await logEvent(env.DB, 'money.refund', { rental: rental.id, cents: rental.total_cents, data: { pi: rental.combo_pi, reason: 'combo_release' } }); } catch (e) { await logErr(env.DB, 'release shared charge', e, { rental: rental.id }); }
+    return;
+  }
   try { await s.paymentIntents.cancel(rental.stripe_payment_intent); await logEvent(env.DB, 'money.release', { rental: rental.id, data: { pi: rental.stripe_payment_intent } }); } catch (e) { await logErr(env.DB, 'release hold', e, { rental: rental.id }); }
 }
 
@@ -133,6 +140,48 @@ export async function flushPendingPayouts(env: Env, owner: User): Promise<number
 // the item is out or a claim is open.
 
 // the rental's checkout saved the card: remember customer + card on the rental (webhook, after markHeld)
+/** Several requests from one customer answered YES together (Scott, 11/25): ONE charge for the total on the card they saved, then each item's own hold is released.
+ *  Everything else stays per item (rent, tax, fee, payout, deposit hold, refund: a part refund of the shared charge).
+ *  true = every rental in `paid` now points at the shared, already-succeeded charge (accept() then finds it paid).
+ *  false = nothing changed: the caller charges each item's hold the old way. A YES never fails because of this. */
+export async function chargeTogether(env: Env, rs: Rental[], s: Stripe | null = stripe(env)): Promise<boolean> {
+  const pay = rs.filter(r => r.status === 'held' && r.total_cents >= 50 && !!r.stripe_payment_intent && !r.combo_pi && !!r.stripe_customer && !!r.stripe_pm);
+  if (!s || pay.length < 2 || pay.some(r => r.renter_id !== pay[0].renter_id || r.owner_id !== pay[0].owner_id)) return false;
+  /* before any money moves: the columns this needs must exist (new deploy, migration not run yet) */
+  try { await env.DB.prepare('SELECT combo_pi, hold_pi FROM rentals LIMIT 1').first(); }
+  catch { try { await selfMigrate(env); await env.DB.prepare('SELECT combo_pi, hold_pi FROM rentals LIMIT 1').first(); } catch (e) { await logErr(env.DB, 'combined charge: no columns', e); return false; } }
+  const ids = pay.map(r => r.id).sort(), total = pay.reduce((a, r) => a + r.total_cents, 0);
+  const last = pay.reduce((a, r) => (r.created_at > a.created_at ? r : a), pay[0]); /* the card they used most recently */
+  let pi: Stripe.PaymentIntent;
+  try {
+    /* same card on every item (each checkout saves its own copy): different cards → leave each charge on its own card */
+    const fps = await Promise.all(pay.map(async r => (await s.paymentMethods.retrieve(r.stripe_pm!)).card?.fingerprint || r.stripe_pm!));
+    if (new Set(fps).size !== 1) { await logEvent(env.DB, 'money.combo_skip', { rental: ids[0], data: { why: 'different cards', rentals: ids } }); return false; }
+    pi = await s.paymentIntents.create({ amount: total, currency: 'usd', customer: last.stripe_customer!, payment_method: last.stripe_pm!, off_session: true, confirm: true,
+      description: `Lendo · ${pay.length} items`, metadata: { rental_id: ids[0], rental_ids: ids.join(','), renter_id: pay[0].renter_id, kind: 'combined' } }, { idempotencyKey: `combo_${ids.join('_')}` });
+  } catch (e) { await logErr(env.DB, 'combined charge', e, { rental: ids[0] }); await logEvent(env.DB, 'money.combo_skip', { rental: ids[0], data: { why: 'charge failed', rentals: ids } }); return false; }
+  if (pi.status !== 'succeeded') {
+    try { await s.paymentIntents.cancel(pi.id); } catch (e) { await logErr(env.DB, 'combined charge cancel', e, { rental: ids[0] }); }
+    await logEvent(env.DB, 'money.combo_skip', { rental: ids[0], data: { why: 'charge ' + pi.status, pi: pi.id, rentals: ids } }); return false;
+  }
+  /* a retried attempt gets the same charge back from Stripe: never reuse one that was already refunded (undone below on an earlier try) */
+  try { const ch = typeof pi.latest_charge === 'string' ? await s.charges.retrieve(pi.latest_charge) : pi.latest_charge; if (ch && (ch.refunded || ch.amount_refunded > 0)) { await logEvent(env.DB, 'money.combo_skip', { rental: ids[0], data: { why: 'earlier try was undone', pi: pi.id, rentals: ids } }); return false; } }
+  catch (e) { await logErr(env.DB, 'combined charge check', e, { rental: ids[0] }); }
+  try { /* all rows or none: a row left on its own hold would be charged twice */
+    await env.DB.batch(pay.map(r => env.DB.prepare(`UPDATE rentals SET hold_pi = stripe_payment_intent, stripe_payment_intent = ?, combo_pi = ? WHERE id = ?`).bind(pi.id, pi.id, r.id)));
+  } catch (e) {
+    await logErr(env.DB, 'combined charge save', e, { rental: ids[0] });
+    try { await s.refunds.create({ payment_intent: pi.id, metadata: { reason: 'combo_save_failed' } }, { idempotencyKey: `comboundo_${pi.id}` }); await logEvent(env.DB, 'money.refund', { rental: ids[0], cents: total, data: { pi: pi.id, reason: 'combo_save_failed' } }); } catch (e2) { await logErr(env.DB, 'combined charge undo', e2, { rental: ids[0] }); }
+    return false;
+  }
+  await logEvent(env.DB, 'money.combo', { rental: ids[0], user: pay[0].renter_id, cents: total, data: { pi: pi.id, rentals: ids, each: pay.map(r => r.total_cents) } });
+  for (const r of pay) { /* the per-item holds are no longer needed */
+    try { await s.paymentIntents.cancel(r.stripe_payment_intent!); await logEvent(env.DB, 'money.release', { rental: r.id, data: { pi: r.stripe_payment_intent, why: 'combined', combo: pi.id } }); }
+    catch (e) { await logErr(env.DB, 'release hold after combined charge', e, { rental: r.id }); } /* it expires by itself */
+  }
+  return true;
+}
+
 export async function rememberCard(env: Env, rentalId: string, piId: string | null): Promise<void> {
   const s = stripe(env); if (!s || !piId) return;
   try {

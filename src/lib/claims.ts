@@ -347,9 +347,10 @@ export async function onDispute(env: Env, d: Stripe.Dispute, type: string): Prom
   if (!piId) return;
   const cl = await env.DB.prepare('SELECT * FROM claims WHERE collect_pi = ?').bind(piId).first<Claim>().catch(() => null);
   if (!cl) { /* a dispute on the rent itself, not a claim: a person handles it */
-    const r = await env.DB.prepare('SELECT id FROM rentals WHERE stripe_payment_intent = ? OR deposit_pi = ?').bind(piId, piId).first<{ id: string }>().catch(() => null);
+    const rsAll = (await env.DB.prepare('SELECT id FROM rentals WHERE stripe_payment_intent = ? OR deposit_pi = ?').bind(piId, piId).all<{ id: string }>().catch(() => ({ results: [] as { id: string }[] }))).results;
+    const r = rsAll[0] || null; /* one charge can cover several items (chargeTogether) */
     await logEvent(env.DB, 'chargeback.other', { rental: r?.id ?? null, cents: d.amount, data: { dispute: d.id, status: d.status, reason: d.reason, type } });
-    if (type === 'charge.dispute.created') await adminText(env, `Bank dispute ${d.id} for ${money(d.amount)} (${d.reason})${r ? ` on rental ${env.APP_URL}/r/${r.id}` : ''}. Not a claim: answer it in Stripe`, r?.id);
+    if (type === 'charge.dispute.created') await adminText(env, `Bank dispute ${d.id} for ${money(d.amount)} (${d.reason})${r ? ` on rental ${env.APP_URL}/r/${r.id}${rsAll.length > 1 ? ` (one charge for ${rsAll.length} items)` : ''}` : ''}. Not a claim: answer it in Stripe`, r?.id);
     return;
   }
   const cap = await guaranteeCap(env);

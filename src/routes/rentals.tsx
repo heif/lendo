@@ -131,6 +131,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
   const chats = await chatList(c.env.DB, u.id);
   const extCells = live && !isOwner && !ox ? Array.from({ length: Math.min(EXT_MAX_DAYS, Math.max(7, extOk.length + 1)) }, (_, i) => addDays(r.end_day, i + 1)) : [];
   /* "Add another from Scott · same days" (Scott, 11/25): his other items free those days; each is its own ordinary request ($5 min each) */
+  const comboN = r.combo_pi ? ((await c.env.DB.prepare('SELECT COUNT(*) n FROM rentals WHERE combo_pi = ?').bind(r.combo_pi).first<{ n: number }>())?.n || 0) : 0; /* paid inside one charge for N items */
   let more: { id: string; name: string; price_cents: number; img: string }[] = [];
   if (!isOwner && (r.status === 'held' || r.status === 'confirmed')) {
     const mine = new Set((await c.env.DB.prepare(`SELECT listing_id FROM rentals WHERE renter_id = ? AND owner_id = ? AND status IN ('held','confirmed','picked_up') AND end_day >= ? AND start_day <= ?`).bind(u.id, r.owner_id, r.start_day, r.end_day).all<{ listing_id: string }>()).results.map(x => x.listing_id));
@@ -161,7 +162,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
           const sep = (xs: any[]) => xs.filter(Boolean).flatMap((x, k) => k ? [' · ', x] : [x]);
           const S: [string, any[]][] = [
             [isOwner ? `${nm} asked` : 'You asked', stage === 0 ? [isOwner ? `you’d earn ${earn} after ${c.env.FEE_PCT}% fee` : `${tot} held (not a charge)`] : []],
-            [stage === 0 ? (isOwner ? 'Say YES or NO' : `Waiting for ${nm}’s YES`) : (isOwner ? 'You said YES' : `${nm} said YES`), stage >= 1 ? [isOwner ? `you earn ${earn}` : `${tot} paid`] : isOwner ? [] : ['charged only if YES']],
+            [stage === 0 ? (isOwner ? 'Say YES or NO' : `Waiting for ${nm}’s YES`) : (isOwner ? 'You said YES' : `${nm} said YES`), stage >= 1 ? [isOwner ? `you earn ${earn}` : `${tot} paid` + (comboN > 1 ? ` · one charge for ${comboN} items` : '')] : isOwner ? [] : ['charged only if YES']],
             [signed ? (isOwner ? `${nm} signed Promise` : 'You signed Promise') : isOwner ? `${nm}’s Promise` : `Sign Promise to ${nm}`,
               signed ? [<u onclick="document.getElementById('promView').showModal()">View</u>] : promNow ? (isOwner ? ['not signed yet · reminder texted'] : []) : stage === 0 ? ['before pickup'] : []],
             [stage > 2 || r.status === 'picked_up' ? 'Picked up' : 'Pickup ' + dayWord(r.start_day, it.lng) + timeWord(r.pickup_time), stage === 1 && !promNow ? [spot, chg, how, pickNote] : stage >= 2 || stage === 0 || promNow ? [pickNote] : []],
