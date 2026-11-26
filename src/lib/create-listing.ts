@@ -2,7 +2,8 @@ import { minPriceCents } from './identify';
 // One place that turns (name, price, photos, maybe GPS) into a live listing: location fallback chain, hood, emoji, icon job.
 import type { Env, User } from './env';
 import { logEvent } from './log';
-import { userByPhone } from './db';
+import { userByPhone, listingById } from './db';
+import { ensureValue } from './value';
 import { textUser } from './blooio';
 import { nearestHood } from './weekly';
 import { isGrade } from './grade';
@@ -67,5 +68,7 @@ export async function createListing(env: Env, ctx: { waitUntil(p: Promise<unknow
   if (firstKey) ctx.waitUntil(autoIcon(env, lid, firstKey, name, desc));
   ctx.waitUntil((async () => { const ok = firstKey ? await checkListingPhoto(env, lid, firstKey) : true; if (ok) await matchListing(env, lid); })().catch(e => console.warn('photo check / alerts', e)));
   ctx.waitUntil((async () => { await assignSlug(env, lid, u.id, name); await assignCode(env, lid); if (!(u as any).handle) await assignHandle(env, u.id, u.name); })().catch(() => {}));
+  /* AI value right after listing, in the background (Scott, 11/26) — never holds up the page; the cron retries if the AI doesn't answer */
+  ctx.waitUntil((async () => { const l = await listingById(env.DB, lid); if (l) await ensureValue(env, l); })().catch(e => console.warn('value at listing', e)));
   return lid;
 }
