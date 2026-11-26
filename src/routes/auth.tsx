@@ -106,17 +106,19 @@ auth.get('/welcome', async (c) => {
     <Layout title="Welcome" user={u} back={null}>
       <form class="qs" data-mode="steps" method="post" action="/welcome" enctype="multipart/form-data" style="padding:20px 16px">
         <input type="hidden" name="next" value={next} />
-        <div class="q"><h2 class="qh">What’s your name?</h2>
+        {(() => { const ask = { name: !u.name, email: !u.email, home: u.lat == null, photo: !u.photo_key }; const firstQ = (['name', 'email', 'home', 'photo'] as const).find(k => ask[k]); if (!firstQ) return raw(`<script>location.replace(${JSON.stringify(next)})</script>`); const hid = (k: string) => k !== firstQ; return <>
+        {ask.name ? <div class="q" hidden={hid('name')}><h2 class="qh">What’s your name?</h2>
           <label class="field"><span>First and last</span><input name="name" placeholder="Fiona Smith" required maxlength={40} autocomplete="name" value={u.name || ''} /></label>
-          <p class="hint" style="margin:-6px 0 12px">Others see first name and last initial, like “Fiona S.”</p></div>
-        <div class="q" hidden><h2 class="qh">Your email</h2>
+          <p class="hint" style="margin:-6px 0 12px">Others see first name and last initial, like “Fiona S.”</p></div> : null}
+        {ask.email ? <div class="q" hidden={hid('email')}><h2 class="qh">Your email</h2>
           <label class="field"><span>Email</span><input name="email" type="email" inputmode="email" autocomplete="email" placeholder="you@email.com" required maxlength={120} value={u.email || ''} /></label>
-          <p class="hint" style="margin:-6px 0 12px">Only for receipts and anything a text misses</p></div>
-        <div class="q" data-skip="1" hidden><h2 class="qh">Where’s home?</h2>
+          <p class="hint" style="margin:-6px 0 12px">Only for receipts and anything a text misses</p></div> : null}
+        {ask.home ? <div class="q" data-skip="1" hidden={hid('home')}><h2 class="qh">Where’s home?</h2>
           <div class="homebox" data-token={c.env.MAPBOX_PUBLIC_TOKEN || ''} data-cross={u.cross_streets || ''} data-hood={u.hood || ''} data-has={u.lat != null ? '1' : ''} data-addr={u.address || ''} />
-          <script src="/home.js"></script></div>
-        <div class="q" data-skip="1" hidden><h2 class="qh">Add a photo</h2>
-          <PhotoField name={null} label="People say yes more often to a face" /></div>
+          <script src="/home.js"></script></div> : null}
+        {ask.photo ? <div class="q" data-skip="1" hidden={hid('photo')}><h2 class="qh">Add a photo</h2>
+          <PhotoField name={null} label="People say yes more often to a face" /></div> : null}
+        </>; })()}
         <div class="qnav"><button class="btn pri full qnext" type="button">Next</button><button type="button" class="lg-alt qskip" hidden>Skip</button></div>
         <script src="/steps.js"></script>
       </form>
@@ -128,7 +130,7 @@ auth.post('/welcome', async (c) => {
   const u = c.get('user');
   if (!u) return c.redirect('/login');
   const f = await c.req.parseBody();
-  await c.env.DB.prepare('UPDATE users SET name = ? WHERE id = ?').bind(String(f.name || '').trim().slice(0, 40) || 'Neighbor', u.id).run();
+  { const nm = String(f.name || '').trim().slice(0, 40); if (nm || !u.name) await c.env.DB.prepare('UPDATE users SET name = ? WHERE id = ?').bind(nm || 'Neighbor', u.id).run(); } /* only the steps still missing are asked */
   { const home = String(f.home || '').trim(); if (home && home !== (u.cross_streets || '')) await setUserWhere(c.env, u, home, u.id).catch(() => null); } /* home = where their things are kept; sets the map spot + neighborhood */
   { const em = String(f.email || '').trim().toLowerCase(); if (validEmail(em)) await c.env.DB.prepare('UPDATE users SET email = ? WHERE id = ?').bind(em, u.id).run().catch(() => 0); }
   if (f.photo) await saveUserPhoto(c.env, u.id, f.photo).catch(() => null);
