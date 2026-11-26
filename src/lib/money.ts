@@ -1,5 +1,5 @@
 // Money model (Nov 13): customer pays rent − credit + sales tax. Lendo's fee comes out of the owner's payout:
-// fee = FEE_PCT × (rent + tax); owner gets rent − fee. Lendo absorbs the credit and remits the tax.
+// fee = FEE_PCT × rent (the rent only, never the tax; Scott, 11/25); owner gets rent − fee. Lendo absorbs the credit and remits the tax.
 import type { Env } from './env';
 
 /* Shown to customers by place name, never "sales tax" (Scott, 11/25: a rental isn't a sale) */
@@ -17,7 +17,7 @@ export const feePct = (env: Env) => parseFloat(env.FEE_PCT || '15');
 export function quote(env: Env, rent: number, credit: number, rate: number) {
   const cr = Math.max(0, Math.min(credit || 0, rent));
   const tax = Math.round((rent - cr) * rate);
-  const fee = rent > 0 ? Math.round((rent + tax) * feePct(env) / 100) : 0; /* free rental = no fee */
+  const fee = rent > 0 ? Math.round(rent * feePct(env) / 100) : 0; /* on the rent only, not the tax; free rental = no fee */
   return { rent, credit: cr, tax, total: rent - cr + tax, fee, payout: Math.max(0, rent - fee) };
 }
 

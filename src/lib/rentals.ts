@@ -7,7 +7,7 @@ import { textUser } from './blooio';
 import { emailRequest } from './email';
 import { cutoutUrl } from './cutout';
 import { captureRental, payoutRental, placeDeposit, refundPart, releaseDeposit, releaseHold } from './stripe';
-import { feePct, payoutOf, quote } from './money';
+import { payoutOf, quote } from './money';
 import { backDay, firstName, fmtDay, fmtRange, localToday, money, now } from './util';
 
 const HOLD_HOURS = 24;
@@ -59,7 +59,7 @@ export async function accept(env: Env, r0: Rental, rentCents?: number, quiet?: b
   if (r0.status !== 'held') return false;
   let r = r0;
   if (rentCents != null && rentCents >= 0 && rentCents < r0.rent_cents) {
-    // same rule as at request: credit off the rent, tax on rent after credit, fee (on rent + tax) from the owner's side; free = no tax, no fee
+    // same rule as at request: credit off the rent, tax on rent after credit, fee (on the rent only) from the owner's side; free = no tax, no fee
     const q = quote(env, rentCents, r0.credit_cents, r0.tax_rate || 0);
     await env.DB.prepare('UPDATE rentals SET list_rent_cents = COALESCE(list_rent_cents, rent_cents), rent_cents = ?, fee_cents = ?, total_cents = ?, credit_cents = ?, tax_cents = ?, payout_cents = ? WHERE id = ?').bind(q.rent, q.fee, q.total, q.credit, q.tax, q.payout, r0.id).run();
     r = { ...r0, rent_cents: q.rent, fee_cents: q.fee, total_cents: q.total, credit_cents: q.credit, tax_cents: q.tax, payout_cents: q.payout };
@@ -112,7 +112,7 @@ export async function customerCancel(env: Env, r: Rental): Promise<'released' | 
   // half of everything stays: half the rent (and its tax) → owner gets that minus the fee on it
   const keepRent = paid ? Math.round(r.rent_cents * 0.5) : 0, keepTax = paid ? Math.round((r.tax_cents || 0) * 0.5) : 0;
   const legacy = r.payout_cents == null; /* booked before Nov 13: customer paid the fee, owner gets the rent */
-  const ownerFee = legacy ? Math.max(0, charged - keepRent) : keepRent > 0 ? Math.round((keepRent + keepTax) * feePct(env) / 100) : 0;
+  const ownerFee = legacy ? Math.max(0, charged - keepRent) : keepRent > 0 ? Math.min(keepRent, Math.round((r.fee_cents || 0) * 0.5)) : 0; /* half the fee this rental was booked with (rent-only since 11/25; rent + tax before) */
   const keep = legacy ? keepRent : Math.max(0, keepRent - ownerFee);
   await setRentalStatus(env.DB, r.id, 'canceled', { late_cancel: 1, rent_cents: keepRent, tax_cents: keepTax, fee_cents: ownerFee, payout_cents: legacy ? null : keep, total_cents: charged });
   const fresh = (await rentalById(env.DB, r.id))!;
