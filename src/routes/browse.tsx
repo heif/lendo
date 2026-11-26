@@ -111,7 +111,7 @@ export const homePage = async (c: Ctx, opt: { center?: number[]; zoom?: number; 
             <label class="sr">Phone number</label>
             <input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Phone #" maxlength={14} />
             <button type="submit" disabled>$5 OFF</button>
-            {c.env.LENDO_NUMBER ? <a class="giftbtn" href={smsHref(c.env, GIFT_TEXT)}><span class="gb-ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="12" rx="2" fill="none" stroke="#fff" stroke-width="2.2" /><path d="M2 9h20M12 9v12M12 9c-2-4-6-5-6-2s4 2 6 2c2 0 6 1 6-2s-4-2-6 2" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round" /></svg></span><span class="gb-tx">$5 OFF<br /><small>item $15/day+</small></span></a> : null}
+            {c.env.LENDO_NUMBER ? <a class="giftbtn" href={smsHref(c.env, GIFT_TEXT)}><span class="gb-ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="12" rx="2" fill="none" stroke="#fff" stroke-width="2.2" /><path d="M2 9h20M12 9v12M12 9c-2-4-6-5-6-2s4 2 6 2c2 0 6 1 6-2s-4-2-6 2" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round" /></svg></span><span class="gb-tx"><b>$5 OFF</b><small>&gt;$15/day item</small></span></a> : null}
           </form> : null}
         </div>
         <div id="grid" class="aisles" style="display:none"></div>
