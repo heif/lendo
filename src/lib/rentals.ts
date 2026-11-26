@@ -44,7 +44,14 @@ export async function markHeld(env: Env, r: Rental, paymentIntent: string | null
     return; /* the customer just added it on the site: no second "requested" text */
   }
   await textUser(env, owner, `${firstName(renter.name)} wants your ${listing.name} ${fmtRange(r.start_day, r.end_day)}. You'd earn ${money(payoutOf(r))}. Reply YES to accept or NO to pass. ${url}`, 'rental', r.id, { emailed: em.ok });
-  await textUser(env, renter, `Requested ${listing.name} from ${firstName(owner.name)} for ${fmtRange(r.start_day, r.end_day)} · card held, not charged, until they say yes · a text comes when they answer ${url}`, 'rental', r.id);
+  /* up to 3 of the owner's other items free those days: "add another" (Scott, 11/25) */
+  const others: string[] = [];
+  for (const x of (await env.DB.prepare(`SELECT id, name FROM listings WHERE owner_id = ? AND status = 'live' AND id != ? ORDER BY created_at DESC LIMIT 12`).bind(r.owner_id, r.listing_id).all<{ id: string; name: string }>()).results) {
+    if (others.length >= 3) break;
+    if (!(await busyDays(env.DB, x.id, r.start_day, r.end_day)).size) others.push(x.name);
+  }
+  const addLine = others.length ? ` · add another from ${firstName(owner.name)} same days? ${others.join(', ')}` : '';
+  await textUser(env, renter, `Requested ${listing.name} from ${firstName(owner.name)} for ${fmtRange(r.start_day, r.end_day)} · card held, not charged, until they say yes${addLine} ${url}`, 'rental', r.id);
 }
 
 /** other requests still waiting from the same customer to the same owner for the same days ("add another from Scott", 11/25) */
