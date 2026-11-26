@@ -62,3 +62,15 @@
   /* stars picked on a rating → that many fingers */
   document.addEventListener('change', function (e) { var t = e.target; if (t && (t.name === 'stars' || t.name === 'item_stars') && /^[1-5]$/.test(t.value)) play(+t.value); });
 })();
+
+/* gift button: "$5 OFF" exactly as wide as the line under it (Scott, 11/26) */
+(function () {
+  function fit() {
+    document.querySelectorAll('.gb-tx').forEach(function (t) {
+      var b = t.querySelector('b'), s = t.querySelector('small'); if (!b || !s || !s.offsetWidth) return;
+      b.style.display = 'inline-block'; b.style.whiteSpace = 'nowrap';
+      var f = parseFloat(getComputedStyle(b).fontSize); b.style.fontSize = (f * s.offsetWidth / b.offsetWidth).toFixed(2) + 'px';
+    });
+  }
+  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(function () { fit(); setTimeout(fit, 300); });
+})();

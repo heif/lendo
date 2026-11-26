@@ -193,7 +193,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
         const line = away ? 'exact spot by text' : [spots[0] && owner.cross_streets ? owner.cross_streets : '', it.hood || owner.hood].filter(Boolean).join(' · ') || 'near you';
         const dow = new Date(today + 'T12:00:00Z').getUTCDay();
         const shown = dow >= 5 ? 13 - dow : 6 - dow; /* this week; Fri/Sat show next week too */
-        const rate = rep.as_owner_avg ? '★ ' + Number(rep.as_owner_avg).toFixed(1) : 'new to Lendo';
+        const rate = rep.as_owner_avg ? '★ ' + Number(rep.as_owner_avg).toFixed(1) : '';
         const chev = <i class="ir-chev" aria-hidden="true" />;
         const wk = !!(it.week_cents && it.week_cents < it.price_cents * 7);
         return (
@@ -219,7 +219,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
           <div class="ir-x">
             <a href={'/u/' + owner.id} class="owner-row owner-tight owner-orb">
               <OwnerOrbit name={owner.name} photo={owner.photo_key} items={others.map(o => ({ src: o.avatar_key ? '/p/' + o.avatar_key : '/c/' + oph[o.id] + '?s=200', cut: true })).filter(x => !x.src.endsWith('undefined'))} />
-              <span class="owner-txt"><b>{shortName(owner.name)}</b><small>{rep.as_owner_avg ? `${starStr(rep.as_owner_avg)} · ${rep.rentals} rentals` : 'new to Lendo'} · {rep.listed} listed</small></span>
+              <span class="owner-txt"><b>{shortName(owner.name)}</b><small>{rep.as_owner_avg ? `${starStr(rep.as_owner_avg)} · ${rep.rentals} rentals · ` : ''}{rep.listed} listed</small></span>
               <svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2L8 8L2 14" fill="none" stroke="#1E3A2B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
             </a>
             {review ? <p class="ir-p">“{review.rv}” · {shortName(review.nm)}</p> : null}
