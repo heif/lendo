@@ -33,16 +33,29 @@ export async function markHeld(env: Env, r: Rental, paymentIntent: string | null
   }
   const { owner, renter, listing } = await parties(env, r);
   const url = `${env.APP_URL}/r/${r.id}`;
+  const sibs = await heldTogether(env, r); /* an add-on: another request to this owner for the same days is already waiting */
   await addMessage(env, r.id, null, `${firstName(renter.name)} requested ${fmtRange(r.start_day, r.end_day)} · card held · waiting for ${firstName(owner.name)}`, 'system');
   /* the request goes by email at the same time as the text, always (Scott, 11/24) */
   const ph = await env.DB.prepare('SELECT r2_key FROM photos WHERE listing_id = ? ORDER BY pos LIMIT 1').bind(listing.id).first<{ r2_key: string }>().catch(() => null);
   const em = await emailRequest(env, r, owner, renter, listing, money(payoutOf(r)), ph ? cutoutUrl(env, ph.r2_key, 160, 160) : null).catch(async e => { await logErr(env.DB, 'request email', e, { rental: r.id }); return { ok: false }; });
+  if (sibs.length) {
+    /* one answer covers them all: a plain YES/NO by text answers every request from this customer for these days (webhooks.ts) */
+    await textUser(env, owner, `${firstName(renter.name)} also wants your ${listing.name}, same days. You'd earn ${money(payoutOf(r))} more. Reply YES or NO for all ${sibs.length + 1} ${url}`, 'rental', r.id, { emailed: em.ok });
+    return; /* the customer just added it on the site: no second "requested" text */
+  }
   await textUser(env, owner, `${firstName(renter.name)} wants your ${listing.name} ${fmtRange(r.start_day, r.end_day)}. You'd earn ${money(payoutOf(r))}. Reply YES to accept or NO to pass. ${url}`, 'rental', r.id, { emailed: em.ok });
   await textUser(env, renter, `Requested ${listing.name} from ${firstName(owner.name)} for ${fmtRange(r.start_day, r.end_day)}. Your card is held, not charged, until they say yes. We'll text you. ${url}`, 'rental', r.id);
 }
 
+/** other requests still waiting from the same customer to the same owner for the same days ("add another from Scott", 11/25) */
+export async function heldTogether(env: Env, r: Rental): Promise<Rental[]> {
+  return (await env.DB.prepare(`SELECT * FROM rentals WHERE owner_id = ? AND renter_id = ? AND start_day = ? AND end_day = ? AND status = 'held' AND id != ? ORDER BY created_at`)
+    .bind(r.owner_id, r.renter_id, r.start_day, r.end_day, r.id).all<Rental>()).results;
+}
+
 // rentCents: owner's "Give a discount" — any amount from the requested rent down to 0, never higher.
-export async function accept(env: Env, r0: Rental, rentCents?: number): Promise<boolean> {
+// quiet: an add-on answered together with another request: same money steps, no texts (the caller sends one summary)
+export async function accept(env: Env, r0: Rental, rentCents?: number, quiet?: boolean): Promise<boolean> {
   if (r0.status !== 'held') return false;
   let r = r0;
   if (rentCents != null && rentCents >= 0 && rentCents < r0.rent_cents) {
@@ -59,6 +72,7 @@ export async function accept(env: Env, r0: Rental, rentCents?: number): Promise<
   const paidLine = r.total_cents <= 0 || how === 'released' ? 'free — nothing charged' : `${money(r.total_cents)} paid`;
   await addMessage(env, r.id, null, `${firstName(owner.name)} said yes · ${paidLine} · set a pickup time`, 'system');
   const spot = owner.pickup_spots ? ` Meet: ${(JSON.parse(owner.pickup_spots) as string[]).join(' or ')}` : '';
+  if (quiet) return true;
   const gift = r.rent_cents === 0 ? ` ${firstName(owner.name)} is lending it to you free!` : r0.rent_cents > r.rent_cents ? ` ${firstName(owner.name)} gave you a discount` : '';
   // owner is asked for a pickup time right after YES (no pickup hours); their reply relays to the customer, SKIP leaves it to the customer
   await textUser(env, renter, `${firstName(owner.name)} said yes!${gift} ${paidLine[0].toUpperCase() + paidLine.slice(1)}.${spot} Next: sign your promise to ${firstName(owner.name)} (3 quick checks) ${url}#promise`, 'money', r.id);
@@ -70,14 +84,14 @@ export async function accept(env: Env, r0: Rental, rentCents?: number): Promise<
   return true;
 }
 
-export async function decline(env: Env, r: Rental, reason: 'declined' | 'expired' | 'canceled') {
+export async function decline(env: Env, r: Rental, reason: 'declined' | 'expired' | 'canceled', quiet?: boolean) {
   if (r.status !== 'held' && r.status !== 'requested') return false;
   await releaseHold(env, r);
   await setRentalStatus(env.DB, r.id, reason, { expires_at: null });
   const { owner, renter, listing } = await parties(env, r);
   const why = reason === 'declined' ? `${firstName(owner.name)} can't do those days` : reason === 'expired' ? `${firstName(owner.name)} didn't answer in time` : 'request canceled';
   await addMessage(env, r.id, null, `${why} · hold released, nothing charged`, 'system');
-  if (reason !== 'canceled') await textUser(env, renter, `${listing.name}: ${why}. Nothing was charged. Browse more: ${env.APP_URL}/`, 'rental', r.id);
+  if (reason !== 'canceled' && !quiet) await textUser(env, renter, `${listing.name}: ${why}. Nothing was charged. Browse more: ${env.APP_URL}/`, 'rental', r.id);
   return true;
 }
 

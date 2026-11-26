@@ -10,9 +10,9 @@ import type { Env, Rental, User, Vars } from '../lib/env';
 import { cardFromSetup, rememberCard, stripe } from '../lib/stripe';
 import { parseInbound, textUser } from '../lib/blooio';
 import { linqParse, linqVerify } from '../lib/linq';
-import { ensureUser, rentalById, unpauseTexted, userByPhone } from '../lib/db';
+import { ensureUser, rentalById, unpauseTexted, userByPhone, userById } from '../lib/db';
 import { loginLink, approvePair } from '../lib/auth';
-import { accept, activeRentalFor, decline, holdDeposit, markHeld, relay } from '../lib/rentals';
+import { accept, activeRentalFor, decline, holdDeposit, markHeld, relay, heldTogether } from '../lib/rentals';
 import { onDispute } from '../lib/claims';
 import { hmacHex, normPhone, timingSafeEq, firstName } from '../lib/util';
 
@@ -232,8 +232,23 @@ export async function handleText(c: Context<{ Bindings: Env; Variables: Vars }>,
       ? (await c.env.DB.prepare(`SELECT * FROM rentals WHERE owner_id = ? AND status = 'held' ORDER BY created_at DESC`).bind(user.id).all<Rental>()).results.find(x => x.id.slice(-4).toLowerCase() === coded[2].toLowerCase()) ?? null
       : await c.env.DB.prepare(`SELECT * FROM rentals WHERE owner_id = ? AND status = 'held' ORDER BY created_at DESC LIMIT 1`).bind(user.id).first<Rental>();
     if (held) {
-      if (kw2.startsWith('Y') || kw2 === 'ACCEPT') { const ok = await accept(c.env, held); if (!ok) await textUser(c.env, user, `Couldn't confirm that one — open it here: ${c.env.APP_URL}/r/${held.id}`, 'rental', held.id); }
+      const yes = kw2.startsWith('Y') || kw2 === 'ACCEPT';
+      /* add-ons: a plain YES/NO (no code) answers every request from this customer for the same days; "YES 1a2b" answers just that one */
+      const sibs = coded ? [] : await heldTogether(c.env, held);
+      if (yes) { const ok = await accept(c.env, held); if (!ok) await textUser(c.env, user, `Couldn't confirm that one — open it here: ${c.env.APP_URL}/r/${held.id}`, 'rental', held.id); }
       else await decline(c.env, held, 'declined');
+      if (sibs.length) {
+        const cust = await userById(c.env.DB, held.renter_id), done: string[] = [], failed: string[] = []; let paid = 0;
+        for (const x of sibs) {
+          const nm = (await c.env.DB.prepare('SELECT name FROM listings WHERE id = ?').bind(x.listing_id).first<{ name: string }>())?.name || 'item';
+          const ok = yes ? await accept(c.env, x, undefined, true) : await decline(c.env, x, 'declined', true);
+          if (ok) { done.push(nm); paid += x.total_cents; } else failed.push(nm);
+        }
+        await logEvent(c.env.DB, 'rental.answer_all', { user: user.id, rental: held.id, data: { yes, n: sibs.length + 1, failed: failed.length } });
+        const own = (user.name || 'The owner').split(' ')[0];
+        if (cust && done.length) await textUser(c.env, cust, yes ? `${own} also said yes: ${done.join(', ')} · ${paid > 0 ? '$' + (paid / 100).toFixed(2) + ' paid' : 'free'} · same pickup ${c.env.APP_URL}/rentals` : `${own} also can't do: ${done.join(', ')}. Nothing was charged`, yes ? 'money' : 'rental', sibs[0].id);
+        if (failed.length) await textUser(c.env, user, `Couldn't ${yes ? 'confirm' : 'pass on'} ${failed.join(', ')} — open ${c.env.APP_URL}/rentals`, 'rental', held.id);
+      }
       return c.json({ ok: true });
     }
     // no pending rental request → an extension waiting for this owner?

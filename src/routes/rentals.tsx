@@ -130,6 +130,14 @@ rentals.get('/r/:id', requireUser, async (c) => {
   const paused = await textsPaused(c.env, u);
   const chats = await chatList(c.env.DB, u.id);
   const extCells = live && !isOwner && !ox ? Array.from({ length: Math.min(EXT_MAX_DAYS, Math.max(7, extOk.length + 1)) }, (_, i) => addDays(r.end_day, i + 1)) : [];
+  /* "Add another from Scott · same days" (Scott, 11/25): his other items free those days; each is its own ordinary request ($5 min each) */
+  let more: { id: string; name: string; price_cents: number; img: string }[] = [];
+  if (!isOwner && (r.status === 'held' || r.status === 'confirmed')) {
+    const mine = new Set((await c.env.DB.prepare(`SELECT listing_id FROM rentals WHERE renter_id = ? AND owner_id = ? AND status IN ('held','confirmed','picked_up') AND end_day >= ? AND start_day <= ?`).bind(u.id, r.owner_id, r.start_day, r.end_day).all<{ listing_id: string }>()).results.map(x => x.listing_id));
+    const ls = (await c.env.DB.prepare(`SELECT id, name, price_cents, avatar_key FROM listings WHERE owner_id = ? AND status = 'live' ORDER BY created_at DESC LIMIT 30`).bind(r.owner_id).all<{ id: string; name: string; price_cents: number; avatar_key: string | null }>()).results.filter(x => !mine.has(x.id));
+    const ph = await firstPhotos(c.env.DB, ls.map(x => x.id));
+    for (const x of ls) { if (more.length >= 8) break; if ((await busyDays(c.env.DB, x.id, r.start_day, r.end_day)).size) continue; more.push({ id: x.id, name: x.name, price_cents: x.price_cents, img: x.avatar_key ? '/p/' + x.avatar_key : ph[x.id] ? '/c/' + ph[x.id] + '?s=200' : '' }); }
+  }
   return c.html(
     <Layout title={isOwner ? 'Rental of your ' + it.name : 'Your rental'} user={u} back="/inbox" headerCenter={<span class="sp"></span>} flash={undefined} flashErr={c.req.query('needphoto') ? 'Take the handover photo first · it shows what was handed over' : undefined}>
       <ChatPick rows={chats} me={u.id} cur={'/r/' + r.id} />
@@ -167,6 +175,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
             <a class="rhd2" href={'/i/' + it.id}>{pic ? <img class="cut" data-trim="1" src={pic} alt="" /> : <span class="rhd-ph"></span>}
               <div style="min-width:0"><b>{head}</b><span>{it.name} · {isOwner ? '' : 'from '}<u onclick={`event.preventDefault();location.href='${(other as any).handle ? '/' + (other as any).handle : '/u/' + other.id}'`}>{shortName(other.name)}</u> · {fmtRange(r.start_day, r.end_day)}</span></div></a>
             {hi ? <i hidden data-lh="five"></i> : c.req.query('paid') && r.status === 'held' ? <i hidden data-lh="fist"></i> : null}<ol class="rlist">{S.map(([t, d], i) => { const dd = sep(d); return <li class={i < now || (i === 2 && signed) ? 'done' : i === now ? 'now' : ''}><i></i><div><b>{t}</b>{dd.length ? <span>{dd}</span> : null}{i === 2 && promNow && !isOwner ? <button type="button" class="rsign" onclick="document.getElementById('promSign').showModal()">✍️ Sign</button> : null}</div></li>; })}</ol>
+            {more.length ? <details class="radd"><summary>＋ Add another from {nm} · same days</summary><div class="radd-l">{more.map(x => <a href={`/i/${x.id}?start=${r.start_day}&end=${backDay(r.end_day)}`}>{x.img ? <img class="cut" data-trim="1" src={x.img} alt="" loading="lazy" /> : <span />}<b>{x.name}</b><small>{money(x.price_cents)}/day</small></a>)}</div></details> : null}
             {cancel ? <div class="rfoot">{paused ? <a class="rpaused sms-only" href={smsHref(c.env, 'OK')}>📵 Texts paused · <u>text OK</u></a> : <span></span>}{cancel}</div> : null}
           </>; })() : null}
         {paused && !(!isOwner && stage <= 1 && r.status !== 'inquiry' && !dead) ? <a class="hint sms-only" href={smsHref(c.env, 'OK')} style="text-align:center;color:#b3261e;font-weight:700;display:block">📵 Lendo texts paused · <u>tap to text OK</u></a> : null}
