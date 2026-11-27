@@ -61,7 +61,7 @@
     var img = it.avatar_key ? '/p/' + it.avatar_key : it.photo ? '/c/' + it.photo + '?s=300' : '';
     return '<div class="ai-t"><a href="/i/' + it.id + '"><div class="ai-im">' + '<span class="ai-sh"></span>' +
       (img ? '<img loading="lazy" decoding="async" src="' + img + '" alt="' + esc(it.name) + '"' + (it.avatar_key ? '' : ' class="ph"') + '>' : '<span class="ai-em">' + (it.emoji || '📦') + '</span>') +
-      (isJust(it) ? '<span class="ai-age">' + ageLabel(it.created_at) + '</span>' : '') + '<span class="ai-pr">' + fmt(it.price_cents) + '<small>/day</small></span></div><div class="ai-nm"><span class="ownlink" data-u="' + esc(profUrl(it)) + '">' + esc(possessive(it.owner_name)) + '</span> ' + esc(it.name) + '</div></a>' +
+      (isJust(it) ? '<span class="ai-age">' + ageLabel(it.created_at) + '</span>' : '') + '<span class="ai-pr">' + fmt(it.price_cents) + '<small>/day</small></span></div><div class="ai-nm"><span class="ownlink" data-u="' + esc(profUrl(it)) + '">' + esc(possessive(it.owner_name)) + '</span> ' + esc(it.short_name || it.name) + '</div></a>' +
       '<button type="button" class="ai-wh" data-go="' + it.id + '"><svg width="9" height="11" viewBox="0 0 24 28" aria-hidden="true"><path d="M12 27C12 27 3 17 3 10.5A9 9 0 0 1 21 10.5C21 17 12 27 12 27Z" fill="#1E3A2B"/><circle cx="12" cy="10.5" r="3.2" fill="#fff"/></svg>' + esc(it.hood || 'nearby') + '</button></div>';
   }
   function renderGrid(items) {
@@ -220,7 +220,7 @@
     else { im.dataset.want = ''; im.src = it.photo ? '/c/' + it.photo + '?s=300' : ''; }
     $('shPr').innerHTML = fmt(it.price_cents) + '<small>/day</small>';
     var own = (it.owner_name || 'Neighbor').split(' ')[0];
-    $('shNm').innerHTML = ''; var o1 = document.createElement('span'); o1.className = 'ownlink'; o1.dataset.u = profUrl(it); o1.style.fontWeight = '500'; o1.style.display = 'block'; o1.style.fontSize = '.72em'; o1.textContent = own + (/s$/i.test(own) ? '’' : '’s'); $('shNm').appendChild(o1); $('shNm').appendChild(document.createTextNode(it.name.charAt(0).toUpperCase() + it.name.slice(1))); // "Scott’s Projector": item names keep their capital
+    $('shNm').innerHTML = ''; var o1 = document.createElement('span'); o1.className = 'ownlink'; o1.dataset.u = profUrl(it); o1.style.fontWeight = '500'; o1.style.display = 'block'; o1.style.fontSize = '.72em'; o1.textContent = own + (/s$/i.test(own) ? '’' : '’s'); $('shNm').appendChild(o1); $('shNm').appendChild(document.createTextNode((it.short_name || it.name).charAt(0).toUpperCase() + (it.short_name || it.name).slice(1))); // "Scott’s Projector": item names keep their capital
     $('shOwner').innerHTML = '<span class="av">' + esc(own.charAt(0)) + '</span>' + esc(own) + (it.owner_rating ? ' <span class="pill stars">' + '★★★★★'.slice(0, wholeStars(it.owner_rating)) + '</span>' : ' <span class="pill new">new</span>') + (it.rentals ? ' <span class="n">' + it.rentals + ' rental' + (it.rentals === 1 ? '' : 's') + '</span>' : '');
     $('shRent').href = '/i/' + it.id;
     $('shWhere').textContent = (it.hood || 'near you') + (it.owner_xs ? ' · ' + it.owner_xs : '');
@@ -463,7 +463,7 @@
     var id = f.properties.id; clearTimeout(hovT); if (id === hovId) return;
     var it = items.filter(function (x) { return x.id === id; })[0]; if (!it) return; hovId = id;
     var src = it.avatar_key ? '/p/' + it.avatar_key : it.photo ? '/c/' + it.photo + '?s=300' : '';
-    var nm = it.name.charAt(0).toUpperCase() + it.name.slice(1);
+    var nm0 = it.short_name || it.name, nm = nm0.charAt(0).toUpperCase() + nm0.slice(1);
     /* the pin grows (bigger photo + tag), the name appears under it; the photo stays on the pin, only the label slides in from an edge */
     var pt = map.project(f.geometry.coordinates), W = map.getContainer().clientWidth, dx = 0, dy = 0;
     if (pt.x < 116) dx = 116 - pt.x; else if (pt.x > W - 116) dx = W - 116 - pt.x;

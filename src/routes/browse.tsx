@@ -1,3 +1,4 @@
+import { shortOf } from '../lib/shortname';
 import { pickStrip, tickerOn, cityAt } from '../lib/strips';
 import { holdFor } from '../lib/value';
 import { guaranteeCap } from '../lib/claims';
@@ -212,8 +213,9 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
       <section class="sec irows" style="padding:8px 14px 10px">
         {it.status === 'paused' && it.paused_why === 'notext' && isOwner ? <a class="pill" style="background:var(--orange);color:#fff;text-decoration:none;white-space:nowrap;margin:0 0 8px;display:inline-block" href={smsHref(c.env, 'OK')}>Paused · text OK to Lendo</a> : it.status === 'paused' ? <span class="pill" style="margin:0 0 8px;display:inline-block">paused</span> : it.status === 'review' ? <span class="pill" style="margin:0 0 8px;display:inline-block">Posted · checking the photo</span> : null}
         <details class="ir">
-          <summary><small>What</small><b class="ir-v">{nm} <span class={'ir-gl g' + gr.letter}>{gr.letter}</span></b>{chev}</summary>
+          <summary><small>What</small><b class="ir-v">{shortOf(it)} <span class={'ir-gl g' + gr.letter}>{gr.letter}</span></b>{chev}</summary>
           <div class="ir-x">
+            {shortOf(it) !== it.name ? <p class="ir-full">{nm}</p> : null}
             {it.description || it.issues ? <p class="ir-p">{it.description || ''}{it.issues ? (it.description ? '\n' : '') + 'Known issues: ' + it.issues : ''}</p> : null}
             <div class="ir-line"><GradeInfo g={gr.letter} customers={gr.customers} owner={first} cls="inrow" /><span>Condition {gr.letter} · {GRADE_WORD[gr.letter] || ''}{ir?.n ? ` · 👍 ${ir.up || 0} of ${ir.n}` : ''}</span></div>
             <div class={'askrow' + (isOwner ? ' own-off' : '')}>{isOwner ? <span class="askbtn">Ask</span> : it.status === 'live' ? (it.demo || !u

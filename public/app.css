@@ -1206,3 +1206,4 @@ input.otp{font-size:52px!important;padding:14px 0 14px .5em;border-radius:18px;m
 .prset-tag{display:inline-flex;align-items:baseline;gap:2px;background:var(--orange);color:#fff;border:3px solid var(--ink);border-radius:11px;padding:3px 14px;box-shadow:3px 3px 0 var(--ink);transform:rotate(-2deg);min-width:104px;justify-content:center}
 .prset-tag b{font-size:28px;font-weight:900;letter-spacing:-.02em}.prset-tag small{font-size:13px;font-weight:900}
 .late-card{border:2px solid var(--ink)}.late-card .hint{margin-top:4px}
+.ir-full{margin:0 0 8px;font-size:15px;font-weight:800;color:var(--ink)}

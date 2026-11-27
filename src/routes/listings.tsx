@@ -1,3 +1,4 @@
+import { ensureShort } from '../lib/shortname';
 import { minPriceCents } from '../lib/identify';
 import { getCookie } from 'hono/cookie';
 import { bonusOpen, nycLeft, NYC_CAP } from '../lib/db';
@@ -570,6 +571,7 @@ listings.post('/listings/:id/edit', requireUser, async (c) => {
   const em = nm === it.name && it.emoji ? it.emoji : emojiFor(nm, ds); // map icon is automatic, not owner-edited
   await c.env.DB.prepare('UPDATE listings SET name = ?, description = ?, price_cents = ?, week_cents = ?, emoji = ? WHERE id = ?')
     .bind(nm, ds, price, week, em, it.id).run();
+  if (nm !== it.name) { await c.env.DB.prepare('UPDATE listings SET short_name = NULL WHERE id = ?').bind(it.id).run().catch(() => {}); c.executionCtx.waitUntil(ensureShort(c.env, { id: it.id, name: nm }).catch(() => '')); }
   if (f.issues !== undefined) { const iss = String(f.issues || '').trim().slice(0, 600) || null; if (iss !== (it.issues || null)) {
     /* what's wrong with it changes what it's worth: the cron values it again (an appealed value stays) */
     await c.env.DB.prepare('UPDATE listings SET issues = ?' + (it.value_appeal ? '' : `, value_src = CASE WHEN value_cents IS NULL THEN value_src ELSE 'est' END, value_at = NULL`) + ' WHERE id = ?').bind(iss, it.id).run();

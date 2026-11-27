@@ -81,7 +81,7 @@ api.get('/api/listings', async (c) => {
   if (bbox.length === 4 && bbox.every(n => !isNaN(n))) { where.push('l.lat BETWEEN ? AND ? AND l.lng BETWEEN ? AND ?'); args.push(bbox[1], bbox[3], bbox[0], bbox[2]); }
   if (q) { where.push('(l.name LIKE ? OR l.description LIKE ?)'); args.push(`%${q}%`, `%${q}%`); }
   if (hood) { where.push('l.hood = ?'); args.push(hood); }
-  const rows = await c.env.DB.prepare(`SELECT l.id, l.name, l.price_cents, l.week_cents, l.hood, l.lat, l.lng, l.owner_id, l.emoji, l.avatar_key, l.created_at,
+  const rows = await c.env.DB.prepare(`SELECT l.id, l.name, l.short_name, l.price_cents, l.week_cents, l.hood, l.lat, l.lng, l.owner_id, l.emoji, l.avatar_key, l.created_at,
       u.name owner_name, u.handle owner_handle, u.cross_streets owner_xs, u.photo_key owner_photo,
       (SELECT ROUND(AVG(renter_rating),1) FROM rentals r WHERE r.owner_id = l.owner_id AND renter_rating IS NOT NULL) owner_rating,
       (SELECT COUNT(*) FROM rentals r WHERE r.listing_id = l.id AND r.status IN ('confirmed','picked_up','returned','closed')) rentals
