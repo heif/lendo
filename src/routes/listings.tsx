@@ -416,7 +416,14 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
             <button type="submit" formaction={`/listings/${it.id}/photos/${p.id}/delete`} formnovalidate class="phm-x" aria-label="Remove photo">×</button>
           </div>)}
           {photos.length < 6 ? <label class="phm-add">+<small>photo</small><input type="file" accept="image/*" multiple hidden onchange="this.form.action=this.dataset.u;this.form.enctype='multipart/form-data';this.form.submit()" data-u={`/listings/${it.id}/photos`} name="photos" /></label> : null}
+          {/* stock photo (Scott, 11/27): only when there's no photo of the owner's own — it replaces the cover, and a real photo later replaces it */}
+          {c.env.BRAVE_API_KEY && (!photos.length || it.stock_photo) ? <button type="button" class="phm-add" id="stkOpen" data-q={it.name}>+<small>stock</small></button> : null}
         </div>
+        <div class="stkpick" id="stkPick" hidden><p class="hint" id="stkMsg">Finding photos…</p><div class="stkpick-g" id="stkGrid"></div>
+          <input type="hidden" name="stock_img" id="stkImg" /></div>
+        <script dangerouslySetInnerHTML={{ __html: `(function(){var b=document.getElementById('stkOpen');if(!b)return;b.onclick=function(){var w=document.getElementById('stkPick'),g=document.getElementById('stkGrid'),m=document.getElementById('stkMsg');w.hidden=false;g.innerHTML='';m.textContent='Finding photos…';
+fetch('/api/stock?q='+encodeURIComponent(b.dataset.q)).then(function(r){return r.json()}).then(function(j){var a=(j.imgs||[]).slice(0,9);if(!a.length){m.textContent='No stock photos found';return}m.textContent='Tap the one that looks like yours';
+a.forEach(function(x){var i=document.createElement('img');i.src=x.thumb||x.src;i.alt='';i.onclick=function(){var f=b.form;document.getElementById('stkImg').value=JSON.stringify({img:x.src,thumb:x.thumb||''});f.action='/listings/${it.id}/stock';f.submit()};g.appendChild(i)})}).catch(function(){m.textContent='Couldn’t load photos · try again'})}})()` }} />
         <div style="display:flex;gap:10px;align-items:flex-end">
           <label class="field" style="flex:1"><span>Name</span><input name="name" value={it.name} required maxlength={80} /></label>
         </div>
@@ -483,6 +490,27 @@ async function recoverIcon(c: any, lid: string, before: string | null) {
   const ph = await photosFor(c.env.DB, lid); const k = ph[0]?.r2_key || null;
   if (k && k !== before) c.executionCtx.waitUntil(autoIcon(c.env, lid, k));
 }
+/* owner picks a stock photo on the edit page: allowed only while the item has no photo of their own; it becomes the only photo */
+listings.post('/listings/:id/stock', requireUser, async (c) => {
+  const it = await ownListing(c); if (!it) return c.notFound();
+  const have = await photosFor(c.env.DB, it.id);
+  if (have.length && !it.stock_photo) return c.redirect(`/listings/${it.id}/edit`);
+  let pick: any = {}; try { pick = JSON.parse(String((await c.req.parseBody()).stock_img || '{}')); } catch {}
+  let bytes: ArrayBuffer | null = null, type = 'image/jpeg';
+  for (const u0 of [pick.img, pick.thumb]) {
+    if (bytes || !/^https:\/\//.test(String(u0 || ''))) continue;
+    try { const r = await fetch(String(u0), { headers: { 'user-agent': 'Lendo/1.0' } }); const ct = r.headers.get('content-type') || ''; if (r.ok && /^image\/(jpeg|png|webp)/.test(ct)) { bytes = await r.arrayBuffer(); type = ct.split(';')[0]; } } catch {}
+  }
+  if (!bytes) return c.redirect(`/listings/${it.id}/edit`);
+  for (const p of have) await c.env.DB.prepare('DELETE FROM photos WHERE id = ?').bind(p.id).run();
+  const key = `${it.id}/${id('ph')}.${type.split('/')[1].replace('jpeg', 'jpg')}`;
+  await c.env.PHOTOS.put(key, bytes, { httpMetadata: { contentType: type } });
+  await c.env.DB.prepare('INSERT INTO photos (id, listing_id, r2_key, pos) VALUES (?,?,?,0)').bind(id('ph'), it.id, key).run();
+  await c.env.DB.prepare('UPDATE listings SET stock_photo = 1, avatar_key = NULL WHERE id = ?').bind(it.id).run();
+  await logEvent(c.env.DB, 'listing.stock_photo', { user: it.owner_id, listing: it.id, data: { src: String(pick.img || '').slice(0, 300), via: 'edit' } });
+  await recoverIcon(c, it.id, null);
+  return c.redirect(`/listings/${it.id}/edit`);
+});
 listings.post('/listings/:id/photos', requireUser, async (c) => {
   const it = await ownListing(c); if (!it) return c.notFound();
   const f = await c.req.parseBody({ all: true });

@@ -1207,3 +1207,4 @@ input.otp{font-size:52px!important;padding:14px 0 14px .5em;border-radius:18px;m
 .prset-tag b{font-size:28px;font-weight:900;letter-spacing:-.02em}.prset-tag small{font-size:13px;font-weight:900}
 .late-card{border:2px solid var(--ink)}.late-card .hint{margin-top:4px}
 .ir-full{margin:0 0 8px;font-size:15px;font-weight:800;color:var(--ink)}
+.stkpick{margin:8px 0 4px}.stkpick-g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stkpick-g img{width:100%;aspect-ratio:1;object-fit:contain;background:#fff;border:2px solid var(--ink);border-radius:12px;cursor:pointer}
