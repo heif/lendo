@@ -17,7 +17,8 @@ import { addMessage, busyDays, firstPhotos, listingById, photosFor, rentalById, 
 import { id, money, now, daysBetween, dayStr, addDays, fmtRange, rentFor, firstName, fmtDay, backDay } from '../lib/util';
 import { cardSetupUrl, createCheckout, connectOnboardingUrl, flushPendingPayouts, stripe } from '../lib/stripe';
 import { HIGH_CENTS, holdFor } from '../lib/value';
-import { canOpen, claimFor, isOpen } from '../lib/claims';
+import { canOpen, claimFor, isOpen, openClaim } from '../lib/claims';
+import { lateInfo, lateWaived } from '../lib/late';
 import { payoutOf, quote, taxRateFor, creditOk } from '../lib/money';
 import { selfMigrate } from '../lib/migrate';
 import { accept, allGood, decline, customerCancel, holdDeposit, markHeld, pickedUp, rate, relay, returned } from '../lib/rentals';
@@ -114,6 +115,8 @@ rentals.get('/r/:id', requireUser, async (c) => {
   const owner = isOwner ? u : other;
   const it = (await listingById(c.env.DB, r.listing_id))!;
   const cl = await claimFor(c.env, r.id);
+  const late0 = r.owner_id === u.id && canOpen(r, it) === 'returned' ? lateInfo(r, it) : null;
+  const late = late0 && !(await lateWaived(c.env, r.id)) ? late0 : null;
   /* deposit hold: owner opening the pickup on/after pickup day places it, so they see "OK to hand over" before letting go */
   if (isOwner && r.status === 'confirmed' && r.deposit_status === 'due' && r.start_day <= localToday(it.lng)) { try { await holdDeposit(c.env, r); Object.assign(r, await rentalById(c.env.DB, r.id)); } catch { /* cron retries */ } }
   const photos = await photosFor(c.env.DB, it.id);
@@ -245,6 +248,15 @@ rentals.get('/r/:id', requireUser, async (c) => {
           <b>{cl.status === 'final' ? `Decided · ${(cl.final_cents || 0) > 0 ? `${isOwner ? firstName(other.name) + ' owes' : 'you owe'} ${money(cl.final_cents!)}` : 'no charge'}` : isOpen(cl) && cl.status === 'ruled' ? `Decision · ${(cl.award_cents || 0) > 0 ? money(cl.award_cents!) : 'no charge'} · OK it or ask for a second look` : 'Problem reported · being decided'}</b>
           <div class="hint">{(cl.status === 'response' || cl.status === 'reply') ? (isOwner ? `Waiting for ${firstName(other.name)}’s side` : 'Your turn · add your side') : cl.status === 'rebuttal' ? (isOwner ? 'Your turn · reply' : `Waiting for ${firstName(other.name)}’s reply`) : cl.status === 'final' ? 'Final' : ''} <u>View</u></div>
         </a> : null}
+        {/* late return (Scott, 11/27): the owner confirms the late charge or lets it go — only the owner sees this choice */}
+        {late && isOwner && !cl ? <div class="card late-card">
+          <b>Came back {late.days} day{late.days > 1 ? 's' : ''} late</b>
+          <div class="hint">Late returns are {money(it.price_cents)}/day from {firstName(other.name)}’s hold · only you see this choice</div>
+          <div class="row" style="margin-top:10px;gap:8px">
+            <form method="post" action={'/r/' + r.id + '/late'} style="flex:1"><input type="hidden" name="v" value="charge" /><button class="btn pri full" type="submit">Charge {money(late.cents)}</button></form>
+            <form method="post" action={'/r/' + r.id + '/late'} style="flex:1"><input type="hidden" name="v" value="skip" /><button class="btn full" type="submit">Let it go</button></form>
+          </div>
+        </div> : null}
         {/* returned: the hold stays 24h so the owner can check the item */}
         {isOwner && stage === 3 && r.deposit_status === 'held' && !cl ? <div class="card" style="border:2px solid var(--ink)">
           <b>All good with the {it.name}?</b>
@@ -411,6 +423,21 @@ rentals.post('/r/:id/ext/:xid/:v', requireUser, async (c) => {
   const x = await extById(c.env, c.req.param('xid'));
   if (!x || x.rental_id !== r.id || x.status !== 'held') return c.redirect('/r/' + r.id);
   if (c.req.param('v') === 'accept') await acceptExt(c.env, x); else if (c.req.param('v') === 'decline') await declineExt(c.env, x, 'declined');
+  return c.redirect('/r/' + r.id);
+});
+/* owner confirms a late charge (→ a 'late' claim, decided like any other) or lets it go (private, logged) */
+rentals.post('/r/:id/late', requireUser, async (c) => {
+  const u = c.get('user')!; const r = await rentalById(c.env.DB, c.req.param('id'));
+  if (!r || r.owner_id !== u.id) return c.notFound();
+  const it = (await listingById(c.env.DB, r.listing_id))!;
+  const late = canOpen(r, it) === 'returned' ? lateInfo(r, it) : null;
+  if (!late || await claimFor(c.env, r.id) || await lateWaived(c.env, r.id)) return c.redirect('/r/' + r.id);
+  if ((await c.req.parseBody()).v === 'charge') {
+    await openClaim(c.env, r, 'late', `Returned ${late.days} day${late.days > 1 ? 's' : ''} late (due ${fmtDay(backDay(r.end_day))}${r.return_time || r.pickup_time ? ' ' + fmtHM(r.return_time || r.pickup_time!) : ''}) · ${money(it.price_cents)}/day = ${money(late.cents)}`, []);
+    await logEvent(c.env.DB, 'rental.late_charge', { user: u.id, rental: r.id, cents: late.cents, data: { days: late.days } });
+    return c.redirect('/r/' + r.id + '/claim');
+  }
+  await logEvent(c.env.DB, 'rental.late_waived', { user: u.id, rental: r.id, cents: late.cents, data: { days: late.days } });
   return c.redirect('/r/' + r.id);
 });
 rentals.post('/r/:id/time', requireUser, async (c) => {

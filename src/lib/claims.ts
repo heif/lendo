@@ -84,8 +84,13 @@ export async function openClaim(env: Env, r: Rental, kind: Claim['kind'], body: 
   await entry(env, cl, 'owner', 'claim', body, photos);
   const { owner, customer, listing } = await ctx(env, cl);
   await logEvent(env.DB, 'claim.opened', { user: owner.id, rental: r.id, listing: r.listing_id, cents: cl.deposit_cents, data: { claim: cid, kind, photos: photos.length } });
-  await addMessage(env, r.id, null, `${firstName(owner.name)} reported a problem (${KINDS[kind].toLowerCase()}) · the ${money(cl.deposit_cents)} hold stays on until it's decided`, 'system');
-  await textUser(env, customer, `${firstName(owner.name)} reported a problem with the ${listing.name} (${KINDS[kind].toLowerCase()}). Your ${money(cl.deposit_cents)} hold stays on until it's decided. Add your side by ${due(cl.step_due!, listing.lng)}: ${link(env, cl)}`, 'rental', r.id);
+  if (kind === 'late') { /* the rule speaks, not the owner (Scott, 11/27): the customer never learns the owner could have let it go */
+    await addMessage(env, r.id, null, `Returned late · late returns are ${money(listing.price_cents)}/day from the hold · ${body.split(' · ').pop()}`, 'system');
+    await textUser(env, customer, `The ${listing.name} came back late. Late returns are 1 day's rent per late day (${money(listing.price_cents)}/day), from your ${money(cl.deposit_cents)} hold. If that's not right, add your side by ${due(cl.step_due!, listing.lng)}: ${link(env, cl)}`, 'rental', r.id);
+  } else {
+    await addMessage(env, r.id, null, `${firstName(owner.name)} reported a problem (${KINDS[kind].toLowerCase()}) · the ${money(cl.deposit_cents)} hold stays on until it's decided`, 'system');
+    await textUser(env, customer, `${firstName(owner.name)} reported a problem with the ${listing.name} (${KINDS[kind].toLowerCase()}). Your ${money(cl.deposit_cents)} hold stays on until it's decided. Add your side by ${due(cl.step_due!, listing.lng)}: ${link(env, cl)}`, 'rental', r.id);
+  }
   return cl;
 }
 

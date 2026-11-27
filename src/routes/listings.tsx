@@ -420,7 +420,16 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
           <label class="field" style="flex:1"><span>Name</span><input name="name" value={it.name} required maxlength={80} /></label>
         </div>
         <div style="display:flex;gap:10px">
-          <label class="field" style="flex:1"><span>$ per day</span><input name="price" type="number" step="1" min="0" value={it.price_cents / 100} required oninput="var z=document.getElementById('zeroNote');if(z)z.hidden=this.value!=='0'" /></label>
+          <div class="field" style="flex:1"><span>Price</span>
+            {/* same −/+ price tag as the listing flow (Scott, 11/27); $0 = free lend, else at least the minimum */}
+            <div class="prset" data-min={String((await minPriceCents(c.env)) / 100)}><button type="button" data-d="-1" aria-label="Lower price">−</button><span class="prset-tag"><b>${it.price_cents / 100}</b><small>/day</small></span><button type="button" data-d="1" aria-label="Raise price">+</button>
+              <input type="hidden" name="price" value={String(it.price_cents / 100)} /></div>
+            <script dangerouslySetInnerHTML={{ __html: `(function(){var w=document.querySelector('.prset');if(!w)return;var MIN=+w.dataset.min||1,i=w.querySelector('input'),b=w.querySelector('b'),t;
+function set(v){v=Math.max(0,Math.round(v));if(v>0&&v<MIN)v=v<+i.value?0:MIN;i.value=v;b.textContent='$'+v;var z=document.getElementById('zeroNote');if(z)z.hidden=v!==0}
+function step(d){set(+i.value+d*(+i.value>=50?5:1))}
+w.addEventListener('click',function(e){var x=e.target.closest('button');if(x)step(+x.dataset.d)});
+w.addEventListener('pointerdown',function(e){var x=e.target.closest('button');if(!x)return;t=setTimeout(function r(){step(+x.dataset.d);t=setTimeout(r,90)},450)});
+['pointerup','pointerleave','pointercancel'].forEach(function(k){w.addEventListener(k,function(){clearTimeout(t)})});})()` }} /></div>
         </div>
         <p class="hint zero-note" id="zeroNote" hidden={it.price_cents !== 0}><b>Free to borrow</b> · no fee · no card hold, so no cover if it comes back damaged</p>
         <div class="field"><span>Condition</span>
