@@ -1,3 +1,4 @@
+import { shortOf } from '../lib/shortname';
 import { Hono } from 'hono';
 import { logEvent } from '../lib/log';
 import { CHAT_SVG, SEND_SVG, X_SVG } from '../lib/icons';
@@ -394,7 +395,7 @@ async function sendMsg(c: Ctx, u: User, r: Rental, body: string) {
     if (first && u.id === r.renter_id) {
       const it = (await listingById(c.env.DB, r.listing_id))!; const owner = (await userById(c.env.DB, r.owner_id))!;
       await addMessage(c.env, r.id, u.id, body, 'web');
-      await textUser(c.env, owner, `${firstName(u.name)} asked about your ${it.name}: "${body}" · reply here to answer ${c.env.APP_URL}/r/${r.id}`, 'rental', r.id);
+      await textUser(c.env, owner, `${firstName(u.name)} asked about your ${shortOf(it)}: "${body}" · reply here to answer ${c.env.APP_URL}/r/${r.id}`, 'rental', r.id);
       return;
     }
   }

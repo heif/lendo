@@ -1,3 +1,4 @@
+import { shortOf } from './shortname';
 import { minPriceCents } from './identify';
 import { logEvent } from './log';
 // Plain-English texting: Claude turns a text into one of a few actions. Anything touching money or bookings
@@ -94,7 +95,7 @@ export async function answerPending(env: Env, user: User, yes: boolean): Promise
     if (!it || it.owner_id !== user.id) return true;
     const week = weekDefault(d.cents);
     await env.DB.prepare('UPDATE listings SET price_cents = ?, week_cents = ? WHERE id = ?').bind(d.cents, week, it.id).run();
-    await textUser(env, user, `${it.name} is now ${money(d.cents)}/day ${await itemLink(env, it.id)}`, 'rental');
+    await textUser(env, user, `${shortOf(it)} is now ${money(d.cents)}/day ${await itemLink(env, it.id)}`, 'rental');
   } else if (p.kind === 'cancel') {
     const r = await env.DB.prepare('SELECT * FROM rentals WHERE id = ? AND renter_id = ?').bind(d.rid, user.id).first<Rental>();
     if (r) { const res = await customerCancel(env, r); if (!res) await textUser(env, user, `Couldn't cancel that one — open it here ${env.APP_URL}/r/${r.id}`, 'rental', r.id); else if (res === 'released') await textUser(env, user, `Canceled — nothing charged`, 'rental', r.id); }
@@ -152,7 +153,7 @@ export async function actOn(env: Env, user: User, it: Intent, ctx: { rental: Ren
       if (!r) return false;
       const item = await listingById(env.DB, r.listing_id);
       await park(env, user.id, 'cancel', { rid: r.id });
-      await textUser(env, user, r.status === 'held' ? `Cancel your request for ${item?.name}? Nothing gets charged. Reply YES` : `Cancel ${item?.name}? The owner already said yes, so ${money(Math.round(r.total_cents / 2))} comes back (half). Reply YES`, 'rental', r.id);
+      await textUser(env, user, r.status === 'held' ? `Cancel your request for ${item ? shortOf(item) : ''}? Nothing gets charged. Reply YES` : `Cancel ${item ? shortOf(item) : ''}? The owner already said yes, so ${money(Math.round(r.total_cents / 2))} comes back (half). Reply YES`, 'rental', r.id);
       return true;
     }
     case 'extend': {

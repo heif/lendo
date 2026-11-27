@@ -1,3 +1,4 @@
+import { shortOf } from './shortname';
 // Claims: a problem with a rental (damage, missing parts, not returned), decided by AI (Scott, 11/24).
 //
 // How it runs (each step has 24h; a missed or skipped step just moves on):
@@ -86,10 +87,10 @@ export async function openClaim(env: Env, r: Rental, kind: Claim['kind'], body: 
   await logEvent(env.DB, 'claim.opened', { user: owner.id, rental: r.id, listing: r.listing_id, cents: cl.deposit_cents, data: { claim: cid, kind, photos: photos.length } });
   if (kind === 'late') { /* the rule speaks, not the owner (Scott, 11/27): the customer never learns the owner could have let it go */
     await addMessage(env, r.id, null, `Returned late · late returns are ${money(listing.price_cents)}/day from the hold · ${body.split(' · ').pop()}`, 'system');
-    await textUser(env, customer, `The ${listing.name} came back late. Late returns are 1 day's rent per late day (${money(listing.price_cents)}/day), from your ${money(cl.deposit_cents)} hold. If that's not right, add your side by ${due(cl.step_due!, listing.lng)}: ${link(env, cl)}`, 'rental', r.id);
+    await textUser(env, customer, `The ${shortOf(listing)} came back late. Late returns are 1 day's rent per late day (${money(listing.price_cents)}/day), from your ${money(cl.deposit_cents)} hold. If that's not right, add your side by ${due(cl.step_due!, listing.lng)}: ${link(env, cl)}`, 'rental', r.id);
   } else {
     await addMessage(env, r.id, null, `${firstName(owner.name)} reported a problem (${KINDS[kind].toLowerCase()}) · the ${money(cl.deposit_cents)} hold stays on until it's decided`, 'system');
-    await textUser(env, customer, `${firstName(owner.name)} reported a problem with the ${listing.name} (${KINDS[kind].toLowerCase()}). Your ${money(cl.deposit_cents)} hold stays on until it's decided. Add your side by ${due(cl.step_due!, listing.lng)}: ${link(env, cl)}`, 'rental', r.id);
+    await textUser(env, customer, `${firstName(owner.name)} reported a problem with the ${shortOf(listing)} (${KINDS[kind].toLowerCase()}). Your ${money(cl.deposit_cents)} hold stays on until it's decided. Add your side by ${due(cl.step_due!, listing.lng)}: ${link(env, cl)}`, 'rental', r.id);
   }
   return cl;
 }
@@ -108,8 +109,8 @@ export async function say(env: Env, cl: Claim, who: 'owner' | 'customer' | 'cloc
   if (body) await entry(env, cl, t.who, t.step, body, photos);
   const fresh = (await claimById(env, cl.id))!;
   const { owner, customer, listing } = await ctx(env, fresh);
-  if (next === 'rebuttal') await textUser(env, owner, `${firstName(customer.name)} answered your claim on the ${listing.name}. Reply to it by ${due(fresh.step_due!, listing.lng)}: ${link(env, fresh)}`, 'rental', cl.rental_id);
-  else if (next === 'reply') await textUser(env, customer, `${firstName(owner.name)} replied on the ${listing.name} claim. Last word is yours, by ${due(fresh.step_due!, listing.lng)}: ${link(env, fresh)}`, 'rental', cl.rental_id);
+  if (next === 'rebuttal') await textUser(env, owner, `${firstName(customer.name)} answered your claim on the ${shortOf(listing)}. Reply to it by ${due(fresh.step_due!, listing.lng)}: ${link(env, fresh)}`, 'rental', cl.rental_id);
+  else if (next === 'reply') await textUser(env, customer, `${firstName(owner.name)} replied on the ${shortOf(listing)} claim. Last word is yours, by ${due(fresh.step_due!, listing.lng)}: ${link(env, fresh)}`, 'rental', cl.rental_id);
   return next;
 }
 export async function withdraw(env: Env, cl: Claim): Promise<boolean> {
@@ -117,7 +118,7 @@ export async function withdraw(env: Env, cl: Claim): Promise<boolean> {
   const { owner, customer, listing, rental } = await ctx(env, cl);
   if (rental.status !== 'picked_up') await releaseDeposit(env, rental);
   await addMessage(env, cl.rental_id, null, `${firstName(owner.name)} withdrew the claim${rental.status !== 'picked_up' ? ` · ${money(cl.deposit_cents)} hold released` : ''}`, 'system');
-  await textUser(env, customer, `${firstName(owner.name)} withdrew the claim on the ${listing.name}${rental.status !== 'picked_up' ? `. Your ${money(cl.deposit_cents)} hold is released` : ''}`, 'rental', cl.rental_id);
+  await textUser(env, customer, `${firstName(owner.name)} withdrew the claim on the ${shortOf(listing)}${rental.status !== 'picked_up' ? `. Your ${money(cl.deposit_cents)} hold is released` : ''}`, 'rental', cl.rental_id);
   return true;
 }
 
@@ -227,7 +228,7 @@ export async function judge(env: Env, cl: Claim): Promise<boolean> {
   const { owner, customer, listing } = await ctx(env, fresh);
   const what = r.cents > 0 ? `${firstName(customer.name)} owes ${money(r.cents)}` : 'no charge';
   await addMessage(env, cl.rental_id, null, `Decision: ${what} · final ${due(fresh.review_due!, listing.lng)} unless either of you asks for a second look`, 'system');
-  for (const u of [owner, customer]) await textUser(env, u, `Decision on the ${listing.name}: ${u.id === customer.id && r.cents > 0 ? `you owe ${money(r.cents)}` : what}. Final ${due(fresh.review_due!, listing.lng)} unless either of you asks for a second look: ${link(env, fresh)}`, 'money', cl.rental_id);
+  for (const u of [owner, customer]) await textUser(env, u, `Decision on the ${shortOf(listing)}: ${u.id === customer.id && r.cents > 0 ? `you owe ${money(r.cents)}` : what}. Final ${due(fresh.review_due!, listing.lng)} unless either of you asks for a second look: ${link(env, fresh)}`, 'money', cl.rental_id);
   return true;
 }
 
@@ -252,7 +253,7 @@ export async function askReview(env: Env, cl: Claim, who: 'owner' | 'customer', 
   await env.DB.prepare(`UPDATE claims SET review_due = ?, updated_at = ? WHERE id = ? AND status = 'ruled'`).bind(dueAt, now(), cl.id).run();
   const { owner, customer, listing } = await ctx(env, cl);
   const asker = who === 'owner' ? owner : customer, other = who === 'owner' ? customer : owner;
-  await textUser(env, other, `${firstName(asker.name)} asked for a second look at the ${listing.name} decision. Add your side by ${due(dueAt, listing.lng)}, then it's decided for good: ${link(env, cl)}`, 'rental', cl.rental_id);
+  await textUser(env, other, `${firstName(asker.name)} asked for a second look at the ${shortOf(listing)} decision. Add your side by ${due(dueAt, listing.lng)}, then it's decided for good: ${link(env, cl)}`, 'rental', cl.rental_id);
   return 'asked';
 }
 /* the other side has nothing to add to a second look → run it now */
@@ -290,8 +291,8 @@ export async function settle(env: Env, cl: Claim): Promise<void> {
     await releaseDeposit(env, rental);
     await env.DB.prepare(`UPDATE claims SET collect_how = 'none' WHERE id = ?`).bind(cl.id).run();
     await addMessage(env, cl.rental_id, null, `Final: no charge · ${dep} hold released`, 'system');
-    await textUser(env, customer, `Final on the ${listing.name}: no charge. Your ${dep} hold is released`, 'money', cl.rental_id);
-    await textUser(env, owner, `Final on the ${listing.name}: no charge to ${cu}`, 'money', cl.rental_id);
+    await textUser(env, customer, `Final on the ${shortOf(listing)}: no charge. Your ${dep} hold is released`, 'money', cl.rental_id);
+    await textUser(env, owner, `Final on the ${shortOf(listing)}: no charge to ${cu}`, 'money', cl.rental_id);
     return;
   }
   let got = { cents: 0, how: 'none' as 'hold' | 'card' | 'none', pi: null as string | null };
@@ -305,10 +306,10 @@ export async function settle(env: Env, cl: Claim): Promise<void> {
   await env.DB.prepare('UPDATE claims SET collected_cents = ?, collect_how = ?, collect_pi = ?, owner_due_cents = ?, lendo_loss_cents = ? WHERE id = ?').bind(got.cents, got.how, got.pi, ownerDue, loss, cl.id).run();
   await logEvent(env.DB, 'claim.settled', { rental: cl.rental_id, user: owner.id, cents: F, data: { claim: cl.id, collected: got.cents, how: got.how, owner_due: ownerDue, lendo_loss: loss, cap } });
   await addMessage(env, cl.rental_id, null, `Final: ${cu} owes ${money(F)}${got.cents >= F ? (got.how === 'hold' ? ` · charged from the hold${F < cl.deposit_cents ? ', the rest released' : ''}` : ' · charged to the card') : ''}`, 'system');
-  if (got.cents >= F) await textUser(env, customer, `Final on the ${listing.name}: ${money(F)} charged ${got.how === 'hold' ? `from your ${dep} hold${F < cl.deposit_cents ? ', the rest is released' : ''}` : 'to your card'}`, 'money', cl.rental_id);
-  else await textUser(env, customer, `Final on the ${listing.name}: you owe ${money(F)} and your card didn't take it. Lendo will be in touch`, 'money', cl.rental_id);
+  if (got.cents >= F) await textUser(env, customer, `Final on the ${shortOf(listing)}: ${money(F)} charged ${got.how === 'hold' ? `from your ${dep} hold${F < cl.deposit_cents ? ', the rest is released' : ''}` : 'to your card'}`, 'money', cl.rental_id);
+  else await textUser(env, customer, `Final on the ${shortOf(listing)}: you owe ${money(F)} and your card didn't take it. Lendo will be in touch`, 'money', cl.rental_id);
   /* every claim payout waits for a person: a FaceTime call with the owner, then released at /admin/claims (releasePayout) */
-  await textUser(env, owner, ownerDue > 0 ? `Final on the ${listing.name}: ${money(ownerDue)} is yours. Lendo will FaceTime you first, then it's sent` : `Final on the ${listing.name}: ${cu} owes ${money(F)} but the card didn't take it. Lendo will be in touch`, 'money', cl.rental_id);
+  await textUser(env, owner, ownerDue > 0 ? `Final on the ${shortOf(listing)}: ${money(ownerDue)} is yours. Lendo will FaceTime you first, then it's sent` : `Final on the ${shortOf(listing)}: ${cu} owes ${money(F)} but the card didn't take it. Lendo will be in touch`, 'money', cl.rental_id);
   if (ownerDue > 0) await adminText(env, `Claim ${cl.id}: FaceTime ${o} (${owner.phone}), then release ${money(ownerDue)} at ${env.APP_URL}/admin/claims`, cl.rental_id);
   if (got.cents < F) await adminText(env, `Claim ${cl.id}: ${cu} owes ${money(F)}, collected ${money(got.cents)}. ${o} is due ${money(ownerDue)} (Lendo covers ${money(loss)}, cap ${money(cap)}) ${link(env, cl)}`, cl.rental_id);
 }
@@ -321,7 +322,7 @@ export async function releasePayout(env: Env, cl: Claim, adminId: string): Promi
   const { owner, listing } = await ctx(env, cl);
   let paid = false;
   try { paid = await payClaim(env, (await claimById(env, cl.id))!, owner); } catch (e) { await logErr(env.DB, 'claim payout', e, { rental: cl.rental_id }); }
-  await textUser(env, owner, paid ? `${money(cl.owner_due_cents)} for the ${listing.name} is on its way to your account` : `${money(cl.owner_due_cents)} for the ${listing.name} is ready. Add where it should go: ${env.APP_URL}/payout`, 'money', cl.rental_id);
+  await textUser(env, owner, paid ? `${money(cl.owner_due_cents)} for the ${shortOf(listing)} is on its way to your account` : `${money(cl.owner_due_cents)} for the ${shortOf(listing)} is ready. Add where it should go: ${env.APP_URL}/payout`, 'money', cl.rental_id);
   return paid ? 'paid' : 'waiting';
 }
 

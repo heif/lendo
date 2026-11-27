@@ -1,3 +1,4 @@
+import { shortOf } from './shortname';
 // Rental state transitions + the texts they trigger. Used by web routes, Stripe webhook, Blooio webhook and cron.
 import type { Env, Rental, User } from './env';
 import { logErr } from './log';
@@ -40,10 +41,10 @@ export async function markHeld(env: Env, r: Rental, paymentIntent: string | null
   const em = await emailRequest(env, r, owner, renter, listing, money(payoutOf(r)), ph ? cutoutUrl(env, ph.r2_key, 160, 160) : null).catch(async e => { await logErr(env.DB, 'request email', e, { rental: r.id }); return { ok: false }; });
   if (sibs.length) {
     /* one answer covers them all: a plain YES/NO by text answers every request from this customer for these days (webhooks.ts) */
-    await textUser(env, owner, `${firstName(renter.name)} also wants your ${listing.name}, same days. You'd earn ${money(payoutOf(r))} more. Reply YES or NO for all ${sibs.length + 1} ${url}`, 'rental', r.id, { emailed: em.ok });
+    await textUser(env, owner, `${firstName(renter.name)} also wants your ${shortOf(listing)}, same days. You'd earn ${money(payoutOf(r))} more. Reply YES or NO for all ${sibs.length + 1} ${url}`, 'rental', r.id, { emailed: em.ok });
     return; /* the customer just added it on the site: no second "requested" text */
   }
-  await textUser(env, owner, `${firstName(renter.name)} wants your ${listing.name} ${fmtRange(r.start_day, r.end_day)}. You'd earn ${money(payoutOf(r))}. Reply YES with a pickup time, like "YES 6pm", or NO ${url}`, 'rental', r.id, { emailed: em.ok });
+  await textUser(env, owner, `${firstName(renter.name)} wants your ${shortOf(listing)} ${fmtRange(r.start_day, r.end_day)}. You'd earn ${money(payoutOf(r))}. Reply YES with a pickup time, like "YES 6pm", or NO ${url}`, 'rental', r.id, { emailed: em.ok });
   /* up to 3 of the owner's other items free those days: "add another" (Scott, 11/25) */
   const others: string[] = [];
   for (const x of (await env.DB.prepare(`SELECT id, name FROM listings WHERE owner_id = ? AND status = 'live' AND id != ? ORDER BY created_at DESC LIMIT 12`).bind(r.owner_id, r.listing_id).all<{ id: string; name: string }>()).results) {
@@ -51,7 +52,7 @@ export async function markHeld(env: Env, r: Rental, paymentIntent: string | null
     if (!(await busyDays(env.DB, x.id, r.start_day, r.end_day)).size) others.push(x.name);
   }
   const addLine = others.length ? ` · add another from ${firstName(owner.name)} same days? ${others.join(', ')}` : '';
-  await textUser(env, renter, `Requested ${listing.name} from ${firstName(owner.name)} for ${fmtRange(r.start_day, r.end_day)} · card held, not charged, until they say yes${addLine} ${url}`, 'rental', r.id);
+  await textUser(env, renter, `Requested ${shortOf(listing)} from ${firstName(owner.name)} for ${fmtRange(r.start_day, r.end_day)} · card held, not charged, until they say yes${addLine} ${url}`, 'rental', r.id);
 }
 
 /** other requests still waiting from the same customer to the same owner for the same days ("add another from Scott", 11/25) */
@@ -109,7 +110,7 @@ export async function decline(env: Env, r: Rental, reason: 'declined' | 'expired
   const { owner, renter, listing } = await parties(env, r);
   const why = reason === 'declined' ? `${firstName(owner.name)} can't do those days` : reason === 'expired' ? `${firstName(owner.name)} didn't answer in time` : 'request canceled';
   await addMessage(env, r.id, null, `${why} · hold released, nothing charged`, 'system');
-  if (reason !== 'canceled' && !quiet) await textUser(env, renter, `${listing.name}: ${why}. Nothing was charged. Browse more: ${env.APP_URL}/`, 'rental', r.id);
+  if (reason !== 'canceled' && !quiet) await textUser(env, renter, `${shortOf(listing)}: ${why}. Nothing was charged. Browse more: ${env.APP_URL}/`, 'rental', r.id);
   return true;
 }
 
@@ -118,7 +119,7 @@ export async function customerCancel(env: Env, r: Rental): Promise<'released' | 
   const { owner, renter, listing } = await parties(env, r);
   if (r.status === 'held' || r.status === 'requested') {
     await decline(env, r, 'canceled');
-    if (r.status === 'held') await textUser(env, owner, `${firstName(renter.name)} canceled the request for your ${listing.name}`, 'rental', r.id);
+    if (r.status === 'held') await textUser(env, owner, `${firstName(renter.name)} canceled the request for your ${shortOf(listing)}`, 'rental', r.id);
     return 'released';
   }
   if (r.status !== 'confirmed') return false;
@@ -136,7 +137,7 @@ export async function customerCancel(env: Env, r: Rental): Promise<'released' | 
   const fresh = (await rentalById(env.DB, r.id))!;
   await addMessage(env, r.id, null, `${firstName(renter.name)} canceled after the yes · ${money(refund)} refunded · ${firstName(owner.name)} keeps ${money(keep)}`, 'system');
   try { await payoutRental(env, fresh, owner); } catch (e) { await logErr(env.DB, 'late cancel payout failed', e, { rental: r.id }); }
-  await textUser(env, owner, `${firstName(renter.name)} canceled the ${listing.name} rental — you keep ${money(keep)}`, 'money', r.id);
+  await textUser(env, owner, `${firstName(renter.name)} canceled the ${shortOf(listing)} rental — you keep ${money(keep)}`, 'money', r.id);
   await textUser(env, renter, `Canceled. ${money(refund)} back to your card (half, since ${firstName(owner.name)} had already said yes)`, 'money', r.id);
   return 'half';
 }
@@ -147,7 +148,7 @@ export async function pickedUp(env: Env, r: Rental, photoKey: string | null) {
   await setRentalStatus(env.DB, r.id, 'picked_up', { pickup_photo_key: photoKey });
   const { owner, renter, listing } = await parties(env, r);
   await addMessage(env, r.id, null, photoKey ? `${firstName(owner.name)} took the pickup photo · time-stamped, you both have it` : `Picked up`, 'system');
-  await textUser(env, renter, `You've got the ${listing.name} · back ${fmtDay(backDay(r.end_day))}${r.pickup_time ? ' around the same time' : ''} · reply OK to confirm`, 'pickup', r.id);
+  await textUser(env, renter, `You've got the ${shortOf(listing)} · back ${fmtDay(backDay(r.end_day))}${r.pickup_time ? ' around the same time' : ''} · reply OK to confirm`, 'pickup', r.id);
   try { if (await payoutRental(env, r, owner)) await textUser(env, owner, `${money(payoutOf(r))} is on its way to your account`, 'money', r.id); } catch (e) { await logErr(env.DB, 'payout failed', e, { rental: r.id }); }
   return true;
 }
@@ -160,7 +161,7 @@ export async function returned(env: Env, r: Rental, photoKey: string | null) {
   /* the hold stays 24h after return so the owner can check the item: "All good" releases it now, "Report a problem" opens a claim (claims.ts) */
   const held = r.deposit_status === 'held', dep = money(r.deposit_cents || 0);
   await addMessage(env, r.id, null, `${firstName(owner.name)} confirmed the return · rate each other${held ? ` · ${dep} hold released within 24h` : ''}`, 'system');
-  await textUser(env, renter, `${firstName(owner.name)} confirmed the return.${held ? ` Your ${dep} hold is released within 24h.` : ''} How was the ${listing.name}? Rate it: ${url}`, 'rental', r.id);
+  await textUser(env, renter, `${firstName(owner.name)} confirmed the return.${held ? ` Your ${dep} hold is released within 24h.` : ''} How was the ${shortOf(listing)}? Rate it: ${url}`, 'rental', r.id);
   await textUser(env, owner, `Returned. ${held ? `All good? Release ${firstName(renter.name)}'s ${dep} hold, or report a problem within 24h: ${url}` : `How was ${firstName(renter.name)}? Rate them: ${url}`}`, 'rental', r.id);
   return true;
 }
@@ -172,7 +173,7 @@ export async function allGood(env: Env, r: Rental, by: 'owner' | 'clock'): Promi
   await releaseDeposit(env, r);
   const { owner, renter, listing } = await parties(env, r);
   await addMessage(env, r.id, null, by === 'owner' ? `${firstName(owner.name)} says all good · ${money(r.deposit_cents!)} hold released` : `${money(r.deposit_cents!)} hold released`, 'system');
-  await textUser(env, renter, `Your ${money(r.deposit_cents!)} hold for the ${listing.name} is released. Your bank drops it within a few days`, 'money', r.id);
+  await textUser(env, renter, `Your ${money(r.deposit_cents!)} hold for the ${shortOf(listing)} is released. Your bank drops it within a few days`, 'money', r.id);
   return true;
 }
 
@@ -211,7 +212,7 @@ export async function chaseHolds(env: Env) {
     const due = NUDGE_AT.filter(t => age >= t).length;
     if (due > r.owner_nudges) {
       const { owner, renter, listing } = await parties(env, r);
-      await textUser(env, owner, `${firstName(renter.name)} is still waiting on your ${listing.name} for ${fmtRange(r.start_day, r.end_day)} — reply YES or NO ${env.APP_URL}/r/${r.id}`, 'rental', r.id);
+      await textUser(env, owner, `${firstName(renter.name)} is still waiting on your ${shortOf(listing)} for ${fmtRange(r.start_day, r.end_day)} — reply YES or NO ${env.APP_URL}/r/${r.id}`, 'rental', r.id);
       await env.DB.prepare('UPDATE rentals SET owner_nudges = ? WHERE id = ?').bind(due, r.id).run();
       sent++;
     }
@@ -274,10 +275,10 @@ export async function holdDeposit(env: Env, r: Rental): Promise<'held' | 'failed
   const { owner, renter, listing } = await parties(env, r);
   if (res === 'held') {
     await addMessage(env, r.id, null, `${money(r.deposit_cents!)} hold on ${firstName(renter.name)}'s card · OK to hand over`, 'system');
-    await textUser(env, renter, `${money(r.deposit_cents!)} hold (not a charge) is on your card until the ${listing.name} is back with ${firstName(owner.name)}. Reply OK to confirm`, 'money', r.id);
+    await textUser(env, renter, `${money(r.deposit_cents!)} hold (not a charge) is on your card until the ${shortOf(listing)} is back with ${firstName(owner.name)}. Reply OK to confirm`, 'money', r.id);
   } else {
     await addMessage(env, r.id, null, `${firstName(renter.name)}'s card didn't take the ${money(r.deposit_cents!)} hold · hold off on handing it over`, 'system');
-    await textUser(env, renter, `Your card didn't take the ${money(r.deposit_cents!)} hold for the ${listing.name}. Add a card so ${firstName(owner.name)} can hand it over: ${env.APP_URL}/r/${r.id}/card`, 'money', r.id);
+    await textUser(env, renter, `Your card didn't take the ${money(r.deposit_cents!)} hold for the ${shortOf(listing)}. Add a card so ${firstName(owner.name)} can hand it over: ${env.APP_URL}/r/${r.id}/card`, 'money', r.id);
   }
   return res;
 }

@@ -1,3 +1,4 @@
+import { shortOf } from './shortname';
 // Extend a rental (option A): customer picks a later return day on the rental page.
 // Same money pattern as a rental: card hold → owner YES → capture (+ extra rent to owner) | NO / 24h → hold released.
 // Blocked when any of the extra days (plus the buffer day after) is taken.
@@ -81,7 +82,7 @@ export async function markExtHeld(env: Env, xid: string, pi: string | null, cs: 
   const r = (await rentalById(env.DB, x.rental_id))!;
   const [owner, cust, it] = await Promise.all([userById(env.DB, r.owner_id), userById(env.DB, r.renter_id), listingById(env.DB, r.listing_id)]);
   await addMessage(env, r.id, null, `${firstName(cust!.name)} asked to keep it until ${fmtDay(backDay(x.new_end))} (+${x.days} day${x.days === 1 ? '' : 's'})`, 'system');
-  await textUser(env, owner!, `${firstName(cust!.name)} wants to keep your ${it!.name} until ${fmtDay(backDay(x.new_end))} · you'd earn ${money(payoutOf(x))} more. Reply YES or NO`, 'rental', r.id);
+  await textUser(env, owner!, `${firstName(cust!.name)} wants to keep your ${shortOf(it!)} until ${fmtDay(backDay(x.new_end))} · you'd earn ${money(payoutOf(x))} more. Reply YES or NO`, 'rental', r.id);
 }
 
 // owner YES → capture, move the return day, pay the owner the extra rent
@@ -118,7 +119,7 @@ export async function acceptExt(env: Env, x: Ext): Promise<boolean> {
     } catch (e) { await logErr(env.DB, 'ext payout', e, { rental: r.id }); }
   }
   await addMessage(env, r.id, null, `Extended · now due back ${fmtDay(backDay(x.new_end))}`, 'system');
-  await textUser(env, cust!, `${firstName(owner!.name)} said yes · keep the ${it!.name} until ${fmtDay(backDay(x.new_end))}${x.total_cents >= 50 ? ` · ${money(x.total_cents)} charged` : ''}`, 'money', r.id);
+  await textUser(env, cust!, `${firstName(owner!.name)} said yes · keep the ${shortOf(it!)} until ${fmtDay(backDay(x.new_end))}${x.total_cents >= 50 ? ` · ${money(x.total_cents)} charged` : ''}`, 'money', r.id);
   await textUser(env, owner!, `Done · ${firstName(cust!.name)} brings it back ${fmtDay(x.new_end)}`, 'rental', r.id);
   return true;
 }
