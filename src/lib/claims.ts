@@ -28,7 +28,7 @@ import { backDay, firstName, id, localToday, money, now, tzFor } from './util';
 
 export const JUDGE_MODEL = 'claude-opus-5-5';
 const STEP_MS = 24 * 3600e3;
-export const KINDS: Record<Claim['kind'], string> = { damage: 'Damaged', missing: 'Parts missing', not_returned: 'Not returned', other: 'Something else' };
+export const KINDS: Record<Claim['kind'], string> = { damage: 'Damaged', missing: 'Parts missing', late: 'Returned late', not_returned: 'Not returned', other: 'Something else' };
 const OPEN: Claim['status'][] = ['response', 'rebuttal', 'reply', 'judging', 'ruled', 'reviewing'];
 export const isOpen = (cl: Claim | null | undefined) => !!cl && OPEN.includes(cl.status);
 
@@ -129,7 +129,8 @@ How to decide
 
 How much
 - Damage: the lesser of a reasonable repair cost and the item value. Missing part: the cost of that part. Not returned or destroyed: the item value
-- Never more than the hold. Never lost rental income, time, shipping, or anything punitive. Whole dollars
+- Returned late (Scott, 11/27): one day's rent at the item's daily price for each started day past the agreed return day and time, as shown by the file (return confirmation, messages, photos). Nothing for late if the owner agreed to the new time or wasn't available
+- Never more than the hold. Apart from a late return, never lost rental income, time, shipping, or anything punitive. Whole dollars
 - If the owner proved a problem but not its cost, use your own knowledge of what that repair or part normally costs, and say that's what you did
 
 The bank test

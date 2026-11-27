@@ -43,7 +43,7 @@ export async function markHeld(env: Env, r: Rental, paymentIntent: string | null
     await textUser(env, owner, `${firstName(renter.name)} also wants your ${listing.name}, same days. You'd earn ${money(payoutOf(r))} more. Reply YES or NO for all ${sibs.length + 1} ${url}`, 'rental', r.id, { emailed: em.ok });
     return; /* the customer just added it on the site: no second "requested" text */
   }
-  await textUser(env, owner, `${firstName(renter.name)} wants your ${listing.name} ${fmtRange(r.start_day, r.end_day)}. You'd earn ${money(payoutOf(r))}. Reply YES to accept or NO to pass. ${url}`, 'rental', r.id, { emailed: em.ok });
+  await textUser(env, owner, `${firstName(renter.name)} wants your ${listing.name} ${fmtRange(r.start_day, r.end_day)}. You'd earn ${money(payoutOf(r))}. Reply YES with a pickup time, like "YES 6pm", or NO ${url}`, 'rental', r.id, { emailed: em.ok });
   /* up to 3 of the owner's other items free those days: "add another" (Scott, 11/25) */
   const others: string[] = [];
   for (const x of (await env.DB.prepare(`SELECT id, name FROM listings WHERE owner_id = ? AND status = 'live' AND id != ? ORDER BY created_at DESC LIMIT 12`).bind(r.owner_id, r.listing_id).all<{ id: string; name: string }>()).results) {
@@ -63,6 +63,15 @@ export async function heldTogether(env: Env, r: Rental): Promise<Rental[]> {
 // rentCents: owner's "Give a discount" — any amount from the requested rent down to 0, never higher.
 // quiet: an add-on answered together with another request: same money steps, no texts (the caller sends one summary)
 /* quiet: true = no texts at all; 'customer' = owner texts only (the caller sends the customer one combined text) */
+/* '18:30' → '6:30 PM' */
+export const hm12 = (t: string) => { const [h, m] = t.split(':').map(Number); return `${h % 12 || 12}:${String(m || 0).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; };
+/* a time an owner texts with YES: "6", "6pm", "6:30", "630p" → '18:30'. No am/pm: 1–9 = PM, 10–11 = AM, 12 = noon */
+export function parseHM(raw: string): string | null {
+  const m = raw.trim().toLowerCase().match(/^(\d{1,2})(?::?(\d{2}))?\s*(am|pm|a|p)?$/); if (!m) return null;
+  let h = +m[1]; const mi = m[2] ? +m[2] : 0; if (h < 1 || h > 12 || mi > 59) return null;
+  const ap = m[3]?.[0]; if (ap === 'p' && h < 12) h += 12; else if (ap === 'a' && h === 12) h = 0; else if (!ap && h <= 9) h += 12;
+  return String(h).padStart(2, '0') + ':' + String(mi).padStart(2, '0');
+}
 export async function accept(env: Env, r0: Rental, rentCents?: number, quiet?: boolean | 'customer'): Promise<boolean> {
   if (r0.status !== 'held') return false;
   let r = r0;
@@ -85,7 +94,7 @@ export async function accept(env: Env, r0: Rental, rentCents?: number, quiet?: b
   // owner is asked for a pickup time right after YES (no pickup hours); their reply relays to the customer, SKIP leaves it to the customer
   /* one text: yes + paid + pickup day + spot + hold; the time follows when the owner replies one */
   const holdNote = (r.deposit_cents || 0) > 0 ? ` · ${money(r.deposit_cents!)} card hold (like a hotel check-in, not a charge) at pickup, off after an on-time return` : '';
-  if (!quiet) await textUser(env, renter, `${firstName(owner.name)} said yes!${gift} · ${paidLine} · pickup ${fmtDay(r.start_day)}${spot ? ' ·' + spot.replace(' Meet:', ' at') : ''} (time coming from ${firstName(owner.name)})${holdNote} · next: sign your promise (3 quick checks) ${url}#promise`, 'money', r.id);
+  if (!quiet) await textUser(env, renter, `${firstName(owner.name)} said yes!${gift} · ${paidLine} · pickup ${fmtDay(r.start_day)}${r.pickup_time ? ' ' + hm12(r.pickup_time) : ''}${spot ? ' ·' + spot.replace(' Meet:', ' at') : ''}${r.pickup_time ? ' · back ' + fmtDay(backDay(r.end_day)) + ' ' + hm12(r.return_time || r.pickup_time) + ' (late = 1 day\'s rent per day, from the hold)' : ' (time coming from ' + firstName(owner.name) + ')'}${holdNote} · next: sign your promise (3 quick checks) ${url}#promise`, 'money', r.id);
   await textUser(env, owner, `${r.rent_cents === 0 ? 'Done — lending it free' : `Done. ${firstName(renter.name)} paid`}. When can ${firstName(renter.name)} pick it up? Reply a time (like "after 6"), or SKIP`, 'rental', r.id);
   if (!owner.stripe_account_id && r.rent_cents > 0) {
     await textUser(env, owner, `Where should your ${money(payoutOf(r))} go? Add a debit card or bank, takes 30 sec: ${env.APP_URL}/payout`, 'money', r.id);

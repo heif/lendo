@@ -12,7 +12,7 @@ import { parseInbound, textUser } from '../lib/blooio';
 import { linqParse, linqVerify } from '../lib/linq';
 import { ensureUser, rentalById, unpauseTexted, userByPhone, userById } from '../lib/db';
 import { loginLink, approvePair, pairNext } from '../lib/auth';
-import { accept, activeRentalFor, decline, holdDeposit, markHeld, relay, heldTogether } from '../lib/rentals';
+import { parseHM, hm12, accept, activeRentalFor, decline, holdDeposit, markHeld, relay, heldTogether } from '../lib/rentals';
 import { onDispute } from '../lib/claims';
 import { hmacHex, normPhone, timingSafeEq, firstName, money, fmtDay } from '../lib/util';
 
@@ -184,7 +184,7 @@ async function inboundText(c: Context<{ Bindings: Env; Variables: Vars }>, phone
 const FIND_RE = /^\s*(i\s+)?(rent|need|looking for|anyone have|anybody have|does anyone have|who has|find|borrow|want to rent|wanna rent)\b/i;
 
 export async function handleText(c: Context<{ Bindings: Env; Variables: Vars }>, user: User, text: string, via: 'text' | 'web') {
-  const kw = text.toUpperCase().replace(/[^A-Z ]/g, '').trim();
+  let kw = text.toUpperCase().replace(/[^A-Z ]/g, '').trim();
   await c.env.DB.prepare('INSERT INTO inbound_texts (id, user_id, body, via, created_at) VALUES (?,?,?,?,?)').bind(crypto.randomUUID(), user.id, text.slice(0, 500), via, Date.now()).run().catch(() => {});
   if (!user.replied && via === 'text') { await c.env.DB.prepare('UPDATE users SET replied = 1 WHERE id = ?').bind(user.id).run(); user.replied = 1; }
   if (via === 'text') await unpauseTexted(c.env.DB, user.id).catch(() => 0);
@@ -226,6 +226,12 @@ export async function handleText(c: Context<{ Bindings: Env; Variables: Vars }>,
 
   // a parked plain-English action (price change, cancel) waiting for YES wins over an owner's pending request
   if ((kw === 'YES' || kw === 'Y' || kw === 'NO' || kw === 'N') && await answerPending(c.env, user, kw.startsWith('Y'))) return c.json({ ok: true });
+  /* "YES 6pm" (Scott, 11/27 option B): the owner's YES carries the pickup time; return is the same time on the back day.
+     A 4-character code that matches a waiting request still wins ("YES 1a2b") */
+  let yesTime: string | null = null;
+  { const tm = text.trim().match(/^(yes|y)\s+(.+)$/i), t = tm ? parseHM(tm[2]) : null;
+    if (t) { const codeHit = /^[a-z0-9]{4}$/i.test(tm![2].trim()) && (await c.env.DB.prepare(`SELECT id FROM rentals WHERE owner_id = ? AND status = 'held'`).bind(user.id).all<{ id: string }>()).results.some(x => x.id.slice(-4).toLowerCase() === tm![2].trim().toLowerCase());
+      if (!codeHit) { yesTime = t; text = 'YES'; kw = 'YES'; } } }
   const coded = text.trim().match(/^(yes|y|no|n)\s+#?([a-z0-9]{4})$/i);
   if (coded || kw === 'YES' || kw === 'Y' || kw === 'ACCEPT' || kw === 'NO' || kw === 'N' || kw === 'PASS' || kw === 'DECLINE') {
     const kw2 = coded ? coded[1].toUpperCase() : kw; /* eslint-disable-line */
@@ -238,6 +244,8 @@ export async function handleText(c: Context<{ Bindings: Env; Variables: Vars }>,
       let sibs = coded ? [] : await heldTogether(c.env, held);
       let one = false; /* answered together → one charge for the total, when the card allows (stripe.ts); else each hold is charged as before */
       if (yes && sibs.length && await chargeTogether(c.env, [held, ...sibs])) { one = true; held = (await rentalById(c.env.DB, held.id)) || held; sibs = (await Promise.all(sibs.map(x => rentalById(c.env.DB, x.id)))).filter((x): x is Rental => !!x); }
+      if (yes && yesTime) { for (const x of [held, ...sibs]) await c.env.DB.prepare('UPDATE rentals SET pickup_time = ?, return_time = ? WHERE id = ?').bind(yesTime, yesTime, x.id).run();
+        held = { ...held, pickup_time: yesTime, return_time: yesTime } as Rental; await logEvent(c.env.DB, 'rental.pickup_time', { user: user.id, rental: held.id, data: { t: yesTime, via: 'yes text' } }); }
       if (yes) { const ok = await accept(c.env, held, undefined, sibs.length ? 'customer' : undefined); if (!ok) await textUser(c.env, user, `Couldn't confirm that one — open it here: ${c.env.APP_URL}/r/${held.id}`, 'rental', held.id); }
       else await decline(c.env, held, 'declined', sibs.length > 0);
       if (sibs.length) {
@@ -255,7 +263,7 @@ export async function handleText(c: Context<{ Bindings: Env; Variables: Vars }>,
           const names = [...(mainOk || !yes ? [mainNm] : []), ...done], tot = (mainOk ? h1.total_cents : 0) + paid;
           const holds = (mainOk ? h1.deposit_cents || 0 : 0) + sibHolds;
           const ownU = await userById(c.env.DB, user.id), spot = ownU?.pickup_spots ? (JSON.parse(ownU.pickup_spots) as string[]).join(' or ') : '';
-          if (yes && names.length) await textUser(c.env, cust, `${own} said yes to all ${names.length}: ${names.join(', ')} · ${tot > 0 ? money(tot) + ' paid' + (one ? ', one charge' : '') : 'free'} · pickup ${fmtDay(held.start_day)}${spot ? ' at ' + spot : ''} (time coming from ${own})${holds > 0 ? ` · ${money(holds)} in holds (not charges) at pickup, off after an on-time return` : ''}${one ? ' · the earlier holds drop off your card in a few days' : ''} ${c.env.APP_URL}/rentals`, 'money', held.id);
+          if (yes && names.length) await textUser(c.env, cust, `${own} said yes to all ${names.length}: ${names.join(', ')} · ${tot > 0 ? money(tot) + ' paid' + (one ? ', one charge' : '') : 'free'} · pickup ${fmtDay(held.start_day)}${yesTime ? ' ' + hm12(yesTime) : ''}${spot ? ' at ' + spot : ''}${yesTime ? '' : ` (time coming from ${own})`}${holds > 0 ? ` · ${money(holds)} in holds (not charges) at pickup, off after an on-time return` : ''}${one ? ' · the earlier holds drop off your card in a few days' : ''} ${c.env.APP_URL}/rentals`, 'money', held.id);
           else if (!yes && done.length) await textUser(c.env, cust, `${own} can't do: ${[mainNm, ...done].join(', ')} · nothing charged`, 'rental', held.id);
         }
         if (failed.length) await textUser(c.env, user, `Couldn't ${yes ? 'confirm' : 'pass on'} ${failed.join(', ')} — open ${c.env.APP_URL}/rentals`, 'rental', held.id);

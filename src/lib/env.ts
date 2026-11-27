@@ -71,7 +71,7 @@ export type Rental = {
 // A problem with a rental, decided by AI. One per rental.
 export type ClaimStatus = 'response' | 'rebuttal' | 'reply' | 'judging' | 'ruled' | 'reviewing' | 'final' | 'withdrawn';
 export type Claim = {
-  id: string; rental_id: string; listing_id: string; owner_id: string; customer_id: string; kind: 'damage' | 'missing' | 'not_returned' | 'other';
+  id: string; rental_id: string; listing_id: string; owner_id: string; customer_id: string; kind: 'damage' | 'missing' | 'late' | 'not_returned' | 'other';
   status: ClaimStatus; deposit_cents: number; step_due: number | null;
   award_cents: number | null; ruling: string | null; ruled_at: number | null; review_due: number | null; owner_ok: number; customer_ok: number;
   final_cents: number | null; final: string | null; final_at: number | null; settled_at: number | null;
