@@ -254,7 +254,7 @@ var LH_IMG = null; (function () { var s = document.querySelector('.logo .lh svg'
   $('stkBrand').addEventListener('blur', function () { var el = this; setTimeout(function () { $('stkAc').hidden = true; var x = stk[si]; if (x && step === 'stk' && $('stkAll').hidden) stkSet(x, el.value.trim()); }, 150); });
   $('stkDet').addEventListener('input', function () { if (stk[si]) stk[si].det = this.value; });
   $('stkDet').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); this.blur(); } });
-  $('stkPr').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b || !stk[si]) return; var x = stk[si]; x.price = Math.max(MIN, x.price + (+b.dataset.d)); $('stkPv').textContent = '$' + x.price; });
+  $('stkPr').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b || !stk[si]) return; var x = stk[si]; x.price = Math.max(0, x.price + (+b.dataset.d)); if (x.price > 0 && x.price < MIN) x.price = (+b.dataset.d) < 0 ? 0 : MIN; $('stkPv').textContent = '$' + x.price; });
   $('stkGr').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b || !stk[si]) return; stk[si].grade = b.dataset.g; stkOne(); });
   $('stkAc').addEventListener('mousedown', function (e) { e.preventDefault(); }); /* keep focus so the tap lands */
   $('stkAc').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; var t = b.dataset.t; $('stkBrand').value = t; $('stkAc').hidden = true; var cx = stk[si]; if (cx && cx.custom && window.LENDO_AC) { cx.idea = ''; for (var kk in window.LENDO_AC) if (window.LENDO_AC[kk].indexOf(t) > -1) { cx.idea = kk; var iw = IDEAS.filter(function (i) { return i[1] === kk; })[0]; if (iw) { cx.price = Math.max(MIN, iw[2]); cx.ideaPrice = iw[2]; } break; } } stkSet(cx, t); $('stkBrand').blur(); });
@@ -277,7 +277,7 @@ var LH_IMG = null; (function () { var s = document.querySelector('.logo .lh svg'
       if (m === 'type') { stk.push({ name: '', custom: true, price: MIN, brand: '', det: '', grade: 'A', imgs: [], k: 0 }); si = stk.length - 1; stkOne(); setTimeout(function () { $('stkBrand').focus(); }, 50); }
       else if (m === 'snap') { picked = []; renderIdeas(); show('cam'); }
       else { show('ideas'); }
-      return; } var pm = e.target.closest('.aipm'); if (!pm) return; var x = stk[+pm.dataset.i]; x.price = Math.max(MIN, x.price + (+pm.dataset.d)); stkAll(); });
+      return; } var pm = e.target.closest('.aipm'); if (!pm) return; var x = stk[+pm.dataset.i]; x.price = Math.max(0, x.price + (+pm.dataset.d)); if (x.price > 0 && x.price < MIN) x.price = (+pm.dataset.d) < 0 ? 0 : MIN; stkAll(); });
   $('stkBack').addEventListener('click', function () {
     if ($('stkAll').hidden && stk[si] && stk[si].about) { stk[si].about = false; stkOne(); return; }
     if (!$('stkAll').hidden) { si = stk.length - 1; stk[si].yes = stk[si].snap = stk[si].skip = false; stkOne(); return; }

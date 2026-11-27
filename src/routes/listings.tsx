@@ -180,7 +180,7 @@ listings.post('/list', async (c) => {
   const name = String(f.name || '').trim().slice(0, 80);
   const minP = (await minPriceCents(c.env));
   const price = Math.round(parseFloat(String(f.price || '0')) * 100);
-  if (!name || isNaN(price) || price < minP) return c.text(`Price must be at least ${money(minP)}/day and the item needs a name.`, 400);
+  if (!name || isNaN(price) || (price !== 0 && price < minP)) return c.text(`Price must be at least ${money(minP)}/day and the item needs a name.`, 400);
   const weekIn = parseFloat(String(f.week || ''));
   const lat = parseFloat(String(f.lat || '')), lng = parseFloat(String(f.lng || ''));
   const files = ([] as unknown[]).concat(f.photo || []).filter((p): p is File => p instanceof File);
@@ -307,7 +307,7 @@ listings.post('/api/list-stock', async (c) => {
   /* every reply row carries its input index `i` so the posted screen matches photos by item, never by position; skipped items come back in `failed` */
   const minP = (await minPriceCents(c.env)), out: any[] = [], failed: { i: number; name: string; why: string }[] = [];
   for (const [i, it] of (b.items || []).slice(0, 30).entries()) {
-    const name = String(it.name || '').trim().slice(0, 80), price = Math.max(minP, Math.round(Number(it.price || 0) * 100));
+    const name = String(it.name || '').trim().slice(0, 80), price = Math.round(Number(it.price || 0) * 100) <= 0 ? 0 : Math.max(minP, Math.round(Number(it.price || 0) * 100));
     if (!name) { failed.push({ i, name, why: 'name' }); continue; }
     let bytes: ArrayBuffer | null = null, type = 'image/jpeg';
     for (const u0 of [it.img, it.thumb]) {
@@ -337,7 +337,7 @@ listings.post('/api/list', async (c) => {
   for (let i = 0; i < 30; i++) {
     const name = String(f[`name_${i}`] || '').trim(); if (!name) continue;
     const aiName = String(f[`ai_${i}`] || '').trim(); if (aiName) c.executionCtx.waitUntil(recordCorrection(c.env, aiName, name).catch(() => {}));
-    const price = Math.round(parseFloat(String(f[`price_${i}`] || '0')) * 100); if (isNaN(price) || price < minP) continue;
+    const price = Math.round(parseFloat(String(f[`price_${i}`] || '0')) * 100); if (isNaN(price) || (price !== 0 && price < minP)) continue;
     const files = [f[`photo_${i}`], ...Array.from({ length: 5 }, (_, j) => f[`photo_${i}_${j + 1}`])].filter((x): x is File => x instanceof File);
     const photos = await Promise.all(files.slice(0, 6).map(async p => ({ bytes: await p.arrayBuffer(), type: p.type })));
     const wk = Math.round(parseFloat(String(f[`week_${i}`] || '0')) * 100);
@@ -420,8 +420,9 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
           <label class="field" style="flex:1"><span>Name</span><input name="name" value={it.name} required maxlength={80} /></label>
         </div>
         <div style="display:flex;gap:10px">
-          <label class="field" style="flex:1"><span>$ per day</span><input name="price" type="number" step="1" min={(await minPriceCents(c.env)) / 100} value={it.price_cents / 100} required /></label>
+          <label class="field" style="flex:1"><span>$ per day</span><input name="price" type="number" step="1" min="0" value={it.price_cents / 100} required oninput="var z=document.getElementById('zeroNote');if(z)z.hidden=this.value!=='0'" /></label>
         </div>
+        <p class="hint zero-note" id="zeroNote" hidden={it.price_cents !== 0}><b>Free to borrow</b> · no fee · no card hold, so no cover if it comes back damaged</p>
         <div class="field"><span>Condition</span>
           {gr.customers ? <div class="row" style="gap:10px;margin-top:4px"><Grade g={gr.letter} /><span class="hint">{GRADE_WORD[gr.letter]} · set by customers now (average of yours + {gr.customers} customer grade{gr.customers === 1 ? '' : 's'})</span></div>
             : <div class="grdpick" style="margin-top:4px">{GRADES.map(g => <label><input type="radio" name="grade" value={g} checked={g === gr.letter} /><Grade g={g} /></label>)}</div>}
@@ -553,7 +554,8 @@ listings.post('/listings/:id/edit', requireUser, async (c) => {
   if (!it || it.owner_id !== u.id) return c.notFound();
   const f = await c.req.parseBody({ all: true });
   const minP = (await minPriceCents(c.env));
-  const price = Math.max(minP, Math.round(parseFloat(String(f.price || '0')) * 100) || minP);
+  const pIn = Math.round(parseFloat(String(f.price ?? '')) * 100);
+  const price = isNaN(pIn) ? it.price_cents : pIn <= 0 ? 0 : Math.max(minP, pIn); /* $0 = free lend (Scott, 11/27) */
   const week = weekDefault(price); /* weekly is always automatic */
   const nm = String(f.name || it.name).trim().slice(0, 80), ds = String(f.description || '').trim().slice(0, 600) || null;
   const em = nm === it.name && it.emoji ? it.emoji : emojiFor(nm, ds); // map icon is automatic, not owner-edited

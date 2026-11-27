@@ -53,10 +53,13 @@ rentals.post('/i/:id/rent', async (c) => {
   /* right after a deploy the tax columns may not exist yet (cron migrates every 5 min) → migrate now and retry */
   try { await ins(); } catch { await selfMigrate(c.env); await ins(); }
   /* every rental: a deposit hold at pickup for the item's value, set by AI in the background ~1h after listing (value.ts). The request never waits on the AI: no value yet → an estimate from the daily price. The card is saved at checkout for the hold */
-  const val = await holdFor(c.env, it);
-  await c.env.DB.prepare(`UPDATE rentals SET deposit_cents = ?, deposit_status = 'due' WHERE id = ?`).bind(val.cents, rid).run();
+  /* $0 items (free lend, Scott 11/27): no card hold, no charge, no checkout */
+  const free = it.price_cents <= 0;
+  const val = free ? { cents: 0, src: 'free', capped: false } : await holdFor(c.env, it);
+  await c.env.DB.prepare(`UPDATE rentals SET deposit_cents = ?, deposit_status = ? WHERE id = ?`).bind(val.cents, free ? null : 'due', rid).run();
   await logEvent(c.env.DB, 'rental.deposit_set', { user: u.id, rental: rid, listing: it.id, cents: val.cents, data: { src: val.src, capped: val.capped } });
   const r = (await rentalById(c.env.DB, rid))!;
+  if (free) { await markHeld(c.env, r, null, null); return c.redirect(`/r/${rid}?paid=1`); }
   const url = await createCheckout(c.env, r, it, u);
   if (url) return c.redirect(url, 303);
   // dev mode (no Stripe key): pretend the card was authorized

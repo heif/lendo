@@ -113,6 +113,7 @@ export async function photosOk(env: Env, l: Listing): Promise<boolean> {
   return (n?.n || 0) >= 2;
 }
 export async function holdFor(env: Env, l: Listing): Promise<Valued & { capped: boolean }> {
+  if (l.price_cents <= 0) return { ...valueNow(l), cents: 0, capped: false }; /* $0 items: no card hold */
   const v = valueNow(l);
   if (v.cents > HIGH_CENTS && !(await photosOk(env, l))) return { ...v, cents: HIGH_CENTS, capped: true };
   return { ...v, capped: false };
