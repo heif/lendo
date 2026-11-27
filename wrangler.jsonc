@@ -23,7 +23,9 @@
     "MAPBOX_STYLE_URL": "mapbox://styles/mapbox/light-v11",
     "MEETUP_SPOTS": "true",
     "WANTED_PROMO": "false",
-    "ADMIN_PHONES": "+19176784343"
+    "ADMIN_PHONES": "+19176784343",
+    // Twilio SMS line (10DLC approved 11/27): login codes when Linq is on + Android texting in
+    "TWILIO_SMS_FROM": "+18596953636"
   }
   // Secrets (set with `wrangler secret put NAME`):
   //   SESSION_SECRET, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
