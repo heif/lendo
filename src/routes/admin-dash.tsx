@@ -210,51 +210,41 @@ export function registerDash(admin: A) {
     return c.redirect('/admin/flags');
   });
 
-  // ---------- Texting check: is Blooio set up, are texts going out, are replies + receipts coming back ----------
-  const bloo = async (c: any, path: string, init?: RequestInit) => {
-    if (!c.env.BLOOIO_API_KEY) return { ok: false, status: 0, j: { error: 'BLOOIO_API_KEY not set (dev mode: texts only logged)' } };
-    const r = await fetch(c.env.BLOOIO_API_BASE.replace(/\/$/, '') + path, { ...init, headers: { Authorization: `Bearer ${c.env.BLOOIO_API_KEY}`, 'Content-Type': 'application/json', ...(init?.headers || {}) } }).catch((e: any) => ({ ok: false, status: 0, json: async () => ({ error: String(e) }), text: async () => String(e) } as any));
-    let j: any = null; try { j = await r.json(); } catch { j = null; }
-    return { ok: r.ok, status: r.status, j };
-  };
+  // ---------- Texting check: Linq (iMessage line) + Twilio (SMS line) — keys, webhook, latest sends, receipts, replies ----------
   admin.get('/admin/texting', async (c) => {
-    const u = c.get('user')!;
-    const [me, nums, hooks] = await Promise.all([bloo(c, '/me'), bloo(c, '/me/numbers'), bloo(c, '/webhooks')]);
-    const hookList: any[] = Array.isArray(hooks.j) ? hooks.j : hooks.j?.webhooks || hooks.j?.data || hooks.j?.items || hooks.j?.results || [];
-    const ours = hookList.filter(h => JSON.stringify(h).includes(new URL(c.env.APP_URL).host));
-    const logs = ours[0] ? await bloo(c, `/webhooks/${ours[0].id || ours[0].webhook_id}/logs`) : null;
-    const logList: any[] = logs ? (Array.isArray(logs.j) ? logs.j : logs.j?.logs || logs.j?.data || []) : [];
+    const u = c.get('user')!, e = c.env as any;
     const t = c.req.query('t');
     const sent = t ? await one<any>(c, `SELECT * FROM outbound_texts WHERE id = ?`, t) : null;
-    const st = sent?.provider_id && !String(sent.provider_id).startsWith('dev_') ? await bloo(c, `/chats/${encodeURIComponent(u.phone)}/messages/${encodeURIComponent(sent.provider_id)}/status`) : null;
-    const [lastIn, ins, stats, fails, streak] = await Promise.all([
+    const day = Date.now() - 864e5;
+    const [lastIn, ins, stats, fails, streak, out24, ok24, spam] = await Promise.all([
       one<{ value: string }>(c, `SELECT value FROM settings WHERE key = 'last_inbound'`),
-      all<any>(c, `SELECT i.created_at, i.body, i.via, u.name FROM inbound_texts i LEFT JOIN users u ON u.id = i.user_id WHERE i.via = 'text' ORDER BY i.created_at DESC LIMIT 8`),
+      all<any>(c, `SELECT i.created_at, i.body, i.via, u.name FROM inbound_texts i LEFT JOIN users u ON u.id = i.user_id ORDER BY i.created_at DESC LIMIT 8`),
       all<any>(c, `SELECT at, data FROM events WHERE kind = 'text.status' ORDER BY id DESC LIMIT 10`),
       all<any>(c, `SELECT at, kind, data FROM events WHERE kind IN ('text.failed','text.suppressed') ORDER BY id DESC LIMIT 8`),
       textStreak(c.env, u.id),
+      one<{ n: number }>(c, `SELECT COUNT(*) n FROM events WHERE kind = 'text.failed' AND at > ?`, day),
+      one<{ n: number }>(c, `SELECT COUNT(*) n FROM events WHERE kind = 'text.status' AND data LIKE '%"delivered"%' AND at > ?`, day),
+      one<{ n: number }>(c, `SELECT COUNT(*) n FROM events WHERE kind = 'text.spam' AND at > ?`, day),
     ]);
-    const evs = (h: any) => (h.events || h.event_types || h.types || h.subscribed_events || h.type || 'all') as any;
     const ok = (b: boolean) => <b style={'color:' + (b ? '#1F8A4C' : '#c22')}>{b ? '✓' : '✕'}</b>;
-    const pre = (x: unknown) => <pre style="white-space:pre-wrap;word-break:break-word;font-size:11px;background:#fff;border-radius:10px;padding:8px;margin:6px 0">{JSON.stringify(x, null, 1).slice(0, 1500)}</pre>;
+    const li = (() => { try { return JSON.parse(lastIn?.value || 'null'); } catch { return null; } })();
     return c.html(<Shell c={c} title="Texting check" path="/admin/texting">
-      <h3>1 · Blooio account</h3>
-      <p>{ok(me.ok)} API key works {me.ok ? '' : `· ${me.status}`} · {ok(nums.ok)} numbers</p>
-      {pre({ me: { ...(me.j || {}), api_key: undefined }, numbers: nums.j })}
-      <h3>2 · Webhook (replies + delivery receipts)</h3>
-      <p>{ok(ours.length > 0)} webhook pointing at {new URL(c.env.APP_URL).host} · {ok(!!c.env.BLOOIO_WEBHOOK_SECRET)} signing secret set</p>
-      {ours.map(h => <p class="hint">{h.url || h.webhook_url} · events: {JSON.stringify(evs(h))}</p>)}
-      {hooks.ok && ours.length ? null : pre(hooks.j)}
-      {logList.length ? <><p class="hint">Last deliveries to Lendo:</p>{pre(logList.slice(0, 8).map((l: any) => ({ at: l.created_at || l.timestamp, event: l.event || l.event_type, status: l.status_code || l.response_status || l.status, err: l.error })))}</> : null}
+      <h3>1 · Lines</h3>
+      <p>{ok(!!e.LINQ_API_KEY)} Linq key set · iMessage line {e.LENDO_NUMBER || '—'}</p>
+      <p>{ok(!!e.LINQ_WEBHOOK_SECRET)} Linq webhook secret set (unsigned posts get 401)</p>
+      <p>{ok(!!(e.TWILIO_SMS_FROM && e.TWILIO_ACCOUNT_SID))} Twilio SMS line {e.TWILIO_SMS_FROM || '—'} · login codes go here</p>
+      {e.BLOOIO_API_KEY ? <p class="hint" style="color:#c22">Blooio key still set: delete BLOOIO_API_KEY + BLOOIO_WEBHOOK_SECRET in Cloudflare</p> : null}
+      <h3>2 · Last 24h</h3>
+      <p>{ok((ok24?.n || 0) > 0)} {ok24?.n || 0} delivered · {ok(!(out24?.n))} {out24?.n || 0} failed · {spam?.n || 0} spam ignored</p>
+      <p class="hint">Last webhook hit: {li ? when(li.t) + ' · ' + li.ev + ' · …' + li.from : 'never'}</p>
       <h3>3 · Send yourself a test</h3>
-      <form method="post" action="/admin/texting/send" class="ad-f"><button class="btn pri sm" type="submit">Text me a test ({u.phone})</button><span class="hint">then reply OK from your phone and reload this page</span></form>
-      {sent ? <><p>Sent: “{sent.body}” · Blooio id {sent.provider_id || <b style="color:#c22">none (not sent)</b>}</p>{st ? pre(st.j) : null}</> : null}
-      <p class="hint">Your unanswered streak: <b>{streak}</b> of 6 (Blooio pauses at 6)</p>
+      <form method="post" action="/admin/texting/send" class="ad-f"><button class="btn pri sm" type="submit">Text me a test ({u.phone})</button><span class="hint">then reply OK and reload</span></form>
+      {sent ? <p>Sent: “{sent.body}” · Linq id {sent.provider_id || <b style="color:#c22">none (not sent)</b>}</p> : null}
+      <p class="hint">Your unanswered streak: <b>{streak}</b></p>
       <h3>4 · Coming back in</h3>
-      <p class="hint">Last webhook hit: {lastIn?.value || 'never'}</p>
-      <div class="ad-wrap"><table class="ad-t"><tr><th>When</th><th>From</th><th>Text</th></tr>{ins.map(r => <tr><td style="white-space:nowrap">{when(r.created_at)}</td><td>{r.name}</td><td>{r.body}</td></tr>)}</table></div>
+      <div class="ad-wrap"><table class="ad-t"><tr><th>When</th><th>From</th><th>Via</th><th>Text</th></tr>{ins.map(r => <tr><td style="white-space:nowrap">{when(r.created_at)}</td><td>{r.name}</td><td>{r.via}</td><td>{r.body}</td></tr>)}</table></div>
       <p class="hint" style="margin-top:10px">Delivery receipts (latest):</p>
-      <div class="ad-wrap"><table class="ad-t"><tr><th>When</th><th>Receipt</th></tr>{stats.map(r => <tr><td style="white-space:nowrap">{when(r.at)}</td><td class="d">{r.data}</td></tr>)}</table>{stats.length ? null : <p class="hint" style="color:#c22">No receipts yet — the webhook may only be subscribed to incoming messages</p>}</div>
+      <div class="ad-wrap"><table class="ad-t"><tr><th>When</th><th>Receipt</th></tr>{stats.map(r => <tr><td style="white-space:nowrap">{when(r.at)}</td><td class="d">{r.data}</td></tr>)}</table>{stats.length ? null : <p class="hint" style="color:#c22">No receipts yet: subscribe the Linq webhook to message.sent / message.delivered / message.failed</p>}</div>
       <p class="hint" style="margin-top:10px">Failed / held (latest):</p>
       <div class="ad-wrap"><table class="ad-t"><tr><th>When</th><th></th><th>Detail</th></tr>{fails.map(r => <tr><td style="white-space:nowrap">{when(r.at)}</td><td class="ad-kind">{r.kind}</td><td class="d">{r.data}</td></tr>)}</table></div>
     </Shell>);

@@ -134,6 +134,8 @@ async function rentAsk(env: Env, text: string): Promise<{ id: string; name: stri
   const today = new Date(now.getTime() - 36 * 3600e3).toISOString().slice(0, 10), start = day(+m[1], +m[2], today), end = day(+m[3], +m[4], start);
   return { id: it.id, name: it.name, next: `/i/${it.id}?start=${start}&end=${end}` };
 }
+/* toll-free senders and texts carrying opt-out boilerplate are marketing, not people */
+export const isSpam = (phone: string, text: string) => /^\+18(00|33|44|55|66|77|88)\d{7}$/.test(phone) || /\b(reply|text|txt)\s+stop\b|\bstop\s+to\s+(end|stop|opt|quit|unsub|cancel)|\bmsg\s*&\s*data\s+rates\b/i.test(text);
 async function inboundText(c: Context<{ Bindings: Env; Variables: Vars }>, phone: string, body: string, sms: boolean) {
   if (sms) { const u0 = await userByPhone(c.env.DB, phone); if (u0) await c.env.DB.prepare('UPDATE users SET android = 1 WHERE id = ?').bind(u0.id).run(); }
   const m = { text: body };
@@ -148,6 +150,7 @@ async function inboundText(c: Context<{ Bindings: Env; Variables: Vars }>, phone
   if (!user) {
     await logEvent(c.env.DB, 'text.in_unknown', { data: { from: phone, body: text.slice(0, 500) } });
     if (!/^\+1\d{10}$/.test(phone) || kw === 'STOP' || kw === 'HELP') return c.json({ ok: true, unknown: true });
+    if (isSpam(phone, text)) { await logEvent(c.env.DB, 'text.spam', { data: { from: phone } }); return c.json({ ok: true, spam: true }); } /* marketing blasts: no account, no reply */
     /* a new person texting first (gift card button, Text Lendo bar): they're in — account by phone, texted login link */
     const nu = await ensureUser(c.env.DB, phone);
     await c.env.DB.prepare('UPDATE users SET replied = 1, android = ? WHERE id = ?').bind(sms ? 1 : 0, nu.id).run(); await c.env.DB.prepare('UPDATE users SET sms_ok = 1 WHERE id = ?').bind(nu.id).run().catch(() => 0); await logEvent(c.env.DB, 'sms.optin', { user: nu.id, data: { via: 'texted Lendo first' } }); nu.replied = 1; if (sms) (nu as any).android = 1;
