@@ -271,7 +271,7 @@ h.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTo
           <div class="ir-x"><div class="charges" id="charges" hidden /></div>
         </details>) : null}
       </section>); })()}
-      {!u ? <div style="height:84px"></div> : null /* room for the floating phone/$5 OFF bar; logged in there is no bar, so no gap */}
+      {!u && creditOk(it.price_cents) ? <div style="height:84px"></div> : null /* room for the floating phone/$5 OFF bar; logged in there is no bar, so no gap */}
       {it.demo ? <div class="flash" id="demoNote" hidden style="margin:0 16px 90px">This one’s a demo — Iowa City is a preview of what a Lendo neighborhood looks like full. Nothing gets charged. <a href="/list">List your real stuff →</a></div> : null}
       {!isOwner && it.status === 'live' ? (
         <div class="rentbar">
