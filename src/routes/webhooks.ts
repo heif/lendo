@@ -68,6 +68,8 @@ webhooks.post('/webhooks/blooio', async (c) => {
 });
 async function blooioInbound(c: Context<{ Bindings: Env; Variables: Vars }>) {
   const raw = await c.req.text();
+  /* Blooio retired (Scott, 11/27): with no signing secret, only local dev may post here — never accept unsigned texts in production */
+  if (!c.env.BLOOIO_WEBHOOK_SECRET && !/^(localhost|127\.0\.0\.1)$/.test(new URL(c.req.url).hostname)) return c.json({ ok: false }, 404);
   if (c.env.BLOOIO_WEBHOOK_SECRET) {
     // v4: X-Blooio-Signature: t=<unix>,v1=<hex hmac-sha256 of "<t>.<raw body>">; also accept a bare hex (older docs)
     const hdr = c.req.header('x-blooio-signature') || '';

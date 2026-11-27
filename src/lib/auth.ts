@@ -134,7 +134,7 @@ export async function startLogin(env: Env, phone: string, via: 'auto' | 'sms' = 
     if ((r.error || '').includes('conversation_awaiting_reply')) return { ok: false, error: `Texts to this number are paused until you reply. Find the thread from ${env.LENDO_NUMBER} (check Unknown Senders), reply OK, then try again` };
     return { ok: false, error: r.error };
   }
-  return { ok: true, devCode: env.BLOOIO_API_KEY ? undefined : code };
+  return { ok: true, devCode: env.BLOOIO_API_KEY || linqOn(env) || twilioSmsOn(env) ? undefined : code }; /* the code is only ever shown on screen in local dev (no texting provider at all) */
 }
 
 export async function finishLogin(c: Context<{ Bindings: Env; Variables: Vars }>, phone: string, code: string): Promise<User | null> {
