@@ -109,7 +109,8 @@ export function valueNow(l: Listing): Valued {
 // The hold for a rental requested now: the value, held at HIGH_CENTS until the listing has 2+ real photos of the owner's own item.
 export async function photosOk(env: Env, l: Listing): Promise<boolean> {
   if (l.stock_photo) return false;
-  const n = await env.DB.prepare('SELECT COUNT(*) n FROM photos WHERE listing_id = ?').bind(l.id).first<{ n: number }>().catch(() => null);
+  const n = await env.DB.prepare('SELECT COUNT(*) n FROM photos WHERE listing_id = ? AND stock IS NOT 1').bind(l.id).first<{ n: number }>()
+    .catch(() => env.DB.prepare('SELECT COUNT(*) n FROM photos WHERE listing_id = ?').bind(l.id).first<{ n: number }>()).catch(() => null); /* stock photos next to real ones don't count */
   return (n?.n || 0) >= 2;
 }
 export async function holdFor(env: Env, l: Listing): Promise<Valued & { capped: boolean }> {

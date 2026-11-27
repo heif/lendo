@@ -416,8 +416,8 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
             <button type="submit" formaction={`/listings/${it.id}/photos/${p.id}/delete`} formnovalidate class="phm-x" aria-label="Remove photo">×</button>
           </div>)}
           {photos.length < 6 ? <label class="phm-add">+<small>photo</small><input type="file" accept="image/*" multiple hidden onchange="this.form.action=this.dataset.u;this.form.enctype='multipart/form-data';this.form.submit()" data-u={`/listings/${it.id}/photos`} name="photos" /></label> : null}
-          {/* stock photo (Scott, 11/27): only when there's no photo of the owner's own — it replaces the cover, and a real photo later replaces it */}
-          {c.env.BRAVE_API_KEY && (!photos.length || it.stock_photo) ? <button type="button" class="phm-add" id="stkOpen" data-q={it.name}>+<small>stock</small></button> : null}
+          {/* stock photo (Scott, 11/27): with no own photos it's the only photo (a real photo later replaces it); next to real photos it's added at the end and marked stock */}
+          {c.env.BRAVE_API_KEY && photos.length < 6 ? <button type="button" class="phm-add" id="stkOpen" data-q={it.name}>+<small>stock</small></button> : null}
         </div>
         <div class="stkpick" id="stkPick" hidden><p class="hint" id="stkMsg">Finding photos…</p><div class="stkpick-g" id="stkGrid"></div>
           <input type="hidden" name="stock_img" id="stkImg" /></div>
@@ -494,7 +494,8 @@ async function recoverIcon(c: any, lid: string, before: string | null) {
 listings.post('/listings/:id/stock', requireUser, async (c) => {
   const it = await ownListing(c); if (!it) return c.notFound();
   const have = await photosFor(c.env.DB, it.id);
-  if (have.length && !it.stock_photo) return c.redirect(`/listings/${it.id}/edit`);
+  const alongside = have.length > 0 && !it.stock_photo; /* the owner already has real photos: add this one at the end */
+  if (have.length >= 6) return c.redirect(`/listings/${it.id}/edit`);
   let pick: any = {}; try { pick = JSON.parse(String((await c.req.parseBody()).stock_img || '{}')); } catch {}
   let bytes: ArrayBuffer | null = null, type = 'image/jpeg';
   for (const u0 of [pick.img, pick.thumb]) {
@@ -502,13 +503,14 @@ listings.post('/listings/:id/stock', requireUser, async (c) => {
     try { const r = await fetch(String(u0), { headers: { 'user-agent': 'Lendo/1.0' } }); const ct = r.headers.get('content-type') || ''; if (r.ok && /^image\/(jpeg|png|webp)/.test(ct)) { bytes = await r.arrayBuffer(); type = ct.split(';')[0]; } } catch {}
   }
   if (!bytes) return c.redirect(`/listings/${it.id}/edit`);
-  for (const p of have) await c.env.DB.prepare('DELETE FROM photos WHERE id = ?').bind(p.id).run();
-  const key = `${it.id}/${id('ph')}.${type.split('/')[1].replace('jpeg', 'jpg')}`;
+  if (!alongside) for (const p of have) await c.env.DB.prepare('DELETE FROM photos WHERE id = ?').bind(p.id).run();
+  const key = `${it.id}/${id('ph')}.${type.split('/')[1].replace('jpeg', 'jpg')}`, pos = alongside ? have.length : 0, pid = id('ph');
   await c.env.PHOTOS.put(key, bytes, { httpMetadata: { contentType: type } });
-  await c.env.DB.prepare('INSERT INTO photos (id, listing_id, r2_key, pos) VALUES (?,?,?,0)').bind(id('ph'), it.id, key).run();
-  await c.env.DB.prepare('UPDATE listings SET stock_photo = 1, avatar_key = NULL WHERE id = ?').bind(it.id).run();
+  await c.env.DB.prepare('INSERT INTO photos (id, listing_id, r2_key, pos, stock) VALUES (?,?,?,?,1)').bind(pid, it.id, key, pos).run()
+    .catch(() => c.env.DB.prepare('INSERT INTO photos (id, listing_id, r2_key, pos) VALUES (?,?,?,?)').bind(pid, it.id, key, pos).run());
+  if (!alongside) await c.env.DB.prepare('UPDATE listings SET stock_photo = 1, avatar_key = NULL WHERE id = ?').bind(it.id).run();
   await logEvent(c.env.DB, 'listing.stock_photo', { user: it.owner_id, listing: it.id, data: { src: String(pick.img || '').slice(0, 300), via: 'edit' } });
-  await recoverIcon(c, it.id, null);
+  if (!alongside) await recoverIcon(c, it.id, null);
   return c.redirect(`/listings/${it.id}/edit`);
 });
 listings.post('/listings/:id/photos', requireUser, async (c) => {
