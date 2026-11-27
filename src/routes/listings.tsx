@@ -415,10 +415,14 @@ listings.get('/listings/:id/edit', requireUser, async (c) => {
             {i === 0 ? <span class="phm-cover">cover</span> : <button type="submit" formaction={`/listings/${it.id}/photos/${p.id}/cover`} formnovalidate class="phm-mk">make cover</button>}
             <button type="submit" formaction={`/listings/${it.id}/photos/${p.id}/delete`} formnovalidate class="phm-x" aria-label="Remove photo">×</button>
           </div>)}
-          {photos.length < 6 ? <label class="phm-add">+<small>photo</small><input type="file" accept="image/*" multiple hidden onchange="this.form.action=this.dataset.u;this.form.enctype='multipart/form-data';this.form.submit()" data-u={`/listings/${it.id}/photos`} name="photos" /></label> : null}
-          {/* stock photo (Scott, 11/27): with no own photos it's the only photo (a real photo later replaces it); next to real photos it's added at the end and marked stock */}
-          {c.env.BRAVE_API_KEY && photos.length < 6 ? <button type="button" class="phm-add" id="stkOpen" data-q={it.name}>+<small>stock</small></button> : null}
+          {/* one "+ Add photo" (Scott, 11/27) → Take a photo · Upload · Stock photo */}
+          {photos.length < 6 ? <button type="button" class="phm-add" id="phAdd" onclick="var m=document.getElementById('phMenu');m.hidden=!m.hidden"><b>+</b><small>Add photo</small></button> : null}
         </div>
+        {photos.length < 6 ? <div class="phmenu" id="phMenu" hidden>
+          <label class="phmenu-b">Take a photo<input type="file" accept="image/*" capture="environment" hidden onchange="this.form.action=this.dataset.u;this.form.enctype='multipart/form-data';this.form.submit()" data-u={`/listings/${it.id}/photos`} name="photos" /></label>
+          <label class="phmenu-b">Upload<input type="file" accept="image/*" multiple hidden onchange="this.form.action=this.dataset.u;this.form.enctype='multipart/form-data';this.form.submit()" data-u={`/listings/${it.id}/photos`} name="photos" /></label>
+          {c.env.BRAVE_API_KEY ? <button type="button" class="phmenu-b" id="stkOpen" data-q={it.name}>Stock photo</button> : null}
+        </div> : null}
         <div class="stkpick" id="stkPick" hidden><p class="hint" id="stkMsg">Finding photos…</p><div class="stkpick-g" id="stkGrid"></div>
           <input type="hidden" name="stock_img" id="stkImg" /></div>
         <script dangerouslySetInnerHTML={{ __html: `(function(){var b=document.getElementById('stkOpen');if(!b)return;b.onclick=function(){var w=document.getElementById('stkPick'),g=document.getElementById('stkGrid'),m=document.getElementById('stkMsg');w.hidden=false;g.innerHTML='';m.textContent='Finding photos…';

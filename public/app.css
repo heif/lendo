@@ -1208,3 +1208,9 @@ input.otp{font-size:52px!important;padding:14px 0 14px .5em;border-radius:18px;m
 .late-card{border:2px solid var(--ink)}.late-card .hint{margin-top:4px}
 .ir-full{margin:0 0 8px;font-size:15px;font-weight:800;color:var(--ink)}
 .stkpick{margin:8px 0 4px}.stkpick-g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stkpick-g img{width:100%;aspect-ratio:1;object-fit:contain;background:#fff;border:2px solid var(--ink);border-radius:12px;cursor:pointer}
+/* edit page: one "+ Add photo" tile → menu; solid borders (no dashed, Scott 11/23); −/+ glyphs big (11/27) */
+.phm-add{border:2.5px solid var(--ink)!important;width:96px!important;height:96px!important;border-radius:14px!important}
+.phm-add b{font-size:44px;font-weight:900;line-height:.9;color:var(--ink)}.phm-add small{font-size:12px!important;color:var(--ink)!important;margin-top:2px}
+.phmenu{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px}
+.phmenu-b{border:2.5px solid var(--ink);border-radius:12px;background:#fff;color:var(--ink);font:inherit;font-weight:800;font-size:15px;padding:10px 14px;cursor:pointer;box-shadow:0 3px 0 var(--ink)}
+.prset button{font-family:inherit!important;font-size:30px!important;font-weight:900!important;line-height:1!important}
