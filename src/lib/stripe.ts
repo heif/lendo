@@ -30,7 +30,7 @@ export async function createCheckout(env: Env, rental: Rental, listing: Listing,
     /* every rental has a deposit hold at pickup (the item's value): it needs the card again later, off-session → save it to a Stripe customer now.
        The customer sees and accepts the hold and how problems are decided before paying (also the record for a bank dispute) */
     customer_creation: 'always' as const,
-    ...((rental.deposit_cents || 0) > 0 ? { custom_text: { submit: { message: `At pickup a ${money(rental.deposit_cents!)} hold (not a charge) goes on this card for the item's value, released after return. If there's a problem, Lendo's AI decides what's owed from the photos and what you each say, up to the hold` } } } : {}),
+    ...((rental.deposit_cents || 0) > 0 ? { custom_text: { submit: { message: `At pickup a ${money(rental.deposit_cents!)} card hold (like a hotel check-in, not a charge) goes on this card for the item's value, released after return. If there's a problem, Lendo's AI decides what's owed from the photos and what you each say, up to the hold` } } } : {}),
     payment_intent_data: {
       setup_future_usage: 'off_session' as const,
       capture_method: 'manual',
