@@ -1056,7 +1056,7 @@ input.otp{font-size:52px!important;padding:14px 0 14px .5em;border-radius:18px;m
 .lh .bm{opacity:0}.lh.an .front .bm{animation:lhSp var(--d) linear var(--n)}
 .lh.an .hd{animation:var(--a) var(--d) ease-in-out var(--n)}
 @keyframes lhL{0%,20%{transform:none}50%{transform:rotate(6deg)}100%{transform:none}}
-@keyframes lhWave{0%{transform:rotate(0)}25%{transform:rotate(-13deg)}75%{transform:rotate(9deg)}100%{transform:rotate(0)}}
+@keyframes lhWave{0%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(5.5deg)}100%{transform:rotate(0)}}
 @keyframes lhShrug{0%{transform:rotate(0)}18%{transform:translateY(-10px) rotate(-72deg)}40%{transform:translateY(-10px) rotate(-72deg)}50%{transform:translateY(4px) rotate(-80deg)}80%{transform:translateY(4px) rotate(-80deg)}100%{transform:rotate(0)}}
 @keyframes lhNod{0%{transform:none}30%{transform:translateY(9px) scaleY(.9)}70%,100%{transform:none}}
 @keyframes lhFive{0%{transform:none}18%{transform:scale(1.2)}60%{transform:scale(1.2)}100%{transform:none}}
