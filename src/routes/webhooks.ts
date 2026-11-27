@@ -255,7 +255,7 @@ export async function handleText(c: Context<{ Bindings: Env; Variables: Vars }>,
           const names = [...(mainOk || !yes ? [mainNm] : []), ...done], tot = (mainOk ? h1.total_cents : 0) + paid;
           const holds = (mainOk ? h1.deposit_cents || 0 : 0) + sibHolds;
           const ownU = await userById(c.env.DB, user.id), spot = ownU?.pickup_spots ? (JSON.parse(ownU.pickup_spots) as string[]).join(' or ') : '';
-          if (yes && names.length) await textUser(c.env, cust, `${own} said yes to all ${names.length}: ${names.join(', ')} · ${tot > 0 ? money(tot) + ' paid' + (one ? ', one charge' : '') : 'free'} · pickup ${fmtDay(held.start_day)}${spot ? ' at ' + spot : ''} (time coming from ${own})${holds > 0 ? ` · ${money(holds)} in holds (not charges) at pickup, off after return` : ''}${one ? ' · the earlier holds drop off your card in a few days' : ''} ${c.env.APP_URL}/rentals`, 'money', held.id);
+          if (yes && names.length) await textUser(c.env, cust, `${own} said yes to all ${names.length}: ${names.join(', ')} · ${tot > 0 ? money(tot) + ' paid' + (one ? ', one charge' : '') : 'free'} · pickup ${fmtDay(held.start_day)}${spot ? ' at ' + spot : ''} (time coming from ${own})${holds > 0 ? ` · ${money(holds)} in holds (not charges) at pickup, off after an on-time return` : ''}${one ? ' · the earlier holds drop off your card in a few days' : ''} ${c.env.APP_URL}/rentals`, 'money', held.id);
           else if (!yes && done.length) await textUser(c.env, cust, `${own} can't do: ${[mainNm, ...done].join(', ')} · nothing charged`, 'rental', held.id);
         }
         if (failed.length) await textUser(c.env, user, `Couldn't ${yes ? 'confirm' : 'pass on'} ${failed.join(', ')} — open ${c.env.APP_URL}/rentals`, 'rental', held.id);

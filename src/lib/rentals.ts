@@ -84,7 +84,7 @@ export async function accept(env: Env, r0: Rental, rentCents?: number, quiet?: b
   const gift = r.rent_cents === 0 ? ` ${firstName(owner.name)} is lending it to you free!` : r0.rent_cents > r.rent_cents ? ` ${firstName(owner.name)} gave you a discount` : '';
   // owner is asked for a pickup time right after YES (no pickup hours); their reply relays to the customer, SKIP leaves it to the customer
   /* one text: yes + paid + pickup day + spot + hold; the time follows when the owner replies one */
-  const holdNote = (r.deposit_cents || 0) > 0 ? ` · ${money(r.deposit_cents!)} hold (not a charge) goes on your card at pickup, off after return` : '';
+  const holdNote = (r.deposit_cents || 0) > 0 ? ` · ${money(r.deposit_cents!)} hold (not a charge) goes on your card at pickup, off after an on-time return` : '';
   if (!quiet) await textUser(env, renter, `${firstName(owner.name)} said yes!${gift} · ${paidLine} · pickup ${fmtDay(r.start_day)}${spot ? ' ·' + spot.replace(' Meet:', ' at') : ''} (time coming from ${firstName(owner.name)})${holdNote} · next: sign your promise (3 quick checks) ${url}#promise`, 'money', r.id);
   await textUser(env, owner, `${r.rent_cents === 0 ? 'Done — lending it free' : `Done. ${firstName(renter.name)} paid`}. When can ${firstName(renter.name)} pick it up? Reply a time (like "after 6"), or SKIP`, 'rental', r.id);
   if (!owner.stripe_account_id && r.rent_cents > 0) {
