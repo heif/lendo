@@ -1,4 +1,5 @@
-import { smsDigits } from './twiliosms';
+import { smsDigits, twilioSmsOn, sendTwilioSms } from './twiliosms';
+import { linqOn } from './linq';
 import type { Context, MiddlewareHandler } from 'hono';
 import { logEvent } from './log';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
@@ -115,6 +116,13 @@ export async function startLogin(env: Env, phone: string, via: 'auto' | 'sms' = 
   if (old && old.code !== 'twilio' && old.expires_at > now()) await env.DB.prepare('INSERT OR REPLACE INTO otp_codes (phone, code, expires_at, attempts) VALUES (?,?,?,0)').bind('prev:' + phone, old.code, old.expires_at).run();
   await env.DB.prepare('INSERT OR REPLACE INTO otp_codes (phone, code, expires_at, attempts) VALUES (?,?,?,0)')
     .bind(phone, code, now() + 15 * 60 * 1000).run();
+  /* with Linq, codes go by the Twilio SMS line (Ray @ Linq, 11/25): no cold texts on the iMessage line, no use of its 200-contact cap,
+     and phones treat SMS codes as verification texts (autofill). If Twilio fails, fall back to the iMessage line */
+  if (linqOn(env) && twilioSmsOn(env)) {
+    const t = await sendTwilioSms(env, phone, `${code} is your Lendo code. Reply STOP to opt out`);
+    if (t.ok) { await logEvent(env.DB, 'login.code', { data: { phone: '…' + phone.slice(-4), via: 'twilio sms' } }).catch(() => {}); return { ok: true }; }
+    await logFail(env, phone, 'twilio sms', t.error || 'unknown');
+  }
   const r = await sendRaw(env, phone, `${code} is your Lendo code. Save contact + reply OK so rental texts reach you`);
   if (!r.ok) {
     await logFail(env, phone, 'blooio', r.error || 'unknown');
