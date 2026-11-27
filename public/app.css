@@ -1187,3 +1187,12 @@ input.otp{font-size:52px!important;padding:14px 0 14px .5em;border-radius:18px;m
 .chg.tot+.chg-only{margin-bottom:0}
 /* no $5 OFF button on items under $15/day (Scott, 11/26) */
 .nogift .promo,.nogift .giftbtn{display:none!important}
+/* message strip above the ticker (Scott, 11/27) — styles: orange · cream · ticker · ink */
+.strip{flex-shrink:0;position:relative;z-index:901;display:flex;align-items:center;gap:8px;padding:7px 12px;font-size:13.5px;font-weight:800;line-height:1.25}
+.strip a{flex:1;text-align:center;color:inherit;text-decoration:none}
+.strip a[href]{text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1.5px}
+.strip button{background:none;border:0;color:inherit;font:900 15px/1 inherit;opacity:.75;cursor:pointer;padding:4px}
+.strip-orange{background:var(--orange);color:#fff}
+.strip-cream{background:#FFF1EA;color:var(--ink);border-bottom:2px solid var(--ink)}
+.strip-ink{background:var(--ink);color:#fff;border-bottom:1px solid rgba(255,255,255,.25)}
+.strip-tk em{font-style:normal;background:var(--orange);color:#fff;padding:1px 6px;border-radius:4px;letter-spacing:1px;margin-right:6px}

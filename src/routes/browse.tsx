@@ -1,3 +1,4 @@
+import { pickStrip, tickerOn, cityAt } from '../lib/strips';
 import { holdFor } from '../lib/value';
 import { guaranteeCap } from '../lib/claims';
 import { Hono, type Context } from 'hono';
@@ -60,10 +61,14 @@ export const homePage = async (c: Ctx, opt: { center?: number[]; zoom?: number; 
   const inLive = !isNaN(vLat) && !isNaN(vLng) && CITIES.some(ct => ct.id === 'nyc' && vLng >= ct.bbox[0] - 0.6 && vLng <= ct.bbox[2] + 0.6 && vLat >= ct.bbox[1] - 0.45 && vLat <= ct.bbox[3] + 0.45);
   const away = !u && !isNaN(vLat) && !inLive;
   const mapbox = !!c.env.MAPBOX_PUBLIC_TOKEN;
+  const [strip, showTicker] = await Promise.all([pickStrip(c.env, u, { city: cityAt(center[0], center[1]), ua: c.req.header('user-agent') || '', cookie: c.req.header('cookie') || '' }), tickerOn(c.env)]);
   const cfg = JSON.stringify({ user: !!u, num: (c.env.LENDO_NUMBER || '').replace(/\D/g, '').slice(-10), ipLoc: !isNaN(vLat) && !isNaN(vLng) ? [vLng, vLat] : null, away, visitorCity: away ? (cf.city || '') : '', wantedPromo: c.env.WANTED_PROMO === 'true', token: c.env.MAPBOX_PUBLIC_TOKEN || '', style: c.env.MAPBOX_STYLE_URL || 'mapbox://styles/mapbox/light-v11', center, zoom: opt.zoom || (() => { const z = parseFloat(c.req.query('z') || ''); return z >= 3 && z <= 18 ? z : 14.5; })(), q: opt.q || "", pinned: !!opt.center, hasHome: !!(u?.lat) || cq.length === 2 && cq.every(n => !isNaN(n)) });
   return c.html(
     <Layout title={u?.hood || 'Near you'} user={u} back={null} badge={badge} htmlClass="mappage"
-      top={<a class="ticker" href="/how-it-works" aria-label="How it works"><div class="tk" aria-hidden="true">{[0, 1].map(() => TICKER.map(t => <span>{t}<i>•</i></span>))}</div></a>}
+      top={<>{strip ? (strip.style === 'ticker'
+        ? <a class="ticker strip-tk" href={'/s/' + strip.id} aria-label={strip.msg}><div class="tk" aria-hidden="true">{[0, 1].map(() => <><span><em>NEW</em> {strip.msg}<i>•</i></span>{TICKER.map(t => <span>{t}<i>•</i></span>)}</>)}</div></a>
+        : <div class={'strip strip-' + strip.style} id={'strip-' + strip.id}><a href={strip.link ? '/s/' + strip.id : undefined}>{strip.msg}</a><button type="button" aria-label="Hide" onclick={`document.cookie='sx_${strip.id}=1;path=/;max-age=604800';this.parentNode.remove()`}>✕</button></div>) : null}
+        {showTicker && strip?.style !== 'ticker' ? <a class="ticker" href="/how-it-works" aria-label="How it works"><div class="tk" aria-hidden="true">{[0, 1].map(() => TICKER.map(t => <span>{t}<i>•</i></span>))}</div></a> : null}</>}
       headerCenter={
         <div class="scope" role="group" aria-label="Where you're looking">
           <button class="scope-hood crumb" id="scHood" type="button" aria-label="Pick a neighborhood or city"><b id="scHoodN">{u?.hood || 'Near you'}</b><span class="cr-city" id="scCityS"></span><span class="cr-n" id="scHoodC">{k.hood || '…'}</span><svg width="12" height="8" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1.5L6 6.5L11 1.5" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
@@ -122,6 +127,13 @@ export const homePage = async (c: Ctx, opt: { center?: number[]; zoom?: number; 
   );
 };
 browse.get('/', (c) => homePage(c));
+/* strip taps: logged, then on to the strip's link */
+browse.get('/s/:id', async (c) => {
+  const s = await c.env.DB.prepare('SELECT id, link FROM strips WHERE id = ?').bind(c.req.param('id')).first<{ id: string; link: string | null }>().catch(() => null);
+  if (s) await logEvent(c.env.DB, 'strip.tap', { user: c.get('user')?.id, data: { strip: s.id } }).catch(() => {});
+  const to = s?.link || '/';
+  return c.redirect(/^(https?:\/\/|\/)/.test(to) ? to : '/');
+});
 
 /* owner photo with their things hugging it, slowly circling (item card, item page) */
 const OwnerOrbit = (p: { name: string | null; photo?: string | null; items: { src: string; cut: boolean }[] }) => {

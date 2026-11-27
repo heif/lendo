@@ -5,6 +5,8 @@ import type { MiddlewareHandler } from 'hono';
 import { Hono } from 'hono';
 import { logEvent } from '../lib/log';
 import { AdminNav, registerDash } from './admin-dash';
+import { STYLES, WHO, tickerOn, type Strip } from '../lib/strips';
+import { CITIES } from '../lib/places';
 import { stripe } from '../lib/stripe';
 import { twilioBasic } from '../lib/auth';
 import type { Env, Vars } from '../lib/env';
@@ -146,6 +148,78 @@ admin.post('/admin/wanted', async (c) => {
   return c.redirect('/admin/wanted');
 });
 
+
+/* ---------- message strips + ticker (Scott, 11/27) ---------- */
+admin.get('/admin/strips', async (c) => {
+  const u = c.get('user')!;
+  const rows = await c.env.DB.prepare('SELECT * FROM strips ORDER BY sort, created_at DESC').all<Strip>().then(r => r.results).catch(() => [] as Strip[]);
+  const taps = await c.env.DB.prepare(`SELECT json_extract(data,'$.strip') s, COUNT(*) n FROM events WHERE kind = 'strip.tap' GROUP BY s`).all<{ s: string; n: number }>().then(r => Object.fromEntries(r.results.map(x => [x.s, x.n]))).catch(() => ({} as Record<string, number>));
+  const tk = await tickerOn(c.env);
+  const F = (s?: Strip) => {
+    const w = (s?.who || '').split(',');
+    return <form method="post" action={'/admin/strips' + (s ? '/' + s.id : '')} class="card" style="margin-bottom:12px;display:grid;gap:8px">
+      <label class="row" style="gap:8px;font-weight:800"><input type="checkbox" name="on_" checked={!s || !!s.on_} /> On{s ? <span class="hint" style="font-weight:500"> · {taps[s.id] || 0} taps</span> : <span class="hint" style="font-weight:500"> · new strip</span>}</label>
+      <input name="msg" value={s?.msg || ''} placeholder="Message · {hood} {city} {n} = items listed this week" required />
+      <input name="link" value={s?.link || ''} placeholder="Link (/list or https://…) · optional" />
+      <div class="row" style="gap:10px;flex-wrap:wrap;font-size:14px">{WHO.map(([k, l]) => <label><input type="checkbox" name="who" value={k} checked={w.includes(k)} /> {l}</label>)}<span class="hint">(none = everyone)</span></div>
+      <input name="cities" value={s?.cities || ''} placeholder={'Cities: ' + CITIES.map(x => x.id).join(', ') + ' (blank = all)'} />
+      <input name="hoods" value={s?.hoods || ''} placeholder="Neighborhoods, comma separated (blank = all) · logged-in people's home hood" />
+      <div class="row" style="gap:8px;flex-wrap:wrap">
+        <select name="device">{['all', 'phone', 'computer'].map(d => <option value={d} selected={(s?.device || 'all') === d}>{d === 'all' ? 'Phone + computer' : d === 'phone' ? 'Phone only' : 'Computer only'}</option>)}</select>
+        <select name="style">{STYLES.map(d => <option value={d} selected={(s?.style || 'orange') === d}>{d === 'ticker' ? 'In ticker' : d[0].toUpperCase() + d.slice(1)}</option>)}</select>
+        <input type="date" name="start_day" value={s?.start_day || ''} aria-label="From" />
+        <input type="date" name="end_day" value={s?.end_day || ''} aria-label="To" />
+        <input type="number" name="sort" value={String(s?.sort ?? 0)} style="width:70px" aria-label="Order (low first)" />
+      </div>
+      <div class="row" style="gap:8px"><button class="btn pri" type="submit">{s ? 'Save' : 'Add strip'}</button>{s ? <button class="btn" type="submit" formaction={'/admin/strips/' + s.id + '/delete'}>Delete</button> : null}</div>
+    </form>;
+  };
+  return c.html(
+    <Layout title="Admin · strips" user={u} back="/admin">
+      <div style="padding:0 14px"><AdminNav c={c} path="/admin/strips" /></div>
+      <div style="padding:4px 16px 40px;max-width:760px">
+        <form method="post" action="/admin/strips/ticker" class="card" style="margin-bottom:14px"><b>Ticker</b> (Save money · Meet neighbors…) is <b>{tk ? 'on' : 'off'}</b> · <button class="btn" type="submit">{tk ? 'Turn off' : 'Turn on'}</button></form>
+        <p class="hint">One strip shows at a time, above the ticker on the map: the first that matches (lowest order, then newest). ✕ hides it for that person for 7 days</p>
+        {rows.map(s => F(s))}
+        {F()}
+      </div>
+    </Layout>);
+});
+const stripFields = async (c: any) => {
+  const f = await c.req.parseBody({ all: true });
+  const one = (k: string) => String(Array.isArray(f[k]) ? f[k][0] : f[k] ?? '').trim();
+  const who = ([] as any[]).concat(f.who ?? []).map(String).filter(x => WHO.some(w => w[0] === x)).join(',');
+  const day = (k: string) => /^\d{4}-\d{2}-\d{2}$/.test(one(k)) ? one(k) : null;
+  return { on_: f.on_ ? 1 : 0, msg: one('msg').slice(0, 200), link: one('link').slice(0, 300) || null, who, cities: one('cities').toLowerCase(), hoods: one('hoods'),
+    device: ['all', 'phone', 'computer'].includes(one('device')) ? one('device') : 'all', style: (STYLES as readonly string[]).includes(one('style')) ? one('style') : 'orange',
+    start_day: day('start_day'), end_day: day('end_day'), sort: parseInt(one('sort')) || 0 };
+};
+admin.post('/admin/strips/ticker', async (c) => {
+  const on = await tickerOn(c.env);
+  await c.env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('ticker_on', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(on ? '0' : '1').run();
+  await logEvent(c.env.DB, 'admin.ticker', { user: c.get('user')!.id, data: { on: !on } });
+  return c.redirect('/admin/strips');
+});
+admin.post('/admin/strips', async (c) => {
+  const v = await stripFields(c); if (!v.msg) return c.redirect('/admin/strips');
+  const sid = 'st_' + crypto.randomUUID().slice(0, 8);
+  await c.env.DB.prepare('INSERT INTO strips (id, on_, msg, link, who, cities, hoods, device, start_day, end_day, style, sort, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)')
+    .bind(sid, v.on_, v.msg, v.link, v.who, v.cities, v.hoods, v.device, v.start_day, v.end_day, v.style, v.sort, Date.now()).run();
+  await logEvent(c.env.DB, 'admin.strip', { user: c.get('user')!.id, data: { strip: sid, add: true, ...v } });
+  return c.redirect('/admin/strips');
+});
+admin.post('/admin/strips/:id', async (c) => {
+  const v = await stripFields(c); if (!v.msg) return c.redirect('/admin/strips');
+  await c.env.DB.prepare('UPDATE strips SET on_=?, msg=?, link=?, who=?, cities=?, hoods=?, device=?, start_day=?, end_day=?, style=?, sort=? WHERE id = ?')
+    .bind(v.on_, v.msg, v.link, v.who, v.cities, v.hoods, v.device, v.start_day, v.end_day, v.style, v.sort, c.req.param('id')).run();
+  await logEvent(c.env.DB, 'admin.strip', { user: c.get('user')!.id, data: { strip: c.req.param('id'), ...v } });
+  return c.redirect('/admin/strips');
+});
+admin.post('/admin/strips/:id/delete', async (c) => {
+  await c.env.DB.prepare('DELETE FROM strips WHERE id = ?').bind(c.req.param('id')).run();
+  await logEvent(c.env.DB, 'admin.strip', { user: c.get('user')!.id, data: { strip: c.req.param('id'), deleted: true } });
+  return c.redirect('/admin/strips');
+});
 admin.get('/admin/pricing', async (c) => {
   const u = c.get('user')!;
   const { rules, settings } = await loadPricing(c.env, true);
