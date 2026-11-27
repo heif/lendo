@@ -28,7 +28,9 @@ export const loadUser: MiddlewareHandler<{ Bindings: Env; Variables: Vars }> = a
           EXISTS(SELECT 1 FROM rentals WHERE owner_id = ?1 OR renter_id = ?1) any_r`).bind(row.id).first<{ n: number; any_r: number }>().catch(() => null);
       row.unread = n?.n || 0; row.has_rentals = n ? !!n.any_r : true; /* menu shows "Your rentals" only once there's one (Scott, 11/25) */
       const back = getCookie(c, AS_COOKIE);
-      if (back) { const o = await c.env.DB.prepare('SELECT u.name FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ? AND s.expires_at > ?').bind(back, now()).first<{ name: string | null }>().catch(() => null); row.as_from = o ? (o.name || 'admin').split(' ')[0] : null; }
+      if (back) { const o = await c.env.DB.prepare('SELECT u.id, u.name FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ? AND s.expires_at > ?').bind(back, now()).first<{ id: string; name: string | null }>().catch(() => null);
+        /* the admin logged in again as themself (or the saved session ran out): no "Viewing as" (Scott, 11/27) */
+        if (!o || o.id === row.id) deleteCookie(c, AS_COOKIE, { path: '/' }); else row.as_from = (o.name || 'admin').split(' ')[0]; }
       c.set('user', row);
     }
   }
@@ -153,6 +155,7 @@ export async function finishLogin(c: Context<{ Bindings: Env; Variables: Vars }>
   const user = await ensureUser(c.env.DB, phone);
   const sid = id('s');
   const exp = now() + SESSION_DAYS * 86400000;
+  deleteCookie(c, AS_COOKIE, { path: '/' }); /* a real login ends any "log in as" */
   await c.env.DB.prepare('INSERT INTO sessions (id, user_id, expires_at) VALUES (?,?,?)').bind(sid, user.id, exp).run();
   await logEvent(c.env.DB, 'login', { user: user.id, data: { ua: (c.req.header('user-agent') || '').slice(0, 160), ip_country: (c.req.raw as any).cf?.country ?? null } });
   if (/Android/i.test(c.req.header('user-agent') || '')) await c.env.DB.prepare('UPDATE users SET android = 1 WHERE id = ?').bind(user.id).run().catch(() => {});
@@ -180,6 +183,7 @@ export async function useLoginLink(c: Context<{ Bindings: Env; Variables: Vars }
   const [ph, nx] = row.code.split('|');
   const user = await ensureUser(c.env.DB, ph); if (nx) (user as any)._next = nx;
   const sid = id('s');
+  deleteCookie(c, AS_COOKIE, { path: '/' }); /* a real login ends any "log in as" */
   await c.env.DB.prepare('INSERT INTO sessions (id, user_id, expires_at) VALUES (?,?,?)').bind(sid, user.id, now() + SESSION_DAYS * 86400000).run();
   await logEvent(c.env.DB, 'login', { user: user.id, data: { via: 'link', ua: (c.req.header('user-agent') || '').slice(0, 160) } });
   if (/Android/i.test(c.req.header('user-agent') || '')) await c.env.DB.prepare('UPDATE users SET android = 1 WHERE id = ?').bind(user.id).run().catch(() => {});
@@ -220,6 +224,7 @@ export async function claimPair(c: Context<{ Bindings: Env; Variables: Vars }>):
   deleteCookie(c, PAIR, { path: '/' });
   const user = await ensureUser(c.env.DB, row.code.split('|')[0]);
   const sid = id('s');
+  deleteCookie(c, AS_COOKIE, { path: '/' }); /* a real login ends any "log in as" */
   await c.env.DB.prepare('INSERT INTO sessions (id, user_id, expires_at) VALUES (?,?,?)').bind(sid, user.id, now() + SESSION_DAYS * 86400000).run();
   await logEvent(c.env.DB, 'login', { user: user.id, data: { via: 'qr pair', ua: (c.req.header('user-agent') || '').slice(0, 160) } });
   setCookie(c, COOKIE, sid, { path: '/', httpOnly: true, sameSite: 'Lax', secure: c.env.APP_URL.startsWith('https'), maxAge: SESSION_DAYS * 86400 });
