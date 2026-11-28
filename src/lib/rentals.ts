@@ -291,7 +291,7 @@ export async function holdDeposit(env: Env, r: Rental): Promise<'held' | 'failed
   const { owner, renter, listing } = await parties(env, r);
   if (res === 'held') {
     await addMessage(env, r.id, null, `${money(r.deposit_cents!)} hold on ${firstName(renter.name)}'s card · OK to hand over`, 'system');
-    await textUser(env, renter, `${money(r.deposit_cents!)} hold (not a charge) is on your card until the ${shortOf(listing)} is back with ${firstName(owner.name)}. Reply OK to confirm`, 'money', r.id);
+    await textUser(env, renter, `${money(r.deposit_cents!)} hold (like a hotel check-in, not a charge) is on your card until the ${shortOf(listing)} is back with ${firstName(owner.name)}. Reply OK to confirm`, 'money', r.id);
   } else {
     await addMessage(env, r.id, null, `${firstName(renter.name)}'s card didn't take the ${money(r.deposit_cents!)} hold · hold off on handing it over`, 'system');
     await textUser(env, renter, `Your card didn't take the ${money(r.deposit_cents!)} hold for the ${shortOf(listing)}. Add a card so ${firstName(owner.name)} can hand it over: ${env.APP_URL}/r/${r.id}/card`, 'money', r.id);

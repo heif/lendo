@@ -161,7 +161,7 @@ rentals.get('/r/:id', requireUser, async (c) => {
           const chg = spots.length > 1 ? <u onclick="var d=document.querySelector('.rstrip');d.open=!d.open">Change</u> : null;
           const tot = money(r.total_cents + xTotal), earn = money(payoutOf(r) + xRent);
           const dep = (r.deposit_cents || 0) > 0 ? money(r.deposit_cents!) : '', dst = r.deposit_status;
-          const pickNote = !dep ? null : dst === 'held' || stage >= 2 ? (isOwner ? `✓ ${dep} hold on ${nm}'s card${stage === 1 ? ' · OK to hand over' : ''}` : `✓ ${dep} hold (not a charge) on your card`) : dst === 'failed' ? null : (isOwner ? `${dep} hold goes on ${nm}'s card` : `${dep} hold (not a charge) on your card`);
+          const pickNote = !dep ? null : dst === 'held' || stage >= 2 ? (isOwner ? `✓ ${dep} hold on ${nm}'s card${stage === 1 ? ' · OK to hand over' : ''}` : `✓ ${dep} hold (not a charge) on your card`) : dst === 'failed' ? null : (isOwner ? `${dep} hold goes on ${nm}'s card` : `${dep} hold on your card, like a hotel check-in, not a charge`);
           const retNote = !dep ? null : dst === 'captured' ? 'hold settled by the decision' : dst === 'released' ? `✓ ${dep} hold released` : stage === 3 && dst === 'held' ? (cl && cl.status !== 'withdrawn' ? `${dep} hold stays until the problem is decided` : `${dep} hold released within 24h`) : stage === 3 ? null : `${dep} hold released after it’s back`;
           /* A · clean list (11/22): one size, each step's detail on its own line, promise is a step, Cancel in a footer */
           const how = stage === 1 && !r.pickup_time ? `set a time with ${nm} in the chat` : stage === 2 && !r.return_time ? `set a return time with ${nm} in the chat` : null;

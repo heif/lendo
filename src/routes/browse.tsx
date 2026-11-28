@@ -740,7 +740,7 @@ browse.get('/terms', async (c) => {
           <li>Owners set prices and dates and must own what they list; customers pay the rent plus state and local tax</li>
           <li>Lendo charges owners a 15% fee out of the rent</li>
           <li>Cards are held when a rental is requested, charged when the owner says YES, and released on NO or expiry</li>
-          <li>Every rental has a deposit: a hold (not a charge) on the customer’s card for the item’s value, placed at pickup and released after return. It covers damage, missing parts, a late return (one day’s rent at the item’s daily price per started late day) and an item that isn’t returned. Lendo’s AI sets the value</li>
+          <li>Every rental has a deposit: a hold on the customer’s card for the item’s value (like a hotel check-in, not a charge), placed at pickup and released after return. It covers damage, missing parts, a late return (one day’s rent at the item’s daily price per started late day) and an item that isn’t returned. Lendo’s AI sets the value</li>
           <li>If an owner reports a problem (damage, missing parts, returned late, not returned), the owner and customer each give statements and photos, and Lendo’s AI decides what the customer owes, up to the hold. Either side can ask for one second look. After that the decision is final for both, and the amount is charged from the hold</li>
           <li>Money from a decision is released to the owner after a short video call with Lendo</li>
           <li>If a customer’s card company reverses a charge the AI decided, Lendo still pays the owner that amount, up to {money(cap)}, when the hold was on the card at handover</li>
