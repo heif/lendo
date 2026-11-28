@@ -514,7 +514,11 @@ var LH_IMG = null; (function () { var s = document.querySelector('.logo .lh svg'
     clearInterval(clockT);
     var escH = function (x) { return String(x).replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]; }); };
     var Lc = (j && j.listed) || [];
-    $('tray').innerHTML = shots.map(function (s, k) { var cu = s.cutUrl || (Lc[k] && Lc[k].cut); return '<img src="' + (cu || s.url) + '" alt="" class="dn2-img' + (cu ? ' cut' : '') + '" onload="if(this.classList.contains(\'cut\')&&window.trimImg)trimImg(this)" onerror="if(this.src!==\'' + s.url + '\'){this.src=\'' + s.url + '\';this.className=\'dn2-img\'}"><div class="dn2-pr">$' + s.price + '<small>/day</small></div><div class="dn2-nm">' + escH(s.name.trim()) + '</div>'; }).join('');
+    /* show something instantly: the in-flow cutout if it's already in memory, else the photo itself;
+       a server cutout (cold background-removal transform, seconds) loads behind it and swaps in when ready */
+    var local = function (u) { return !!u && /^(data|blob):/.test(u); };
+    $('tray').innerHTML = shots.map(function (s, k) { var cu = local(s.cutUrl) ? s.cutUrl : null; return '<img src="' + (cu || s.url) + '" alt="" data-k="' + k + '" class="dn2-img' + (cu ? ' cut' : '') + '" onload="if(this.classList.contains(\'cut\')&&window.trimImg)trimImg(this)"><div class="dn2-pr">$' + s.price + '<small>/day</small></div><div class="dn2-nm">' + escH(s.name.trim()) + '</div>'; }).join('');
+    shots.forEach(function (s, k) { if (local(s.cutUrl)) return; var remote = s.cutUrl || (Lc[k] && Lc[k].cut); if (!remote) return; var pre = new Image(); pre.onload = function () { var im = document.querySelector('#tray img[data-k="' + k + '"]'); if (!im) return; im.dataset.tr = ''; im.className = 'dn2-img cut'; im.src = remote; }; pre.src = remote; });
     /* tap the picture or name → the item page */
     var L0 = Lc[0]; if (L0) { var tr = $('tray'), a = document.createElement('a'); a.href = L0.url || '/i/' + L0.id; a.className = 'dn2-tray'; a.id = 'tray'; a.innerHTML = tr.innerHTML; tr.parentNode.replaceChild(a, tr); }
     $('dnHead').textContent = shots.length === 1 ? 'Posted' : shots.length + ' posted';
