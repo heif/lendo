@@ -205,8 +205,9 @@ export async function relay(env: Env, r: Rental, from: User, body: string, via: 
   const toId = from.id === r.owner_id ? r.renter_id : r.owner_id;
   const to = (await userById(env.DB, toId))!;
   const res = await textUser(env, to, `${firstName(from.name)}: ${body}\n\nChat: ${env.APP_URL}/r/${r.id}`, 'chat', r.id); /* link back to the chat on Lendo */ /* a person's words: no confirm ask; a reply goes back to them */
-  /* didn't reach their phone (paused / STOP): tell the sender instead of silence */
-  if (via === 'text' && !res?.ok) await textUser(env, from, `${firstName(to.name)} isn't getting texts right now — your message is in the chat ${env.APP_URL}/r/${r.id}`, 'rental', r.id);
+  /* only when it truly can't reach them (texts off, no email): emailed or waiting in their inbox = delivered, no notice (Scott, 11/28) */
+  const v = (res as { via?: string } | undefined)?.via;
+  if (via === 'text' && !res?.ok && v !== 'email') await textUser(env, from, `${firstName(to.name)} will see it next time they open Lendo · ${env.APP_URL}/r/${r.id}`, 'rental', r.id);
   if (from.id === r.owner_id && r.status === 'confirmed') await payoutAsk(env, r).catch(e => logErr(env.DB, 'payout ask', e, { rental: r.id })); /* owner answered the pickup-time ask: after their message goes through */
 }
 

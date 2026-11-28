@@ -281,6 +281,19 @@ export async function handleText(c: Context<{ Bindings: Env; Variables: Vars }>,
     // no pending rental request → an extension waiting for this owner?
     const hx = await heldExtForOwner(c.env, user.id);
     if (hx) { if (kw.startsWith('Y') || kw === 'ACCEPT') await acceptExt(c.env, hx); else await declineExt(c.env, hx, 'declined'); return c.json({ ok: true }); }
+    /* "YES 1a2b" / "NO 1a2b" for a request that's already answered (e.g. the YES button in the request email tapped later):
+       say where it stands; never relay the code into the chat (Scott, 11/28) */
+    if (coded) {
+      const old = (await c.env.DB.prepare(`SELECT * FROM rentals WHERE owner_id = ? ORDER BY created_at DESC LIMIT 50`).bind(user.id).all<Rental>()).results.find(x => x.id.slice(-4).toLowerCase() === coded[2].toLowerCase());
+      if (old) {
+        const nm = (await c.env.DB.prepare('SELECT short_name, name FROM listings WHERE id = ?').bind(old.listing_id).first<{ short_name: string | null; name: string }>()), item = nm?.short_name || nm?.name || 'item';
+        const cust = firstName((await userById(c.env.DB, old.renter_id))?.name || 'The customer');
+        const where = old.status === 'confirmed' ? `already a yes · ${cust} picks up ${fmtDay(old.start_day)}` : old.status === 'picked_up' ? `${cust} already has it` : old.status === 'returned' || old.status === 'closed' ? 'already done' : 'already closed';
+        await logEvent(c.env.DB, 'text.answered_already', { user: user.id, rental: old.id, data: { text: text.slice(0, 40), status: old.status } });
+        await textUser(c.env, user, `${item}: ${where} ${c.env.APP_URL}/r/${old.id}`, 'rental', old.id);
+        return c.json({ ok: true });
+      }
+    }
     // no pending request → fall through to relay
   }
 
