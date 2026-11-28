@@ -1,7 +1,7 @@
 import { shortOf } from './shortname';
 // Rental state transitions + the texts they trigger. Used by web routes, Stripe webhook, Blooio webhook and cron.
 import type { Env, Rental, User } from './env';
-import { logErr } from './log';
+import { logErr, logEvent } from './log';
 import { itemLink } from './urls';
 import { addMessage, busyDays, listingById, rentalById, setRentalStatus, userById } from './db';
 import { textUser } from './blooio';
@@ -97,10 +97,19 @@ export async function accept(env: Env, r0: Rental, rentCents?: number, quiet?: b
   const holdNote = (r.deposit_cents || 0) > 0 ? ` · ${money(r.deposit_cents!)} card hold (like a hotel check-in, not a charge) at pickup, off after an on-time return` : '';
   if (!quiet) await textUser(env, renter, `${firstName(owner.name)} said yes!${gift} · ${paidLine} · pickup ${fmtDay(r.start_day)}${r.pickup_time ? ' ' + hm12(r.pickup_time) : ''}${spot ? ' ·' + spot.replace(' Meet:', ' at') : ''}${r.pickup_time ? ' · back ' + fmtDay(backDay(r.end_day)) + ' ' + hm12(r.return_time || r.pickup_time) + ' (late = 1 day\'s rent per day, from the hold)' : ' (time coming from ' + firstName(owner.name) + ')'}${holdNote} · next: sign your promise (3 quick checks) ${url}#promise`, 'money', r.id);
   await textUser(env, owner, `${r.rent_cents === 0 ? 'Done — lending it free' : `Done. ${firstName(renter.name)} paid`}. When can ${firstName(renter.name)} pick it up? Reply a time (like "after 6"), or SKIP`, 'rental', r.id);
-  if (!owner.stripe_account_id && r.rent_cents > 0) {
-    await textUser(env, owner, `Where should your ${money(payoutOf(r))} go? Add a debit card or bank, takes 30 sec: ${env.APP_URL}/payout`, 'money', r.id);
-  }
+  if (r.pickup_time) await payoutAsk(env, r).catch(e => logErr(env.DB, 'payout ask', e, { rental: r.id })); /* time came with the YES: handoff already settled */
   return true;
+}
+
+/* "Where should your $X go?" waits until the handoff is settled (Scott, 11/28): the owner's time reply / any owner message
+   in the rental, SKIP, or a time that came with the YES; pickup is the backstop. Once per rental (events 'payout.ask') */
+export async function payoutAsk(env: Env, r: Rental) {
+  if (r.rent_cents <= 0) return;
+  const owner = await userById(env.DB, r.owner_id);
+  if (!owner || owner.stripe_account_id) return;
+  if (await env.DB.prepare(`SELECT 1 FROM events WHERE kind = 'payout.ask' AND rental_id = ? LIMIT 1`).bind(r.id).first()) return;
+  await logEvent(env.DB, 'payout.ask', { user: owner.id, rental: r.id });
+  await textUser(env, owner, `Where should your ${money(payoutOf(r))} go? Add a debit card or bank, takes 30 sec: ${env.APP_URL}/payout`, 'money', r.id);
 }
 
 export async function decline(env: Env, r: Rental, reason: 'declined' | 'expired' | 'canceled', quiet?: boolean) {
@@ -147,6 +156,7 @@ export async function pickedUp(env: Env, r: Rental, photoKey: string | null) {
   if (r.deposit_status === 'due' || r.deposit_status === 'failed') await holdDeposit(env, r); /* owner was shown the hold state before handing over */
   await setRentalStatus(env.DB, r.id, 'picked_up', { pickup_photo_key: photoKey });
   const { owner, renter, listing } = await parties(env, r);
+  await payoutAsk(env, r).catch(e => logErr(env.DB, 'payout ask', e, { rental: r.id })); /* backstop: never asked yet (no time reply, no SKIP) */
   await addMessage(env, r.id, null, photoKey ? `${firstName(owner.name)} took the pickup photo · time-stamped, you both have it` : `Picked up`, 'system');
   await textUser(env, renter, `You've got the ${shortOf(listing)} · back ${fmtDay(backDay(r.end_day))}${r.pickup_time ? ' around the same time' : ''} · reply OK to confirm`, 'pickup', r.id);
   try { if (await payoutRental(env, r, owner)) await textUser(env, owner, `${money(payoutOf(r))} is on its way to your account`, 'money', r.id); } catch (e) { await logErr(env.DB, 'payout failed', e, { rental: r.id }); }
@@ -193,6 +203,7 @@ export async function relay(env: Env, r: Rental, from: User, body: string, via: 
   const res = await textUser(env, to, `${firstName(from.name)}: ${body}\n\nChat: ${env.APP_URL}/r/${r.id}`, 'chat', r.id); /* link back to the chat on Lendo */ /* a person's words: no confirm ask; a reply goes back to them */
   /* didn't reach their phone (paused / STOP): tell the sender instead of silence */
   if (via === 'text' && !res?.ok) await textUser(env, from, `${firstName(to.name)} isn't getting texts right now — your message is in the chat ${env.APP_URL}/r/${r.id}`, 'rental', r.id);
+  if (from.id === r.owner_id && r.status === 'confirmed') await payoutAsk(env, r).catch(e => logErr(env.DB, 'payout ask', e, { rental: r.id })); /* owner answered the pickup-time ask: after their message goes through */
 }
 
 // the rental a texter most likely means (newest active one they're part of)

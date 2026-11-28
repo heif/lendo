@@ -12,7 +12,7 @@ import { parseInbound, textUser } from '../lib/blooio';
 import { linqParse, linqVerify } from '../lib/linq';
 import { ensureUser, rentalById, unpauseTexted, userByPhone, userById } from '../lib/db';
 import { loginLink, approvePair, pairNext } from '../lib/auth';
-import { parseHM, hm12, accept, activeRentalFor, decline, holdDeposit, markHeld, relay, heldTogether } from '../lib/rentals';
+import { parseHM, hm12, accept, activeRentalFor, decline, holdDeposit, markHeld, relay, heldTogether, payoutAsk } from '../lib/rentals';
 import { onDispute } from '../lib/claims';
 import { hmacHex, normPhone, timingSafeEq, firstName, money, fmtDay } from '../lib/util';
 
@@ -225,7 +225,10 @@ export async function handleText(c: Context<{ Bindings: Env; Variables: Vars }>,
     await textUser(c.env, user, `Alerts off. Turn any back on at ${c.env.APP_URL}/alerts`, 'rental');
     return c.json({ ok: true });
   }
-  if (kw === 'SKIP') { await textUser(c.env, user, `Ok — the customer can text you to set a time`, 'rental'); return c.json({ ok: true }); }
+  if (kw === 'SKIP') { await textUser(c.env, user, `Ok — the customer can text you to set a time`, 'rental');
+    const sk = await c.env.DB.prepare(`SELECT * FROM rentals WHERE owner_id = ? AND status = 'confirmed' ORDER BY updated_at DESC LIMIT 1`).bind(user.id).first<Rental>();
+    if (sk) await payoutAsk(c.env, sk); /* handoff left to the customer: settled enough to ask where the money goes */
+    return c.json({ ok: true }); }
   if (kw === 'LIST') { await textUser(c.env, user, `Point, tap, done: ${c.env.APP_URL}/list`, 'nudge'); return c.json({ ok: true }); }
   if (kw === 'HELP') { await textUser(c.env, user, `Lendo: neighbor-to-neighbor rentals. Reply YES/NO to a request. Help: ${c.env.APP_URL}/terms · Your rentals: ${c.env.APP_URL}/rentals · Msg & data rates may apply · Reply STOP to opt out`, 'rental'); return c.json({ ok: true }); }
 
