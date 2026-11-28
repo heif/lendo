@@ -78,7 +78,9 @@ export function estimateValue(l: Pick<Listing, 'price_cents'>): Valued {
 }
 
 async function ask(env: Env, l: Listing, appeal?: { text: string; photos: string[] }, timeoutMs = 25000): Promise<Valued | null> {
-  const keys = (await env.DB.prepare('SELECT r2_key FROM photos WHERE listing_id = ? ORDER BY pos LIMIT 2').bind(l.id).all<{ r2_key: string }>()).results.map(p => p.r2_key);
+  /* the owner's own photos only once they have one (a kept standard web photo isn't this unit) */
+  const keys = (await env.DB.prepare(`SELECT r2_key FROM photos WHERE listing_id = ? ${l.stock_photo ? '' : 'AND stock IS NOT 1'} ORDER BY pos LIMIT 2`).bind(l.id).all<{ r2_key: string }>()
+    .catch(() => env.DB.prepare('SELECT r2_key FROM photos WHERE listing_id = ? ORDER BY pos LIMIT 2').bind(l.id).all<{ r2_key: string }>())).results.map(p => p.r2_key);
   const imgs = (await Promise.all([...keys, ...(appeal?.photos || []).slice(0, 3)].map(k => imageBlock(env, k)))).filter(Boolean);
   const facts = [
     `Name: ${JSON.stringify(l.name)}`,

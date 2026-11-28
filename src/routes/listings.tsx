@@ -531,17 +531,18 @@ listings.post('/listings/:id/photos', requireUser, async (c) => {
     await c.env.DB.prepare('INSERT INTO photos (id, listing_id, r2_key, pos) VALUES (?,?,?,?)').bind(id('ph'), it.id, key, pos++).run();
   }
   if (!have) await recoverIcon(c, it.id, null);
-  /* first real photo replaces the standard one: it becomes the cover and the map icon */
+  /* first real photo becomes the cover and the map icon; the standard web photo stays after it, marked stock (Scott, 11/28: keep both) */
   if (it.stock_photo && pos > have) {
-    const ph = await photosFor(c.env.DB, it.id), real = ph.slice(have);
-    for (const p of ph.slice(0, have)) await c.env.DB.prepare('DELETE FROM photos WHERE id = ?').bind(p.id).run();
-    for (let i = 0; i < real.length; i++) await c.env.DB.prepare('UPDATE photos SET pos = ? WHERE id = ?').bind(i, real[i].id).run();
+    const ph = await photosFor(c.env.DB, it.id), real = ph.slice(have), web = ph.slice(0, have);
+    for (const p of web) await c.env.DB.prepare('UPDATE photos SET stock = 1 WHERE id = ?').bind(p.id).run().catch(() => null);
+    const order = [...real, ...web];
+    for (let i = 0; i < order.length; i++) await c.env.DB.prepare('UPDATE photos SET pos = ? WHERE id = ?').bind(i, order[i].id).run();
     await c.env.DB.prepare('UPDATE listings SET stock_photo = 0, avatar_key = NULL WHERE id = ?').bind(it.id).run();
     await logEvent(c.env.DB, 'listing.real_photo', { user: it.owner_id, listing: it.id });
     await recoverIcon(c, it.id, null);
   }
   // new photos get the same safety check as at listing time
-  const added = (await photosFor(c.env.DB, it.id)).slice(have).map(p => p.r2_key);
+  const added = (await photosFor(c.env.DB, it.id)).slice(it.stock_photo ? 0 : have, it.stock_photo ? pos - have : undefined).map(p => p.r2_key);
   if (added.length && it.status === 'live') c.executionCtx.waitUntil((async () => { for (const k of added) if (!(await checkListingPhoto(c.env, it.id, k))) break; })().catch(() => {}));
   return c.redirect(`/listings/${it.id}/edit`);
 });

@@ -164,7 +164,10 @@ async function caseFile(env: Env, cl: Claim): Promise<{ content: any[]; text: st
   };
   const msgs = (await env.DB.prepare(`SELECT sender_id, body, created_at FROM messages WHERE rental_id = ? ORDER BY created_at DESC LIMIT 80`).bind(cl.rental_id).all<{ sender_id: string | null; body: string; created_at: number }>()).results.reverse();
   const entries = await entriesFor(env, cl.id);
-  const lph = (await env.DB.prepare('SELECT r2_key FROM photos WHERE listing_id = ? ORDER BY pos LIMIT 2').bind(listing.id).all<{ r2_key: string }>()).results.map(p => p.r2_key);
+  /* a standard web photo kept next to the owner's real ones (photos.stock) is labeled as such, per photo */
+  const lphs = (await env.DB.prepare('SELECT r2_key, stock FROM photos WHERE listing_id = ? ORDER BY pos LIMIT 2').bind(listing.id).all<{ r2_key: string; stock: number | null }>()
+    .catch(() => env.DB.prepare('SELECT r2_key, NULL stock FROM photos WHERE listing_id = ? ORDER BY pos LIMIT 2').bind(listing.id).all<{ r2_key: string; stock: number | null }>())).results;
+  const lph = lphs.map(p => p.r2_key);
 
   const lines: string[] = [
     `CASE ${cl.id} · claim type: ${cl.kind}`,
@@ -184,7 +187,7 @@ async function caseFile(env: Env, cl: Claim): Promise<{ content: any[]; text: st
   ];
   const content: any[] = [], files: string[] = [];
   const pic = async (key: string | null | undefined, label: string) => { if (content.filter(b => b.type === 'image').length >= 16) return; const b = await imageBlock(env, key); if (b) { content.push({ type: 'text', text: label }, b); files.push(key!); } };
-  for (const [i, k] of lph.entries()) await pic(k, `LISTING PHOTO ${i + 1} (from the owner's listing${listing.stock_photo ? '; a standard web photo of the model, not this unit' : ', taken before this rental'}):`);
+  for (const [i, k] of lph.entries()) await pic(k, `LISTING PHOTO ${i + 1} (from the owner's listing${listing.stock_photo || lphs[i]?.stock === 1 ? '; a standard web photo of the model, not this unit' : ', taken before this rental'}):`);
   await pic(rental.pickup_photo_key, `PICKUP PHOTO (taken in Lendo by ${o} at handover, ${ts(at('rental.picked_up'))}; time is verified):`);
   await pic(rental.return_photo_key, `RETURN PHOTO (taken in Lendo by ${o} at return, ${ts(rental.returned_at || at('rental.returned'))}; time is verified):`);
   let n = 0;
