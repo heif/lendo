@@ -12,7 +12,7 @@ import { backfillUrls } from './lib/urls';
 import { selfMigrate } from './lib/migrate';
 import { escalateHolds } from './lib/escalate';
 import { morningBundle } from './lib/alerts';
-import { backfillAvatars, auditAvatars } from './lib/avatar';
+import { backfillAvatars, auditAvatars, rekeyAvatars } from './lib/avatar';
 import { fixDemoLand } from './lib/demo-land';
 import { hoodAt } from './lib/hoods';
 import { WANTED_ALL } from './lib/places';
@@ -100,6 +100,7 @@ export default {
     try { const k = await claimsTick(env); if (k) console.log(`claims: ${k}`); } catch (e) { console.warn('claims', e); }
     try { const v = await valueDue(env); if (v) console.log(`valued ${v} items`); } catch (e) { console.warn('value', e); }
     try { await shortDue(env); } catch (e) { console.warn('short names', e); }
+    try { const n = await rekeyAvatars(env); if (n) console.log(`rekeyed icons ${n}`); } catch (e) { console.warn('rekey icons', e); }
     // backfill custom icons for the wanted catalog, a few per tick (Flux + cutout each)
     try {
       const done = await iconsDone(env);

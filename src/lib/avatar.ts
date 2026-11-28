@@ -75,6 +75,16 @@ export async function buildAvatars(env: Env, listingId: string, photoKey: string
 // transparent sticker via Cloudflare Images background removal. The map pin switches to the icon ONLY when the transparent
 // version exists (until Images is enabled on the zone, pins keep the round photo sticker).
 // Retry listings whose sticker never landed (cutout failed at listing time, or icon never drawn). A few per cron tick.
+/* one-time move off the old fixed icon keys (avatar-cutout.png / avatar.png), which phones cached forever: redo from the current cover, a few per tick */
+export async function rekeyAvatars(env: Env, limit = 4): Promise<number> {
+  const rows = (await env.DB.prepare(`SELECT l.id, (SELECT r2_key FROM photos p WHERE p.listing_id = l.id ORDER BY pos LIMIT 1) k FROM listings l WHERE l.demo = 0 AND (l.avatar_key LIKE '%/avatar-cutout.png' OR l.avatar_key LIKE '%/avatar.png') ORDER BY l.created_at DESC LIMIT ?`).bind(limit).all<{ id: string; k: string | null }>()).results;
+  let n = 0;
+  for (const r of rows) { if (!r.k) { await env.DB.prepare('UPDATE listings SET avatar_key = NULL, avatar_style = NULL WHERE id = ?').bind(r.id).run(); continue; } await autoIcon(env, r.id, r.k); n++;
+    /* cutout failed: drop the stale icon so the photo shows (never retried forever) */
+    await env.DB.prepare(`UPDATE listings SET avatar_key = NULL, avatar_style = NULL WHERE id = ? AND (avatar_key LIKE '%/avatar-cutout.png' OR avatar_key LIKE '%/avatar.png')`).bind(r.id).run(); }
+  return n;
+}
+
 export async function backfillAvatars(env: Env, limit = 3): Promise<number> {
   const rows = (await env.DB.prepare(`SELECT l.id, l.name, l.description, (SELECT r2_key FROM photos p WHERE p.listing_id = l.id ORDER BY pos LIMIT 1) k FROM listings l WHERE l.status = 'live' AND l.avatar_key IS NULL ORDER BY l.created_at DESC LIMIT ?`).bind(limit).all<{ id: string; name: string; description: string | null; k: string | null }>()).results;
   let n = 0;
@@ -94,9 +104,12 @@ export async function backfillAvatars(env: Env, limit = 3): Promise<number> {
 export async function autoIcon(env: Env, listingId: string, photoKey: string, _name?: string, _description?: string | null): Promise<void> {
   try {
     const cut = await makeCutout(env, photoKey); if (!cut) return;
-    const key = `${listingId}/avatar-cutout.png`;
+    /* a new key every time: /p/ is cached for a year (immutable), so rewriting the same key left phones showing the old icon (Scott, 11/28) */
+    const key = `${listingId}/avatar-c${Date.now().toString(36)}.png`;
+    const prev = await env.DB.prepare('SELECT avatar_key FROM listings WHERE id = ?').bind(listingId).first<{ avatar_key: string | null }>();
     await env.PHOTOS.put(key, cut, { httpMetadata: { contentType: 'image/png' } });
     await env.DB.prepare(`UPDATE listings SET avatar_key = ?, avatar_style = 'cutout' WHERE id = ?`).bind(key, listingId).run();
+    if (prev?.avatar_key && prev.avatar_key !== key && /\/avatar-c[a-z0-9]+\.png$/.test(prev.avatar_key)) await env.PHOTOS.delete(prev.avatar_key).catch(() => {});
   } catch (e) { console.warn('autoIcon (cutout) failed', e); }
 }
 
