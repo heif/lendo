@@ -529,7 +529,11 @@ img.uav{background:#ddd}
 .pf-earn a,.pf-earn button{font-weight:800;font-size:13px;color:var(--ink);background:none;border:0;padding:0;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 .pitem .pstat{display:inline-block;margin-top:3px;font-size:11px;font-weight:800;background:#ECE8E0;border-radius:8px;padding:1px 7px}
 .pitem .pedit{display:inline-block;margin-top:4px;font-size:12px;font-weight:800;color:var(--ink);text-decoration:underline;text-underline-offset:2px}
-.pitem.off .pic{opacity:.5}
+.pitem.off .pic{opacity:.35;filter:grayscale(1)}
+/* paused on my stuff: grey photo + grey price + a chunky ink label across the picture (Scott, 11/28) */
+.pitem.off .ptag{background:#B9B4AA;box-shadow:none;border-color:#B9B4AA}
+.pitem.off .pnm{color:#8C877D}
+.pitem.off .pstat{position:absolute;left:50%;top:52px;transform:translateX(-50%) rotate(-4deg);margin:0;background:var(--ink);color:var(--cream,#F5F3EE);font-size:13px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;border-radius:8px;padding:4px 10px;white-space:nowrap;z-index:2}
 .pitem.just .pic{outline:3px solid var(--orange);outline-offset:2px;border-radius:12px}
 
 /* profile tiles: names and prices 15% bigger; edit is a pencil */
