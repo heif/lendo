@@ -1207,6 +1207,7 @@ input.otp{font-size:52px!important;padding:14px 0 14px .5em;border-radius:18px;m
 .radd-l a{border:2px solid var(--ink)}
 .zero-note{margin:6px 0 0;font-size:14px;color:#5A6A60}.zero-note b{color:var(--ink)}
 /* edit page price setter = the listing flow's −/+ tag (Scott, 11/27) */
+.prweek{margin:10px 0 0;font-size:14px;color:var(--ink2)}.prweek b{color:var(--ink);font-size:17px;font-weight:900}
 .prset{display:flex;align-items:center;gap:14px;margin-top:6px}
 .prset button{width:48px;height:48px;border:3px solid var(--ink);border-radius:14px;background:var(--cream);color:var(--ink);font:900 28px/1 inherit;box-shadow:0 3px 0 var(--ink);cursor:pointer;touch-action:manipulation}
 .prset button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}

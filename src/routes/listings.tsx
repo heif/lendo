@@ -436,8 +436,10 @@ a.forEach(function(x){var i=document.createElement('img');i.src=x.thumb||x.src;i
             {/* same −/+ price tag as the listing flow (Scott, 11/27); $0 = free lend, else at least the minimum */}
             <div class="prset" data-min={String((await minPriceCents(c.env)) / 100)}><button type="button" data-d="-1" aria-label="Lower price">−</button><span class="prset-tag"><b>${it.price_cents / 100}</b><small>/day</small></span><button type="button" data-d="1" aria-label="Raise price">+</button>
               <input type="hidden" name="price" value={String(it.price_cents / 100)} /></div>
+            {/* weekly is automatic (weekDefault: 30% off 7 days, whole dollars); shown so the owner sees it (Scott, 11/28) */}
+            <p class="prweek" id="prWeek" hidden={it.price_cents === 0}><b>{money(weekDefault(it.price_cents))}</b>/week · set automatically, 30% off 7 days</p>
             <script dangerouslySetInnerHTML={{ __html: `(function(){var w=document.querySelector('.prset');if(!w)return;var MIN=+w.dataset.min||1,i=w.querySelector('input'),b=w.querySelector('b'),t;
-function set(v){v=Math.max(0,Math.round(v));if(v>0&&v<MIN)v=v<+i.value?0:MIN;i.value=v;b.textContent='$'+v;var z=document.getElementById('zeroNote');if(z)z.hidden=v!==0}
+function set(v){v=Math.max(0,Math.round(v));if(v>0&&v<MIN)v=v<+i.value?0:MIN;i.value=v;b.textContent='$'+v;var z=document.getElementById('zeroNote');if(z)z.hidden=v!==0;var wk=document.getElementById('prWeek');if(wk){wk.hidden=v===0;wk.firstChild.textContent='$'+Math.round(v*100*7*.7/100)}}
 function step(d){set(+i.value+d*(+i.value>=50?5:1))}
 w.addEventListener('click',function(e){var x=e.target.closest('button');if(x)step(+x.dataset.d)});
 w.addEventListener('pointerdown',function(e){var x=e.target.closest('button');if(!x)return;t=setTimeout(function r(){step(+x.dataset.d);t=setTimeout(r,90)},450)});
