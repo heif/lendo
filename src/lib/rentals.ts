@@ -96,7 +96,11 @@ export async function accept(env: Env, r0: Rental, rentCents?: number, quiet?: b
   /* one text: yes + paid + pickup day + spot + hold; the time follows when the owner replies one */
   const holdNote = (r.deposit_cents || 0) > 0 ? ` · ${money(r.deposit_cents!)} card hold (like a hotel check-in, not a charge) at pickup, off after an on-time return` : '';
   if (!quiet) await textUser(env, renter, `${firstName(owner.name)} said yes!${gift} · ${paidLine} · pickup ${fmtDay(r.start_day)}${r.pickup_time ? ' ' + hm12(r.pickup_time) : ''}${spot ? ' ·' + spot.replace(' Meet:', ' at') : ''}${r.pickup_time ? ' · back ' + fmtDay(backDay(r.end_day)) + ' ' + hm12(r.return_time || r.pickup_time) + ' (late = 1 day\'s rent per day, from the hold)' : ' (time coming from ' + firstName(owner.name) + ')'}${holdNote} · next: sign your promise (3 quick checks) ${url}#promise`, 'money', r.id);
-  await textUser(env, owner, `${r.rent_cents === 0 ? 'Done — lending it free' : `Done. ${firstName(renter.name)} paid`}. When can ${firstName(renter.name)} pick it up? Reply a time (like "after 6"), or SKIP`, 'rental', r.id);
+  /* time came with the YES ("YES 6pm"): confirm it, don't ask again (Scott, 11/28) */
+  const done = r.rent_cents === 0 ? 'Done — lending it free' : `Done. ${firstName(renter.name)} paid`;
+  await textUser(env, owner, r.pickup_time
+    ? `${done} · pickup ${fmtDay(r.start_day)} ${hm12(r.pickup_time)} · back ${fmtDay(backDay(r.end_day))} ${hm12(r.return_time || r.pickup_time)}`
+    : `${done}. When can ${firstName(renter.name)} pick it up? Reply a time (like "after 6"), or SKIP`, 'rental', r.id);
   if (r.pickup_time) await payoutAsk(env, r).catch(e => logErr(env.DB, 'payout ask', e, { rental: r.id })); /* time came with the YES: handoff already settled */
   return true;
 }
