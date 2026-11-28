@@ -474,6 +474,9 @@ img.uav{background:#ddd}
 .pfcard{background:#fff;border:1.5px solid var(--line);border-radius:14px;overflow:hidden;margin:14px 0 0}
 .pfband{background:var(--ink);color:#fff;font-weight:800;font-size:15px;padding:9px 12px}
 .pfbody{padding:10px 10px 12px}
+.psort{display:flex;gap:6px;overflow-x:auto;margin:0 0 12px;padding-bottom:2px;scrollbar-width:none}.psort::-webkit-scrollbar{display:none}
+.psort button{flex:none;font:inherit;font-size:13px;font-weight:800;color:var(--ink);background:transparent;border:2px solid var(--ink);border-radius:999px;padding:5px 12px;cursor:pointer}
+.psort button.on{background:var(--ink);color:var(--cream)}
 .pgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px 10px}
 .pitem{display:block;text-align:center;position:relative;color:inherit;text-decoration:none}
 .pitem .pic{position:relative;height:122px;display:flex;align-items:center;justify-content:center}

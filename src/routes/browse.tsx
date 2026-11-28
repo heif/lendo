@@ -394,6 +394,8 @@ export const personPage = async (c: Ctx, uid: string) => {
   const just = me ? c.req.query('just') : null;
   const saved = me ? c.req.query('saved') : null;
   const ph = await firstPhotos(c.env.DB, items.results.map(r => r.id));
+  /* rentals per item, for the "Most rented" sort */
+  const rentN: Record<string, number> = Object.fromEntries((await c.env.DB.prepare(`SELECT listing_id id, COUNT(*) n FROM rentals WHERE owner_id = ? AND status IN ('confirmed','picked_up','returned','closed') GROUP BY listing_id`).bind(who.id).all<{ id: string; n: number }>()).results.map(r => [r.id, r.n]));
   const reviews = await c.env.DB.prepare(`SELECT r.renter_rating st, r.renter_review rv, r.updated_at at, u.name nm, l.name item, 'as owner' tag FROM rentals r JOIN users u ON u.id = r.renter_id JOIN listings l ON l.id = r.listing_id WHERE r.owner_id = ? AND r.renter_rating IS NOT NULL
     UNION ALL SELECT r.owner_rating, r.owner_review, r.updated_at, u.name, l.name, 'as renter' FROM rentals r JOIN users u ON u.id = r.owner_id JOIN listings l ON l.id = r.listing_id WHERE r.renter_id = ? AND r.owner_rating IS NOT NULL ORDER BY at DESC LIMIT 50`).bind(who.id, who.id).all<{ st: number; rv: string | null; at: number; nm: string | null; item: string; tag: string }>();
   const promoN = me ? ((await c.env.DB.prepare(`SELECT COUNT(*) n FROM listings WHERE owner_id = ? AND status IN ('live','paused') AND demo = 0`).bind(who.id).first<{ n: number }>())?.n ?? 0) : null;
@@ -435,9 +437,11 @@ export const personPage = async (c: Ctx, uid: string) => {
         <div class="pfcard">
           {saved ? <i hidden data-lh="nod"></i> : null}
           <div class="pfband">{nItems ? `${nItems} thing${nItems === 1 ? '' : 's'} to rent` : 'Nothing listed yet'}</div>
-          {nItems ? <div class="pfbody"><div class="pgrid">
+          {nItems ? <div class="pfbody">
+            {nItems > 1 ? <div class="psort" id="psort" role="group" aria-label="Sort">{[['new', 'Newest'], ['price', 'Price'], ['az', 'A–Z'], ['rented', 'Most rented'], ...(me && items.results.some(r => r.status !== 'live') ? [['paused', 'Paused']] : [])].map(([k, t], i) => <button type="button" data-s={k} class={i === 0 ? 'on' : ''}>{t}</button>)}</div> : null}
+            <div class="pgrid" id="pgrid">
             {items.results.map(it => (
-              <a class={'pitem' + (it.id === just ? ' just' : '') + (me && it.status !== 'live' ? ' off' : '')} href={'/i/' + it.id}>
+              <a class={'pitem' + (it.id === just ? ' just' : '') + (me && it.status !== 'live' ? ' off' : '')} href={'/i/' + it.id} data-t={String(it.created_at)} data-p={String(it.price_cents)} data-n={it.name.toLowerCase()} data-r={String(rentN[it.id] || 0)} data-off={me && it.status !== 'live' ? '1' : '0'}>
                 <div class="pic">
                   {it.avatar_key ? <img src={'/p/' + it.avatar_key} alt="" data-trim="1" /> : ph[it.id] ? <img src={'/c/' + ph[it.id] + '?s=300'} alt="" data-trim="1" loading="lazy" /> : <span style="font-size:44px">{it.emoji || '📦'}</span>}
                 </div>
@@ -447,7 +451,13 @@ export const personPage = async (c: Ctx, uid: string) => {
                 {me ? <object><a class="pedit" href={'/listings/' + it.id + '/edit'} aria-label={'Edit ' + it.name}><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z" fill="none" stroke="#1E3A2B" stroke-width="2.2" stroke-linejoin="round" /><path d="M13.5 6.5l4 4" stroke="#1E3A2B" stroke-width="2.2" /></svg></a></object> : null}
               </a>
             ))}
-          </div></div> : null}
+          </div>
+          {nItems > 1 ? raw(`<script>(function(){var g=document.getElementById('pgrid'),bar=document.getElementById('psort');if(!g||!bar)return;var K='lendo_psort',dir={price:-1};
+function go(k){var L=[].slice.call(g.children),f={new:function(a,b){return b.dataset.t-a.dataset.t},price:function(a,b){return dir.price*(a.dataset.p-b.dataset.p)||b.dataset.t-a.dataset.t},az:function(a,b){return a.dataset.n<b.dataset.n?-1:a.dataset.n>b.dataset.n?1:0},rented:function(a,b){return b.dataset.r-a.dataset.r||b.dataset.t-a.dataset.t},paused:function(a,b){return b.dataset.off-a.dataset.off||b.dataset.t-a.dataset.t}}[k];if(!f)return;L.sort(f).forEach(function(x){g.appendChild(x)});
+[].forEach.call(bar.children,function(b){b.classList.toggle('on',b.dataset.s===k);if(b.dataset.s==='price')b.textContent='Price '+(dir.price<0?'↓':'↑')});try{localStorage.setItem(K,k+(k==='price'?':'+dir.price:''))}catch(e){}}
+bar.addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;var k=b.dataset.s;if(k==='price'&&b.classList.contains('on'))dir.price=-dir.price;go(k)});
+try{var v=(localStorage.getItem(K)||'').split(':');if(v[1])dir.price=+v[1];if(v[0]&&bar.querySelector('[data-s="'+v[0]+'"]'))go(v[0])}catch(e){}})();</script>`) : null}
+          </div> : null}
         </div>
         <div class="pfcard">
           {saved ? <i hidden data-lh="nod"></i> : null}
