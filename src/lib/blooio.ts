@@ -63,7 +63,7 @@ export async function recordTap(env: Env, uid: string, what: string) {
 }
 export const TAP_RE = /^(Liked|Loved|Emphasized|Laughed at|Disliked|Questioned|Reacted\s.+\sto)\s[“"]/i;
 
-const WORTH = new Set<TextCategory>(['rental', 'money', 'pickup', 'chat']); /* worth a second channel; nudges/alerts/milestones never chase */
+const WORTH = new Set<TextCategory>(['rental', 'money', 'pickup', 'chat', 'alert']); /* worth a second channel (alerts = ones the person turned on); nudges/milestones never chase. Never count on the web inbox: people don't see it (Scott, 11/28) */
 const row = (env: Env, user: User, text: string, category: TextCategory, rentalId: string | undefined, pid: string | null) =>
   env.DB.prepare('INSERT INTO outbound_texts (id, user_id, body, category, rental_id, provider_id, created_at) VALUES (?,?,?,?,?,?,?)').bind(id('t'), user.id, text, category, rentalId ?? null, pid, now()).run();
 
@@ -85,7 +85,7 @@ export async function textUser(env: Env, user: User, text: string, category: Tex
     return r2;
   }
   const streak = await textStreak(env, user.id), allow = await textAllowance(env, user.id), left = allow - streak;
-  /* allowance used: never just hold. What matters goes out another way right now (SMS line if there is one, else email); the rest waits in the web inbox */
+  /* allowance used: never just hold. What matters goes out another way right now (SMS line if there is one, else email); nudges/milestones just don't go (the web inbox is a record, not a notification) */
   if (left <= 0 && category !== 'login') {
     let via = 'held', pid: string | null = null;
     if (WORTH.has(category)) {
