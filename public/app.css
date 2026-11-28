@@ -1222,3 +1222,6 @@ input.otp{font-size:52px!important;padding:14px 0 14px .5em;border-radius:18px;m
 .phmenu{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px}
 .phmenu-b{border:2.5px solid var(--ink);border-radius:12px;background:#fff;color:var(--ink);font:inherit;font-weight:800;font-size:15px;padding:10px 14px;cursor:pointer;box-shadow:0 3px 0 var(--ink)}
 .prset button{font-family:inherit!important;font-size:30px!important;font-weight:900!important;line-height:1!important}
+/* phone header: logo a bit bigger and centered on the row with the hood pill, chat and avatar (Scott, 11/28) */
+@media (max-width:420px){.hdr .logo{font-size:33px;letter-spacing:-1.7px;align-items:center}.hdr .logo .lh{margin-bottom:0}.hdr .logo .lh svg{height:1.15em}}
+@media (max-width:360px){.hdr .logo{font-size:31px}}
