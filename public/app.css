@@ -1225,3 +1225,5 @@ input.otp{font-size:52px!important;padding:14px 0 14px .5em;border-radius:18px;m
 /* phone header: logo a bit bigger and centered on the row with the hood pill, chat and avatar (Scott, 11/28) */
 @media (max-width:420px){.hdr .logo{font-size:33px;letter-spacing:-1.7px;align-items:center}.hdr .logo .lh{margin-bottom:0}.hdr .logo .lh svg{height:1.15em}}
 @media (max-width:360px){.hdr .logo{font-size:31px}}
+/* gift button: just "$5 off / $15/day item", no caps (Scott, 11/28) */
+.gb-tx,.promo .gb-tx,.promo.pu .gb-tx,.promo.incard .gb-tx{text-transform:none}
